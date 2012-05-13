@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
+  <Body>
+    <ACORD xmlns="http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/">
+      <SignonRq>
+        <SessKey />
+        <ClientDt />
+        <CustLangPref />
+        <ClientApp>
+          <Org p6:type="AssignedIdentifier" id="wewe" xmlns:p6="http://www.w3.org/2001/XMLSchema-instance" />
+          <Name />
+          <Version />
+        </ClientApp>
+        <ProxyClient>
+          <Org p6:type="AssignedIdentifier" id="erer" xmlns:p6="http://www.w3.org/2001/XMLSchema-instance" />
+          <Name>ererer</Name>
+          <Version>dfdf</Version>
+        </ProxyClient>
+      </SignonRq>
+      <InsuranceSvcRq>
+        <RqUID />
+        <SPName id="rter" />
+        <QuickHit xmlns="urn:com.thehartford.bi.acord-extensions">
+          <StateProvCd CodeListRef="dfdf" xmlns="http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/" />
+        </QuickHit>
+        <WorkCompPolicyQuoteInqRq>
+          <RqUID>erer</RqUID>
+          <TransactionRequestDt id="erer" />
+          <CurCd />
+          <BroadLOBCd id="erer" />
+          <InsuredOrPrincipal>
+            <ItemIdInfo>
+              <AgencyId id="3434" />
+              <OtherIdentifier>
+                <CommercialName id="3434" />
+                <ContractTerm>
+                  <EffectiveDt id="3434" />
+                  <StartTime id="3434" />
+                </ContractTerm>
+              </OtherIdentifier>
+            </ItemIdInfo>
+          </InsuredOrPrincipal>
+          <InsuredOrPrincipal>
+          </InsuredOrPrincipal>
+          <CommlPolicy>
+            <PolicyNumber id="3434" />
+            <LOBCd />
+          </CommlPolicy>
+          <WorkCompLineBusiness>
+            <LOBCd />
+            <WorkCompRateState>
+              <WorkCompLocInfo>
+              </WorkCompLocInfo>
+            </WorkCompRateState>
+          </WorkCompLineBusiness>
+          <RemarkText IdRef="">
+          </RemarkText>
+          <RemarkText IdRef="2323" id="3434">
+          </RemarkText>
+        </WorkCompPolicyQuoteInqRq>
+      </InsuranceSvcRq>
+    </ACORD>
+  </Body>
+</Envelope>
