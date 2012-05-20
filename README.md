@@ -1,17 +1,22 @@
-## Xml-Crypto
-A pure javascript xml digital signature library. Xml encryption is coming soon.
+## xml-crypto
+An xml digital signature library for node. Xml encryption is coming soon. Written is pure javascript!
 
-For more information visit my [blog](http://webservices20.blogspot.com/).
+For more information visit [my blog](http://webservices20.blogspot.com/).
 
 ## Install
 Install with [npm](http://github.com/isaacs/npm):
 
     npm install xml-crypto
 
-A pre requisite it to have [openssl](http://www.openssl.org/) installed and its /bin to be on the system path (this is so that node's built-in crypto module would work - xml-crypto does not use openssl directly)
-I used version 1.0.1c but it should probably work on older versions too.
+You (may) also need an xml parser and I recommend [xmldom](https://github.com/jindw/xmldom)
+
+    npm install xmldom
+
+A pre requisite it to have [openssl](http://www.openssl.org/) installed and its /bin to be on the system path. This is required by node's built-in crypto module - xml-crypto does not use openssl directly. I used version 1.0.1c but it should probably work on older versions too.
 
 ## Signing Xml documents
+Use this code:
+
 	var SignedXml = require('xml-crypto').SignedXml
 	  , FileKeyInfo = require('xml-crypto').FileKeyInfo  
 	  , fs = require('fs')
@@ -28,7 +33,32 @@ I used version 1.0.1c but it should probably work on older versions too.
 	sig.computeSignature(xml)
 	fs.writeFileSync("signed.xml", sig.getSignedXml())
 
+The result wil be:
+
+	<library>
+	  <book Id="_0">
+	    <name>Harry Potter</name>
+	  </book>
+	  <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+	    <SignedInfo>
+	      <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />
+	      <SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" />
+	      <Reference URI="#_0">
+	        <Transforms>
+	          <Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />
+	        </Transforms>
+	        <DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
+	        <DigestValue>cdiS43aFDQMnb3X8yaIUej3+z9Q=</DigestValue>
+	      </Reference>
+	    </SignedInfo>
+	    <SignatureValue>vhWzpQyIYuncHUZV9W...[long base64 removed]...</SignatureValue>
+	  </Signature>
+	</library>
+
+
 Notes:
+
+<script src="https://gist.github.com/2604494.js?file=gistfile1.cs"></script>
 
 sig.getSignedXml() returns the original xml document, with the signature pushed as the last child of the root node:
 
@@ -48,7 +78,7 @@ This assumes you are not signing the root node but only sub node(s), otherwise i
 This sample uses [xmldom](https://github.com/jindw/xmldom) for xml dom manipulation. 
 You can use whichever dom parser you want.
 
-	var select = require('xml-crypto').SelectNodes
+	var select = require('xml-crypto').xpath.SelectNodes
 	  , dom = require('xmldom').DOMParser
 	  , SignedXml = require('xml-crypto').SignedXml
 	  , FileKeyInfo = require('xml-crypto').FileKeyInfo  

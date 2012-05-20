@@ -1,7 +1,7 @@
-var select = require('./lib/xpath.js').SelectNodes
+var select = require('xml-crypto').xpath.SelectNodes
   , dom = require('xmldom').DOMParser
-  , SignedXml = require('./lib/signed-xml.js').SignedXml
-  , FileKeyInfo = require('./lib/signed-xml.js').FileKeyInfo  
+  , SignedXml = require('xml-crypto').SignedXml
+  , FileKeyInfo = require('xml-crypto').FileKeyInfo  
   , fs = require('fs')
 
 function signXml(xml, xpath, key, dest)
@@ -34,23 +34,16 @@ var xml = "<library>" +
 //sign an xml document
 signXml(xml, 
   "//*[local-name(.)='book']", 
-  "./test/static/client.pem", 
-  "c:\\temp\\result.xml")
+  "client.pem", 
+  "result.xml")
 
 console.log("xml signed succesfully")
 
-var signedXml = fs.readFileSync("c:\\temp\\result.xml").toString()
+var signedXml = fs.readFileSync("result.xml").toString()
 console.log("validating signature...")
 
 //validate an xml document
-if (validateXml(signedXml, "./test/static/client_public.pem"))
+if (validateXml(signedXml, "client_public.pem"))
   console.log("signature is valid")
 else
   console.log("signature not valid")
-
-  
-  
-  
-  
- 
-  
