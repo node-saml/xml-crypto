@@ -127,7 +127,7 @@ Implement it if you want to create a signature with a KeyInfo section, or you wa
 	    return fs.readFileSync("key.pem")
 	  }
 	}
-`````javascript
+`````
 
 A custom hash algorithm is used to calculate digests. Implement it if you want a hash other than the default SHA1.
 
