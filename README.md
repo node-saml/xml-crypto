@@ -8,15 +8,12 @@ Install with [npm](http://github.com/isaacs/npm):
 
     npm install xml-crypto
 
-You (may) also need an xml parser and I recommend [xmldom](https://github.com/jindw/xmldom)
-
-    npm install xmldom
-
-A pre requisite it to have [openssl](http://www.openssl.org/) installed and its /bin to be on the system path. This is required by node's built-in crypto module - xml-crypto does not use openssl directly. I used version 1.0.1c but it should probably work on older versions too.
+A pre requisite it to have [openssl](http://www.openssl.org/) installed and its /bin to be on the system path. I used version 1.0.1c but it should work on older versions too.
 
 ## Signing Xml documents
 Use this code:
 
+`````javascript
 	var SignedXml = require('xml-crypto').SignedXml
 	  , FileKeyInfo = require('xml-crypto').FileKeyInfo  
 	  , fs = require('fs')
@@ -33,8 +30,12 @@ Use this code:
 	sig.computeSignature(xml)
 	fs.writeFileSync("signed.xml", sig.getSignedXml())
 
+`````
+
 The result wil be:
 
+
+`````xml
 	<library>
 	  <book Id="_0">
 	    <name>Harry Potter</name>
@@ -54,29 +55,20 @@ The result wil be:
 	    <SignatureValue>vhWzpQyIYuncHUZV9W...[long base64 removed]...</SignatureValue>
 	  </Signature>
 	</library>
+`````
 
 
 Notes:
 
-<script src="https://gist.github.com/2604494.js?file=gistfile1.cs"></script>
-
-sig.getSignedXml() returns the original xml document, with the signature pushed as the last child of the root node:
-
-	<library>
-		<book>
-			...
-		</book>
-		<Signature>
-			...
-		</Signature>	
-	</library>
-
-This assumes you are not signing the root node but only sub node(s), otherwise it is not legal to put anything inside the root node (including the signature). If you do sign the root node, or have any other reason not to put the signature inside the signed document, you can alternatively call sig.getSignatureXml() to get just the signature element. You can then call sig.getOriginalXmlWithIds() to get the original xml, without the signature, but with the Id attrributes that the signature added on it so it can be validated.
+sig.getSignedXml() returns the original xml document with the signature pushed as the last child of the root node (as above). This assumes you are not signing the root node but only sub node(s) otherwise this is not valid. If you do sign the root node call sig.getSignatureXml() to get just the signature part and sig.getOriginalXmlWithIds() to get the original xml with Id attributes added on relevant elements (required for validation).
 
 ## Verifying Xml documents
 
-This sample uses [xmldom](https://github.com/jindw/xmldom) for xml dom manipulation. 
-You can use whichever dom parser you want.
+You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom) so you should install it:
+
+    npm install xmldom
+
+Then run:
 
 	var select = require('xml-crypto').xpath.SelectNodes
 	  , dom = require('xmldom').DOMParser
