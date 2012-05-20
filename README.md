@@ -64,12 +64,13 @@ sig.getSignedXml() returns the original xml document with the signature pushed a
 
 ## Verifying Xml documents
 
-You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom) so you should install it:
+You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom) so you should install it first:
 
     npm install xmldom
 
 Then run:
 
+`````javascript
 	var select = require('xml-crypto').xpath.SelectNodes
 	  , dom = require('xmldom').DOMParser
 	  , SignedXml = require('xml-crypto').SignedXml
@@ -85,10 +86,11 @@ Then run:
 	sig.loadSignature(signature.toString())
 	var res = sig.checkSignature(xml)
 	if (!res) console.log(sig.validationErrors)
+`````
 
 Note: 
 
-The xml-crypto api requires you to supply it separately the xml signature ("<Signature>...</Signature>") and the signed xml. The signed xml may contain the signature in it, but you are still required to supply the signature separately. As mentioned before, if the signature is inside the signed document it is not allowed to be under the scope of a signed element since it will make the signature invalid (unless special canonicalization is used).
+The xml-crypto api requires you to supply it separately the xml signature ("&lt;Signature&gt;...&lt;/Signature&gt;", in loadSignature) and the signed xml (in checkSignature). The signed xml may or may not contain the signature in it, but you are still required to supply the signature separately.
 
 ## Supported Algorithms
 The first release always uses the following algorithems:
@@ -100,24 +102,36 @@ The first release always uses the following algorithems:
 you are able to extend xml-crypto with further algorithms.
 
 ## Customizing Algorithms
-The following sample shows how to sign a message using custom algorithms:
+The following sample shows how to sign a message using custom algorithms.
 
+First import some modules:
+
+`````javascript
 	var SignedXml = require('xml-crypto').SignedXml
-	  , FileKeyInfo = require('xml-crypto').FileKeyInfo  
 	  , fs = require('fs')
+`````
 
-	/*A key info provider to extract and construct the key and the KeyInfo xml section*/
+
+Now define the extension point you want to implement. You can choose one ore more.
+
+A key info provider is used to extract and construct the key and the KeyInfo xml section.
+Implement it if you want to create a signature with a KeyInfo section, or you want to read your key in a different way then the default file read option.
+`````javascript
+	/**/
 	function MyKeyInfo() {
 	  this.getKeyInfo = function(key) {
-	    return "this will appear under <KeyInfo></KeyInfo>"
+	    return "<X509Data></X509Data>"
 	  }
 	  this.getKey = function(keyInfo) {
 	    //you can use the keyInfo parameter to extract the key in any way you want      
 	    return fs.readFileSync("key.pem")
 	  }
 	}
+`````javascript
 
-	/*A custom hash algorithm*/
+A custom hash algorithm is used to calculate digests. Implement it if you want a hash other than the default SHA1.
+
+`````javascript
 	function MyDigest() {
 
 
@@ -129,13 +143,15 @@ The following sample shows how to sign a message using custom algorithms:
 	    return "http://myDigestAlgorithm"
 	  }
 	}
+`````
 
-	/*A custom signing algorithm*/
+A custom signing algorithm. The default is RSA-SHA1
+`````javascript	
 	function MySignatureAlgorithm() {
 
 	  /*sign the given SignedInfo using the key. return base64 signature value*/
 	  this.getSignature = function(signedInfo, signingKey) {            
-	    return "signature as base64..."
+	    return "signature of signedInfo as base64..."
 	  }
 
 	  this.getAlgorithmName = function() {
@@ -143,25 +159,32 @@ The following sample shows how to sign a message using custom algorithms:
 	  }
 
 	}
+`````
 
-	/*Custom transformation (canonicalization) algorithm*/
+Custom transformation algorithm. The default is exclusive canonicalization.
+
+`````javascript	
 	function MyTransformation() {
 	  
 	  /*given a node (from the xmldom module) return its canonical representation (as string)*/
-	  this.process = function(node) {
-	    return "< x/>"
+	  this.process = function(node) {	  	
+	  	//you should apply your transformation before returning
+	    return node.toString()
 	  }
 
 	  this.getAlgorithmName = function() {
 	    return "http://myTransformation"
 	  }
 	}
+`````
+Custom canonicalization is actually the same as custom transformation. It is applied on the SignedInfo rather than on references.
 
-	/*Custom canonicalization algorithm. same as MyTransformation*/
+`````javascript
 	function MyCanonicalization() {
 
 	  /*given a node (from the xmldom module) return its canonical representation (as string)*/
 	  this.process = function(node) {
+	    //you should apply your transformation before returning
 	    return "< x/>"
 	  }
 
@@ -169,15 +192,22 @@ The following sample shows how to sign a message using custom algorithms:
 	    return "http://myCanonicalization"
 	  }
 	}
+`````
 
+Now you need to register the new algorithms:
+
+`````javascript
 	/*register all the custom algorithms*/
 
 	SignedXml.CanonicalizationAlgorithms["http://MyTransformation"] = MyTransformation
 	SignedXml.CanonicalizationAlgorithms["http://MyCanonicalization"] = MyCanonicalization
 	SignedXml.HashAlgorithms["http://myDigestAlgorithm"] = MyDigest
 	SignedXml.SignatureAlgorithms["http://mySigningAlgorithm"] = MySignatureAlgorithm
+`````
 
+Now do the signing. Note how we configure the signature to use the above algorithms:
 
+`````javascript
 	function signXml(xml, xpath, key, dest)
 	{
 	  var sig = new SignedXml()
@@ -204,6 +234,7 @@ The following sample shows how to sign a message using custom algorithms:
 	  "//*[local-name(.)='book']", 
 	  "client.pem", 
 	  "result.xml")
+`````
 
 You can always look at the actual code as a sample (or drop me a [mail](mailto:yaronn01@gmail.com)).
 
@@ -222,10 +253,12 @@ And for verification use key_public.pem:
 	-----END CERTIFICATE-----
 
 **Converting .pfx certificates to pem**
-Convert .pfx to .pem using openssl](http://www.openssl.org/):
+
+If you have .pfx certificates you can convert them to .pem using [openssl](http://www.openssl.org/):
+
 	openssl pkcs12 -in c:\certs\yourcert.pfx -out c:\certs\cag.pem
 
-Then you could use the result as is for the purpose of signing. For the purpose of validation open the .pem with a text editor and copy from -----BEGIN CERTIFICATE----- to  -----END CERTIFICATE----- (including) to a new .pem file.
+Then you could use the result as is for the purpose of signing. For the purpose of validation open the resulting .pem with a text editor and copy from -----BEGIN CERTIFICATE----- to  -----END CERTIFICATE----- (including) to a new text file and save it as .pem.
 
 ## More information
 Visit my [blog](http://webservices20.blogspot.com/) or my [twitter](http://twitter.com/#!/YaronNaveh)
