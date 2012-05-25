@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="http://tempuri.org/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" targetNamespace="http://tempuri.org/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://tempuri.org/">
+      <s:element name="EchoArr">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="arr" type="tns:ArrayOfInt" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfInt">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="int" type="s:int" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="EchoArrResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="EchoArrResult" type="tns:ArrayOfInt" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="EchoString">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="s" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="EchoStringResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="EchoStringResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="EchoComplex">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="cls" type="tns:Cls" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="Cls">
+        <s:sequence>
+          <s:element minOccurs="1" maxOccurs="1" name="i" type="s:int" />
+          <s:element minOccurs="0" maxOccurs="1" name="s" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="EchoComplexResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="EchoComplexResult" type="tns:Cls" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="EchoComplex1">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="cls" type="tns:Cls" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="EchoComplex1Response">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="EchoComplex1Result" type="tns:Cls" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="EchoArrSoapIn">
+    <wsdl:part name="parameters" element="tns:EchoArr" />
+  </wsdl:message>
+  <wsdl:message name="EchoArrSoapOut">
+    <wsdl:part name="parameters" element="tns:EchoArrResponse" />
+  </wsdl:message>
+  <wsdl:message name="EchoStringSoapIn">
+    <wsdl:part name="parameters" element="tns:EchoString" />
+  </wsdl:message>
+  <wsdl:message name="EchoStringSoapOut">
+    <wsdl:part name="parameters" element="tns:EchoStringResponse" />
+  </wsdl:message>
+  <wsdl:message name="EchoComplexSoapIn">
+    <wsdl:part name="parameters" element="tns:EchoComplex" />
+  </wsdl:message>
+  <wsdl:message name="EchoComplexSoapOut">
+    <wsdl:part name="parameters" element="tns:EchoComplexResponse" />
+  </wsdl:message>
+  <wsdl:message name="EchoComplex1SoapIn">
+    <wsdl:part name="parameters" element="tns:EchoComplex1" />
+  </wsdl:message>
+  <wsdl:message name="EchoComplex1SoapOut">
+    <wsdl:part name="parameters" element="tns:EchoComplex1Response" />
+  </wsdl:message>
+  <wsdl:portType name="SimpleServiceSoap">
+    <wsdl:operation name="EchoArr">
+      <wsdl:input message="tns:EchoArrSoapIn" />
+      <wsdl:output message="tns:EchoArrSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="EchoString">
+      <wsdl:input message="tns:EchoStringSoapIn" />
+      <wsdl:output message="tns:EchoStringSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="EchoComplex">
+      <wsdl:input message="tns:EchoComplexSoapIn" />
+      <wsdl:output message="tns:EchoComplexSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="EchoComplex1">
+      <wsdl:input message="tns:EchoComplex1SoapIn" />
+      <wsdl:output message="tns:EchoComplex1SoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="SimpleServiceSoap" type="tns:SimpleServiceSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="EchoArr">
+      <soap:operation soapAction="http://tempuri.org/EchoArr" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="EchoString">
+      <soap:operation soapAction="http://tempuri.org/EchoString" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="EchoComplex">
+      <soap:operation soapAction="http://tempuri.org/EchoComplex" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="EchoComplex1">
+      <soap:operation soapAction="http://tempuri.org/EchoComplex1" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="SimpleServiceSoap12" type="tns:SimpleServiceSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="EchoArr">
+      <soap12:operation soapAction="http://tempuri.org/EchoArr" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="EchoString">
+      <soap12:operation soapAction="http://tempuri.org/EchoString" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="EchoComplex">
+      <soap12:operation soapAction="http://tempuri.org/EchoComplex" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="EchoComplex1">
+      <soap12:operation soapAction="http://tempuri.org/EchoComplex1" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="SimpleService">
+    <wsdl:port name="SimpleServiceSoap" binding="tns:SimpleServiceSoap">
+      <soap:address location="http://localhost/MyWebServices/Services/SimpleService.asmx" />
+    </wsdl:port>
+    <wsdl:port name="SimpleServiceSoap12" binding="tns:SimpleServiceSoap12">
+      <soap12:address location="http://localhost/MyWebServices/Services/SimpleService.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>
