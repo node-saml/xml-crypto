@@ -14,8 +14,7 @@ A pre requisite it to have [openssl](http://www.openssl.org/) installed and its 
 Use this code:
 
 `````javascript
-	var SignedXml = require('xml-crypto').SignedXml
-	  , FileKeyInfo = require('xml-crypto').FileKeyInfo  
+	var SignedXml = require('xml-crypto').SignedXml	  
 	  , fs = require('fs')
 
 	var xml = "<library>" +
