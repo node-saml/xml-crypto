@@ -20,6 +20,6 @@
         "type" :  "MIT License",
         "url" :   "http://www.opensource.org/licenses/mit-license.php" }],
     "scripts":    {
-        "test": "nodeunit ./test/canonicalization-unit-tests.js ./test/signature-unit-tests.js ./test/saml-response-test.js"
+        "test": "nodeunit ./test/canonicalization-unit-tests.js ./test/signature-unit-tests.js ./test/saml-response-test.js ./test/signature-integration-tests.js"
     }
 }
