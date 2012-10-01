@@ -5,7 +5,7 @@
     "engines": { "node": ">=0.4.0" },
     "author": "Yaron Naveh (yaronn01@gmail.com, http://webservices20.blogspot.com/)",
     "dependencies": {
-        "xmldom": "=0.1.2"       
+        "xmldom": ">=0.1.8"
      },
      "devDependencies": {
         "nodeunit": ">=0.6.4"
