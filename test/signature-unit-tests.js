@@ -347,8 +347,14 @@ function verifyAddsId(test, mode, nsMode) {
   var xpath = "//*[local-name(.)='{elem}' and '_{id}' = @*[local-name(.)='Id' and namespace-uri(.)" + op + "'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd']]"
 
   //verify each of the signed nodes now has an "Id" attribute with the right value
-  xml_assert.nodeExists(test, doc, xpath.replace("{id}", "0").replace("{elem}", "x"))
-  xml_assert.nodeExists(test, doc, xpath.replace("{id}", "1").replace("{elem}", "y"))
-  xml_assert.nodeExists(test, doc, xpath.replace("{id}", "2").replace("{elem}", "w"))
+  nodeExists(test, doc, xpath.replace("{id}", "0").replace("{elem}", "x"))
+  nodeExists(test, doc, xpath.replace("{id}", "1").replace("{elem}", "y"))
+  nodeExists(test, doc, xpath.replace("{id}", "2").replace("{elem}", "w"))
  
+}
+
+function nodeExists(test, doc, xpath) {  
+  if (!doc && !xpath) return
+  var node = select(doc, xpath)
+  test.ok(node.length==1, "xpath " + xpath + " not found")
 }
