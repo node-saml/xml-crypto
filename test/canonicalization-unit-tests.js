@@ -163,7 +163,7 @@ module.exports = {
 
 "Exclusive canonicalization preserves empty start-end tag pairs": function (test) {
     compare(test, 
-      "<root><child><inner></inner</child></root>", 
+      "<root><child><inner></inner></child></root>", 
       "//*[local-name(.)='child']", 
       "<child><inner></inner></child>")
   }, 
