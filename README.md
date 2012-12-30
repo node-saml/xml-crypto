@@ -1,7 +1,7 @@
 ## xml-crypto
 An xml digital signature library for node. Xml encryption is coming soon. Written is pure javascript!
 
-For more information visit [my blog](http://webservices20.blogspot.com/).
+For more information visit [my blog](http://webservices20.blogspot.com/) or [my twitter](https://twitter.com/YaronNaveh).
 
 ## Install
 Install with [npm](http://github.com/isaacs/npm):
@@ -14,8 +14,7 @@ A pre requisite it to have [openssl](http://www.openssl.org/) installed and its 
 Use this code:
 
 `````javascript
-	var SignedXml = require('xml-crypto').SignedXml
-	  , FileKeyInfo = require('xml-crypto').FileKeyInfo  
+	var SignedXml = require('xml-crypto').SignedXml	  
 	  , fs = require('fs')
 
 	var xml = "<library>" +

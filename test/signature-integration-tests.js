@@ -21,7 +21,7 @@ module.exports = {
                     "<firstName>Joanne K</firstName>" +
                     "<lastName>Rowling</lastName>" +
                   "</author>" +
-                "</book>"
+                "</book>" +
               "</library>"
 
     verifySignature(test, xml, ["//*[local-name(.)='book']"])

@@ -1,11 +1,11 @@
 {
     "name": "xml-crypto",
-    "version": "0.0.6",
+    "version": "0.0.9",
     "description": "Xml digital signature and encryption library for Node.js",
     "engines": { "node": ">=0.4.0" },
     "author": "Yaron Naveh (yaronn01@gmail.com, http://webservices20.blogspot.com/)",
     "dependencies": {
-        "xmldom": ">=0.1.8"       
+        "xmldom": ">=0.1.8"
      },
      "devDependencies": {
         "nodeunit": ">=0.6.4"
@@ -20,6 +20,6 @@
         "type" :  "MIT License",
         "url" :   "http://www.opensource.org/licenses/mit-license.php" }],
     "scripts":    {
-        "test": "./node_modules/nodeunit/bin/nodeunit test"
+        "test": "nodeunit ./test/canonicalization-unit-tests.js ./test/signature-unit-tests.js ./test/saml-response-test.js ./test/signature-integration-tests.js"
     }
 }
