@@ -1,5 +1,5 @@
 ## xml-crypto
-An xml digital signature library for node. Xml encryption is coming soon. Written is pure javascript!
+An xml digital signature library for node. Xml encryption is coming soon. Written in pure javascript!
 
 For more information visit [my blog](http://webservices20.blogspot.com/) or [my twitter](https://twitter.com/YaronNaveh).
 
