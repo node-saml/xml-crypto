@@ -1,6 +1,7 @@
 var ExclusiveCanonicalization = require("../lib/exclusive-canonicalization").ExclusiveCanonicalization
   , Dom = require('xmldom').DOMParser
   , select = require('../lib/xpath.js').SelectNodes
+  , SignedXml = require('../lib/signed-xml.js').SignedXml
 
 
 var compare = function(test, xml, xpath, expected) {
@@ -8,7 +9,7 @@ var compare = function(test, xml, xpath, expected) {
     var doc = new Dom().parseFromString(xml)
     var elem = select(doc, xpath)[0]
     var can = new ExclusiveCanonicalization()
-    var result = can.process(elem)
+    var result = can.process(elem).toString()
     
     test.equal(expected, result)
     test.done()
@@ -284,5 +285,15 @@ module.exports = {
       "//*[local-name(.)='Body']", 
       "<Body xmlns=\"http://schemas.xmlsoap.org/soap/envelope/\">&#xD;    <ACORD xmlns=\"http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/\">&#xD;      <SignonRq>&#xD;        <SessKey></SessKey>&#xD;        <ClientDt></ClientDt>&#xD;        <CustLangPref></CustLangPref>&#xD;        <ClientApp>&#xD;          <Org xmlns:p6=\"http://www.w3.org/2001/XMLSchema-instance\" id=\"wewe\" p6:type=\"AssignedIdentifier\"></Org>&#xD;          <Name></Name>&#xD;          <Version></Version>&#xD;        </ClientApp>&#xD;        <ProxyClient>&#xD;          <Org xmlns:p6=\"http://www.w3.org/2001/XMLSchema-instance\" id=\"erer\" p6:type=\"AssignedIdentifier\"></Org>&#xD;          <Name>ererer</Name>&#xD;          <Version>dfdf</Version>&#xD;        </ProxyClient>&#xD;      </SignonRq>&#xD;      <InsuranceSvcRq>&#xD;        <RqUID></RqUID>&#xD;        <SPName id=\"rter\"></SPName>&#xD;        <QuickHit xmlns=\"urn:com.thehartford.bi.acord-extensions\">&#xD;          <StateProvCd xmlns=\"http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/\" CodeListRef=\"dfdf\"></StateProvCd>&#xD;        </QuickHit>&#xD;        <WorkCompPolicyQuoteInqRq>&#xD;          <RqUID>erer</RqUID>&#xD;          <TransactionRequestDt id=\"erer\"></TransactionRequestDt>&#xD;          <CurCd></CurCd>&#xD;          <BroadLOBCd id=\"erer\"></BroadLOBCd>&#xD;          <InsuredOrPrincipal>&#xD;            <ItemIdInfo>&#xD;              <AgencyId id=\"3434\"></AgencyId>&#xD;              <OtherIdentifier>&#xD;                <CommercialName id=\"3434\"></CommercialName>&#xD;                <ContractTerm>&#xD;                  <EffectiveDt id=\"3434\"></EffectiveDt>&#xD;                  <StartTime id=\"3434\"></StartTime>&#xD;                </ContractTerm>&#xD;              </OtherIdentifier>&#xD;            </ItemIdInfo>&#xD;          </InsuredOrPrincipal>&#xD;          <InsuredOrPrincipal>&#xD;          </InsuredOrPrincipal>&#xD;          <CommlPolicy>&#xD;            <PolicyNumber id=\"3434\"></PolicyNumber>&#xD;            <LOBCd></LOBCd>&#xD;          </CommlPolicy>&#xD;          <WorkCompLineBusiness>&#xD;            <LOBCd></LOBCd>&#xD;            <WorkCompRateState>&#xD;              <WorkCompLocInfo>&#xD;              </WorkCompLocInfo>&#xD;            </WorkCompRateState>&#xD;          </WorkCompLineBusiness>&#xD;          <RemarkText IdRef=\"\">&#xD;          </RemarkText>&#xD;          <RemarkText IdRef=\"2323\" id=\"3434\">&#xD;          </RemarkText>&#xD;        </WorkCompPolicyQuoteInqRq>&#xD;      </InsuranceSvcRq>&#xD;    </ACORD>&#xD;  </Body>")
   },
+
+  "Multiple Canonicalization with namespace definition outside of signed element": function (test) {
+      //var doc = new Dom().parseFromString("<x xmlns:p=\"myns\"><p:y><ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"></ds:Signature></p:y></x>")
+      var doc = new Dom().parseFromString("<x xmlns:p=\"myns\"><p:y></p:y></x>")
+      var node = select(doc, "//*[local-name(.)='y']")[0]      
+      var sig = new SignedXml()
+      var res = sig.getCanonXml(["http://www.w3.org/2000/09/xmldsig#enveloped-signature", "http://www.w3.org/2001/10/xml-exc-c14n#"], node)
+      test.equal("<p:y xmlns:p=\"myns\"></p:y>", res)
+      test.done()
+  }, 
  
 }
