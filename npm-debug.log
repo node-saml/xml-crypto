@@ -1,0 +1,300 @@
+0 info it worked if it ends with ok
+1 verbose cli [ 'nodejs', '/usr/bin/npm', 'publish' ]
+2 info using npm@1.1.69
+3 info using node@v0.8.16
+4 verbose publish [ '.' ]
+5 verbose read json /home/storm/work/xml-crypto/package.json
+6 verbose cache add [ '.', null ]
+7 silly cache add name=undefined spec="." args=[".",null]
+8 verbose parsed url { pathname: '.', path: '.', href: '.' }
+9 silly lockFile 3a52ce78- .
+10 verbose lock . /home/storm/.npm/3a52ce78-.lock
+11 verbose read json package.json
+12 verbose tar pack [ '/home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/tmp.tgz',
+12 verbose tar pack   '.' ]
+13 verbose tarball /home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/tmp.tgz
+14 verbose folder .
+15 info prepublish xml-crypto@0.0.11
+16 silly lockFile 953274d5-31149-0-6440281190443784-tmp-tgz /home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/tmp.tgz
+17 verbose lock /home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/tmp.tgz /home/storm/.npm/953274d5-31149-0-6440281190443784-tmp-tgz.lock
+18 silly lockFile 953274d5-31149-0-6440281190443784-tmp-tgz /home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/tmp.tgz
+19 verbose tar unpack /home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/tmp.tgz
+20 silly lockFile 3b37c086-31149-0-6440281190443784-package /home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/package
+21 verbose lock /home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/package /home/storm/.npm/3b37c086-31149-0-6440281190443784-package.lock
+22 silly gunzTarPerm modes [ '755', '644' ]
+23 silly gunzTarPerm extractEntry package.json
+24 silly gunzTarPerm modified mode [ 'package.json', 436, 420 ]
+25 silly gunzTarPerm extractEntry .npmignore
+26 silly gunzTarPerm modified mode [ '.npmignore', 436, 420 ]
+27 silly gunzTarPerm extractEntry README.md
+28 silly gunzTarPerm modified mode [ 'README.md', 436, 420 ]
+29 silly gunzTarPerm extractEntry index.js
+30 silly gunzTarPerm modified mode [ 'index.js', 436, 420 ]
+31 silly gunzTarPerm extractEntry .travis.yml
+32 silly gunzTarPerm modified mode [ '.travis.yml', 436, 420 ]
+33 silly gunzTarPerm extractEntry test/saml-response-test.js
+34 silly gunzTarPerm modified mode [ 'test/saml-response-test.js', 436, 420 ]
+35 silly gunzTarPerm extractEntry test/signature-unit-tests.js
+36 silly gunzTarPerm modified mode [ 'test/signature-unit-tests.js', 436, 420 ]
+37 silly gunzTarPerm extractEntry test/canonicalization-unit-tests.js
+38 silly gunzTarPerm modified mode [ 'test/canonicalization-unit-tests.js', 436, 420 ]
+39 silly gunzTarPerm extractEntry test/signature-integration-tests.js
+40 silly gunzTarPerm modified mode [ 'test/signature-integration-tests.js', 436, 420 ]
+41 silly gunzTarPerm extractEntry test/xml-assert.js
+42 silly gunzTarPerm modified mode [ 'test/xml-assert.js', 436, 420 ]
+43 silly gunzTarPerm extractEntry test/static/valid_signature.xml
+44 silly gunzTarPerm modified mode [ 'test/static/valid_signature.xml', 436, 420 ]
+45 silly gunzTarPerm extractEntry test/static/valid_saml.xml
+46 silly gunzTarPerm modified mode [ 'test/static/valid_saml.xml', 436, 420 ]
+47 silly gunzTarPerm extractEntry test/static/invalid_signature - wsu - hash.xml
+48 silly gunzTarPerm modified mode [ 'test/static/invalid_signature - wsu - hash.xml', 436, 420 ]
+49 silly gunzTarPerm extractEntry test/static/client_public.pem
+50 silly gunzTarPerm modified mode [ 'test/static/client_public.pem', 436, 420 ]
+51 silly gunzTarPerm extractEntry test/static/valid_signature wsu.xml
+52 silly gunzTarPerm modified mode [ 'test/static/valid_signature wsu.xml', 436, 420 ]
+53 silly gunzTarPerm extractEntry test/static/feide_public.pem
+54 silly gunzTarPerm modified mode [ 'test/static/feide_public.pem', 436, 420 ]
+55 silly gunzTarPerm extractEntry test/static/invalid_signature - wsu - invalid signature value.xml
+56 silly gunzTarPerm modified mode [ 'test/static/invalid_signature - wsu - invalid signature value.xml',
+56 silly gunzTarPerm   436,
+56 silly gunzTarPerm   420 ]
+57 silly gunzTarPerm extractEntry test/static/valid_signature_with_reference_keyInfo.xml
+58 silly gunzTarPerm modified mode [ 'test/static/valid_signature_with_reference_keyInfo.xml',
+58 silly gunzTarPerm   436,
+58 silly gunzTarPerm   420 ]
+59 silly gunzTarPerm extractEntry test/static/invalid_signature - hash.xml
+60 silly gunzTarPerm modified mode [ 'test/static/invalid_signature - hash.xml', 436, 420 ]
+61 silly gunzTarPerm extractEntry test/static/invalid_signature - wsu - changed content.xml
+62 silly gunzTarPerm modified mode [ 'test/static/invalid_signature - wsu - changed content.xml',
+62 silly gunzTarPerm   436,
+62 silly gunzTarPerm   420 ]
+63 silly gunzTarPerm extractEntry test/static/invalid_signature - changed content.xml
+64 silly gunzTarPerm modified mode [ 'test/static/invalid_signature - changed content.xml',
+64 silly gunzTarPerm   436,
+64 silly gunzTarPerm   420 ]
+65 silly gunzTarPerm extractEntry test/static/client.pem
+66 silly gunzTarPerm modified mode [ 'test/static/client.pem', 436, 420 ]
+67 silly gunzTarPerm extractEntry test/static/invalid_signature - wsu - non existing reference.xml
+68 silly gunzTarPerm modified mode [ 'test/static/invalid_signature - wsu - non existing reference.xml',
+68 silly gunzTarPerm   436,
+68 silly gunzTarPerm   420 ]
+69 silly gunzTarPerm extractEntry test/static/invalid_signature - non existing reference.xml
+70 silly gunzTarPerm modified mode [ 'test/static/invalid_signature - non existing reference.xml',
+70 silly gunzTarPerm   436,
+70 silly gunzTarPerm   420 ]
+71 silly gunzTarPerm extractEntry test/static/invalid_signature - signature value.xml
+72 silly gunzTarPerm modified mode [ 'test/static/invalid_signature - signature value.xml',
+72 silly gunzTarPerm   436,
+72 silly gunzTarPerm   420 ]
+73 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities.sln
+74 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities.sln',
+74 silly gunzTarPerm   436,
+74 silly gunzTarPerm   420 ]
+75 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.vshost.exe
+76 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.vshost.exe',
+76 silly gunzTarPerm   436,
+76 silly gunzTarPerm   420 ]
+77 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.vshost.exe.manifest
+78 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.vshost.exe.manifest',
+78 silly gunzTarPerm   436,
+78 silly gunzTarPerm   420 ]
+79 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.exe
+80 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.exe',
+80 silly gunzTarPerm   436,
+80 silly gunzTarPerm   420 ]
+81 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.pdb
+82 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.pdb',
+82 silly gunzTarPerm   436,
+82 silly gunzTarPerm   420 ]
+83 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/signedExample.xml
+84 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/signedExample.xml',
+84 silly gunzTarPerm   436,
+84 silly gunzTarPerm   420 ]
+85 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/ClientPrivate.pfx
+86 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/ClientPrivate.pfx',
+86 silly gunzTarPerm   436,
+86 silly gunzTarPerm   420 ]
+87 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/Example.xml
+88 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/Example.xml',
+88 silly gunzTarPerm   436,
+88 silly gunzTarPerm   420 ]
+89 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/ValidateSignature.csproj
+90 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/ValidateSignature.csproj',
+90 silly gunzTarPerm   436,
+90 silly gunzTarPerm   420 ]
+91 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/obj/x86/Debug/ValidateSignature.csproj.FileListAbsolute.txt
+92 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/obj/x86/Debug/ValidateSignature.csproj.FileListAbsolute.txt',
+92 silly gunzTarPerm   436,
+92 silly gunzTarPerm   420 ]
+93 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/obj/x86/Debug/DesignTimeResolveAssemblyReferencesInput.cache
+94 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/obj/x86/Debug/DesignTimeResolveAssemblyReferencesInput.cache',
+94 silly gunzTarPerm   436,
+94 silly gunzTarPerm   420 ]
+95 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/obj/x86/Debug/XmlCryptoUtilities.exe
+96 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/obj/x86/Debug/XmlCryptoUtilities.exe',
+96 silly gunzTarPerm   436,
+96 silly gunzTarPerm   420 ]
+97 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/obj/x86/Debug/XmlCryptoUtilities.pdb
+98 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/obj/x86/Debug/XmlCryptoUtilities.pdb',
+98 silly gunzTarPerm   436,
+98 silly gunzTarPerm   420 ]
+99 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/utilities.cs
+100 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/utilities.cs',
+100 silly gunzTarPerm   436,
+100 silly gunzTarPerm   420 ]
+101 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/Program.cs
+102 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/Program.cs',
+102 silly gunzTarPerm   436,
+102 silly gunzTarPerm   420 ]
+103 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/Properties/AssemblyInfo.cs
+104 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities/Properties/AssemblyInfo.cs',
+104 silly gunzTarPerm   436,
+104 silly gunzTarPerm   420 ]
+105 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities.suo
+106 silly gunzTarPerm modified mode [ 'test/validators/XmlCryptoUtilities/XmlCryptoUtilities.suo',
+106 silly gunzTarPerm   436,
+106 silly gunzTarPerm   420 ]
+107 silly gunzTarPerm extractEntry lib/signed-xml.js
+108 silly gunzTarPerm modified mode [ 'lib/signed-xml.js', 436, 420 ]
+109 silly gunzTarPerm extractEntry lib/exclusive-canonicalization.js
+110 silly gunzTarPerm modified mode [ 'lib/exclusive-canonicalization.js', 436, 420 ]
+111 silly gunzTarPerm extractEntry lib/enveloped-signature.js
+112 silly gunzTarPerm modified mode [ 'lib/enveloped-signature.js', 436, 420 ]
+113 silly gunzTarPerm extractEntry lib/xpath.js
+114 silly gunzTarPerm modified mode [ 'lib/xpath.js', 436, 420 ]
+115 silly gunzTarPerm extractEntry lib/utils.js
+116 silly gunzTarPerm modified mode [ 'lib/utils.js', 436, 420 ]
+117 silly gunzTarPerm extractEntry example/example.js
+118 silly gunzTarPerm modified mode [ 'example/example.js', 436, 420 ]
+119 silly gunzTarPerm extractEntry example/client_public.pem
+120 silly gunzTarPerm modified mode [ 'example/client_public.pem', 436, 420 ]
+121 silly gunzTarPerm extractEntry example/client.pem
+122 silly gunzTarPerm modified mode [ 'example/client.pem', 436, 420 ]
+123 silly gunzTarPerm extractEntry .testdeps_.json
+124 silly gunzTarPerm modified mode [ '.testdeps_.json', 436, 420 ]
+125 verbose read json /home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/package/package.json
+126 silly lockFile 3b37c086-31149-0-6440281190443784-package /home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/package
+127 verbose from cache /home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/package/package.json
+128 verbose tar pack [ '/home/storm/.npm/xml-crypto/0.0.11/package.tgz',
+128 verbose tar pack   '/home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/package' ]
+129 verbose tarball /home/storm/.npm/xml-crypto/0.0.11/package.tgz
+130 verbose folder /home/storm/tmp/npm-5176/1370685831149-0.6440281190443784/package
+131 silly lockFile 16bdbd62-pm-xml-crypto-0-0-11-package-tgz /home/storm/.npm/xml-crypto/0.0.11/package.tgz
+132 verbose lock /home/storm/.npm/xml-crypto/0.0.11/package.tgz /home/storm/.npm/16bdbd62-pm-xml-crypto-0-0-11-package-tgz.lock
+133 silly lockFile 16bdbd62-pm-xml-crypto-0-0-11-package-tgz /home/storm/.npm/xml-crypto/0.0.11/package.tgz
+134 silly lockFile 999b3f93-rm-npm-xml-crypto-0-0-11-package /home/storm/.npm/xml-crypto/0.0.11/package
+135 verbose lock /home/storm/.npm/xml-crypto/0.0.11/package /home/storm/.npm/999b3f93-rm-npm-xml-crypto-0-0-11-package.lock
+136 silly lockFile 999b3f93-rm-npm-xml-crypto-0-0-11-package /home/storm/.npm/xml-crypto/0.0.11/package
+137 verbose tar unpack /home/storm/.npm/xml-crypto/0.0.11/package.tgz
+138 silly lockFile 999b3f93-rm-npm-xml-crypto-0-0-11-package /home/storm/.npm/xml-crypto/0.0.11/package
+139 verbose lock /home/storm/.npm/xml-crypto/0.0.11/package /home/storm/.npm/999b3f93-rm-npm-xml-crypto-0-0-11-package.lock
+140 silly gunzTarPerm modes [ '755', '644' ]
+141 silly gunzTarPerm extractEntry package.json
+142 silly gunzTarPerm extractEntry .npmignore
+143 silly gunzTarPerm extractEntry README.md
+144 silly gunzTarPerm extractEntry index.js
+145 silly gunzTarPerm extractEntry .travis.yml
+146 silly gunzTarPerm extractEntry test/saml-response-test.js
+147 silly gunzTarPerm extractEntry test/signature-unit-tests.js
+148 silly gunzTarPerm extractEntry test/canonicalization-unit-tests.js
+149 silly gunzTarPerm extractEntry test/signature-integration-tests.js
+150 silly gunzTarPerm extractEntry test/xml-assert.js
+151 silly gunzTarPerm extractEntry test/static/valid_signature.xml
+152 silly gunzTarPerm extractEntry test/static/valid_saml.xml
+153 silly gunzTarPerm extractEntry test/static/invalid_signature - wsu - hash.xml
+154 silly gunzTarPerm extractEntry test/static/client_public.pem
+155 silly gunzTarPerm extractEntry test/static/valid_signature wsu.xml
+156 silly gunzTarPerm extractEntry test/static/feide_public.pem
+157 silly gunzTarPerm extractEntry test/static/invalid_signature - wsu - invalid signature value.xml
+158 silly gunzTarPerm extractEntry test/static/valid_signature_with_reference_keyInfo.xml
+159 silly gunzTarPerm extractEntry test/static/invalid_signature - hash.xml
+160 silly gunzTarPerm extractEntry test/static/invalid_signature - wsu - changed content.xml
+161 silly gunzTarPerm extractEntry test/static/invalid_signature - changed content.xml
+162 silly gunzTarPerm extractEntry test/static/client.pem
+163 silly gunzTarPerm extractEntry test/static/invalid_signature - wsu - non existing reference.xml
+164 silly gunzTarPerm extractEntry test/static/invalid_signature - non existing reference.xml
+165 silly gunzTarPerm extractEntry test/static/invalid_signature - signature value.xml
+166 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities.sln
+167 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.vshost.exe
+168 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.vshost.exe.manifest
+169 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.exe
+170 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.pdb
+171 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/signedExample.xml
+172 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/ClientPrivate.pfx
+173 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/Example.xml
+174 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/ValidateSignature.csproj
+175 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/obj/x86/Debug/ValidateSignature.csproj.FileListAbsolute.txt
+176 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/obj/x86/Debug/DesignTimeResolveAssemblyReferencesInput.cache
+177 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/obj/x86/Debug/XmlCryptoUtilities.exe
+178 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/obj/x86/Debug/XmlCryptoUtilities.pdb
+179 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/utilities.cs
+180 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/Program.cs
+181 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities/Properties/AssemblyInfo.cs
+182 silly gunzTarPerm extractEntry test/validators/XmlCryptoUtilities/XmlCryptoUtilities.suo
+183 silly gunzTarPerm extractEntry lib/signed-xml.js
+184 silly gunzTarPerm extractEntry lib/exclusive-canonicalization.js
+185 silly gunzTarPerm extractEntry lib/enveloped-signature.js
+186 silly gunzTarPerm extractEntry lib/xpath.js
+187 silly gunzTarPerm extractEntry lib/utils.js
+188 silly gunzTarPerm extractEntry example/example.js
+189 silly gunzTarPerm extractEntry example/client_public.pem
+190 silly gunzTarPerm extractEntry example/client.pem
+191 silly gunzTarPerm extractEntry .testdeps_.json
+192 verbose read json /home/storm/.npm/xml-crypto/0.0.11/package/package.json
+193 silly lockFile 999b3f93-rm-npm-xml-crypto-0-0-11-package /home/storm/.npm/xml-crypto/0.0.11/package
+194 silly shasum updated bytes 40960
+195 silly shasum updated bytes 30266
+196 info shasum 5dc2872ef5180d587a01e3caa3da00acae359b24
+196 info shasum /home/storm/.npm/xml-crypto/0.0.11/package.tgz
+197 verbose from cache /home/storm/.npm/xml-crypto/0.0.11/package/package.json
+198 verbose chmod /home/storm/.npm/xml-crypto/0.0.11/package.tgz 644
+199 verbose chown /home/storm/.npm/xml-crypto/0.0.11/package.tgz [ 1000, 1000 ]
+200 silly lockFile 3a52ce78- .
+201 silly publish { name: 'xml-crypto',
+201 silly publish   version: '0.0.11',
+201 silly publish   description: 'Xml digital signature and encryption library for Node.js',
+201 silly publish   engines: { node: '>=0.4.0' },
+201 silly publish   author:
+201 silly publish    { name: 'Yaron Naveh',
+201 silly publish      url: 'yaronn01@gmail.com, http://webservices20.blogspot.com/' },
+201 silly publish   dependencies: { xmldom: '>=0.1.9' },
+201 silly publish   devDependencies: { nodeunit: '>=0.6.4' },
+201 silly publish   repository: { type: 'git', url: 'https://github.com/yaronn/xml-crypto.git' },
+201 silly publish   main: './index.js',
+201 silly publish   directories: { lib: './lib' },
+201 silly publish   keywords:
+201 silly publish    [ 'xml',
+201 silly publish      'digital signature',
+201 silly publish      'xml encryption',
+201 silly publish      'x.509 certificate' ],
+201 silly publish   licenses:
+201 silly publish    [ { type: 'MIT License',
+201 silly publish        url: 'http://www.opensource.org/licenses/mit-license.php' } ],
+201 silly publish   scripts: { test: 'nodeunit ./test/canonicalization-unit-tests.js ./test/signature-unit-tests.js ./test/saml-response-test.js ./test/signature-integration-tests.js' },
+201 silly publish   readme: '## xml-crypto\r\nAn xml digital signature library for node. Xml encryption is coming soon. Written in pure javascript!\r\n\r\nFor more information visit [my blog](http://webservices20.blogspot.com/) or [my twitter](https://twitter.com/YaronNaveh).\r\n\r\n## Install\r\nInstall with [npm](http://github.com/isaacs/npm):\r\n\r\n    npm install xml-crypto\r\n\r\nA pre requisite it to have [openssl](http://www.openssl.org/) installed and its /bin to be on the system path. I used version 1.0.1c but it should work on older versions too.\r\n\r\n## Signing Xml documents\r\nUse this code:\r\n\r\n`````javascript\r\n\tvar SignedXml = require(\'xml-crypto\').SignedXml\t  \r\n\t  , fs = require(\'fs\')\r\n\r\n\tvar xml = "<library>" +\r\n\t            "<book>" +\r\n\t              "<name>Harry Potter</name>" +\r\n\t            "</book>"\r\n\t          "</library>"\r\n\r\n\tvar sig = new SignedXml()\r\n\tsig.addReference("//*[local-name(.)=\'book\']")    \r\n\tsig.signingKey = fs.readFileSync("client.pem")\r\n\tsig.computeSignature(xml)\r\n\tfs.writeFileSync("signed.xml", sig.getSignedXml())\r\n\r\n`````\r\n\r\nThe result wil be:\r\n\r\n\r\n`````xml\r\n\t<library>\r\n\t  <book Id="_0">\r\n\t    <name>Harry Potter</name>\r\n\t  </book>\r\n\t  <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">\r\n\t    <SignedInfo>\r\n\t      <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />\r\n\t      <SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" />\r\n\t      <Reference URI="#_0">\r\n\t        <Transforms>\r\n\t          <Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />\r\n\t        </Transforms>\r\n\t        <DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />\r\n\t        <DigestValue>cdiS43aFDQMnb3X8yaIUej3+z9Q=</DigestValue>\r\n\t      </Reference>\r\n\t    </SignedInfo>\r\n\t    <SignatureValue>vhWzpQyIYuncHUZV9W...[long base64 removed]...</SignatureValue>\r\n\t  </Signature>\r\n\t</library>\r\n`````\r\n\r\n\r\nNotes:\r\n\r\nsig.getSignedXml() returns the original xml document with the signature pushed as the last child of the root node (as above). This assumes you are not signing the root node but only sub node(s) otherwise this is not valid. If you do sign the root node call sig.getSignatureXml() to get just the signature part and sig.getOriginalXmlWithIds() to get the original xml with Id attributes added on relevant elements (required for validation).\r\n\r\n## Verifying Xml documents\r\n\r\nYou can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom) so you should install it first:\r\n\r\n    npm install xmldom\r\n\r\nThen run:\r\n\r\n`````javascript\r\n\tvar select = require(\'xml-crypto\').xpath.SelectNodes\r\n\t  , dom = require(\'xmldom\').DOMParser\r\n\t  , SignedXml = require(\'xml-crypto\').SignedXml\r\n\t  , FileKeyInfo = require(\'xml-crypto\').FileKeyInfo  \r\n\t  , fs = require(\'fs\')\r\n\r\n\tvar xml = fs.readFileSync("signed.xml").toString()\r\n\tvar doc = new dom().parseFromString(xml)    \r\n\r\n\tvar signature = select(doc, "/*/*[local-name(.)=\'Signature\' and namespace-uri(.)=\'http://www.w3.org/2000/09/xmldsig#\']")[0]\r\n\tvar sig = new SignedXml()\r\n\tsig.keyInfoProvider = new FileKeyInfo("client_public.pem")\r\n\tsig.loadSignature(signature.toString())\r\n\tvar res = sig.checkSignature(xml)\r\n\tif (!res) console.log(sig.validationErrors)\r\n`````\r\n\r\nNote: \r\n\r\nThe xml-crypto api requires you to supply it separately the xml signature ("&lt;Signature&gt;...&lt;/Signature&gt;", in loadSignature) and the signed xml (in checkSignature). The signed xml may or may not contain the signature in it, but you are still required to supply the signature separately.\r\n\r\n## Supported Algorithms\r\nThe first release always uses the following algorithems:\r\n\r\n* Exclusive Canonicalization http://www.w3.org/2001/10/xml-exc-c14n#\r\n* SHA1 digests http://www.w3.org/2000/09/xmldsig#sha1\r\n* RSA-SHA1 signature algorithm http://www.w3.org/2000/09/xmldsig#rsa-sha1\r\n\r\nyou are able to extend xml-crypto with further algorithms.\r\n\r\n## Customizing Algorithms\r\nThe following sample shows how to sign a message using custom algorithms.\r\n\r\nFirst import some modules:\r\n\r\n`````javascript\r\n\tvar SignedXml = require(\'xml-crypto\').SignedXml\r\n\t  , fs = require(\'fs\')\r\n`````\r\n\r\n\r\nNow define the extension point you want to implement. You can choose one ore more.\r\n\r\nA key info provider is used to extract and construct the key and the KeyInfo xml section.\r\nImplement it if you want to create a signature with a KeyInfo section, or you want to read your key in a different way then the default file read option.\r\n`````javascript\r\n\t/**/\r\n\tfunction MyKeyInfo() {\r\n\t  this.getKeyInfo = function(key) {\r\n\t    return "<X509Data></X509Data>"\r\n\t  }\r\n\t  this.getKey = function(keyInfo) {\r\n\t    //you can use the keyInfo parameter to extract the key in any way you want      \r\n\t    return fs.readFileSync("key.pem")\r\n\t  }\r\n\t}\r\n`````\r\n\r\nA custom hash algorithm is used to calculate digests. Implement it if you want a hash other than the default SHA1.\r\n\r\n`````javascript\r\n\tfunction MyDigest() {\r\n\r\n\r\n\t  this.getHash = function(xml) {    \r\n\t    return "the base64 hash representation of the given xml string"\r\n\t  }\r\n\r\n\t  this.getAlgorithmName = function() {\r\n\t    return "http://myDigestAlgorithm"\r\n\t  }\r\n\t}\r\n`````\r\n\r\nA custom signing algorithm. The default is RSA-SHA1\r\n`````javascript\t\r\n\tfunction MySignatureAlgorithm() {\r\n\r\n\t  /*sign the given SignedInfo using the key. return base64 signature value*/\r\n\t  this.getSignature = function(signedInfo, signingKey) {            \r\n\t    return "signature of signedInfo as base64..."\r\n\t  }\r\n\r\n\t  this.getAlgorithmName = function() {\r\n\t    return "http://mySigningAlgorithm"\r\n\t  }\r\n\r\n\t}\r\n`````\r\n\r\nCustom transformation algorithm. The default is exclusive canonicalization.\r\n\r\n`````javascript\t\r\n\tfunction MyTransformation() {\r\n\t  \r\n\t  /*given a node (from the xmldom module) return its canonical representation (as string)*/\r\n\t  this.process = function(node) {\t  \t\r\n\t  \t//you should apply your transformation before returning\r\n\t    return node.toString()\r\n\t  }\r\n\r\n\t  this.getAlgorithmName = function() {\r\n\t    return "http://myTransformation"\r\n\t  }\r\n\t}\r\n`````\r\nCustom canonicalization is actually the same as custom transformation. It is applied on the SignedInfo rather than on references.\r\n\r\n`````javascript\r\n\tfunction MyCanonicalization() {\r\n\r\n\t  /*given a node (from the xmldom module) return its canonical representation (as string)*/\r\n\t  this.process = function(node) {\r\n\t    //you should apply your transformation before returning\r\n\t    return "< x/>"\r\n\t  }\r\n\r\n\t   this.getAlgorithmName = function() {\r\n\t    return "http://myCanonicalization"\r\n\t  }\r\n\t}\r\n`````\r\n\r\nNow you need to register the new algorithms:\r\n\r\n`````javascript\r\n\t/*register all the custom algorithms*/\r\n\r\n\tSignedXml.CanonicalizationAlgorithms["http://MyTransformation"] = MyTransformation\r\n\tSignedXml.CanonicalizationAlgorithms["http://MyCanonicalization"] = MyCanonicalization\r\n\tSignedXml.HashAlgorithms["http://myDigestAlgorithm"] = MyDigest\r\n\tSignedXml.SignatureAlgorithms["http://mySigningAlgorithm"] = MySignatureAlgorithm\r\n`````\r\n\r\nNow do the signing. Note how we configure the signature to use the above algorithms:\r\n\r\n`````javascript\r\n\tfunction signXml(xml, xpath, key, dest)\r\n\t{\r\n\t  var sig = new SignedXml()\r\n\r\n\t  /*configure the signature object to use the custom algorithms*/\r\n\t  sig.signatureAlgorithm = "http://mySignatureAlgorithm"\r\n\t  sig.keyInfoProvider = new MyKeyInfo()\r\n\t  sig.canonicalizationAlgorithm = "http://MyCanonicalization"\r\n\t  sig.addReference("//*[local-name(.)=\'x\']", ["http://MyTransformation"], "http://myDigestAlgorithm")\r\n\r\n\t  sig.signingKey = fs.readFileSync(key)\r\n\t  sig.addReference(xpath)    \r\n\t  sig.computeSignature(xml)\r\n\t  fs.writeFileSync(dest, sig.getSignedXml())\r\n\t}\r\n\r\n\tvar xml = "<library>" +\r\n\t            "<book>" +\r\n\t              "<name>Harry Potter</name>" +\r\n\t            "</book>"\r\n\t          "</library>"\r\n\r\n\tsignXml(xml, \r\n\t  "//*[local-name(.)=\'book\']", \r\n\t  "client.pem", \r\n\t  "result.xml")\r\n`````\r\n\r\nYou can always look at the actual code as a sample (or drop me a [mail](mailto:yaronn01@gmail.com)).\r\n\r\n\r\n## X.509 / Key formats\r\nXml-Crypto internally relies on node\'s crypto module. This means pem encoded certificates are supported. So to sign an xml use key.pem that looks like this (only the begining of the key content is shown):\r\n\r\n\t-----BEGIN PRIVATE KEY-----\r\n\tMIICdwIBADANBgkqhkiG9w0...\r\n\t-----END PRIVATE KEY-----\r\n\r\nAnd for verification use key_public.pem:\r\n\r\n\t-----BEGIN CERTIFICATE-----\r\n\tMIIBxDCCAW6gAwIBAgIQxUSX...\r\n\t-----END CERTIFICATE-----\r\n\r\n**Converting .pfx certificates to pem**\r\n\r\nIf you have .pfx certificates you can convert them to .pem using [openssl](http://www.openssl.org/):\r\n\r\n\topenssl pkcs12 -in c:\\certs\\yourcert.pfx -out c:\\certs\\cag.pem\r\n\r\nThen you could use the result as is for the purpose of signing. For the purpose of validation open the resulting .pem with a text editor and copy from -----BEGIN CERTIFICATE----- to  -----END CERTIFICATE----- (including) to a new text file and save it as .pem.\r\n\r\n## More information\r\nVisit my [blog](http://webservices20.blogspot.com/) or my [twitter](http://twitter.com/#!/YaronNaveh)\r\n',
+201 silly publish   readmeFilename: 'README.md',
+201 silly publish   _id: 'xml-crypto@0.0.11',
+201 silly publish   dist: { shasum: '5dc2872ef5180d587a01e3caa3da00acae359b24' } }
+202 verbose url raw xml-crypto
+203 verbose url resolving [ 'http://registry.npmjs.org/', './xml-crypto' ]
+204 verbose url resolved http://registry.npmjs.org/xml-crypto
+205 info trying registry request attempt 1 at 13:03:54
+206 http PUT http://registry.npmjs.org/xml-crypto
+207 http 409 http://registry.npmjs.org/xml-crypto
+208 verbose url raw xml-crypto
+209 verbose url resolving [ 'http://registry.npmjs.org/', './xml-crypto' ]
+210 verbose url resolved http://registry.npmjs.org/xml-crypto
+211 info trying registry request attempt 1 at 13:03:56
+212 http GET http://registry.npmjs.org/xml-crypto
+213 http 200 http://registry.npmjs.org/xml-crypto
+214 error publish fail Cannot publish over existing version.
+214 error publish fail Bump the 'version' field, set the --force flag, or
+214 error publish fail     npm unpublish 'xml-crypto@0.0.11'
+214 error publish fail and try again
+215 error System Linux 3.2.0-35-generic
+216 error command "nodejs" "/usr/bin/npm" "publish"
+217 error cwd /home/storm/work/xml-crypto
+218 error node -v v0.8.16
+219 error npm -v 1.1.69
+220 error code EPUBLISHCONFLICT
+221 verbose exit [ 1, true ]
