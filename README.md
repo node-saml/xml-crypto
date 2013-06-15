@@ -260,7 +260,7 @@ If you have .pfx certificates you can convert them to .pem using [openssl](http:
 Then you could use the result as is for the purpose of signing. For the purpose of validation open the resulting .pem with a text editor and copy from -----BEGIN CERTIFICATE----- to  -----END CERTIFICATE----- (including) to a new text file and save it as .pem.
 
 ## Development
-To run tests use:
+The test framework is [nodeunit](https://github.com/caolan/nodeunit). To run tests use:
 
     $> npm test
 
