@@ -1,4 +1,4 @@
-var select = require('../lib/xpath.js').SelectNodes
+var select = require('xpath.js')
   , dom = require('xmldom').DOMParser
 
 

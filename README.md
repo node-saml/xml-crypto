@@ -65,12 +65,12 @@ sig.getSignedXml() returns the original xml document with the signature pushed a
 
 You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom) so you should install it first:
 
-    npm install xmldom
+    npm install xmldom    
 
 Then run:
 
 `````javascript
-	var select = require('xml-crypto').xpath.SelectNodes
+	var select = require('xml-crypto').xpath
 	  , dom = require('xmldom').DOMParser
 	  , SignedXml = require('xml-crypto').SignedXml
 	  , FileKeyInfo = require('xml-crypto').FileKeyInfo  

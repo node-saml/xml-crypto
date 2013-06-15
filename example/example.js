@@ -1,4 +1,4 @@
-var select = require('xml-crypto').xpath.SelectNodes
+var select = require('xml-crypto').xpath
   , dom = require('xmldom').DOMParser
   , SignedXml = require('xml-crypto').SignedXml
   , FileKeyInfo = require('xml-crypto').FileKeyInfo  
