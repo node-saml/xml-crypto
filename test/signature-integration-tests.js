@@ -1,7 +1,8 @@
 var select = require('xpath.js')
-  , dom = require('xmldom').DOMParser
+  , Dom = require('xmldom').DOMParser
   , SignedXml = require('../lib/signed-xml.js').SignedXml
   , fs = require('fs')
+  , crypto = require('../index')
   
 module.exports = {    
 
@@ -25,8 +26,24 @@ module.exports = {
               "</library>"
 
     verifySignature(test, xml, ["//*[local-name(.)='book']"])
-  }
+  },
+/*
+  "windows store signature": function(test) {    
 
+    var xml = fs.readFileSync('./test/static/windows_store_signature.xml', 'utf-8');        
+    var doc = new Dom({ignoreWhiteSpace: true}).parseFromString(xml);    
+    //ensure xml has not white space    
+    xml = doc.firstChild.toString()
+
+    var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
+    var sig = new crypto.SignedXml();    
+    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/windows_store_certificate.pem");
+    sig.loadSignature(signature.toString());    
+    var result = sig.checkSignature(xml);
+    test.equal(result, true);
+    test.done();
+  }
+*/
 }
 
 function verifySignature(test, xml, xpath) {  
