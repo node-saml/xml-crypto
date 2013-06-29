@@ -56,7 +56,7 @@ module.exports = {
     test.equal(result, true);
     test.done();
   },
-
+*/
 
   "windows store signature": function(test) {    
 
@@ -73,7 +73,7 @@ module.exports = {
     test.equal(result, true);
     test.done();
   }
-*/
+
 }
 
 function verifySignature(test, xml, xpath) {  
