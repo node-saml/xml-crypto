@@ -1,11 +1,11 @@
 {
     "name": "xml-crypto",
-    "version": "0.0.15",
+    "version": "0.0.16",
     "description": "Xml digital signature and encryption library for Node.js",
     "engines": { "node": ">=0.4.0" },
     "author": "Yaron Naveh (yaronn01@gmail.com, http://webservices20.blogspot.com/)",
     "dependencies": {
-        "xmldom": "git://github.com/yaronn/xmldom.git",
+        "xmldom": "git+https://github.com/yaronn/xmldom.git",
         "xpath.js": ">=0.0.3"
      },
      "devDependencies": {
