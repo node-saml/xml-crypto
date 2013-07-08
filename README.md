@@ -65,12 +65,12 @@ sig.getSignedXml() returns the original xml document with the signature pushed a
 
 You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom) so you should install it first:
 
-    npm install xmldom
+    npm install xmldom    
 
 Then run:
 
 `````javascript
-	var select = require('xml-crypto').xpath.SelectNodes
+	var select = require('xml-crypto').xpath
 	  , dom = require('xmldom').DOMParser
 	  , SignedXml = require('xml-crypto').SignedXml
 	  , FileKeyInfo = require('xml-crypto').FileKeyInfo  
@@ -258,6 +258,11 @@ If you have .pfx certificates you can convert them to .pem using [openssl](http:
 	openssl pkcs12 -in c:\certs\yourcert.pfx -out c:\certs\cag.pem
 
 Then you could use the result as is for the purpose of signing. For the purpose of validation open the resulting .pem with a text editor and copy from -----BEGIN CERTIFICATE----- to  -----END CERTIFICATE----- (including) to a new text file and save it as .pem.
+
+## Development
+The test framework is [nodeunit](https://github.com/caolan/nodeunit). To run tests use:
+
+    $> npm test
 
 ## More information
 Visit my [blog](http://webservices20.blogspot.com/) or my [twitter](http://twitter.com/#!/YaronNaveh)
