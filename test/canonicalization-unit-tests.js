@@ -4,12 +4,12 @@ var ExclusiveCanonicalization = require("../lib/exclusive-canonicalization").Exc
   , SignedXml = require('../lib/signed-xml.js').SignedXml
 
 
-var compare = function(test, xml, xpath, expected) {
+var compare = function(test, xml, xpath, expected, inclusiveNamespacesPrefixList) {
     test.expect(1)
     var doc = new Dom().parseFromString(xml)
     var elem = select(doc, xpath)[0]
     var can = new ExclusiveCanonicalization()
-    var result = can.process(elem).toString()
+    var result = can.process(elem, { inclusiveNamespacesPrefixList: inclusiveNamespacesPrefixList }).toString()
     
     test.equal(expected, result)
     test.done()
@@ -67,6 +67,39 @@ module.exports = {
       "<root xmlns:p=\"ns\"><p:child>123</p:child></root>", 
       "//*[local-name(.)='child']", 
       "<p:child xmlns:p=\"ns\">123</p:child>")
+  },
+
+  "Exclusive canonicalization works on xml with prefixed namespace defined in inclusive list": function (test) {
+    compare(test, 
+      "<root xmlns:p=\"ns\"><p:child xmlns:inclusive=\"ns2\"><inclusive:inner xmlns:inclusive=\"ns2\">123</inclusive:inner></p:child></root>", 
+      "//*[local-name(.)='child']", 
+      "<p:child xmlns:inclusive=\"ns2\" xmlns:p=\"ns\"><inclusive:inner>123</inclusive:inner></p:child>",
+      "inclusive")
+  },
+
+  "Exclusive canonicalization works on xml with multiple prefixed namespaces defined in inclusive list": function (test) {
+    compare(test, 
+      "<root xmlns:p=\"ns\"><p:child xmlns:inclusive=\"ns2\" xmlns:inclusive2=\"ns3\"><inclusive:inner xmlns:inclusive=\"ns2\">123</inclusive:inner><inclusive2:inner xmlns:inclusive2=\"ns3\">456</inclusive2:inner></p:child></root>", 
+      "//*[local-name(.)='child']", 
+      "<p:child xmlns:inclusive2=\"ns3\" xmlns:inclusive=\"ns2\" xmlns:p=\"ns\"><inclusive:inner>123</inclusive:inner><inclusive2:inner>456</inclusive2:inner></p:child>",
+      "inclusive inclusive2")
+  },
+
+  "Exclusive canonicalization works on xml with prefixed namespace defined in inclusive list defined outside output nodes": function (test) {
+    compare(test, 
+      "<root xmlns:p=\"ns\" xmlns:inclusive=\"ns2\"><p:child><inclusive:inner xmlns:inclusive=\"ns2\">123</inclusive:inner></p:child></root>", 
+      "//*[local-name(.)='child']", 
+      "<p:child xmlns:p=\"ns\"><inclusive:inner xmlns:inclusive=\"ns2\">123</inclusive:inner></p:child>",
+      "inclusive")
+  },
+
+
+  "Exclusive canonicalization works on xml with prefixed namespace defined in inclusive list used on attribute": function (test) {
+    compare(test, 
+      "<root xmlns:p=\"ns\"><p:child xmlns:inclusive=\"ns2\"><p:inner foo=\"inclusive:bar\">123</p:inner></p:child></root>", 
+      "//*[local-name(.)='child']", 
+      "<p:child xmlns:inclusive=\"ns2\" xmlns:p=\"ns\"><p:inner foo=\"inclusive:bar\">123</p:inner></p:child>",
+      "inclusive")
   },
 
 
