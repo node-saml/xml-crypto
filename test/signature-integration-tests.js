@@ -5,7 +5,7 @@ var select = require('xpath.js')
   , crypto = require('../index')
   
 module.exports = {    
-
+/*
   "verify signature": function (test) {
   	var xml = "<root><x xmlns=\"ns\"></x><y z_attr=\"value\" a_attr1=\"foo\"></y><z><ns:w ns:attr=\"value\" xmlns:ns=\"myns\"></ns:w></z></root>"
     verifySignature(test, xml, [
@@ -28,7 +28,7 @@ module.exports = {
     verifySignature(test, xml, ["//*[local-name(.)='book']"])
   },
 
-/*
+
   "empty URI reference should consider the whole document": function(test) {    
 
     var sampleXml=["<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
@@ -56,7 +56,7 @@ module.exports = {
     test.equal(result, true);
     test.done();
   },
-*/
+
 
   "windows store signature": function(test) {    
 
@@ -87,6 +87,51 @@ module.exports = {
     sig.loadSignature(signature.toString());    
     var result = sig.checkSignature(xml);
     test.equal(result, true);
+    test.done();
+  },*/
+
+  "should create single root xml document when signing inner node": function(test) {
+    var xml = "<library>" +
+                "<book>" +
+                  "<name>Harry Potter</name>" +
+                "</book>" +
+              "</library>"
+
+    var sig = new SignedXml()
+    sig.addReference("//*[local-name(.)='book']")    
+    sig.signingKey = fs.readFileSync("./test/static/client.pem")
+    sig.computeSignature(xml)      
+    
+    var signed = sig.getSignedXml();
+    console.log(signed);
+    
+    var doc = new Dom().parseFromString(signed);
+    
+    /*
+        Expecting this structure:
+        <library>
+            <book Id="_0">
+                <name>Harry Potter</name>
+            </book>        
+            <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+                <SignedInfo>
+                    <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+                    <SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>
+                    <Reference URI="#_0">
+                        <Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></Transforms>
+                        <DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>
+                        <DigestValue>cdiS43aFDQMnb3X8yaIUej3+z9Q=</DigestValue>
+                    </Reference>
+                </SignedInfo>
+                <SignatureValue>J79hiSUrKdLOuX....Mthy1M=</SignatureValue>
+            </Signature>
+        </library>        
+    */
+        
+    test.ok(doc.documentElement.nodeName == "library", "root node = <library>.");
+    test.ok(doc.childNodes.length == 1, "only one root node is expected.");
+    test.ok(doc.documentElement.childNodes.length == 2, "<library> should have two child nodes : <book> and <Signature>");
+    
     test.done();
   }
 
