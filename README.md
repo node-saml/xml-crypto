@@ -20,7 +20,7 @@ Use this code:
 	var xml = "<library>" +
 	            "<book>" +
 	              "<name>Harry Potter</name>" +
-	            "</book>"
+	            "</book>" +
 	          "</library>"
 
 	var sig = new SignedXml()
