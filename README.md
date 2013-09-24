@@ -31,7 +31,7 @@ Use this code:
 
 `````
 
-The result wil be:
+The result will be:
 
 
 `````xml
