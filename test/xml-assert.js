@@ -1,5 +1,5 @@
 var select = require('xpath.js')
-  , dom = require('xmldom').DOMParser
+  , dom = require('xmldom-fork-fixed').DOMParser
 
 
 function nodeExists(test, doc, xpath) {  

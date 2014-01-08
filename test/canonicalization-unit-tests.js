@@ -1,5 +1,5 @@
 var ExclusiveCanonicalization = require("../lib/exclusive-canonicalization").ExclusiveCanonicalization
-  , Dom = require('xmldom').DOMParser
+  , Dom = require('xmldom-fork-fixed').DOMParser
   , select = require('xpath.js')
   , SignedXml = require('../lib/signed-xml.js').SignedXml
 
