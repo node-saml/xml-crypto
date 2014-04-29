@@ -28,7 +28,7 @@ function validateXml(xml, key)
 var xml = "<library>" +
             "<book>" +
               "<name>Harry Potter</name>" +
-            "</book>"
+            "</book>" +
           "</library>"
 
 //sign an xml document
