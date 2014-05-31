@@ -328,5 +328,18 @@ module.exports = {
       test.equal("<p:y xmlns:p=\"myns\"></p:y>", res)
       test.done()
   }, 
- 
+
+  "Enveloped-signature canonicalization respects currentnode": function(test) {
+    // older versions of enveloped-signature removed the first signature in the whole doc, but should
+    //   be the signature inside the current node if we want to be able to verify multiple signatures
+    //   in a document.
+    var xml = '<x><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /><y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /></y></x>';
+    var doc = new Dom().parseFromString(xml);
+    var node = select(doc, "//*[local-name(.)='y']")[0];
+    var sig = new SignedXml();
+    var transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
+    var res = sig.getCanonXml(transforms, node);
+    test.equal("<y/>", res );
+    test.done();
+  },
 }
