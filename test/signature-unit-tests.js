@@ -289,6 +289,22 @@ module.exports = {
   },
  
 
+  "allow empty reference uri when signing": function(test) {
+    var xml = "<root><x /></root>"
+    var sig = new SignedXml()
+    sig.signingKey = fs.readFileSync("./test/static/client.pem")
+    sig.keyInfoProvider = null
+
+    sig.addReference("//*[local-name(.)='root']", ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"], "http://www.w3.org/2000/09/xmldsig#sha1", "", "", "", true)  
+
+    sig.computeSignature(xml)
+    var signedXml = sig.getSignedXml()    
+    var doc = new dom().parseFromString(signedXml)    
+    var URI = select(doc, "//*[local-name(.)='Reference']/@URI")[0]            
+    test.equal(URI.value, "", "uri should be empty but instead was " + URI.value)
+    test.done()
+  }
+
 }
 
 function passValidSignature(test, file, mode) {
