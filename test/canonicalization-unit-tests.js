@@ -81,7 +81,7 @@ module.exports = {
     compare(test, 
       "<root xmlns:p=\"ns\"><p:child xmlns:inclusive=\"ns2\" xmlns:inclusive2=\"ns3\"><inclusive:inner xmlns:inclusive=\"ns2\">123</inclusive:inner><inclusive2:inner xmlns:inclusive2=\"ns3\">456</inclusive2:inner></p:child></root>", 
       "//*[local-name(.)='child']", 
-      "<p:child xmlns:inclusive2=\"ns3\" xmlns:inclusive=\"ns2\" xmlns:p=\"ns\"><inclusive:inner>123</inclusive:inner><inclusive2:inner>456</inclusive2:inner></p:child>",
+      "<p:child xmlns:inclusive=\"ns2\" xmlns:inclusive2=\"ns3\" xmlns:p=\"ns\"><inclusive:inner>123</inclusive:inner><inclusive2:inner>456</inclusive2:inner></p:child>",
       "inclusive inclusive2")
   },
 
@@ -342,4 +342,23 @@ module.exports = {
     test.equal("<y/>", res );
     test.done();
   },
+
+  "The XML canonicalization method processes a node-set by imposing the following additional document order rules on the namespace and attribute nodes of each element: \
+  - An element's namespace and attribute nodes have a document order position greater than the element but less than any child node of the element. \
+    Namespace nodes have a lesser document order position than attribute nodes. \
+  - An element's namespace nodes are sorted lexicographically by local name (the default namespace node, if one exists, has no local name and is therefore lexicographically least). \
+  - An element's attribute nodes are sorted lexicographically with namespace URI as the primary key and local name as the secondary key (an empty namespace URI is lexicographically least). \
+    Lexicographic comparison, which orders strings from least to greatest alphabetically, is based on the UCS codepoint values, which is equivalent to lexicographic ordering based on UTF-8.": function (test) {
+    compare(test, 
+      '<root xmlns:b="moo" b:attr1="a1" a:attr1="a1" b:attr4="b4" xmlns="foo" b:attr3="a3" xmlns:a="zoo"></root>', 
+      "//*[local-name(.)='root']", 
+      '<root xmlns="foo" xmlns:a="zoo" xmlns:b="moo" b:attr1="a1" b:attr3="a3" b:attr4="b4" a:attr1="a1"></root>')
+  },
+
+   "saml attributed order (bug #25)": function (test) {
+    compare(test, 
+      '<root xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" samlp:a="1" saml:a="1"></root>',
+      "//*[local-name(.)='root']", 
+      '<root xmlns="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" saml:a="1" samlp:a="1"></root>')
+  }
 }

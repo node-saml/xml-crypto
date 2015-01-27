@@ -5,14 +5,17 @@ var select = require('xpath.js')
   , crypto = require('../index')
   
 module.exports = {    
-/*
+
+
   "verify signature": function (test) {
   	var xml = "<root><x xmlns=\"ns\"></x><y z_attr=\"value\" a_attr1=\"foo\"></y><z><ns:w ns:attr=\"value\" xmlns:ns=\"myns\"></ns:w></z></root>"
-    verifySignature(test, xml, [
+    verifySignature(test, xml, "./test/static/integration/expectedVerify.xml", [
       "//*[local-name(.)='x']", 
       "//*[local-name(.)='y']", 
       "//*[local-name(.)='w']"])
   },
+
+
 
   "verify signature of complex element": function (test) {
     var xml = "<library>" +
@@ -25,8 +28,9 @@ module.exports = {
                 "</book>" +
               "</library>"
 
-    verifySignature(test, xml, ["//*[local-name(.)='book']"])
+    verifySignature(test, xml,  "./test/static/integration/expectedVerifyComplex.xml", ["//*[local-name(.)='book']"])
   },
+
 
 
   "empty URI reference should consider the whole document": function(test) {    
@@ -58,6 +62,7 @@ module.exports = {
   },
 
 
+
   "windows store signature": function(test) {    
 
     var xml = fs.readFileSync('./test/static/windows_store_signature.xml', 'utf-8');        
@@ -74,6 +79,8 @@ module.exports = {
     test.done();
   },
 
+
+
   "signature with inclsuive namespaces": function(test) {    
 
     var xml = fs.readFileSync('./test/static/signature_with_inclusivenamespaces.xml', 'utf-8');        
@@ -88,7 +95,10 @@ module.exports = {
     var result = sig.checkSignature(xml);
     test.equal(result, true);
     test.done();
-  },*/
+  },
+
+
+
 
   "should create single root xml document when signing inner node": function(test) {
     var xml = "<library>" +
@@ -127,7 +137,7 @@ module.exports = {
             </Signature>
         </library>        
     */
-        
+     
     test.ok(doc.documentElement.nodeName == "library", "root node = <library>.");
     test.ok(doc.childNodes.length == 1, "only one root node is expected.");
     test.ok(doc.documentElement.childNodes.length == 2, "<library> should have two child nodes : <book> and <Signature>");
@@ -137,11 +147,8 @@ module.exports = {
 
 }
 
-function verifySignature(test, xml, xpath) {  
-  if (process.platform !== 'win32') {
-    test.done();
-    return;
-  }
+function verifySignature(test, xml, expected, xpath) {  
+  
   var sig = new SignedXml()
   sig.signingKey = fs.readFileSync("./test/static/client.pem")
   sig.keyInfoCaluse = null
@@ -151,8 +158,11 @@ function verifySignature(test, xml, xpath) {
   sig.computeSignature(xml)
   var signed = sig.getSignedXml()
 
-  fs.writeFileSync("./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/signedExample.xml", signed)    
-  
+  //fs.writeFileSync("./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/signedExample.xml", signed)    
+  var expectedContent = fs.readFileSync(expected).toString()
+  test.equal(signed, expectedContent, "signature xml different than expected")
+  test.done()
+  /*
   var spawn = require('child_process').spawn
   var proc = spawn('./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.exe', ['verify'])
 
@@ -167,6 +177,7 @@ function verifySignature(test, xml, xpath) {
   proc.on('exit', function (code) {   
     test.equal(0, code, "signature validation failed")
     test.done()
-  }); 
+  });
+  */ 
 
 }
