@@ -81,7 +81,7 @@ module.exports = {
 
 
 
-  "signature with inclsuive namespaces": function(test) {    
+  "signature with inclusive namespaces": function(test) {    
 
     var xml = fs.readFileSync('./test/static/signature_with_inclusivenamespaces.xml', 'utf-8');        
     var doc = new Dom({ignoreWhiteSpace: true}).parseFromString(xml);    

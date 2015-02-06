@@ -2,3 +2,5 @@ node_modules/
 p.js
 *.svclog
 .DS_Store
+*.*~
+*.swp
