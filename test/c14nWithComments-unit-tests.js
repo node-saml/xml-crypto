@@ -1,4 +1,4 @@
-var ExclusiveCanonicalization = require("../lib/exclusive-canonicalization").ExclusiveCanonicalization
+var c14nWithComments = require("../lib/exclusive-canonicalization").ExclusiveCanonicalizationWithComments
   , Dom = require('xmldom-fork-fixed').DOMParser
   , select = require('xpath.js')
   , SignedXml = require('../lib/signed-xml.js').SignedXml
@@ -8,7 +8,7 @@ var compare = function(test, xml, xpath, expected, inclusiveNamespacesPrefixList
     test.expect(1)
     var doc = new Dom().parseFromString(xml)
     var elem = select(doc, xpath)[0]
-    var can = new ExclusiveCanonicalization()
+    var can = new c14nWithComments()
     var result = can.process(elem, { inclusiveNamespacesPrefixList: inclusiveNamespacesPrefixList }).toString()
     
     test.equal(expected, result)
@@ -154,11 +154,11 @@ module.exports = {
       "<x Id=\"\" id=\"\"></x>")
   },
 
-  "Exclusive canonicalization removes Comments": function (test) {
+  "C14N#WithComments retains Comments": function (test) {
     compare(test, 
       "<x id=\"\" Id=\"\"><!-- Comment --></x>", 
       "//*[local-name(.)='x']", 
-      "<x Id=\"\" id=\"\"></x>") 
+      "<x Id=\"\" id=\"\"><!-- Comment --></x>")
   },
 
   "Exclusive canonicalization works on xml with attributes with different namespace than element": function (test) {
@@ -240,7 +240,6 @@ module.exports = {
       "<child><inner>123</inner></child>")
   },   
 
-
   /* Uncomment this when this issue is fixed
   "The XML declaration and document type declaration (DTD) are removed, stylesheet retained": function (test) {
     compare(test, 
@@ -249,6 +248,7 @@ module.exports = {
       "<?xml-stylesheet   href=\"doc.xsl\"   type=\"text/xsl\"   ?><child><inner>123</inner></child>")
   },   
   */
+ 
 
   "Attribute value delimiters are set to quotation marks (double quotes)": function (test) {
     compare(test, 
