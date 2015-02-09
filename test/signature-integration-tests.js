@@ -1,5 +1,5 @@
 var select = require('xpath.js')
-  , Dom = require('xmldom-fork-fixed').DOMParser
+  , Dom = require('xmldom').DOMParser
   , SignedXml = require('../lib/signed-xml.js').SignedXml
   , fs = require('fs')
   , crypto = require('../index')
@@ -66,8 +66,14 @@ module.exports = {
   "windows store signature": function(test) {    
 
     var xml = fs.readFileSync('./test/static/windows_store_signature.xml', 'utf-8');        
-    var doc = new Dom({ignoreWhiteSpace: true}).parseFromString(xml);    
-    //ensure xml has not white space    
+
+    // Make sure that whitespace in the source document is removed -- see xml-crypto issue #23 and post at
+    //   http://webservices20.blogspot.co.il/2013/06/validating-windows-mobile-app-store.html
+    // This regex is naive but works for this test case; for a more general solution consider 
+    //   the xmldom-fork-fixed library which can pass {ignoreWhiteSpace: true} into the Dom constructor.
+    xml = xml.replace(/>\s*</g, '><'); 
+
+    var doc = new Dom().parseFromString(xml);    
     xml = doc.firstChild.toString()
 
     var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
@@ -84,8 +90,7 @@ module.exports = {
   "signature with inclusive namespaces": function(test) {    
 
     var xml = fs.readFileSync('./test/static/signature_with_inclusivenamespaces.xml', 'utf-8');        
-    var doc = new Dom({ignoreWhiteSpace: true}).parseFromString(xml);    
-    //ensure xml has not white space    
+    var doc = new Dom().parseFromString(xml);    
     xml = doc.firstChild.toString()
 
     var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
