@@ -1,5 +1,5 @@
 var crypto = require('../index');
-var xmldom = require('xmldom-fork-fixed');
+var xmldom = require('xmldom');
 var fs = require('fs');
 
 exports['test validating SAML response'] = function (test) {
