@@ -384,4 +384,22 @@ module.exports = {
       "//*[local-name(.)='root']", 
       '<root xmlns="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" saml:a="1" samlp:a="1"></root>')
   }
+  
+   "Body Xml Element Canonicalization": function (test) {
+    compare(test, 
+      '<s:Body xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Id="SignedSoapBodyContent" xmlns:s="'+
+ 'http://schemas.xmlsoap.org/soap/envelope/">'+
+    '<getBatchStatus xmlns="http://webservice.edefter.gib.gov.tr/">'+
+      '<paketID xmlns="">3810016849-201501-KB-0000</paketID>'+
+    '</getBatchStatus>'+
+  '</s:Body>',
+      "//*", 
+      '<s:Body xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" Id="SignedSoapBodyContent">'+
+					 '<getBatchStatus xmlns="http://webservice.edefter.gib.gov.tr/">'+
+					  '<paketID xmlns="">3810016849-201501-KB-0000</paketID>'+
+					'</getBatchStatus>'+
+				  '</s:Body>')
+  }
+  
+
 }
