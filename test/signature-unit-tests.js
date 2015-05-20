@@ -173,6 +173,157 @@ module.exports = {
     test.done();
   },
 
+  "signer creates signature with correct structure (with prefix)": function(test) {
+    var prefix = 'ds:';
+
+    function DummyKeyInfo() {
+      this.getKeyInfo = function(key) {
+        return "<ds:dummy>dummy key info</ds:dummy>"
+      }
+    }
+
+    function DummyDigest() {
+
+      this.getHash = function(xml) {
+        return "dummy digest"
+      }
+
+      this.getAlgorithmName = function() {
+        return "dummy digest algorithm"
+      }
+    }
+
+    function DummySignatureAlgorithm() {
+
+      this.getSignature = function(xml, signingKey) {
+        return "dummy signature"
+      }
+
+      this.getAlgorithmName = function() {
+        return "dummy algorithm"
+      }
+
+    }
+
+    function DummyTransformation() {
+      this.process = function(node) {
+        return "< x/>"
+      }
+
+      this.getAlgorithmName = function() {
+        return "dummy transformation"
+      }
+    }
+
+    function DummyCanonicalization() {
+      this.process = function(node) {
+        return "< x/>"
+      }
+
+       this.getAlgorithmName = function() {
+        return "dummy canonicalization"
+      }
+    }
+
+    var xml = "<root><x xmlns=\"ns\"></x><y attr=\"value\"></y><z><w></w></z></root>"
+    var sig = new SignedXml()
+
+
+    SignedXml.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation
+    SignedXml.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization
+    SignedXml.HashAlgorithms["http://dummyDigest"] = DummyDigest
+    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm
+
+    sig.signatureAlgorithm = "http://dummySignatureAlgorithm"
+    sig.keyInfoProvider = new DummyKeyInfo()
+    sig.canonicalizationAlgorithm = "http://DummyCanonicalization"
+
+    sig.addReference("//*[local-name(.)='x']", ["http://DummyTransformation"], "http://dummyDigest")
+    sig.addReference("//*[local-name(.)='y']", ["http://DummyTransformation"], "http://dummyDigest")
+    sig.addReference("//*[local-name(.)='w']", ["http://DummyTransformation"], "http://dummyDigest")
+
+    sig.computeSignature(xml, null, prefix);
+    var signature = sig.getSignatureXml()
+
+    var expected = "<ds:Signature xmlns=\"http://www.w3.org/2000/09/xmldsig#\">"+
+                  "<ds:SignedInfo>"+
+                  "<ds:CanonicalizationMethod Algorithm=\"dummy canonicalization\" />"+
+                  "<ds:SignatureMethod Algorithm=\"dummy algorithm\" />"+
+                  "<ds:Reference URI=\"#_0\">"+
+                  "<ds:Transforms>"+
+                  "<ds:Transform Algorithm=\"dummy transformation\" />"+
+                  "</ds:Transforms>"+
+                  "<ds:DigestMethod Algorithm=\"dummy digest algorithm\" />"+
+                  "<ds:DigestValue>dummy digest</ds:DigestValue>"+
+                  "</ds:Reference>"+
+                  "<ds:Reference URI=\"#_1\">"+
+                  "<ds:Transforms>"+
+                  "<ds:Transform Algorithm=\"dummy transformation\" />"+
+                  "</ds:Transforms>"+
+                  "<ds:DigestMethod Algorithm=\"dummy digest algorithm\" />"+
+                  "<ds:DigestValue>dummy digest</ds:DigestValue>"+
+                  "</ds:Reference>"+
+                  "<ds:Reference URI=\"#_2\">"+
+                  "<ds:Transforms>"+
+                  "<ds:Transform Algorithm=\"dummy transformation\" />"+
+                  "</ds:Transforms>"+
+                  "<ds:DigestMethod Algorithm=\"dummy digest algorithm\" />"+
+                  "<ds:DigestValue>dummy digest</ds:DigestValue>"+
+                  "</ds:Reference>"+
+                  "</ds:SignedInfo>"+
+                  "<ds:SignatureValue>dummy signature</ds:SignatureValue>"+
+                  "<ds:KeyInfo>"+
+                  "<ds:dummy>dummy key info</ds:dummy>"+
+                  "</ds:KeyInfo>"+
+                  "</ds:Signature>"
+
+    test.equal(expected, signature, "wrong signature format")
+
+    var signedXml = sig.getSignedXml()
+    var expectedSignedXml = "<root><x xmlns=\"ns\" Id=\"_0\"/><y attr=\"value\" Id=\"_1\"/><z><w Id=\"_2\"/></z>" +
+                  "<ds:Signature xmlns=\"http://www.w3.org/2000/09/xmldsig#\">"+
+                  "<ds:SignedInfo>"+
+                  "<ds:CanonicalizationMethod Algorithm=\"dummy canonicalization\"/>"+
+                  "<ds:SignatureMethod Algorithm=\"dummy algorithm\"/>"+
+                  "<ds:Reference URI=\"#_0\">"+
+                  "<ds:Transforms>"+
+                  "<ds:Transform Algorithm=\"dummy transformation\"/>"+
+                  "</ds:Transforms>"+
+                  "<ds:DigestMethod Algorithm=\"dummy digest algorithm\"/>"+
+                  "<ds:DigestValue>dummy digest</ds:DigestValue>"+
+                  "</ds:Reference>"+
+                  "<ds:Reference URI=\"#_1\">"+
+                  "<ds:Transforms>"+
+                  "<ds:Transform Algorithm=\"dummy transformation\"/>"+
+                  "</ds:Transforms>"+
+                  "<ds:DigestMethod Algorithm=\"dummy digest algorithm\"/>"+
+                  "<ds:DigestValue>dummy digest</ds:DigestValue>"+
+                  "</ds:Reference>"+
+                  "<ds:Reference URI=\"#_2\">"+
+                  "<ds:Transforms>"+
+                  "<ds:Transform Algorithm=\"dummy transformation\"/>"+
+                  "</ds:Transforms>"+
+                  "<ds:DigestMethod Algorithm=\"dummy digest algorithm\"/>"+
+                  "<ds:DigestValue>dummy digest</ds:DigestValue>"+
+                  "</ds:Reference>"+
+                  "</ds:SignedInfo>"+
+                  "<ds:SignatureValue>dummy signature</ds:SignatureValue>"+
+                  "<ds:KeyInfo>"+
+                  "<ds:dummy>dummy key info</ds:dummy>"+
+                  "</ds:KeyInfo>"+
+                  "</ds:Signature>" +
+                  "</root>"
+
+    test.equal(expectedSignedXml, signedXml, "wrong signedXml format")
+
+
+
+    var originalXmlWithIds = sig.getOriginalXmlWithIds()
+    var expectedOriginalXmlWithIds = "<root><x xmlns=\"ns\" Id=\"_0\"/><y attr=\"value\" Id=\"_1\"/><z><w Id=\"_2\"/></z></root>"
+    test.equal(expectedOriginalXmlWithIds, originalXmlWithIds, "wrong OriginalXmlWithIds")
+
+    test.done();
+  },
 
 
   "signer creates correct signature values": function(test) {
