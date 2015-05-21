@@ -174,7 +174,7 @@ module.exports = {
   },
 
   "signer creates signature with correct structure (with prefix)": function(test) {
-    var prefix = 'ds:';
+    var prefix = 'ds';
 
     function DummyKeyInfo() {
       this.getKeyInfo = function(key) {
@@ -245,7 +245,7 @@ module.exports = {
     sig.computeSignature(xml, null, prefix);
     var signature = sig.getSignatureXml()
 
-    var expected = "<ds:Signature xmlns=\"http://www.w3.org/2000/09/xmldsig#\">"+
+    var expected = "<ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\">"+
                   "<ds:SignedInfo>"+
                   "<ds:CanonicalizationMethod Algorithm=\"dummy canonicalization\" />"+
                   "<ds:SignatureMethod Algorithm=\"dummy algorithm\" />"+
@@ -281,7 +281,7 @@ module.exports = {
 
     var signedXml = sig.getSignedXml()
     var expectedSignedXml = "<root><x xmlns=\"ns\" Id=\"_0\"/><y attr=\"value\" Id=\"_1\"/><z><w Id=\"_2\"/></z>" +
-                  "<ds:Signature xmlns=\"http://www.w3.org/2000/09/xmldsig#\">"+
+                  "<ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\">"+
                   "<ds:SignedInfo>"+
                   "<ds:CanonicalizationMethod Algorithm=\"dummy canonicalization\"/>"+
                   "<ds:SignatureMethod Algorithm=\"dummy algorithm\"/>"+
