@@ -21,6 +21,10 @@ module.exports = {
     test.done();
   },
 
+  "signer adds custom attributes to the signature root node": function(test) {
+    verifyAddsAttrs(test);
+    test.done();
+  },
 
   "signer creates signature with correct structure": function(test) {
 
@@ -519,6 +523,33 @@ function verifyAddsId(test, mode, nsMode) {
   nodeExists(test, doc, xpath.replace("{id}", "1").replace("{elem}", "y"))
   nodeExists(test, doc, xpath.replace("{id}", "2").replace("{elem}", "w"))
 
+}
+
+function verifyAddsAttrs(test) {
+  var xml = "<root xmlns=\"ns\"><name>xml-crypto</name><repository>github</repository></root>"
+  var sig = new SignedXml()
+  var attrs = {
+    Id: 'signatureTest',
+    data: 'dataValue',
+    xmlns: 'http://custom-xmlns#'
+  }
+
+  sig.signingKey = fs.readFileSync("./test/static/client.pem")
+
+  sig.addReference("//*[local-name(.)='name']")
+
+  sig.computeSignature(xml, {
+    attrs: attrs
+  })
+
+  var signedXml = sig.getSignatureXml()
+  var doc = new dom().parseFromString(signedXml)
+  var signatureNode = doc.documentElement
+
+  test.strictEqual(signatureNode.getAttribute("Id"), attrs.Id, "Id attribute is not equal to the expected value: \"" + attrs.Id + "\"")
+  test.strictEqual(signatureNode.getAttribute("data"), attrs.data, "data attribute is not equal to the expected value: \"" + attrs.data + "\"")
+  test.notStrictEqual(signatureNode.getAttribute("xmlns"), attrs.xmlns, "xmlns attribute can not be overridden")
+  test.strictEqual(signatureNode.getAttribute("xmlns"), "http://www.w3.org/2000/09/xmldsig#", "xmlns attribute is not equal to the expected value: \"http://www.w3.org/2000/09/xmldsig#\"")
 }
 
 function nodeExists(test, doc, xpath) {
