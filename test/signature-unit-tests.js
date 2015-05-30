@@ -13,7 +13,6 @@ module.exports = {
     test.done();
   },
 
-
   "signer does not duplicate existing id attributes": function (test) {
     verifyDoesNotDuplicateIdAttributes(test, null, "")
     verifyDoesNotDuplicateIdAttributes(test, "wssecurity", "wsu:")
@@ -23,6 +22,104 @@ module.exports = {
 
   "signer adds custom attributes to the signature root node": function(test) {
     verifyAddsAttrs(test);
+    test.done();
+  },
+
+  "signer appends signature to the root node by default": function(test) {
+    var xml = "<root><name>xml-crypto</name><repository>github</repository></root>"
+    var sig = new SignedXml()
+
+    sig.signingKey = fs.readFileSync("./test/static/client.pem")
+    sig.addReference("//*[local-name(.)='name']")
+    sig.computeSignature(xml);
+
+    var doc = new dom().parseFromString(sig.getSignedXml())
+
+    test.strictEqual(doc.documentElement.lastChild.localName, "Signature", "the signature must be appended to the root node by default");
+    test.done();
+  },
+
+  "signer appends signature to a reference node": function(test) {
+    var xml = "<root><name>xml-crypto</name><repository>github</repository></root>"
+    var sig = new SignedXml()
+
+    sig.signingKey = fs.readFileSync("./test/static/client.pem")
+    sig.addReference("//*[local-name(.)='repository']")
+
+    sig.computeSignature(xml, {
+      location: {
+        reference: '/root/name',
+        action: 'append'
+      }
+    });
+
+    var doc = new dom().parseFromString(sig.getSignedXml())
+    var referenceNode = select(doc, '/root/name')[0]
+
+    test.strictEqual(referenceNode.lastChild.localName, "Signature", "the signature should be appended to root/name");
+    test.done();
+  },
+
+  "signer prepends signature to a reference node": function(test) {
+    var xml = "<root><name>xml-crypto</name><repository>github</repository></root>"
+    var sig = new SignedXml()
+
+    sig.signingKey = fs.readFileSync("./test/static/client.pem")
+    sig.addReference("//*[local-name(.)='repository']")
+
+    sig.computeSignature(xml, {
+      location: {
+        reference: '/root/name',
+        action: 'prepend'
+      }
+    });
+
+    var doc = new dom().parseFromString(sig.getSignedXml())
+    var referenceNode = select(doc, '/root/name')[0]
+
+    test.strictEqual(referenceNode.firstChild.localName, "Signature", "the signature should be prepended to root/name");
+    test.done();
+  },
+
+  "signer inserts signature before a reference node": function(test) {
+    var xml = "<root><name>xml-crypto</name><repository>github</repository></root>"
+    var sig = new SignedXml()
+
+    sig.signingKey = fs.readFileSync("./test/static/client.pem")
+    sig.addReference("//*[local-name(.)='repository']")
+
+    sig.computeSignature(xml, {
+      location: {
+        reference: '/root/name',
+        action: 'before'
+      }
+    });
+
+    var doc = new dom().parseFromString(sig.getSignedXml())
+    var referenceNode = select(doc, '/root/name')[0]
+
+    test.strictEqual(referenceNode.previousSibling.localName, "Signature", "the signature should be inserted before to root/name");
+    test.done();
+  },
+
+  "signer inserts signature after a reference node": function(test) {
+    var xml = "<root><name>xml-crypto</name><repository>github</repository></root>"
+    var sig = new SignedXml()
+
+    sig.signingKey = fs.readFileSync("./test/static/client.pem")
+    sig.addReference("//*[local-name(.)='repository']")
+
+    sig.computeSignature(xml, {
+      location: {
+        reference: '/root/name',
+        action: 'after'
+      }
+    });
+
+    var doc = new dom().parseFromString(sig.getSignedXml())
+    var referenceNode = select(doc, '/root/name')[0]
+
+    test.strictEqual(referenceNode.nextSibling.localName, "Signature", "the signature should be inserted after to root/name");
     test.done();
   },
 
@@ -329,7 +426,6 @@ module.exports = {
     test.done();
   },
 
-
   "signer creates correct signature values": function(test) {
 
     var xml = "<root><x xmlns=\"ns\" Id=\"_0\"></x><y attr=\"value\" Id=\"_1\"></y><z><w Id=\"_2\"></w></z></root>"
@@ -377,8 +473,6 @@ module.exports = {
 
     test.done();
   },
-
-
 
   "correctly loads signature": function(test) {
     var xml = fs.readFileSync("./test/static/valid_signature.xml").toString()
@@ -429,7 +523,6 @@ module.exports = {
     test.done()
   },
 
-
   "fail invalid signature": function(test) {
     failInvalidSignature(test, "./test/static/invalid_signature - signature value.xml")
     failInvalidSignature(test, "./test/static/invalid_signature - hash.xml")
@@ -442,7 +535,6 @@ module.exports = {
 
     test.done()
   },
-
 
   "allow empty reference uri when signing": function(test) {
     var xml = "<root><x /></root>"
