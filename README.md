@@ -12,18 +12,18 @@ A pre requisite it to have [openssl](http://www.openssl.org/) installed and its 
 
 ## Supported Algorithms
 
-# Canonicalization and Transformation Algorithms
+### Canonicalization and Transformation Algorithms
 
 * Exclusive Canonicalization http://www.w3.org/2001/10/xml-exc-c14n#
 * Exclusive Canonicalization with comments http://www.w3.org/2001/10/xml-exc-c14n#WithComments
 * Enveloped Signature transform http://www.w3.org/2000/09/xmldsig#enveloped-signature
 
-# Hashing Algorithms
+### Hashing Algorithms
 
 * SHA1 digests http://www.w3.org/2000/09/xmldsig#sha1
 * SHA256 digests http://www.w3.org/2001/04/xmlenc#sha256
 
-# Signature Algorithms
+### Signature Algorithms
 
 * RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
 * RSA-SHA256 http://www.w3.org/2001/04/xmldsig-more#rsa-sha256
@@ -138,11 +138,11 @@ The xml-crypto api requires you to supply it separately the xml signature ("&lt;
 
 ## API
 
-# xpath
+### xpath
 
 See [xpath.js](https://github.com/yaronn/xpath.js) for usage
 
-# SignedXml
+### SignedXml
 
 The `SignedXml` constructor provides an abstraction for sign and verify xml documents. The object is constructed using `new SignedXml([idMode])` where:
 
@@ -176,7 +176,7 @@ To verify xml documents:
     - `xml` - a string containing a xml document
 
 
-# FileKeyInfo
+### FileKeyInfo
 
 A basic key info provider implementation using `fs.readFileSync(file)`, is constructed using `new FileKeyInfo([file])` where:
 
