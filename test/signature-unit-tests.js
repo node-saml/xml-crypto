@@ -476,6 +476,7 @@ module.exports = {
 
   "correctly loads signature": function(test) {
     passLoadSignature(test, "./test/static/valid_signature.xml");
+    passLoadSignature(test, "./test/static/valid_signature.xml", true);
     passLoadSignature(test, "./test/static/valid_signature_with_root_level_sig_namespace.xml");
     test.done()
   },
@@ -525,12 +526,12 @@ function passValidSignature(test, file, mode) {
   test.equal(true, res, "expected signature to be valid, but it was reported invalid")
 }
 
-function passLoadSignature(test, file) {
+function passLoadSignature(test, file, toString) {
   var xml = fs.readFileSync(file).toString()
   var doc = new dom().parseFromString(xml)
   var node = select(doc, "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0]
   var sig = new SignedXml()
-  sig.loadSignature(node.toString())
+  sig.loadSignature(toString ? node.toString() : node)
 
   test.equal("http://www.w3.org/2001/10/xml-exc-c14n#",
     sig.canonicalizationAlgorithm,
@@ -576,7 +577,7 @@ function verifySignature(xml, mode) {
 
   var sig = new SignedXml(mode)
   sig.keyInfoProvider = new FileKeyInfo("./test/static/client_public.pem")
-  sig.loadSignature(node.toString())
+  sig.loadSignature(node)
   var res = sig.checkSignature(xml)
   console.log(sig.validationErrors)
   return res;
