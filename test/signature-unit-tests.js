@@ -475,43 +475,8 @@ module.exports = {
   },
 
   "correctly loads signature": function(test) {
-    var xml = fs.readFileSync("./test/static/valid_signature.xml").toString()
-    var doc = new dom().parseFromString(xml)
-    var node = select(doc, "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0]
-    var sig = new SignedXml()
-    sig.loadSignature(node.toString())
-
-
-
-    test.equal("http://www.w3.org/2001/10/xml-exc-c14n#",
-      sig.canonicalizationAlgorithm,
-      "wrong canonicalization method")
-
-    test.equal("http://www.w3.org/2000/09/xmldsig#rsa-sha1",
-      sig.signatureAlgorithm,
-      "wrong signature method")
-
-    test.equal("PI2xGt3XrVcxYZ34Kw7nFdq75c7Mmo7J0q7yeDhBprHuJal/KV9KyKG+Zy3bmQIxNwkPh0KMP5r1YMTKlyifwbWK0JitRCSa0Fa6z6+TgJi193yiR5S1MQ+esoQT0RzyIOBl9/GuJmXx/1rXnqrTxmL7UxtqKuM29/eHwF0QDUI=",
-      sig.signatureValue,
-      "wrong signature value")
-
-    test.equal(sig.keyInfo, "<KeyInfo><dummyKey>1234</dummyKey></KeyInfo>", "keyInfo caluse not correctly loaded")
-
-    test.equal(3, sig.references.length)
-
-    var digests = ["b5GCZ2xpP5T7tbLWBTkOl4CYupQ=", "K4dI497ZCxzweDIrbndUSmtoezY=", "sH1gxKve8wlU8LlFVa2l6w3HMJ0="]
-
-
-    for (var i=0; i<sig.references.length; i++) {
-      var ref = sig.references[i]
-      var expectedUri = "#_"+i
-      test.equal(expectedUri, ref.uri, "wrong uri for index " + i + ". expected: " + expectedUri + " actual: " + ref.uri)
-      test.equal(1, ref.transforms.length)
-      test.equal("http://www.w3.org/2001/10/xml-exc-c14n#", ref.transforms[0])
-      test.equal(digests[i], ref.digestValue)
-      test.equal("http://www.w3.org/2000/09/xmldsig#sha1", ref.digestAlgorithm)
-    }
-
+    passLoadSignature(test, "./test/static/valid_signature.xml");
+    passLoadSignature(test, "./test/static/valid_signature_with_root_level_sig_namespace.xml");
     test.done()
   },
 
@@ -560,6 +525,43 @@ function passValidSignature(test, file, mode) {
   test.equal(true, res, "expected signature to be valid, but it was reported invalid")
 }
 
+function passLoadSignature(test, file) {
+  var xml = fs.readFileSync(file).toString()
+  var doc = new dom().parseFromString(xml)
+  var node = select(doc, "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0]
+  var sig = new SignedXml()
+  sig.loadSignature(node.toString())
+
+  test.equal("http://www.w3.org/2001/10/xml-exc-c14n#",
+    sig.canonicalizationAlgorithm,
+    "wrong canonicalization method")
+
+  test.equal("http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+    sig.signatureAlgorithm,
+    "wrong signature method")
+
+  test.equal("PI2xGt3XrVcxYZ34Kw7nFdq75c7Mmo7J0q7yeDhBprHuJal/KV9KyKG+Zy3bmQIxNwkPh0KMP5r1YMTKlyifwbWK0JitRCSa0Fa6z6+TgJi193yiR5S1MQ+esoQT0RzyIOBl9/GuJmXx/1rXnqrTxmL7UxtqKuM29/eHwF0QDUI=",
+    sig.signatureValue,
+    "wrong signature value")
+
+  var keyInfo = select(sig.keyInfo[0], "//*[local-name(.)='KeyInfo']/*[local-name(.)='dummyKey']")[0];
+  test.equal(keyInfo.firstChild.data, "1234", "keyInfo clause not correctly loaded")
+
+  test.equal(3, sig.references.length)
+
+  var digests = ["b5GCZ2xpP5T7tbLWBTkOl4CYupQ=", "K4dI497ZCxzweDIrbndUSmtoezY=", "sH1gxKve8wlU8LlFVa2l6w3HMJ0="]
+
+
+  for (var i=0; i<sig.references.length; i++) {
+    var ref = sig.references[i]
+    var expectedUri = "#_"+i
+    test.equal(expectedUri, ref.uri, "wrong uri for index " + i + ". expected: " + expectedUri + " actual: " + ref.uri)
+    test.equal(1, ref.transforms.length)
+    test.equal("http://www.w3.org/2001/10/xml-exc-c14n#", ref.transforms[0])
+    test.equal(digests[i], ref.digestValue)
+    test.equal("http://www.w3.org/2000/09/xmldsig#sha1", ref.digestAlgorithm)
+  }
+}
 
 function failInvalidSignature(test, file, mode) {
   var xml = fs.readFileSync(file).toString()
