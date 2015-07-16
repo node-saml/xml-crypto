@@ -55,7 +55,7 @@ module.exports = {
     var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
     var sig = new crypto.SignedXml();
     sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/empty_uri.pem");
-    sig.loadSignature(signature.toString());    
+    sig.loadSignature(signature);    
     var result = sig.checkSignature(sampleXml);
     test.equal(result, true);
     test.done();
@@ -79,7 +79,7 @@ module.exports = {
     var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
     var sig = new crypto.SignedXml();    
     sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/windows_store_certificate.pem");
-    sig.loadSignature(signature.toString());    
+    sig.loadSignature(signature);    
     var result = sig.checkSignature(xml);
     test.equal(result, true);
     test.done();
@@ -96,7 +96,7 @@ module.exports = {
     var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
     var sig = new crypto.SignedXml();    
     sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/signature_with_inclusivenamespaces.pem");
-    sig.loadSignature(signature.toString());    
+    sig.loadSignature(signature);    
     var result = sig.checkSignature(xml);
     test.equal(result, true);
     test.done();

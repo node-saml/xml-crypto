@@ -8,7 +8,7 @@ exports['test validating SAML response'] = function (test) {
   var signature = crypto.xpath(doc, "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
   var sig = new crypto.SignedXml();
   sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/feide_public.pem");
-  sig.loadSignature(signature.toString());
+  sig.loadSignature(signature);
   var result = sig.checkSignature(xml);
   test.equal(result, true);
   test.done();
@@ -20,7 +20,7 @@ exports['test validating SAML response where a namespace is defined outside the 
   var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
   var sig = new crypto.SignedXml();
   sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/saml_external_ns.pem");
-  sig.loadSignature(signature.toString());
+  sig.loadSignature(signature);
   var result = sig.checkSignature(xml);
   test.equal(result, true);
   test.done();
@@ -32,7 +32,7 @@ exports['test validating SAML response WithComments'] = function (test) {
   var signature = crypto.xpath(doc, "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
   var sig = new crypto.SignedXml();
   sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/feide_public.pem");
-  sig.loadSignature(signature.toString());
+  sig.loadSignature(signature);
   var result = sig.checkSignature(xml);
   // This doesn't matter, just want to make sure that we don't fail due to unknown algorithm
   test.equal(result, false);
