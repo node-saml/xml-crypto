@@ -37,7 +37,7 @@ by default the following algorithms are used:
 
 *Signature Algorithm:* RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
 
-[You are able to extend xml-crypto with further algorithms.](#customizing-algorithms)
+[You are able to extend xml-crypto with custom algorithms.](#customizing-algorithms)
 
 
 ## Signing Xml documents
