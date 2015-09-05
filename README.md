@@ -348,7 +348,7 @@ Then you could use the result as is for the purpose of signing. For the purpose 
 ## Examples
 
 - [how to sign a root node](#) *coming soon*
-- [how to add a prefix for the signature] *coming soon*
+- [how to add a prefix for the signature](#) *coming soon*
 - [how to specify the location of the signature](#) *coming soon*
 
 *more examples coming soon*
