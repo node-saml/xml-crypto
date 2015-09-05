@@ -10,7 +10,45 @@ Install with [npm](http://github.com/isaacs/npm):
 
 A pre requisite it to have [openssl](http://www.openssl.org/) installed and its /bin to be on the system path. I used version 1.0.1c but it should work on older versions too.
 
+## Supported Algorithms
+
+### Canonicalization and Transformation Algorithms
+
+* Exclusive Canonicalization http://www.w3.org/2001/10/xml-exc-c14n#
+* Exclusive Canonicalization with comments http://www.w3.org/2001/10/xml-exc-c14n#WithComments
+* Enveloped Signature transform http://www.w3.org/2000/09/xmldsig#enveloped-signature
+
+### Hashing Algorithms
+
+* SHA1 digests http://www.w3.org/2000/09/xmldsig#sha1
+* SHA256 digests http://www.w3.org/2001/04/xmlenc#sha256
+
+### Signature Algorithms
+
+* RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
+* RSA-SHA256 http://www.w3.org/2001/04/xmldsig-more#rsa-sha256
+* RSA-SHA512 http://www.w3.org/2001/04/xmldsig-more#rsa-sha512
+
+by default the following algorithms are used:
+
+*Canonicalization/Transformation Algorithm:* Exclusive Canonicalization http://www.w3.org/2001/10/xml-exc-c14n#
+
+*Hashing Algorithm:* SHA1 digest http://www.w3.org/2000/09/xmldsig#sha1
+
+*Signature Algorithm:* RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
+
+[You are able to extend xml-crypto with custom algorithms.](#customizing-algorithms)
+
+
 ## Signing Xml documents
+
+When signing a xml document you can specify the following properties on a `SignedXml` instance to customize the signature process:
+
+- `sign.signingKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
+- `sign.keyInfoProvider` - **[optional]** a key info provider instance, see [customizing algorithms](#customizing-algorithms) for an implementation example
+- `sign.signatureAlgorithm` - **[optional]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
+- `sign.canonicalizationAlgorithm` - **[optional]** one of the supported [canonicalization algorithms](#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
+
 Use this code:
 
 `````javascript
@@ -56,18 +94,21 @@ The result will be:
 	</library>
 `````
 
+Note: 
 
-Notes:
-
-sig.getSignedXml() returns the original xml document with the signature pushed as the last child of the root node (as above). This assumes you are not signing the root node but only sub node(s) otherwise this is not valid. If you do sign the root node call sig.getSignatureXml() to get just the signature part and sig.getOriginalXmlWithIds() to get the original xml with Id attributes added on relevant elements (required for validation).
+To generate a `<X509Data></X509Data>` element in the signature you must provide a key info implementation, see [customizing algorithms](#customizing-algorithms) for an example.
 
 ## Verifying Xml documents
 
+When verifying a xml document you must specify the following properties on a ``SignedXml` instance:
+
+- `sign.keyInfoProvider` - **[required]** a key info provider instance containing your certificate, see [customizing algorithms](#customizing-algorithms) for an implementation example
+
 You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom) so you should install it first:
 
-    npm install xmldom    
+    npm install xmldom
 
-Then run:
+Example:
 
 `````javascript
 	var select = require('xml-crypto').xpath
@@ -87,18 +128,61 @@ Then run:
 	if (!res) console.log(sig.validationErrors)
 `````
 
+if the verification process fails `sig.validationErrors` will have the errors.
+
 Note: 
 
 The xml-crypto api requires you to supply it separately the xml signature ("&lt;Signature&gt;...&lt;/Signature&gt;", in loadSignature) and the signed xml (in checkSignature). The signed xml may or may not contain the signature in it, but you are still required to supply the signature separately.
 
-## Supported Algorithms
-The first release always uses the following algorithems:
 
-* Exclusive Canonicalization http://www.w3.org/2001/10/xml-exc-c14n#
-* SHA1 digests http://www.w3.org/2000/09/xmldsig#sha1
-* RSA-SHA1 signature algorithm http://www.w3.org/2000/09/xmldsig#rsa-sha1
+## API
 
-you are able to extend xml-crypto with further algorithms.
+### xpath
+
+See [xpath.js](https://github.com/yaronn/xpath.js) for usage
+
+### SignedXml
+
+The `SignedXml` constructor provides an abstraction for sign and verify xml documents. The object is constructed using `new SignedXml([idMode])` where:
+
+- `idMode` - if the value of `"wssecurity"` is passed it will create/validate id's with the ws-security namespace.
+
+*API*
+
+A `SignedXml` object provides the following methods:
+
+To sign xml documents:
+
+- `addReference(xpath, [transforms], [digestAlgorithm])` - adds a reference to a xml element where:
+    - `xpath` - a string containing a XPath expression referencing a xml element
+    - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array 
+    - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing algorithms)
+- `computeSignature(xml, [options])` - compute the signature of the given xml where:
+    - `xml` - a string containing a xml document
+    - `options` - an object with the following properties:
+        - `prefix` - adds this value as a prefix for the generated signature tags
+        - `attrs` - a hash of attributes and values `attrName: value` to add to the signature root node
+        - `location` - customize the location of the signature, pass an object with a `reference` key which should contain a XPath expression to a reference node, an `action` key which should contain one of the following values: `append`, `prepend`, `before`, `after`
+- `getSignedXml()` - returns the original xml document with the signature in it, **must be called only after `computeSignature`**
+- `getSignatureXml()` - returns just the signature part, **must be called only after `computeSignature`**
+- `getOriginalXmlWithIds()` - returns the original xml with Id attributes added on relevant elements (required for validation), **must be called only after `computeSignature`**
+
+To verify xml documents:
+
+- `loadSignature(signatureXml)` - loads the signature where:
+    - `signatureXml` - a string or node object (like an [xml-dom](https://github.com/jindw/xmldom) node) containing the xml representation of the signature
+- `checkSignature(xml)` - validates the given xml document and returns true if the validation was successful, `sig.validationErrors` will have the validation errors if any, where:
+    - `xml` - a string containing a xml document
+
+
+### FileKeyInfo
+
+A basic key info provider implementation using `fs.readFileSync(file)`, is constructed using `new FileKeyInfo([file])` where:
+
+- `file` - a path to a pem encoded certificate
+
+See [verifying xml documents](#verifying-xml-documents) for an example usage
+
 
 ## Customizing Algorithms
 The following sample shows how to sign a message using custom algorithms.
@@ -118,8 +202,10 @@ Implement it if you want to create a signature with a KeyInfo section, or you wa
 `````javascript
 	/**/
 	function MyKeyInfo() {
-	  this.getKeyInfo = function(key) {
-	    return "<X509Data></X509Data>"
+	  this.getKeyInfo = function(key, prefix) {
+        prefix = prefix || ''
+        prefix = prefix ? prefix + ':' : prefix
+	    return "<" + prefix + "X509Data></" + prefix + "X509Data>"
 	  }
 	  this.getKey = function(keyInfo) {
 	    //you can use the keyInfo parameter to extract the key in any way you want      
@@ -258,6 +344,14 @@ If you have .pfx certificates you can convert them to .pem using [openssl](http:
 	openssl pkcs12 -in c:\certs\yourcert.pfx -out c:\certs\cag.pem
 
 Then you could use the result as is for the purpose of signing. For the purpose of validation open the resulting .pem with a text editor and copy from -----BEGIN CERTIFICATE----- to  -----END CERTIFICATE----- (including) to a new text file and save it as .pem.
+
+## Examples
+
+- [how to sign a root node](#) *coming soon*
+- [how to add a prefix for the signature](#) *coming soon*
+- [how to specify the location of the signature](#) *coming soon*
+
+*more examples coming soon*
 
 ## Development
 The test framework is [nodeunit](https://github.com/caolan/nodeunit). To run tests use:
