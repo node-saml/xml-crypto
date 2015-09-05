@@ -5,3 +5,4 @@ p.txt
 .DS_Store
 *.*~
 *.swp
+npm-debug.log
