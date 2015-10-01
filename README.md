@@ -196,7 +196,7 @@ First import some modules:
 `````
 
 
-Now define the extension point you want to implement. You can choose one ore more.
+Now define the extension point you want to implement. You can choose one or more.
 
 A key info provider is used to extract and construct the key and the KeyInfo xml section.
 Implement it if you want to create a signature with a KeyInfo section, or you want to read your key in a different way then the default file read option.
