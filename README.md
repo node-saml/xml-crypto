@@ -157,7 +157,7 @@ To sign xml documents:
 - `addReference(xpath, [transforms], [digestAlgorithm])` - adds a reference to a xml element where:
     - `xpath` - a string containing a XPath expression referencing a xml element
     - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array 
-    - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing algorithms)
+    - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing-algorithms)
 - `computeSignature(xml, [options])` - compute the signature of the given xml where:
     - `xml` - a string containing a xml document
     - `options` - an object with the following properties:
