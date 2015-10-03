@@ -22,13 +22,14 @@ A pre requisite it to have [openssl](http://www.openssl.org/) installed and its 
 
 * SHA1 digests http://www.w3.org/2000/09/xmldsig#sha1
 * SHA256 digests http://www.w3.org/2001/04/xmlenc#sha256
+* SHA512 digests http://www.w3.org/2001/04/xmlenc#sha512
 
 ### Signature Algorithms
 
 * RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
 * RSA-SHA256 http://www.w3.org/2001/04/xmldsig-more#rsa-sha256
 * RSA-SHA512 http://www.w3.org/2001/04/xmldsig-more#rsa-sha512
-* HMAC-SHA1 http://www.w3.org/2000/09/xmldsig#hmac-sha1 
+* HMAC-SHA1 http://www.w3.org/2000/09/xmldsig#hmac-sha1
 
 by default the following algorithms are used:
 
@@ -95,7 +96,7 @@ The result will be:
 	</library>
 `````
 
-Note: 
+Note:
 
 To generate a `<X509Data></X509Data>` element in the signature you must provide a key info implementation, see [customizing algorithms](#customizing-algorithms) for an example.
 
@@ -131,7 +132,7 @@ Example:
 
 if the verification process fails `sig.validationErrors` will have the errors.
 
-Note: 
+Note:
 
 The xml-crypto api requires you to supply it separately the xml signature ("&lt;Signature&gt;...&lt;/Signature&gt;", in loadSignature) and the signed xml (in checkSignature). The signed xml may or may not contain the signature in it, but you are still required to supply the signature separately.
 
@@ -156,7 +157,7 @@ To sign xml documents:
 
 - `addReference(xpath, [transforms], [digestAlgorithm])` - adds a reference to a xml element where:
     - `xpath` - a string containing a XPath expression referencing a xml element
-    - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array 
+    - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array
     - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing-algorithms)
 - `computeSignature(xml, [options])` - compute the signature of the given xml where:
     - `xml` - a string containing a xml document
@@ -232,7 +233,7 @@ A custom hash algorithm is used to calculate digests. Implement it if you want a
 `````
 
 A custom signing algorithm. The default is RSA-SHA1
-`````javascript	
+`````javascript
 	function MySignatureAlgorithm() {
 
 	  /*sign the given SignedInfo using the key. return base64 signature value*/
@@ -249,9 +250,9 @@ A custom signing algorithm. The default is RSA-SHA1
 
 Custom transformation algorithm. The default is exclusive canonicalization.
 
-`````javascript	
+`````javascript
 	function MyTransformation() {
-	  
+
 	  /*given a node (from the xmldom module) return its canonical representation (as string)*/
 	  this.process = function(node) {	  	
 	  	//you should apply your transformation before returning
@@ -316,9 +317,9 @@ Now do the signing. Note how we configure the signature to use the above algorit
 	            "</book>"
 	          "</library>"
 
-	signXml(xml, 
-	  "//*[local-name(.)='book']", 
-	  "client.pem", 
+	signXml(xml,
+	  "//*[local-name(.)='book']",
+	  "client.pem",
 	  "result.xml")
 `````
 
