@@ -516,6 +516,28 @@ module.exports = {
     var URI = select(doc, "//*[local-name(.)='Reference']/@URI")[0]
     test.equal(URI.value, "", "uri should be empty but instead was " + URI.value)
     test.done()
+  },
+
+  "signer appends signature to a non-existing reference node": function(test) {
+    var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
+    var sig = new SignedXml();
+
+    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference("//*[local-name(.)='repository']");
+
+    try {
+        sig.computeSignature(xml, {
+          location: {
+            reference: '/root/foobar',
+            action: 'append'
+          }
+        });
+        test.ok(false);
+    }
+    catch (err) {
+        test.ok(!(err instanceof TypeError));
+    }
+    test.done();
   }
 
 }
