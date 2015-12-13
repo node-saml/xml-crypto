@@ -4,12 +4,15 @@ var ExclusiveCanonicalization = require("../lib/exclusive-canonicalization").Exc
   , SignedXml = require('../lib/signed-xml.js').SignedXml
 
 
-var compare = function(test, xml, xpath, expected, inclusiveNamespacesPrefixList) {
+var compare = function(test, xml, xpath, expected, inclusiveNamespacesPrefixList, defaultNsForPrefix) {
     test.expect(1)
     var doc = new Dom().parseFromString(xml)
     var elem = select(doc, xpath)[0]
     var can = new ExclusiveCanonicalization()
-    var result = can.process(elem, { inclusiveNamespacesPrefixList: inclusiveNamespacesPrefixList }).toString()
+    var result = can.process(elem, {
+      inclusiveNamespacesPrefixList: inclusiveNamespacesPrefixList,
+      defaultNsForPrefix: defaultNsForPrefix
+    }).toString()
 
     test.equal(expected, result)
     test.done()
@@ -45,11 +48,13 @@ module.exports = {
       "<child xmlns=\"s\"><p:inner xmlns:p=\"s\">123</p:inner></child>")
   },
 
-  "xmlns:ds should default to http://www.w3.org/2000/09/xmldsig# if not provided": function (test) {
+  "Exclusive canonicalization works with default namespace for prefix": function(test) {
     compare(test,
       '<ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></ds:SignedInfo>',
       "//*[local-name(.)='SignedInfo']",
-      '<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></ds:CanonicalizationMethod></ds:SignedInfo>')
+      '<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></ds:CanonicalizationMethod></ds:SignedInfo>',
+      undefined,
+      { ds: 'http://www.w3.org/2000/09/xmldsig#' })
   },
 
   "Exclusive canonicalization works on xml with prefixed namespaces defined in output nodes. ns definition is not duplicated on each usage": function (test) {
