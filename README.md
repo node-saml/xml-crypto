@@ -353,9 +353,53 @@ Then you could use the result as is for the purpose of signing. For the purpose 
 ## Examples
 
 - [how to sign a root node](#) *coming soon*
-- [how to add a prefix for the signature](#) *coming soon*
-- [how to specify the location of the signature](#) *coming soon*
 
+###how to add a prefix for the signature###
+Use the `prefix` option when calling `computeSignature` to add a prefix to the signature. 
+`````javascript
+var SignedXml = require('xml-crypto').SignedXml	  
+  , fs = require('fs');
+
+var xml = "<library>" +
+            "<book>" +
+              "<name>Harry Potter</name>" +
+            "</book>" +
+          "</library>";
+
+var sig = new SignedXml();
+sig.addReference("//*[local-name(.)='book']");
+sig.signingKey = fs.readFileSync("client.pem");
+sig.computeSignature(xml,{
+  prefix: 'ds'
+});
+`````
+
+###how to specify the location of the signature###
+Use the `location` option when calling `computeSignature` to move the signature around. 
+Set `action` to one of the following: 
+- append(default) - append to the end of the xml document
+- prepend - prepend to the xml document
+- before - prepend to a specific node (use the `referenceNode` property)
+- after - append to specific node (use the `referenceNode` property)
+
+`````javascript
+var SignedXml = require('xml-crypto').SignedXml	  
+  , fs = require('fs');
+
+var xml = "<library>" +
+            "<book>" +
+              "<name>Harry Potter</name>" +
+            "</book>" +
+          "</library>";
+
+var sig = new SignedXml();
+sig.addReference("//*[local-name(.)='book']");
+sig.signingKey = fs.readFileSync("client.pem");
+sig.computeSignature(xml,{
+  location: { reference: "//*[local-name(.)='book']", action: "after" } //This will place the signature after the book element
+});
+
+`````
 *more examples coming soon*
 
 ## Development
