@@ -104,6 +104,40 @@ module.exports = {
 
 
 
+  "signature with inclusive namespaces with unix line separators": function(test) {
+
+    var xml = fs.readFileSync('./test/static/signature_with_inclusivenamespaces_lines.xml', 'utf-8');
+    var doc = new Dom().parseFromString(xml);
+    xml = doc.firstChild.toString()
+
+    var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
+    var sig = new crypto.SignedXml();
+    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/signature_with_inclusivenamespaces.pem");
+    sig.loadSignature(signature);
+    var result = sig.checkSignature(xml);
+    test.equal(result, true);
+    test.done();
+  },
+
+
+
+  "signature with inclusive namespaces with windows line separators": function(test) {
+
+    var xml = fs.readFileSync('./test/static/signature_with_inclusivenamespaces_lines_windows.xml', 'utf-8');
+    var doc = new Dom().parseFromString(xml);
+    xml = doc.firstChild.toString()
+
+    var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
+    var sig = new crypto.SignedXml();
+    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/signature_with_inclusivenamespaces.pem");
+    sig.loadSignature(signature);
+    var result = sig.checkSignature(xml);
+    test.equal(result, true);
+    test.done();
+  },
+
+
+
 
   "should create single root xml document when signing inner node": function(test) {
     var xml = "<library>" +
