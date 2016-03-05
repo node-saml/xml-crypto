@@ -204,6 +204,30 @@ module.exports = {
   },
 
 
+  "Exclusive canonicalization turns CR-NL (windows line separator) to single NL between elements": function (test) {
+    compare(test,
+      "<root><child><inner>123</inner>\r\n</child></root>",
+      "//*[local-name(.)='child']",
+      "<child><inner>123</inner>\n</child>")
+  },
+
+
+  "Exclusive canonicalization turns multiple line break into a single NL between elements": function (test) {
+    compare(test,
+      "<root><child><inner>123</inner>\r\n\n\n\r\n</child></root>",
+      "//*[local-name(.)='child']",
+      "<child><inner>123</inner>\n</child>")
+  },
+
+
+  "Exclusive canonicalization preserves CR-NL (windows line separator) in values": function (test) {
+    compare(test,
+      "<root><child><inner>\r\n12\r\n3\r\n</inner></child></root>",
+      "//*[local-name(.)='child']",
+      "<child><inner>\n12\n3\n</inner></child>")
+  },
+
+
   "Exclusive canonicalization turns empty element to start-end tag pairs": function (test) {
     compare(test,
       "<root><child><inner /></child></root>",
