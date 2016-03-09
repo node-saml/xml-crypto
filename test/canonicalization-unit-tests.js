@@ -179,14 +179,19 @@ module.exports = {
       "<child xmlns=\"bla\" xmlns:p=\"foo\" p:attr=\"val\"><inner>123</inner></child>")
   },
 
-
-  "Exclusive canonicalization works on xml with attribute and element values with special characters": function (test) {
+  "Exclusive canonicalization works on xml with attribute values with special characters": function (test) {
     compare(test,
-      "<root><child><inner attr=\"&amp;11\">&amp;11</inner></child></root>",
+      "<root><child><inner attrEncoded=\"&amp;&lt;>&quot;&#xA;&#xD;&#x9;11\" attrUnencoded='&<>\"\n\r\t11'>11</inner></child></root>",
       "//*[local-name(.)='child']",
-      "<child><inner attr=\"&amp;11\">&amp;11</inner></child>")
+      "<child><inner attrEncoded=\"&amp;&lt;>&quot;&#xA;&#xD;&#x9;11\" attrUnencoded=\"&amp;&lt;>&quot;&#xA;&#xD;&#x9;11\">11</inner></child>")
   },
 
+  "Exclusive canonicalization works on xml with element values with special characters": function (test) {
+    compare(test,
+        "<root><child><innerEncoded>&amp;&lt;>&quot;&#xD;&#x9;11</innerEncoded><innerUnencoded>&<>\"\r\n\t11\</innerUnencoded></child></root>",
+        "//*[local-name(.)='child']",
+        "<child><innerEncoded>&amp;&lt;&gt;\"&#xD;\t11</innerEncoded><innerUnencoded>&amp;&lt;&gt;\"&#xD;\n\t11</innerUnencoded></child>")
+  },
 
   "Exclusive canonicalization preserves white space in values": function (test) {
     compare(test,
@@ -202,31 +207,6 @@ module.exports = {
       "//*[local-name(.)='child']",
       "<child><inner>123</inner>&#xD;</child>")
   },
-
-
-  "Exclusive canonicalization turns CR-NL (windows line separator) to single NL between elements": function (test) {
-    compare(test,
-      "<root><child><inner>123</inner>\r\n</child></root>",
-      "//*[local-name(.)='child']",
-      "<child><inner>123</inner>\n</child>")
-  },
-
-
-  "Exclusive canonicalization turns multiple line break into a single NL between elements": function (test) {
-    compare(test,
-      "<root><child><inner>123</inner>\r\n\n\n\r\n</child></root>",
-      "//*[local-name(.)='child']",
-      "<child><inner>123</inner>\n</child>")
-  },
-
-
-  "Exclusive canonicalization preserves CR-NL (windows line separator) in values": function (test) {
-    compare(test,
-      "<root><child><inner>\r\n12\r\n3\r\n</inner></child></root>",
-      "//*[local-name(.)='child']",
-      "<child><inner>\n12\n3\n</inner></child>")
-  },
-
 
   "Exclusive canonicalization turns empty element to start-end tag pairs": function (test) {
     compare(test,
