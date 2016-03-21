@@ -413,3 +413,6 @@ Visit my [blog](http://webservices20.blogspot.com/) or my [twitter](http://twitt
 
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/yaronn/xml-crypto/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
 
+## License
+
+This project is licensed under the [MIT License](http://opensource.org/licenses/MIT). See the [LICENSE](LICENSE) file for more info.
