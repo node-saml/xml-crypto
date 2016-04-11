@@ -128,7 +128,7 @@ Example:
 	var signature = select(doc, "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0]
 	var sig = new SignedXml()
 	sig.keyInfoProvider = new FileKeyInfo("client_public.pem")
-	sig.loadSignature(signature.toString())
+	sig.loadSignature(signature)
 	var res = sig.checkSignature(xml)
 	if (!res) console.log(sig.validationErrors)
 `````
