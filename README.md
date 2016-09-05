@@ -17,22 +17,24 @@ A pre requisite it to have [openssl](http://www.openssl.org/) installed and its 
 
 ### Canonicalization and Transformation Algorithms
 
-* Exclusive Canonicalization http://www.w3.org/2001/10/xml-exc-c14n#
-* Exclusive Canonicalization with comments http://www.w3.org/2001/10/xml-exc-c14n#WithComments
-* Enveloped Signature transform http://www.w3.org/2000/09/xmldsig#enveloped-signature
+* C14N Canonicalization `http://www.w3.org/TR/2001/REC-xml-c14n-20010315`
+* C14N Canonicalization with comments `http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments`
+* Exclusive Canonicalization `http://www.w3.org/2001/10/xml-exc-c14n#`
+* Exclusive Canonicalization with comments `http://www.w3.org/2001/10/xml-exc-c14n#WithComments`
+* Enveloped Signature transform `http://www.w3.org/2000/09/xmldsig#enveloped-signature`
 
 ### Hashing Algorithms
 
-* SHA1 digests http://www.w3.org/2000/09/xmldsig#sha1
-* SHA256 digests http://www.w3.org/2001/04/xmlenc#sha256
-* SHA512 digests http://www.w3.org/2001/04/xmlenc#sha512
+* SHA1 digests `http://www.w3.org/2000/09/xmldsig#sha1`
+* SHA256 digests `http://www.w3.org/2001/04/xmlenc#sha256`
+* SHA512 digests `http://www.w3.org/2001/04/xmlenc#sha512`
 
 ### Signature Algorithms
 
-* RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
-* RSA-SHA256 http://www.w3.org/2001/04/xmldsig-more#rsa-sha256
-* RSA-SHA512 http://www.w3.org/2001/04/xmldsig-more#rsa-sha512
-* HMAC-SHA1 http://www.w3.org/2000/09/xmldsig#hmac-sha1
+* RSA-SHA1 `http://www.w3.org/2000/09/xmldsig#rsa-sha1`
+* RSA-SHA256 `http://www.w3.org/2001/04/xmldsig-more#rsa-sha256
+* RSA-SHA512 `http://www.w3.org/2001/04/xmldsig-more#rsa-sha512`
+* HMAC-SHA1 `http://www.w3.org/2000/09/xmldsig#hmac-sha1`
 
 by default the following algorithms are used:
 
