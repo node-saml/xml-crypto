@@ -434,7 +434,13 @@ module.exports = {
 					  '<paketID xmlns="">3810016849-201501-KB-0000</paketID>'+
 					'</getBatchStatus>'+
 				  '</s:Body>')
+   },
+
+  "Overriding namespace in canonicalization": function (test) {
+    compare(test,
+            '<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:InclusiveNamespaces xmlns:ds="http://www.w3.org/2001/10/xml-exc-c14n#"></ds:InclusiveNamespaces></ds:Signature>',
+            '//*',
+            '<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:InclusiveNamespaces xmlns:ds="http://www.w3.org/2001/10/xml-exc-c14n#"></ds:InclusiveNamespaces></ds:Signature>',
+            'ds')
   }
-
-
 }
