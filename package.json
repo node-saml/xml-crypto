@@ -5,7 +5,7 @@
   "engines": {
     "node": ">=0.4.0"
   },
-  "author": "Yaron Naveh (yaronn01@gmail.com, http://webservices20.blogspot.com/)",
+  "author": "Yaron Naveh <yaronn01@gmail.com> (http://webservices20.blogspot.com/)",
   "dependencies": {
     "xmldom": "=0.1.19",
     "xpath.js": ">=0.0.3"
