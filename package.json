@@ -1,11 +1,11 @@
 {
   "name": "xml-crypto",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "Xml digital signature and encryption library for Node.js",
   "engines": {
     "node": ">=0.4.0"
   },
-  "author": "Yaron Naveh (yaronn01@gmail.com, http://webservices20.blogspot.com/)",
+  "author": "Yaron Naveh <yaronn01@gmail.com> (http://webservices20.blogspot.com/)",
   "dependencies": {
     "xmldom": "=0.1.19",
     "xpath.js": ">=0.0.3"
@@ -27,12 +27,7 @@
     "xml encryption",
     "x.509 certificate"
   ],
-  "licenses": [
-    {
-      "type": "MIT License",
-      "url": "http://www.opensource.org/licenses/mit-license.php"
-    }
-  ],
+  "license": "MIT",
   "scripts": {
     "test": "nodeunit ./test/canonicalization-unit-tests.js ./test/c14nWithComments-unit-tests.js ./test/signature-unit-tests.js ./test/saml-response-test.js ./test/signature-integration-tests.js ./test/document-test.js ./test/wsfed-metadata-test.js ./test/hmac-tests.js"
   }

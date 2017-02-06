@@ -483,6 +483,7 @@ module.exports = {
 
   "verify valid signature": function(test) {
     passValidSignature(test, "./test/static/valid_signature.xml")
+    passValidSignature(test, "./test/static/valid_signature_with_lowercase_id_attribute.xml");
     passValidSignature(test, "./test/static/valid_signature wsu.xml", "wssecurity")
     passValidSignature(test, "./test/static/valid_signature_with_reference_keyInfo.xml")
     passValidSignature(test, "./test/static/valid_signature_utf8.xml")
