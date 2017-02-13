@@ -17,6 +17,8 @@ A pre requisite it to have [openssl](http://www.openssl.org/) installed and its 
 
 ### Canonicalization and Transformation Algorithms
 
+* Canonicalization http://www.w3.org/TR/2001/REC-xml-c14n-20010315
+* Canonicalization with comments http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments
 * Exclusive Canonicalization http://www.w3.org/2001/10/xml-exc-c14n#
 * Exclusive Canonicalization with comments http://www.w3.org/2001/10/xml-exc-c14n#WithComments
 * Enveloped Signature transform http://www.w3.org/2000/09/xmldsig#enveloped-signature
