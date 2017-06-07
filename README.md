@@ -142,7 +142,7 @@ In order to protect from some attacks we must check the content we want to use i
 	var elem = select(doc, "/xpath_to_interesting_element");
 	var uri = sig.references[0].uri; // might not be 0 - depending on the document you verify
         var id = (uri[0] === '#') ? uri.substring(1) : uri;
-        if (node.getAttribute('ID') != id && node.getAttribute('Id') != id)
+        if (elem.getAttribute('ID') != id && elem.getAttribute('Id') != id && elem.getAttribute('id') != id)
           throw new Error('the interesting element was not the one verified by the signature')
 `````
 
