@@ -151,6 +151,30 @@ Note:
 The xml-crypto api requires you to supply it separately the xml signature ("&lt;Signature&gt;...&lt;/Signature&gt;", in loadSignature) and the signed xml (in checkSignature). The signed xml may or may not contain the signature in it, but you are still required to supply the signature separately.
 
 
+### Caring for Implicit transform
+If you fail to verify signed XML, then one possible cause is that there are some hidden implicit transforms(#).  
+(#) Normalizing XML document to be verified. i.e. remove extra space within a tag, sorting attributes, importing namespace declared in ancestor nodes, etc.
+
+The reason for these implicit transform might come from [complex xml signature specification](https://www.w3.org/TR/2002/REC-xmldsig-core-20020212),
+which makes XML developers confused and then leads to incorrect implementation for signing XML document.
+
+If you keep failing verification, it is worth trying to guess such a hidden transform and specify it to the option as below:
+
+```javascript
+var option = {implicitTransforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"]}
+var sig = new SignedXml(null, option)
+sig.keyInfoProvider = new FileKeyInfo("client_public.pem")
+sig.loadSignature(signature)
+var res = sig.checkSignature(xml)
+```
+
+You might find it difficult to guess such transforms, but there are typical transforms you can try.
+
+- http://www.w3.org/TR/2001/REC-xml-c14n-20010315
+- http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments
+- http://www.w3.org/2001/10/xml-exc-c14n#
+- http://www.w3.org/2001/10/xml-exc-c14n#WithComments
+
 ## API
 
 ### xpath
