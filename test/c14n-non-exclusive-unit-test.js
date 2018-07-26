@@ -23,11 +23,7 @@ var test_findAncestorNs = function(test, xml, xpath, expected){
   test.done();
 };
 
-
-
-
-
-
+// Tests for findAncestorNs
 exports["findAncestorNs: Correctly picks up root ancestor namespace"] = function(test){
   var xml = "<root xmlns:aaa='bbb'><child1><child2></child2></child1></root>";
   var xpath = "/root/child1/child2";
@@ -108,15 +104,7 @@ exports["findAncestorNs: Ignores namespace declared in the target xpath node"] =
   test_findAncestorNs(test, xml, xpath, expected);
 };
 
-
-
-
-
-
-
-
-
-
+// Tests for c14nCanonicalization
 exports["C14n: Correctly picks up root ancestor namespace"] = function(test){
   var xml = "<root xmlns:aaa='bbb'><child1><child2></child2></child1></root>";
   var xpath = "/root/child1/child2";
@@ -180,3 +168,11 @@ exports["C14n: Preserve namespace declared in the target xpath node"] = function
   
   test_C14nCanonicalization(test, xml, xpath, expected);
 };
+
+exports["C14n: Don't redeclare an attribute's namespace prefix if already in scope"] = function(test) {
+  var xml = "<root xmlns:aaa='bbb'><child1><child2 xmlns:aaa='bbb' aaa:foo='bar'></child2></child1></root>"
+  var xpath = "/root/child1/child2";
+  var expected = '<child2 xmlns:aaa="bbb" aaa:foo="bar"></child2>';
+
+  test_C14nCanonicalization(test, xml, xpath, expected);
+}

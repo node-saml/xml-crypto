@@ -33,58 +33,36 @@ module.exports = {
 
 
 
-  "empty URI reference should consider the whole document": function(test) {    
+  "empty URI reference should consider the whole document": function(test) {
+    var xml = "<library>" +
+                "<book>" +
+                  "<name>Harry Potter</name>" +
+                "</book>" +
+              "</library>";
 
-    var sampleXml=["<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
-                           "<root>",
-                           "    <a>",
-                           "        <b/>",
-                           "    </a>",
-                           "    <Seal><Signature xmlns=\"http://www.w3.org/2000/09/xmldsig#\"><SignedInfo><CanonicalizationMethod Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/><SignatureMethod Algorithm=\"http://www.w3.org/2001/04/xmldsig-more#rsa-sha256\"/><Reference URI=\"\"><Transforms><Transform Algorithm=\"http://www.w3.org/2000/09/xmldsig#enveloped-signature\"/></Transforms><DigestMethod Algorithm=\"http://www.w3.org/2001/04/xmlenc#sha256\"/><DigestValue>FOezc5yb1O+LfQaD4UBKEUphrGzFAq5DM9B9ll37JOA=</DigestValue></Reference></SignedInfo><SignatureValue>AjkQ5NF71bwJ2YHIs8jbqva9qaNv66BYZiZw0JJZ1cW6jf3mjWShIMQZWcw78QGpzzr+ZspzUbs4",
-                           "6VAnHApJElOTDylSf3rDSvzsklKcFpHJ9yCJV+PnipEsY8qWhzKHlKCdtEn1xH0BCP/2JfMYgLQl",
-                           "PCvaR8XrgdODeQ2Gn6g=</SignatureValue><KeyInfo><KeyValue><RSAKeyValue><Modulus>t+qknJd/Kdo09fvQrRThqh/3EyDQj8zT1ZT7uXmivni4Vaysf6zHv+oORIvAt9ntZE2ZCif9v6CC",
-                           "W+hmRFkdgRoVpmD2TErjykzowx6Ffyf5BkVnVB89+g/ZqNyyvXiBe8SmpBrRLOMifnbacyrJcsrH",
-                           "fwlCnuyGKXj1LfzDcR8=</Modulus><Exponent>AQAB</Exponent></RSAKeyValue></KeyValue></KeyInfo></Signature></Seal>",
-                           "    <c>",
-                           "        <d e=\"f\"/>",
-                           "    </c>",
-                           "</root>"].join("\n");
+    var signature = '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">' + 
+                  '<SignedInfo>' +
+                    '<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
+                    '<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>' +
+                    '<Reference URI="">' +
+                      '<Transforms>' +
+                        '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
+                      '</Transforms>' +
+                      '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
+                      '<DigestValue>1tjZsV007JgvE1YFe1C8sMQ+iEg=</DigestValue>' +
+                    '</Reference>' +
+                  '</SignedInfo>' +
+                  '<SignatureValue>FONRc5/nnQE2GMuEV0wK5/ofUJMHH7dzZ6VVd+oHDLfjfWax/lCMzUahJxW1i/dtm9Pl0t2FbJONVd3wwDSZzy6u5uCnj++iWYkRpIEN19RAzEMD1ejfZET8j3db9NeBq2JjrPbw81Fm7qKvte6jGa9ThTTB+1MHFRkC8qjukRM=</SignatureValue>' +
+                '</Signature>';
+
+    var sig = new crypto.SignedXml()
+    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/client_public.pem")
+    sig.loadSignature(signature);
     
-    var doc = new Dom().parseFromString(sampleXml);    
-    
-    var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
-    var sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/empty_uri.pem");
-    sig.loadSignature(signature);    
-    var result = sig.checkSignature(sampleXml);
-    test.equal(result, true);
-    test.done();
-  },
-
-
-
-  "windows store signature": function(test) {    
-
-    var xml = fs.readFileSync('./test/static/windows_store_signature.xml', 'utf-8');        
-
-    // Make sure that whitespace in the source document is removed -- see xml-crypto issue #23 and post at
-    //   http://webservices20.blogspot.co.il/2013/06/validating-windows-mobile-app-store.html
-    // This regex is naive but works for this test case; for a more general solution consider 
-    //   the xmldom-fork-fixed library which can pass {ignoreWhiteSpace: true} into the Dom constructor.
-    xml = xml.replace(/>\s*</g, '><'); 
-
-    var doc = new Dom().parseFromString(xml);    
-    xml = doc.firstChild.toString()
-
-    var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
-    var sig = new crypto.SignedXml();    
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/windows_store_certificate.pem");
-    sig.loadSignature(signature);    
     var result = sig.checkSignature(xml);
     test.equal(result, true);
     test.done();
   },
-
 
 
   "signature with inclusive namespaces": function(test) {    
@@ -190,7 +168,7 @@ function verifySignature(test, xml, expected, xpath) {
   
   var sig = new SignedXml()
   sig.signingKey = fs.readFileSync("./test/static/client.pem")
-  sig.keyInfoCaluse = null
+  sig.keyInfo = null;
   
   xpath.map(function(n) { sig.addReference(n) })
 
