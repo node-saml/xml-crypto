@@ -1,27 +1,34 @@
 {
-    "name": "xml-crypto",
-    "version": "0.1.24",
-    "description": "Xml digital signature and encryption library for Node.js",
-    "engines": { "node": ">=0.4.0" },
-    "author": "Yaron Naveh (yaronn01@gmail.com, http://webservices20.blogspot.com/)",
-    "dependencies": {
-        "xmldom-fork-fixed": ">=0.0.1",
-        "xmldom": "=0.1.16",
-        "xpath.js": ">=0.0.3"
-     },
-     "devDependencies": {
-        "nodeunit": ">=0.6.4"
-     },
-    "repository" : { 
-        "type":"git", 
-        "url":"https://github.com/yaronn/xml-crypto.git" },
-    "main": "./index.js",
-    "directories": { "lib": "./lib" },
-    "keywords": ["xml", "digital signature", "xml encryption", "x.509 certificate"],
-    "licenses": [{ 
-        "type" :  "MIT License",
-        "url" :   "http://www.opensource.org/licenses/mit-license.php" }],
-    "scripts":    {
-        "test": "nodeunit ./test/canonicalization-unit-tests.js ./test/signature-unit-tests.js ./test/saml-response-test.js ./test/signature-integration-tests.js"
-    }
+  "name": "xml-crypto",
+  "version": "0.10.1",
+  "description": "Xml digital signature and encryption library for Node.js",
+  "engines": {
+    "node": ">=0.4.0"
+  },
+  "author": "Yaron Naveh <yaronn01@gmail.com> (http://webservices20.blogspot.com/)",
+  "dependencies": {
+    "xmldom": "=0.1.19",
+    "xpath.js": ">=0.0.3"
+  },
+  "devDependencies": {
+    "nodeunit": ">=0.6.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yaronn/xml-crypto.git"
+  },
+  "main": "./index.js",
+  "directories": {
+    "lib": "./lib"
+  },
+  "keywords": [
+    "xml",
+    "digital signature",
+    "xml encryption",
+    "x.509 certificate"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "test": "nodeunit ./test/canonicalization-unit-tests.js ./test/c14nWithComments-unit-tests.js ./test/signature-unit-tests.js ./test/saml-response-test.js ./test/signature-integration-tests.js ./test/document-test.js ./test/wsfed-metadata-test.js ./test/hmac-tests.js"
+  }
 }
