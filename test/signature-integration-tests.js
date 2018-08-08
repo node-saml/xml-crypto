@@ -58,7 +58,28 @@ module.exports = {
     var sig = new crypto.SignedXml()
     sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/client_public.pem")
     sig.loadSignature(signature);
-    
+    var result = sig.checkSignature(xml);
+    test.equal(result, true);
+    test.done();
+  },
+
+  "add canonicalization if output of transforms will be a node-set rather than an octet stream": function(test) {
+
+    var xml = fs.readFileSync('./test/static/windows_store_signature.xml', 'utf-8');
+
+    // Make sure that whitespace in the source document is removed -- see xml-crypto issue #23 and post at
+    //   http://webservices20.blogspot.co.il/2013/06/validating-windows-mobile-app-store.html
+    // This regex is naive but works for this test case; for a more general solution consider
+    //   the xmldom-fork-fixed library which can pass {ignoreWhiteSpace: true} into the Dom constructor.
+    xml = xml.replace(/>\s*</g, '><');
+
+    var doc = new Dom().parseFromString(xml);
+    xml = doc.firstChild.toString();
+
+    var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
+    var sig = new crypto.SignedXml();
+    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/windows_store_certificate.pem");
+    sig.loadSignature(signature);
     var result = sig.checkSignature(xml);
     test.equal(result, true);
     test.done();
