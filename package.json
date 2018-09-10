@@ -11,7 +11,7 @@
     "xpath.js": ">=0.0.3"
   },
   "devDependencies": {
-    "nodeunit": ">=0.6.4"
+    "nodeunit": "^0.11.3"
   },
   "repository": {
     "type": "git",
