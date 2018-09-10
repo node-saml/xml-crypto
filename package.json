@@ -7,7 +7,7 @@
   },
   "author": "Yaron Naveh <yaronn01@gmail.com> (http://webservices20.blogspot.com/)",
   "dependencies": {
-    "xmldom": "=0.1.19",
+    "xmldom": "0.1.27",
     "xpath.js": ">=0.0.3"
   },
   "devDependencies": {
