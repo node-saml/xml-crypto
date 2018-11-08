@@ -4,14 +4,15 @@ var ExclusiveCanonicalization = require("../lib/exclusive-canonicalization").Exc
   , SignedXml = require('../lib/signed-xml.js').SignedXml
 
 
-var compare = function(test, xml, xpath, expected, inclusiveNamespacesPrefixList, defaultNsForPrefix) {
+var compare = function(test, xml, xpath, expected, inclusiveNamespacesPrefixList, defaultNsForPrefix, ancestorNamespaces) {
     test.expect(1)
     var doc = new Dom().parseFromString(xml)
     var elem = select(doc, xpath)[0]
     var can = new ExclusiveCanonicalization()
     var result = can.process(elem, {
       inclusiveNamespacesPrefixList: inclusiveNamespacesPrefixList,
-      defaultNsForPrefix: defaultNsForPrefix
+      defaultNsForPrefix: defaultNsForPrefix,
+      ancestorNamespaces: ancestorNamespaces
     }).toString()
 
     test.equal(expected, result)
@@ -442,5 +443,14 @@ module.exports = {
             '//*',
             '<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:InclusiveNamespaces xmlns:ds="http://www.w3.org/2001/10/xml-exc-c14n#"></ds:InclusiveNamespaces></ds:Signature>',
             'ds')
+  },
+
+  "An ancestor namespace, which is included in the inclusiveNamespacePrefixList should be added to the top level element": function (test) {
+    compare(test, '<root><child inclusive:attr="value"></child></root>',
+            '//*',
+             '<root xmlns:inclusive="urn:inclusive"><child inclusive:attr="value"></child></root>',
+      "inclusive",
+      {},
+      [{"prefix": "inclusive", "namespaceURI": "urn:inclusive"}]);
   }
 }
