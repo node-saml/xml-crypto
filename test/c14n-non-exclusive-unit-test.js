@@ -1,11 +1,11 @@
 var C14nCanonicalization = require("../lib/c14n-canonicalization").C14nCanonicalization
   , Dom = require('xmldom').DOMParser
-  , select = require('xpath.js')
+  , select = require('xpath').select
   , findAncestorNs = require('../lib/signed-xml').SignedXml.findAncestorNs
 
 var test_C14nCanonicalization = function(test, xml, xpath, expected) {
   var doc = new Dom().parseFromString(xml);
-  var elem = select(doc, xpath)[0];
+  var elem = select(xpath, doc)[0];
   var can = new C14nCanonicalization();
   var result = can.process(elem, {
     ancestorNamespaces: findAncestorNs(doc, xpath)

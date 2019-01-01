@@ -1,4 +1,4 @@
-var select = require('xpath.js')
+var xpath = require('xpath')
   , Dom = require('xmldom').DOMParser
   , SignedXml = require('../lib/signed-xml.js').SignedXml
   , fs = require('fs')
@@ -76,7 +76,7 @@ module.exports = {
     var doc = new Dom().parseFromString(xml);
     xml = doc.firstChild.toString();
 
-    var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
+    var signature = xpath.select("//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']", doc)[0];
     var sig = new crypto.SignedXml();
     sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/windows_store_certificate.pem");
     sig.loadSignature(signature);
@@ -92,7 +92,7 @@ module.exports = {
     var doc = new Dom().parseFromString(xml);    
     xml = doc.firstChild.toString()
 
-    var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
+    var signature = xpath.select("//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']", doc)[0];
     var sig = new crypto.SignedXml();    
     sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/signature_with_inclusivenamespaces.pem");
     sig.loadSignature(signature);    
@@ -109,7 +109,7 @@ module.exports = {
     var doc = new Dom().parseFromString(xml);
     xml = doc.firstChild.toString()
 
-    var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
+    var signature = xpath.select("//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']", doc)[0];
     var sig = new crypto.SignedXml();
     sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/signature_with_inclusivenamespaces.pem");
     sig.loadSignature(signature);
@@ -126,7 +126,7 @@ module.exports = {
     var doc = new Dom().parseFromString(xml);
     xml = doc.firstChild.toString()
 
-    var signature = crypto.xpath(doc, "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0];
+    var signature = xpath.select("//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']", doc)[0];
     var sig = new crypto.SignedXml();
     sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/signature_with_inclusivenamespaces.pem");
     sig.loadSignature(signature);

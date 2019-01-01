@@ -1,13 +1,13 @@
 var ExclusiveCanonicalization = require("../lib/exclusive-canonicalization").ExclusiveCanonicalization
   , Dom = require('xmldom').DOMParser
-  , select = require('xpath.js')
+  , select = require('xpath').select
   , SignedXml = require('../lib/signed-xml.js').SignedXml
 
 
 var compare = function(test, xml, xpath, expected, inclusiveNamespacesPrefixList, defaultNsForPrefix, ancestorNamespaces) {
     test.expect(1)
     var doc = new Dom().parseFromString(xml)
-    var elem = select(doc, xpath)[0]
+    var elem = select(xpath, doc)[0]
     var can = new ExclusiveCanonicalization()
     var result = can.process(elem, {
       inclusiveNamespacesPrefixList: inclusiveNamespacesPrefixList,
@@ -381,7 +381,7 @@ module.exports = {
   "Multiple Canonicalization with namespace definition outside of signed element": function (test) {
       //var doc = new Dom().parseFromString("<x xmlns:p=\"myns\"><p:y><ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"></ds:Signature></p:y></x>")
       var doc = new Dom().parseFromString("<x xmlns:p=\"myns\"><p:y></p:y></x>")
-      var node = select(doc, "//*[local-name(.)='y']")[0]
+      var node = select("//*[local-name(.)='y']", doc)[0]
       var sig = new SignedXml()
       var res = sig.getCanonXml(["http://www.w3.org/2000/09/xmldsig#enveloped-signature", "http://www.w3.org/2001/10/xml-exc-c14n#"], node)
       test.equal("<p:y xmlns:p=\"myns\"></p:y>", res)
@@ -394,7 +394,7 @@ module.exports = {
     //   in a document.
     var xml = '<x><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /><y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /></y></x>';
     var doc = new Dom().parseFromString(xml);
-    var node = select(doc, "//*[local-name(.)='y']")[0];
+    var node = select("//*[local-name(.)='y']", doc)[0];
     var sig = new SignedXml();
     var transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
     var res = sig.getCanonXml(transforms, node);

@@ -1,10 +1,8 @@
-var select = require('xpath.js')
-  , dom = require('xmldom').DOMParser
-
+var select = require('xpath').select
 
 function nodeExists(test, doc, xpath) {  
   if (!doc && !xpath) return
-  var node = select(doc, xpath)
+  var node = select(xpath, doc)
   test.ok(node.length==1, "xpath " + xpath + " not found")  
 }
 

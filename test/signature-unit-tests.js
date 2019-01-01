@@ -1,8 +1,7 @@
-var select = require('xpath.js')
+var select = require('xpath').select
   , dom = require('xmldom').DOMParser
   , SignedXml = require('../lib/signed-xml.js').SignedXml
   , FileKeyInfo = require('../lib/signed-xml.js').FileKeyInfo
-  , xml_assert = require('./xml-assert.js')
   , fs = require('fs')
 
 module.exports = {
@@ -54,7 +53,7 @@ module.exports = {
     });
 
     var doc = new dom().parseFromString(sig.getSignedXml())
-    var referenceNode = select(doc, '/root/name')[0]
+    var referenceNode = select('/root/name', doc)[0]
 
     test.strictEqual(referenceNode.lastChild.localName, "Signature", "the signature should be appended to root/name");
     test.done();
@@ -75,7 +74,7 @@ module.exports = {
     });
 
     var doc = new dom().parseFromString(sig.getSignedXml())
-    var referenceNode = select(doc, '/root/name')[0]
+    var referenceNode = select('/root/name', doc)[0]
 
     test.strictEqual(referenceNode.firstChild.localName, "Signature", "the signature should be prepended to root/name");
     test.done();
@@ -96,7 +95,7 @@ module.exports = {
     });
 
     var doc = new dom().parseFromString(sig.getSignedXml())
-    var referenceNode = select(doc, '/root/name')[0]
+    var referenceNode = select('/root/name', doc)[0]
 
     test.strictEqual(referenceNode.previousSibling.localName, "Signature", "the signature should be inserted before to root/name");
     test.done();
@@ -117,7 +116,7 @@ module.exports = {
     });
 
     var doc = new dom().parseFromString(sig.getSignedXml())
-    var referenceNode = select(doc, '/root/name')[0]
+    var referenceNode = select('/root/name', doc)[0]
 
     test.strictEqual(referenceNode.nextSibling.localName, "Signature", "the signature should be inserted after to root/name");
     test.done();
@@ -515,7 +514,7 @@ module.exports = {
     sig.computeSignature(xml)
     var signedXml = sig.getSignedXml()
     var doc = new dom().parseFromString(signedXml)
-    var URI = select(doc, "//*[local-name(.)='Reference']/@URI")[0]
+    var URI = select("//*[local-name(.)='Reference']/@URI", doc)[0]
     test.equal(URI.value, "", "uri should be empty but instead was " + URI.value)
     test.done()
   },
@@ -553,7 +552,7 @@ function passValidSignature(test, file, mode) {
 function passLoadSignature(test, file, toString) {
   var xml = fs.readFileSync(file).toString()
   var doc = new dom().parseFromString(xml)
-  var node = select(doc, "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0]
+  var node = select("/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']", doc)[0]
   var sig = new SignedXml()
   sig.loadSignature(toString ? node.toString() : node)
 
@@ -569,7 +568,7 @@ function passLoadSignature(test, file, toString) {
     sig.signatureValue,
     "wrong signature value")
 
-  var keyInfo = select(sig.keyInfo[0], "//*[local-name(.)='KeyInfo']/*[local-name(.)='dummyKey']")[0];
+  var keyInfo = select("//*[local-name(.)='KeyInfo']/*[local-name(.)='dummyKey']", sig.keyInfo[0])[0];
   test.equal(keyInfo.firstChild.data, "1234", "keyInfo clause not correctly loaded")
 
   test.equal(3, sig.references.length)
@@ -597,7 +596,7 @@ function failInvalidSignature(test, file, mode) {
 function verifySignature(xml, mode) {
 
   var doc = new dom().parseFromString(xml)
-  var node = select(doc, "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']")[0]
+  var node = select("/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']", doc)[0]
 
   var sig = new SignedXml(mode)
   sig.keyInfoProvider = new FileKeyInfo("./test/static/client_public.pem")
@@ -615,7 +614,7 @@ function verifyDoesNotDuplicateIdAttributes(test, mode, prefix) {
   sig.computeSignature(xml)
   var signedxml = sig.getOriginalXmlWithIds()
   var doc = new dom().parseFromString(signedxml)
-  var attrs = select(doc, "//@*")
+  var attrs = select("//@*", doc)
   test.equals(2, attrs.length, "wrong nuber of attributes")
 
 }
@@ -673,6 +672,6 @@ function verifyAddsAttrs(test) {
 
 function nodeExists(test, doc, xpath) {
   if (!doc && !xpath) return
-  var node = select(doc, xpath)
+  var node = select(xpath, doc)
   test.ok(node.length==1, "xpath " + xpath + " not found")
 }

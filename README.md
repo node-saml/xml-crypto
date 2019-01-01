@@ -179,7 +179,7 @@ You might find it difficult to guess such transforms, but there are typical tran
 
 ### xpath
 
-See [xpath.js](https://github.com/yaronn/xpath.js) for usage
+See [xpath](https://github.com/goto100/xpath) for usage
 
 ### SignedXml
 
