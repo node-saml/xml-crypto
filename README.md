@@ -179,7 +179,8 @@ You might find it difficult to guess such transforms, but there are typical tran
 
 ### xpath
 
-See [xpath](https://github.com/goto100/xpath) for usage
+See [xpath.js](https://github.com/yaronn/xpath.js) for usage. Note that this is actually using
+[another library](https://github.com/goto100/xpath) as the underlying implementation.
 
 ### SignedXml
 
