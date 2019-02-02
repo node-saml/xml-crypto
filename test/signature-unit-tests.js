@@ -539,6 +539,49 @@ module.exports = {
         test.ok(!(err instanceof TypeError));
     }
     test.done();
+  },
+
+  "signer adds existing prefixes": function(test) {
+    function AssertionKeyInfo(assertionId) {
+      this.getKeyInfo = function(key, prefix) {
+        return `<wsse:SecurityTokenReference wsse11:TokenType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.1#SAMLV1.1" wsu:Id="0" 
+              xmlns:wsse11="http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd">
+              <wsse:KeyIdentifier ValueType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.0#SAMLAssertionID">${assertionId}</wsse:KeyIdentifier>
+          </wsse:SecurityTokenReference>`;
+      };
+    }
+
+    var xml = 
+      `<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+        <SOAP-ENV:Header>
+          <wsse:Security 
+            xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" 
+            xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+            <Assertion></Assertion>
+          </wsse:Security>
+        </SOAP-ENV:Header>
+      </SOAP-ENV:Envelope>`
+
+    var sig = new SignedXml();
+    sig.keyInfoProvider = new AssertionKeyInfo(
+      "_81d5fba5c807be9e9cf60c58566349b1"
+    );
+    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.computeSignature(xml, {
+      prefix: "ds",
+      location: {
+        reference: "//Assertion",
+        action: "after"
+      },
+      existingPrefixes: {
+        wsse: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd",
+        wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+      }
+    });
+    result = sig.getSignedXml();
+    test.equal((result.match(/xmlns:wsu=/g) || []).length, 1)
+    test.equal((result.match(/xmlns:wsse=/g) || []).length, 1)
+    test.done();
   }
 
 }
