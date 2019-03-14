@@ -445,7 +445,7 @@ The test framework is [nodeunit](https://github.com/caolan/nodeunit). To run tes
     $> npm test
 
 ## More information
-Visit my [blog](http://webservices20.blogspot.com/) or my [twitter](http://twitter.com/#!/YaronNaveh)
+Visit my [blog](http://webservices20.blogspot.com/) or my [twitter](http://twitter.com/YaronNaveh)
 
 
 [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/yaronn/xml-crypto/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
