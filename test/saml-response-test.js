@@ -1,6 +1,6 @@
 var crypto = require('../index');
 var xpath = require('xpath');
-var xmldom = require('xmldom');
+var xmldom = require('xmldom-reborn');
 var fs = require('fs');
 
 exports['test validating SAML response'] = function (test) {

@@ -1,5 +1,5 @@
 var xpath = require('xpath')
-  , Dom = require('xmldom').DOMParser
+  , Dom = require('xmldom-reborn').DOMParser
   , SignedXml = require('../lib/signed-xml.js').SignedXml
   , fs = require('fs')
   , crypto = require('../index')

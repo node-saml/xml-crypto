@@ -1,5 +1,5 @@
 var c14nWithComments = require("../lib/exclusive-canonicalization").ExclusiveCanonicalizationWithComments
-  , Dom = require('xmldom').DOMParser
+  , Dom = require('xmldom-reborn').DOMParser
   , select = require('xpath').select
   , SignedXml = require('../lib/signed-xml.js').SignedXml
 

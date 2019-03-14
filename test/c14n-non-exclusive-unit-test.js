@@ -1,5 +1,5 @@
 var C14nCanonicalization = require("../lib/c14n-canonicalization").C14nCanonicalization
-  , Dom = require('xmldom').DOMParser
+  , Dom = require('xmldom-reborn').DOMParser
   , select = require('xpath').select
   , findAncestorNs = require('../lib/signed-xml').SignedXml.findAncestorNs
 
