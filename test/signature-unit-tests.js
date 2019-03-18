@@ -474,19 +474,20 @@ module.exports = {
   },
 
   "correctly loads signature": function(test) {
-    passLoadSignature(test, "./test/static/valid_signature.xml");
-    passLoadSignature(test, "./test/static/valid_signature.xml", true);
-    passLoadSignature(test, "./test/static/valid_signature_with_root_level_sig_namespace.xml");
+    passLoadSignature(test, "./test/static/valid_signature.xml")
+    passLoadSignature(test, "./test/static/valid_signature.xml", true)
+    passLoadSignature(test, "./test/static/valid_signature_with_root_level_sig_namespace.xml")
     test.done()
   },
 
   "verify valid signature": function(test) {
     passValidSignature(test, "./test/static/valid_signature.xml")
-    passValidSignature(test, "./test/static/valid_signature_with_lowercase_id_attribute.xml");
+    passValidSignature(test, "./test/static/valid_signature_with_lowercase_id_attribute.xml")
     passValidSignature(test, "./test/static/valid_signature wsu.xml", "wssecurity")
     passValidSignature(test, "./test/static/valid_signature_with_reference_keyInfo.xml")
     passValidSignature(test, "./test/static/valid_signature_with_whitespace_in_digestvalue.xml")
     passValidSignature(test, "./test/static/valid_signature_utf8.xml")
+    passValidSignature(test, "./test/static/valid_signature_with_unused_prefixes.xml")
     test.done()
   },
 
@@ -639,8 +640,8 @@ function failInvalidSignature(test, file, mode) {
 function verifySignature(xml, mode) {
 
   var doc = new dom().parseFromString(xml)
-  var node = select("/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']", doc)[0]
-
+  var node = select("//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']", doc)[0]
+  
   var sig = new SignedXml(mode)
   sig.keyInfoProvider = new FileKeyInfo("./test/static/client_public.pem")
   sig.loadSignature(node)
