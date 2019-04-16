@@ -194,27 +194,27 @@ module.exports = {
     var signature = sig.getSignatureXml()
     var expected = "<Signature xmlns=\"http://www.w3.org/2000/09/xmldsig#\">"+
                   "<SignedInfo>"+
-                  "<CanonicalizationMethod Algorithm=\"dummy canonicalization\" />"+
-                  "<SignatureMethod Algorithm=\"dummy algorithm\" />"+
+                  "<CanonicalizationMethod Algorithm=\"dummy canonicalization\"/>"+
+                  "<SignatureMethod Algorithm=\"dummy algorithm\"/>"+
                   "<Reference URI=\"#_0\">"+
                   "<Transforms>"+
-                  "<Transform Algorithm=\"dummy transformation\" />"+
+                  "<Transform Algorithm=\"dummy transformation\"/>"+
                   "</Transforms>"+
-                  "<DigestMethod Algorithm=\"dummy digest algorithm\" />"+
+                  "<DigestMethod Algorithm=\"dummy digest algorithm\"/>"+
                   "<DigestValue>dummy digest</DigestValue>"+
                   "</Reference>"+
                   "<Reference URI=\"#_1\">"+
                   "<Transforms>"+
-                  "<Transform Algorithm=\"dummy transformation\" />"+
+                  "<Transform Algorithm=\"dummy transformation\"/>"+
                   "</Transforms>"+
-                  "<DigestMethod Algorithm=\"dummy digest algorithm\" />"+
+                  "<DigestMethod Algorithm=\"dummy digest algorithm\"/>"+
                   "<DigestValue>dummy digest</DigestValue>"+
                   "</Reference>"+
                   "<Reference URI=\"#_2\">"+
                   "<Transforms>"+
-                  "<Transform Algorithm=\"dummy transformation\" />"+
+                  "<Transform Algorithm=\"dummy transformation\"/>"+
                   "</Transforms>"+
-                  "<DigestMethod Algorithm=\"dummy digest algorithm\" />"+
+                  "<DigestMethod Algorithm=\"dummy digest algorithm\"/>"+
                   "<DigestValue>dummy digest</DigestValue>"+
                   "</Reference>"+
                   "</SignedInfo>"+
@@ -347,27 +347,27 @@ module.exports = {
 
     var expected = "<ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\">"+
                   "<ds:SignedInfo>"+
-                  "<ds:CanonicalizationMethod Algorithm=\"dummy canonicalization\" />"+
-                  "<ds:SignatureMethod Algorithm=\"dummy algorithm\" />"+
+                  "<ds:CanonicalizationMethod Algorithm=\"dummy canonicalization\"/>"+
+                  "<ds:SignatureMethod Algorithm=\"dummy algorithm\"/>"+
                   "<ds:Reference URI=\"#_0\">"+
                   "<ds:Transforms>"+
-                  "<ds:Transform Algorithm=\"dummy transformation\" />"+
+                  "<ds:Transform Algorithm=\"dummy transformation\"/>"+
                   "</ds:Transforms>"+
-                  "<ds:DigestMethod Algorithm=\"dummy digest algorithm\" />"+
+                  "<ds:DigestMethod Algorithm=\"dummy digest algorithm\"/>"+
                   "<ds:DigestValue>dummy digest</ds:DigestValue>"+
                   "</ds:Reference>"+
                   "<ds:Reference URI=\"#_1\">"+
                   "<ds:Transforms>"+
-                  "<ds:Transform Algorithm=\"dummy transformation\" />"+
+                  "<ds:Transform Algorithm=\"dummy transformation\"/>"+
                   "</ds:Transforms>"+
-                  "<ds:DigestMethod Algorithm=\"dummy digest algorithm\" />"+
+                  "<ds:DigestMethod Algorithm=\"dummy digest algorithm\"/>"+
                   "<ds:DigestValue>dummy digest</ds:DigestValue>"+
                   "</ds:Reference>"+
                   "<ds:Reference URI=\"#_2\">"+
                   "<ds:Transforms>"+
-                  "<ds:Transform Algorithm=\"dummy transformation\" />"+
+                  "<ds:Transform Algorithm=\"dummy transformation\"/>"+
                   "</ds:Transforms>"+
-                  "<ds:DigestMethod Algorithm=\"dummy digest algorithm\" />"+
+                  "<ds:DigestMethod Algorithm=\"dummy digest algorithm\"/>"+
                   "<ds:DigestValue>dummy digest</ds:DigestValue>"+
                   "</ds:Reference>"+
                   "</ds:SignedInfo>"+
