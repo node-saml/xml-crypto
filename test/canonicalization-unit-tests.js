@@ -13,7 +13,7 @@ var compare = function(test, xml, xpath, expected, inclusiveNamespacesPrefixList
       inclusiveNamespacesPrefixList: inclusiveNamespacesPrefixList,
       defaultNsForPrefix: defaultNsForPrefix
     }).toString()
-
+    
     test.equal(expected, result)
     test.done()
 }
@@ -181,23 +181,23 @@ module.exports = {
 
   "Exclusive canonicalization works on xml with attribute values with special characters": function (test) {
     compare(test,
-      "<root><child><inner attrEncoded=\"&amp;&lt;>&quot;11\" attrUnencoded='&>\"11'>11</inner></child></root>",
+      "<root><child><inner attrEncoded=\"&amp;&lt;>&quot;11&#xD;&#xA;\" attrUnencoded='&>\"11\r\n'>11</inner></child></root>",
       "//*[local-name(.)='child']",
-      "<child><inner attrEncoded=\"&amp;&lt;>&quot;11\" attrUnencoded=\"&amp;>&quot;11\">11</inner></child>")
+      "<child><inner attrEncoded=\"&amp;&lt;>&quot;11&#xD;&#xA;\" attrUnencoded=\"&amp;>&quot;11&#xD;&#xA;\">11</inner></child>")
   },
 
-  "Exclusive canonicalization normalizes whitespace characters into single spaces": function (test) {
+  "Exclusive canonicalization does not normalize whitespace characters into single spaces": function (test) {
     compare(test,
         "<root><child><inner attrEncoded=\"&#xA;&#xD;&#x9;11\" attrUnencoded=\"\n\r\t11\">11</inner></child></root>",
         "//*[local-name(.)='child']",
-        "<child><inner attrEncoded=\" 11\" attrUnencoded=\" 11\">11</inner></child>")
+        "<child><inner attrEncoded=\"&#xA;&#xD;&#x9;11\" attrUnencoded=\"&#xA;&#xD;&#x9;11\">11</inner></child>")
   },
 
   "Exclusive canonicalization works on xml with element values with special characters": function (test) {
     compare(test,
-        "<root><child><innerEncoded>&amp;&lt;>&quot;11</innerEncoded><innerUnencoded>&>\"11\</innerUnencoded></child></root>",
+        "<root><child><innerEncoded>&amp;&lt;>&quot;11&#xD;</innerEncoded><innerUnencoded>&>\"11\r\</innerUnencoded></child></root>",
         "//*[local-name(.)='child']",
-        "<child><innerEncoded>&amp;&lt;&gt;\"11</innerEncoded><innerUnencoded>&amp;&gt;\"11</innerUnencoded></child>")
+        "<child><innerEncoded>&amp;&lt;&gt;\"11&#xD;</innerEncoded><innerUnencoded>&amp;&gt;\"11&#xD;</innerUnencoded></child>")
   },
 
   "Exclusive canonicalization preserves white space in values": function (test) {
@@ -207,18 +207,18 @@ module.exports = {
       "<child><inner>12\n3\t</inner></child>")
   },
 
-  "Exclusive canonicalization turns CR-NL (windows line separator) into NL": function(test){
+  "Exclusive canonicalization does not alter CR-NL (windows line separator) sequences": function(test){
     compare(test,
         "<root><child><inner>123</inner>\r\n</child></root>",
         "//*[local-name(.)='child']",
-        "<child><inner>123</inner>\n</child>")
+        "<child><inner>123</inner>&#xD;\n</child>")
   },
 
-  "Exclusive canonicalization turns CR into NL": function(test){
+  "Exclusive canonicalization preserves and encodes CR white space": function(test){
     compare(test,
         "<root><child><inner>\r12\r3\r</inner></child></root>",
         "//*[local-name(.)='child']",
-        "<child><inner>\n12\n3\n</inner></child>")
+        "<child><inner>&#xD;12&#xD;3&#xD;</inner></child>")
   },
 
   "Exclusive canonicalization preserves white space between elements": function (test) {
@@ -309,72 +309,72 @@ module.exports = {
 
   "Exclusive canonicalization works on complex xml": function (test) {
     compare(test,
-      "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r" +
-      "<Envelope xmlns=\"http://schemas.xmlsoap.org/soap/envelope/\">\r" +
-      "  <Body>\r" +
-      "    <ACORD xmlns=\"http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/\">\r" +
-      "      <SignonRq>\r" +
-      "        <SessKey />\r" +
-      "        <ClientDt />\r" +
-      "        <CustLangPref />\r" +
-      "        <ClientApp>\r" +
-      "          <Org p6:type=\"AssignedIdentifier\" id=\"wewe\" xmlns:p6=\"http://www.w3.org/2001/XMLSchema-instance\" />\r" +
-      "          <Name />\r" +
-      "          <Version />\r" +
-      "        </ClientApp>\r" +
-      "        <ProxyClient>\r" +
-      "          <Org p6:type=\"AssignedIdentifier\" id=\"erer\" xmlns:p6=\"http://www.w3.org/2001/XMLSchema-instance\" />\r" +
-      "          <Name>ererer</Name>\r" +
-      "          <Version>dfdf</Version>\r" +
-      "        </ProxyClient>\r" +
-      "      </SignonRq>\r" +
-      "      <InsuranceSvcRq>\r" +
-      "        <RqUID />\r" +
-      "        <SPName id=\"rter\" />\r" +
-      "        <QuickHit xmlns=\"urn:com.thehartford.bi.acord-extensions\">\r" +
-      "          <StateProvCd CodeListRef=\"dfdf\" xmlns=\"http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/\" />\r" +
-      "        </QuickHit>\r" +
-      "        <WorkCompPolicyQuoteInqRq>\r" +
-      "          <RqUID>erer</RqUID>\r" +
-      "          <TransactionRequestDt id=\"erer\" />\r" +
-      "          <CurCd />\r" +
-      "          <BroadLOBCd id=\"erer\" />\r" +
-      "          <InsuredOrPrincipal>\r" +
-      "            <ItemIdInfo>\r" +
-      "              <AgencyId id=\"3434\" />\r" +
-      "              <OtherIdentifier>\r" +
-      "                <CommercialName id=\"3434\" />\r" +
-      "                <ContractTerm>\r" +
-      "                  <EffectiveDt id=\"3434\" />\r" +
-      "                  <StartTime id=\"3434\" />\r" +
-      "                </ContractTerm>\r" +
-      "              </OtherIdentifier>\r" +
-      "            </ItemIdInfo>\r" +
-      "          </InsuredOrPrincipal>\r" +
-      "          <InsuredOrPrincipal>\r" +
-      "          </InsuredOrPrincipal>\r" +
-      "          <CommlPolicy>\r" +
-      "            <PolicyNumber id=\"3434\" />\r" +
-      "            <LOBCd />\r" +
-      "          </CommlPolicy>\r" +
-      "          <WorkCompLineBusiness>\r" +
-      "            <LOBCd />\r" +
-      "            <WorkCompRateState>\r" +
+      "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
+      "<Envelope xmlns=\"http://schemas.xmlsoap.org/soap/envelope/\">\n" +
+      "  <Body>\n" +
+      "    <ACORD xmlns=\"http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/\">\n" +
+      "      <SignonRq>\n" +
+      "        <SessKey />\n" +
+      "        <ClientDt />\n" +
+      "        <CustLangPref />\n" +
+      "        <ClientApp>\n" +
+      "          <Org p6:type=\"AssignedIdentifier\" id=\"wewe\" xmlns:p6=\"http://www.w3.org/2001/XMLSchema-instance\" />\n" +
+      "          <Name />\n" +
+      "          <Version />\n" +
+      "        </ClientApp>\n" +
+      "        <ProxyClient>\n" +
+      "          <Org p6:type=\"AssignedIdentifier\" id=\"erer\" xmlns:p6=\"http://www.w3.org/2001/XMLSchema-instance\" />\n" +
+      "          <Name>ererer</Name>\n" +
+      "          <Version>dfdf</Version>\n" +
+      "        </ProxyClient>\n" +
+      "      </SignonRq>\n" +
+      "      <InsuranceSvcRq>\n" +
+      "        <RqUID />\n" +
+      "        <SPName id=\"rter\" />\n" +
+      "        <QuickHit xmlns=\"urn:com.thehartford.bi.acord-extensions\">\n" +
+      "          <StateProvCd CodeListRef=\"dfdf\" xmlns=\"http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/\" />\n" +
+      "        </QuickHit>\n" +
+      "        <WorkCompPolicyQuoteInqRq>\n" +
+      "          <RqUID>erer</RqUID>\n" +
+      "          <TransactionRequestDt id=\"erer\" />\n" +
+      "          <CurCd />\n" +
+      "          <BroadLOBCd id=\"erer\" />\n" +
+      "          <InsuredOrPrincipal>\n" +
+      "            <ItemIdInfo>\n" +
+      "              <AgencyId id=\"3434\" />\n" +
+      "              <OtherIdentifier>\n" +
+      "                <CommercialName id=\"3434\" />\n" +
+      "                <ContractTerm>\n" +
+      "                  <EffectiveDt id=\"3434\" />\n" +
+      "                  <StartTime id=\"3434\" />\n" +
+      "                </ContractTerm>\n" +
+      "              </OtherIdentifier>\n" +
+      "            </ItemIdInfo>\n" +
+      "          </InsuredOrPrincipal>\n" +
+      "          <InsuredOrPrincipal>\n" +
+      "          </InsuredOrPrincipal>\n" +
+      "          <CommlPolicy>\n" +
+      "            <PolicyNumber id=\"3434\" />\n" +
+      "            <LOBCd />\n" +
+      "          </CommlPolicy>\n" +
+      "          <WorkCompLineBusiness>\n" +
+      "            <LOBCd />\n" +
+      "            <WorkCompRateState>\n" +
       "              <WorkCompLocInfo>\r" +
-      "              </WorkCompLocInfo>\r" +
-      "            </WorkCompRateState>\r" +
-      "          </WorkCompLineBusiness>\r" +
-      "          <RemarkText IdRef=\"\">\r" +
-      "          </RemarkText>\r" +
-      "          <RemarkText IdRef=\"2323\" id=\"3434\">\r" +
-      "          </RemarkText>\r" +
-      "        </WorkCompPolicyQuoteInqRq>\r" +
-      "      </InsuranceSvcRq>\r" +
-      "    </ACORD>\r" +
-      "  </Body>\r" +
+      "              </WorkCompLocInfo>\n" +
+      "            </WorkCompRateState>\n" +
+      "          </WorkCompLineBusiness>\n" +
+      "          <RemarkText IdRef=\"\">\n" +
+      "          </RemarkText>\n" +
+      "          <RemarkText IdRef=\"2323\" id=\"3434\">\n" +
+      "          </RemarkText>\n" +
+      "        </WorkCompPolicyQuoteInqRq>\n" +
+      "      </InsuranceSvcRq>\n" +
+      "    </ACORD>\n" +
+      "  </Body>\n" +
       "</Envelope>",
       "//*[local-name(.)='Body']",
-      "<Body xmlns=\"http://schemas.xmlsoap.org/soap/envelope/\">\n    <ACORD xmlns=\"http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/\">\n      <SignonRq>\n        <SessKey></SessKey>\n        <ClientDt></ClientDt>\n        <CustLangPref></CustLangPref>\n        <ClientApp>\n          <Org xmlns:p6=\"http://www.w3.org/2001/XMLSchema-instance\" id=\"wewe\" p6:type=\"AssignedIdentifier\"></Org>\n          <Name></Name>\n          <Version></Version>\n        </ClientApp>\n        <ProxyClient>\n          <Org xmlns:p6=\"http://www.w3.org/2001/XMLSchema-instance\" id=\"erer\" p6:type=\"AssignedIdentifier\"></Org>\n          <Name>ererer</Name>\n          <Version>dfdf</Version>\n        </ProxyClient>\n      </SignonRq>\n      <InsuranceSvcRq>\n        <RqUID></RqUID>\n        <SPName id=\"rter\"></SPName>\n        <QuickHit xmlns=\"urn:com.thehartford.bi.acord-extensions\">\n          <StateProvCd xmlns=\"http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/\" CodeListRef=\"dfdf\"></StateProvCd>\n        </QuickHit>\n        <WorkCompPolicyQuoteInqRq>\n          <RqUID>erer</RqUID>\n          <TransactionRequestDt id=\"erer\"></TransactionRequestDt>\n          <CurCd></CurCd>\n          <BroadLOBCd id=\"erer\"></BroadLOBCd>\n          <InsuredOrPrincipal>\n            <ItemIdInfo>\n              <AgencyId id=\"3434\"></AgencyId>\n              <OtherIdentifier>\n                <CommercialName id=\"3434\"></CommercialName>\n                <ContractTerm>\n                  <EffectiveDt id=\"3434\"></EffectiveDt>\n                  <StartTime id=\"3434\"></StartTime>\n                </ContractTerm>\n              </OtherIdentifier>\n            </ItemIdInfo>\n          </InsuredOrPrincipal>\n          <InsuredOrPrincipal>\n          </InsuredOrPrincipal>\n          <CommlPolicy>\n            <PolicyNumber id=\"3434\"></PolicyNumber>\n            <LOBCd></LOBCd>\n          </CommlPolicy>\n          <WorkCompLineBusiness>\n            <LOBCd></LOBCd>\n            <WorkCompRateState>\n              <WorkCompLocInfo>\n              </WorkCompLocInfo>\n            </WorkCompRateState>\n          </WorkCompLineBusiness>\n          <RemarkText IdRef=\"\">\n          </RemarkText>\n          <RemarkText IdRef=\"2323\" id=\"3434\">\n          </RemarkText>\n        </WorkCompPolicyQuoteInqRq>\n      </InsuranceSvcRq>\n    </ACORD>\n  </Body>")
+      "<Body xmlns=\"http://schemas.xmlsoap.org/soap/envelope/\">\n    <ACORD xmlns=\"http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/\">\n      <SignonRq>\n        <SessKey></SessKey>\n        <ClientDt></ClientDt>\n        <CustLangPref></CustLangPref>\n        <ClientApp>\n          <Org xmlns:p6=\"http://www.w3.org/2001/XMLSchema-instance\" id=\"wewe\" p6:type=\"AssignedIdentifier\"></Org>\n          <Name></Name>\n          <Version></Version>\n        </ClientApp>\n        <ProxyClient>\n          <Org xmlns:p6=\"http://www.w3.org/2001/XMLSchema-instance\" id=\"erer\" p6:type=\"AssignedIdentifier\"></Org>\n          <Name>ererer</Name>\n          <Version>dfdf</Version>\n        </ProxyClient>\n      </SignonRq>\n      <InsuranceSvcRq>\n        <RqUID></RqUID>\n        <SPName id=\"rter\"></SPName>\n        <QuickHit xmlns=\"urn:com.thehartford.bi.acord-extensions\">\n          <StateProvCd xmlns=\"http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/\" CodeListRef=\"dfdf\"></StateProvCd>\n        </QuickHit>\n        <WorkCompPolicyQuoteInqRq>\n          <RqUID>erer</RqUID>\n          <TransactionRequestDt id=\"erer\"></TransactionRequestDt>\n          <CurCd></CurCd>\n          <BroadLOBCd id=\"erer\"></BroadLOBCd>\n          <InsuredOrPrincipal>\n            <ItemIdInfo>\n              <AgencyId id=\"3434\"></AgencyId>\n              <OtherIdentifier>\n                <CommercialName id=\"3434\"></CommercialName>\n                <ContractTerm>\n                  <EffectiveDt id=\"3434\"></EffectiveDt>\n                  <StartTime id=\"3434\"></StartTime>\n                </ContractTerm>\n              </OtherIdentifier>\n            </ItemIdInfo>\n          </InsuredOrPrincipal>\n          <InsuredOrPrincipal>\n          </InsuredOrPrincipal>\n          <CommlPolicy>\n            <PolicyNumber id=\"3434\"></PolicyNumber>\n            <LOBCd></LOBCd>\n          </CommlPolicy>\n          <WorkCompLineBusiness>\n            <LOBCd></LOBCd>\n            <WorkCompRateState>\n              <WorkCompLocInfo>&#xD;              </WorkCompLocInfo>\n            </WorkCompRateState>\n          </WorkCompLineBusiness>\n          <RemarkText IdRef=\"\">\n          </RemarkText>\n          <RemarkText IdRef=\"2323\" id=\"3434\">\n          </RemarkText>\n        </WorkCompPolicyQuoteInqRq>\n      </InsuranceSvcRq>\n    </ACORD>\n  </Body>")
   },
 
   "Multiple Canonicalization with namespace definition outside of signed element": function (test) {
