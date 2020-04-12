@@ -365,6 +365,33 @@ Now do the signing. Note how we configure the signature to use the above algorit
 
 You can always look at the actual code as a sample (or drop me a [mail](mailto:yaronn01@gmail.com)).
 
+## Asynchronous signing and verification
+
+If the private key is not stored locally and you wish to use a signing server or Hardware Security Module (HSM) to sign documents you can create a custom signing algorithm that uses an asynchronous callback.
+
+`````javascript
+  function AsyncSignatureAlgorithm() {
+    this.getSignature = function (signedInfo, signingKey, callback) {
+      var signer = crypto.createSign("RSA-SHA1")
+      signer.update(signedInfo)
+      var res = signer.sign(signingKey, 'base64')
+      //Do some asynchronous things here
+      callback(null, res)
+    }
+    this.getAlgorithmName = function () {
+      return "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
+    }
+  }
+
+  SignedXml.SignatureAlgorithms["http://asyncSignatureAlgorithm"] = AsyncSignatureAlgorithm
+  var sig = new SignedXml()
+  sig.signatureAlgorithm = "http://asyncSignatureAlgorithm"
+  sig.computeSignature(xml, opts, function(err){
+    var signedResponse = sig.getSignedXml()
+  })
+`````
+
+The function `sig.checkSignature` may also use a callback if asynchronous verification is needed.
 
 ## X.509 / Key formats
 Xml-Crypto internally relies on node's crypto module. This means pem encoded certificates are supported. So to sign an xml use key.pem that looks like this (only the begining of the key content is shown):
