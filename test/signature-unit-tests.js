@@ -500,7 +500,7 @@ module.exports = {
     sig.addReference("//*[local-name(.)='y']")
     sig.addReference("//*[local-name(.)='w']")
 
-    sig.computeSignature(xml, function(err){
+    sig.computeSignature(xml, function(err) {
       var signedXml = sig.getSignedXml()
       var expected = "<root><x xmlns=\"ns\" Id=\"_0\"/><y attr=\"value\" Id=\"_1\"/><z><w Id=\"_2\"/></z>" +
         "<Signature xmlns=\"http://www.w3.org/2000/09/xmldsig#\">" +
