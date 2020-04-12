@@ -477,13 +477,12 @@ module.exports = {
   "signer creates correct signature values using async callback": function (test) {
 
     function DummySignatureAlgorithm() {
-      this.getSignature = function (signedInfo, signingKey) {
-        return new Promise((resolve, reject) => {
-          var signer = crypto.createSign("RSA-SHA1")
-          signer.update(signedInfo)
-          var res = signer.sign(signingKey, 'base64')
-          resolve(res)
-        })
+      this.getSignature = function (signedInfo, signingKey, callback) {
+        var signer = crypto.createSign("RSA-SHA1")
+        signer.update(signedInfo)
+        var res = signer.sign(signingKey, 'base64')
+        //Do some asynchronous things here
+        callback(null, res)
       }
       this.getAlgorithmName = function () {
         return "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
