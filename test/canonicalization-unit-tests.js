@@ -207,11 +207,11 @@ module.exports = {
       "<child><inner>12\n3\t</inner></child>")
   },
 
-  "Exclusive canonicalization does not alter CR-NL (windows line separator) sequences": function(test){
+  "Exclusive canonicalization does alter CR-NL (windows line separator) sequences": function(test){
     compare(test,
         "<root><child><inner>123</inner>\r\n</child></root>",
         "//*[local-name(.)='child']",
-        "<child><inner>123</inner>&#xD;\n</child>")
+        "<child><inner>123</inner>\n</child>")
   },
 
   "Exclusive canonicalization preserves and encodes CR white space": function(test){
