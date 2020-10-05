@@ -3,6 +3,8 @@ var xpath = require('xpath');
 var xmldom = require('xmldom');
 var fs = require('fs');
 
+crypto.SignedXml.enableHMAC()
+
 exports['test validating HMAC signature'] = function (test) {
     var xml = fs.readFileSync('./test/static/hmac_signature.xml', 'utf-8');
     var doc = new xmldom.DOMParser().parseFromString(xml);

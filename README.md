@@ -34,7 +34,17 @@ A pre requisite it to have [openssl](http://www.openssl.org/) installed and its 
 * RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
 * RSA-SHA256 http://www.w3.org/2001/04/xmldsig-more#rsa-sha256
 * RSA-SHA512 http://www.w3.org/2001/04/xmldsig-more#rsa-sha512
+
+HMAC-SHA1 is also available but it is disabled by default
 * HMAC-SHA1 http://www.w3.org/2000/09/xmldsig#hmac-sha1
+
+to enable HMAC-SHA1, do:
+```javascript
+require( 'xml-crypto' ).SignedXml.enableHMAC();
+```
+This will enable HMAC and disable digital signature algorithms. Due to key
+confusion issues, it is risky to have both HMAC-based and public key digital
+signature algorithms enabled at same time.
 
 by default the following algorithms are used:
 
