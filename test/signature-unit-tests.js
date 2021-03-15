@@ -13,6 +13,11 @@ module.exports = {
     test.done();
   },
 
+  "signer adds references with namespaces": function(test) {
+    verifyReferenceNS(test);
+    test.done();
+  },
+
   "signer does not duplicate existing id attributes": function (test) {
     verifyDoesNotDuplicateIdAttributes(test, null, "")
     verifyDoesNotDuplicateIdAttributes(test, "wssecurity", "wsu:")
@@ -776,6 +781,26 @@ function verifyAddsAttrs(test) {
   test.strictEqual(signatureNode.getAttribute("data"), attrs.data, "data attribute is not equal to the expected value: \"" + attrs.data + "\"")
   test.notStrictEqual(signatureNode.getAttribute("xmlns"), attrs.xmlns, "xmlns attribute can not be overridden")
   test.strictEqual(signatureNode.getAttribute("xmlns"), "http://www.w3.org/2000/09/xmldsig#", "xmlns attribute is not equal to the expected value: \"http://www.w3.org/2000/09/xmldsig#\"")
+}
+
+function verifyReferenceNS(test) {
+  var xml = "<root xmlns:wsu=\"http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd\"><name wsu:Id=\"_1\">xml-crypto</name><repository wsu:Id=\"_2\">github</repository></root>"
+  var sig = new SignedXml("wssecurity")
+
+  sig.signingKey = fs.readFileSync("./test/static/client.pem")
+
+  sig.addReference("//*[@wsu:Id]")
+
+  sig.computeSignature(xml, {
+    existingPrefixes: {
+      wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+    }
+  })
+
+  var signedXml = sig.getSignatureXml()  
+  var doc = new dom().parseFromString(signedXml)
+  var references = select("//*[local-name(.)='Reference']", doc)
+  test.equal(references.length, 2)
 }
 
 function nodeExists(test, doc, xpath) {
