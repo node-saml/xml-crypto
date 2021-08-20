@@ -10,8 +10,8 @@
     "LoneRifle <LoneRifle@users.noreply.github.com>"
   ],
   "dependencies": {
-    "xmldom": "^0.6.0",
-    "xpath": "0.0.27"
+    "@xmldom/xmldom": "^0.7.0",
+    "xpath": "0.0.32"
   },
   "devDependencies": {
     "ejs": "2.6.1",

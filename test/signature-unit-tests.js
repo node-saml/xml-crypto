@@ -1,5 +1,5 @@
 var select = require('xpath').select
-  , dom = require('xmldom').DOMParser
+  , dom = require('@xmldom/xmldom').DOMParser
   , SignedXml = require('../lib/signed-xml.js').SignedXml
   , FileKeyInfo = require('../lib/signed-xml.js').FileKeyInfo
   , fs = require('fs')
