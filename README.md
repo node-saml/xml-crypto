@@ -129,7 +129,7 @@ Example:
 
 `````javascript
 	var select = require('xml-crypto').xpath
-	  , dom = require('xmldom').DOMParser
+	  , dom = require('@xmldom/xmldom').DOMParser
 	  , SignedXml = require('xml-crypto').SignedXml
 	  , FileKeyInfo = require('xml-crypto').FileKeyInfo  
 	  , fs = require('fs')

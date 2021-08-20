@@ -1,6 +1,6 @@
 var crypto = require('../index');
 var xpath = require('xpath');
-var xmldom = require('xmldom');
+var xmldom = require('@xmldom/xmldom');
 var fs = require('fs');
 
 crypto.SignedXml.enableHMAC()
