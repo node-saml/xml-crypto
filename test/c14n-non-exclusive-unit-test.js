@@ -180,7 +180,7 @@ exports["C14n: Don't redeclare an attribute's namespace prefix if already in sco
 exports["C14n: Don't declare an attribute's namespace prefix if in scope from parent"] = function(test) {
   var xml = "<root xmlns:aaa='bbb'><child1><child2><child3 aaa:foo='bar'></child3></child2></child1></root>"
   var xpath = "/root/child1";
-  var expected = "<child1 xmlns:aaa='bbb'><child2><child3 aaa:foo='bar'></child3></child2></child1>";
+  var expected = '<child1 xmlns:aaa="bbb"><child2><child3 aaa:foo="bar"></child3></child2></child1>';
 
   test_C14nCanonicalization(test, xml, xpath, expected);
 }
