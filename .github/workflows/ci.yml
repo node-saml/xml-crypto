@@ -1,0 +1,19 @@
+name: build
+on:
+  push:
+  pull_request:
+    types: [opened, reopened]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: [4, 6]
+    steps:
+      - uses: actions/checkout@HEAD
+      - uses: actions/setup-node@HEAD
+        with:
+          node-version: ${{ matrix.version }}
+      - run: npm install
+      - run: npm test

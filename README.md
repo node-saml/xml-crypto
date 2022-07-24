@@ -1,6 +1,6 @@
 ## xml-crypto
 
-[![Build Status](https://travis-ci.org/yaronn/xml-crypto.png?branch=master)](https://travis-ci.org/yaronn/xml-crypto)
+![Build](https://github.com/yaronn/xml-crypto/actions/workflows/ci.yml/badge.svg)
 
 An xml digital signature library for node. Xml encryption is coming soon. Written in pure javascript!
 
