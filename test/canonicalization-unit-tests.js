@@ -1,3 +1,4 @@
+global.crypto = require('node:crypto').webcrypto;
 var ExclusiveCanonicalization = require("../lib/exclusive-canonicalization").ExclusiveCanonicalization
   , Dom = require('@xmldom/xmldom').DOMParser
   , select = require('xpath').select
@@ -13,7 +14,7 @@ var compare = function(test, xml, xpath, expected, inclusiveNamespacesPrefixList
       inclusiveNamespacesPrefixList: inclusiveNamespacesPrefixList,
       defaultNsForPrefix: defaultNsForPrefix
     }).toString()
-    
+
     test.equal(expected, result)
     test.done()
 }
