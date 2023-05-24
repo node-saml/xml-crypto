@@ -79,6 +79,7 @@ export class SignedXml {
 export interface KeyInfo {
     getKey(keyInfo?: Node[] | null): Buffer;
     getKeyInfo(key?: string, prefix?: string): string;
+    attrs?: {[key: string]: any} | undefined;
 }
 
 export class FileKeyInfo implements KeyInfo {
