@@ -37,6 +37,7 @@ export class SignedXml {
     static HashAlgorithms: {[uri: string]: new () => HashAlgorithm};
     static SignatureAlgorithms: {[uri: string]: new () => SignatureAlgorithm};
     canonicalizationAlgorithm: string;
+    inclusiveNamespacesPrefixList: string;
     keyInfoProvider: KeyInfo;
     references: Reference[];
     signatureAlgorithm: string;
@@ -44,6 +45,7 @@ export class SignedXml {
     validationErrors: string[];
     constructor(idMode?: string | null, options?: {
         canonicalizationAlgorithm?: string | undefined
+        inclusiveNamespacesPrefixList?: string | undefined
         idAttribute?: string | undefined
         implicitTransforms?: ReadonlyArray<string> | undefined
         signatureAlgorithm?: string | undefined
