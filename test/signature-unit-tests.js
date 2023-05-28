@@ -790,7 +790,7 @@ function verifySignature(xml, mode) {
 
   var doc = new dom().parseFromString(xml)
   var node = select("//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']", doc)[0]
-
+  
   var sig = new SignedXml(mode)
   sig.keyInfoProvider = new FileKeyInfo("./test/static/client_public.pem")
   sig.loadSignature(node)
