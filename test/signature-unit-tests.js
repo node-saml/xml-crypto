@@ -734,6 +734,36 @@ module.exports = {
     test.done();
   },
 
+  "adds attributes to KeyInfo element when attrs are present in keyInfoProvider": function (test) {
+    var xml = "<root><x /></root>";
+    var sig = new SignedXml();
+    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.keyInfoProvider = {
+      attrs: {
+        CustomUri: "http://www.example.com/keyinfo",
+        CustomAttribute: "custom-value"
+      },
+        getKeyInfo: function () {
+          return "<dummy/>";
+        }
+    };
+
+    sig.computeSignature(xml);
+    var signedXml = sig.getSignedXml();
+
+    var doc = new dom().parseFromString(signedXml);
+    var keyInfoElement = select("//*[local-name(.)='KeyInfo']", doc.documentElement);
+    test.equal(keyInfoElement.length, 1, "KeyInfo element should exist");
+
+    var algorithmAttribute = keyInfoElement[0].getAttribute('CustomUri');
+    test.equal(algorithmAttribute, 'http://www.example.com/keyinfo', "KeyInfo element should have the correct CustomUri attribute value");
+
+    var customAttribute = keyInfoElement[0].getAttribute('CustomAttribute');
+    test.equal(customAttribute, 'custom-value', "KeyInfo element should have the correct CustomAttribute attribute value");
+
+    test.done();
+  },
+
 }
 
 function passValidSignature(test, file, mode) {
