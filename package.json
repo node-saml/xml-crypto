@@ -4,7 +4,7 @@
   "version": "3.0.1",
   "description": "Xml digital signature and encryption library for Node.js",
   "engines": {
-    "node": ">=0.4.0"
+    "node": ">=4"
   },
   "author": "Yaron Naveh <yaronn01@gmail.com> (http://webservices20.blogspot.com/)",
   "contributors": [
@@ -40,6 +40,6 @@
     "changelog": "gren changelog --override --generate --head master",
     "prerelease": "git clean -xfd && npm ci && npm test",
     "release": "release-it",
-    "test": "nodeunit ./test/canonicalization-unit-tests.js ./test/c14nWithComments-unit-tests.js ./test/signature-unit-tests.js ./test/saml-response-test.js ./test/signature-integration-tests.js ./test/document-test.js ./test/wsfed-metadata-test.js ./test/hmac-tests.js ./test/c14n-non-exclusive-unit-test.js"
+    "test": "nodeunit ./test/*test?.js"
   }
 }

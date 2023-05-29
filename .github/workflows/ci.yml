@@ -1,19 +1,33 @@
-name: build
+name: Build Status
 on:
+  workflow_dispatch:
   push:
+    branches: [master]
   pull_request:
-    types: [opened, reopened]
+    branches: [master]
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
+    env:
+      CI: true
+
     strategy:
       matrix:
-        version: [8, lts/*, latest]
+        node-version: [4, 6, 8, 10, 12, 14, 16, 18]
+
     steps:
-      - uses: actions/checkout@HEAD
-      - uses: actions/setup-node@HEAD
+      - uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.version }}
-      - run: npm install
+          node-version: ${{ matrix.node-version }}
+      - run: npm ci
       - run: npm test
+      - run: npm update
+      - run: npm ci
+      - run: npm test
+      - name: Codecov
+        uses: codecov/codecov-action@v3.1.1
+        with:
+          verbose: true
