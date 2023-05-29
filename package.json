@@ -4,7 +4,7 @@
   "version": "3.0.1",
   "description": "Xml digital signature and encryption library for Node.js",
   "engines": {
-    "node": ">=8"
+    "node": ">=0.4.0"
   },
   "author": "Yaron Naveh <yaronn01@gmail.com> (http://webservices20.blogspot.com/)",
   "contributors": [
