@@ -7,7 +7,7 @@ var select = require('xpath').select
 
 module.exports = {
 
-  "signer adds increasing id atributes to elements": function (test) {
+  "signer adds increasing id attributes to elements": function (test) {
     verifyAddsId(test, "wssecurity", "equal")
     verifyAddsId(test, null, "different")
     test.done();
@@ -131,14 +131,14 @@ module.exports = {
   "signer creates signature with correct structure": function(test) {
 
     function DummyKeyInfo() {
-      this.getKeyInfo = function(key) {
+      this.getKeyInfo = function() {
         return "dummy key info"
       }
     }
 
     function DummyDigest() {
 
-      this.getHash = function(xml) {
+      this.getHash = function() {
         return "dummy digest"
       }
 
@@ -149,7 +149,7 @@ module.exports = {
 
     function DummySignatureAlgorithm() {
 
-      this.getSignature = function(xml, signingKey) {
+      this.getSignature = function() {
         return "dummy signature"
       }
 
@@ -160,7 +160,7 @@ module.exports = {
     }
 
     function DummyTransformation() {
-      this.process = function(node) {
+      this.process = function() {
         return "< x/>"
       }
 
@@ -170,7 +170,7 @@ module.exports = {
     }
 
     function DummyCanonicalization() {
-      this.process = function(node) {
+      this.process = function() {
         return "< x/>"
       }
 
@@ -283,14 +283,14 @@ module.exports = {
     var prefix = 'ds';
 
     function DummyKeyInfo() {
-      this.getKeyInfo = function(key) {
+      this.getKeyInfo = function() {
         return "<ds:dummy>dummy key info</ds:dummy>"
       }
     }
 
     function DummyDigest() {
 
-      this.getHash = function(xml) {
+      this.getHash = function() {
         return "dummy digest"
       }
 
@@ -301,7 +301,7 @@ module.exports = {
 
     function DummySignatureAlgorithm() {
 
-      this.getSignature = function(xml, signingKey) {
+      this.getSignature = function( ) {
         return "dummy signature"
       }
 
@@ -312,7 +312,7 @@ module.exports = {
     }
 
     function DummyTransformation() {
-      this.process = function(node) {
+      this.process = function() {
         return "< x/>"
       }
 
@@ -322,7 +322,7 @@ module.exports = {
     }
 
     function DummyCanonicalization() {
-      this.process = function(node) {
+      this.process = function() {
         return "< x/>"
       }
 
@@ -505,7 +505,7 @@ module.exports = {
     sig.addReference("//*[local-name(.)='y']")
     sig.addReference("//*[local-name(.)='w']")
 
-    sig.computeSignature(xml, function(err) {
+    sig.computeSignature(xml, function() {
       var signedXml = sig.getSignedXml()
       var expected = "<root><x xmlns=\"ns\" Id=\"_0\"/><y attr=\"value\" Id=\"_1\"/><z><w Id=\"_2\"/></z>" +
         "<Signature xmlns=\"http://www.w3.org/2000/09/xmldsig#\">" +
@@ -613,10 +613,10 @@ module.exports = {
 
   "signer adds existing prefixes": function(test) {
     function AssertionKeyInfo(assertionId) {
-      this.getKeyInfo = function(key, prefix) {
+      this.getKeyInfo = function() {
         return '<wsse:SecurityTokenReference wsse11:TokenType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.1#SAMLV1.1" wsu:Id="0" ' +
               'xmlns:wsse11="http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd"> ' +
-              '<wsse:KeyIdentifier ValueType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.0#SAMLAssertionID">'+assertionId+'</wsse:KeyIdentifier>'
+              '<wsse:KeyIdentifier ValueType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.0#SAMLAssertionID">'+assertionId+'</wsse:KeyIdentifier>' +
           '</wsse:SecurityTokenReference>';
       };
     }
@@ -648,7 +648,7 @@ module.exports = {
         wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
       }
     });
-    result = sig.getSignedXml();
+    var result = sig.getSignedXml();
     test.equal((result.match(/xmlns:wsu=/g) || []).length, 1)
     test.equal((result.match(/xmlns:wsse=/g) || []).length, 1)
     test.done();
@@ -825,7 +825,7 @@ function verifySignature(xml, mode) {
   sig.keyInfoProvider = new FileKeyInfo("./test/static/client_public.pem")
   sig.loadSignature(node)
   var res = sig.checkSignature(xml)
-  console.log(sig.validationErrors)
+  test.equals(sig.validationErrors.length, 0, "there were validation errors: " + sig.validationErrors)
   return res;
 }
 
@@ -835,10 +835,10 @@ function verifyDoesNotDuplicateIdAttributes(test, mode, prefix) {
   sig.signingKey = fs.readFileSync("./test/static/client.pem")
   sig.addReference("//*[local-name(.)='x']")
   sig.computeSignature(xml)
-  var signedxml = sig.getOriginalXmlWithIds()
-  var doc = new dom().parseFromString(signedxml)
+  var signedXml = sig.getOriginalXmlWithIds()
+  var doc = new dom().parseFromString(signedXml)
   var attrs = select("//@*", doc)
-  test.equals(2, attrs.length, "wrong nuber of attributes")
+  test.equals(2, attrs.length, "wrong number of attributes")
 
 }
 
@@ -852,10 +852,10 @@ function verifyAddsId(test, mode, nsMode) {
   sig.addReference("//*[local-name(.)='w']")
 
   sig.computeSignature(xml)
-  var signedxml = sig.getOriginalXmlWithIds()
-  var doc = new dom().parseFromString(signedxml)
+  var signedXml = sig.getOriginalXmlWithIds()
+  var doc = new dom().parseFromString(signedXml)
 
-  op = nsMode == "equal" ? "=" : "!="
+  var op = nsMode == "equal" ? "=" : "!="
 
   var xpath = "//*[local-name(.)='{elem}' and '_{id}' = @*[local-name(.)='Id' and namespace-uri(.)" + op + "'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd']]"
 

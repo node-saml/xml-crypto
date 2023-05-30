@@ -185,7 +185,7 @@ module.exports = {
   },
   
 
-  "Exclusive canonicalization preserves white space bewteen elements": function (test) {
+  "Exclusive canonicalization preserves white space between elements": function (test) {
     compare(test, 
       "<root><child><inner>123</inner>\n</child></root>",
       "//*[local-name(.)='child']", 
