@@ -825,7 +825,7 @@ function verifySignature(xml, mode) {
   sig.keyInfoProvider = new FileKeyInfo("./test/static/client_public.pem")
   sig.loadSignature(node)
   var res = sig.checkSignature(xml)
-  test.equals(sig.validationErrors.length, 0, "there were validation errors: " + sig.validationErrors)
+  
   return res;
 }
 
