@@ -26,7 +26,7 @@
   "scripts": {
     "changelog": "gren changelog --override --generate --head master",
     "lint": "eslint --ext .js \"**/*.js\" --cache && npm run prettier-check",
-    "lint:fix": "eslint --ext .ts --fix src && npm run prettier-format",
+    "lint:fix": "eslint --ext .js --fix \"**/*.js\" && npm run prettier-format",
     "prettier-check": "prettier --config .prettierrc.json --check .",
     "prettier-format": "prettier --config .prettierrc.json --write .",
     "prerelease": "git clean -xfd && npm ci && npm test",
@@ -43,7 +43,6 @@
     "ejs": "3.1.7",
     "eslint": "^8.41.0",
     "eslint-config-prettier": "^8.8.0",
-    "eslint-plugin-prettier": "^4.2.1",
     "nodeunit": "^0.11.3",
     "prettier": "^2.8.8",
     "prettier-plugin-packagejson": "^2.4.3",
