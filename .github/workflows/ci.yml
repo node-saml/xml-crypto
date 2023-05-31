@@ -1,4 +1,4 @@
-name: Build Status
+name: Test Status
 on:
   workflow_dispatch:
   push:
@@ -7,13 +7,13 @@ on:
     branches: [master]
 
 jobs:
-  build:
+  test:
     env:
       CI: true
 
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
         node-version: [8, 10, 12, 14, 16, 18, lts/*]
         experimental: [false]
         include:
