@@ -8,17 +8,23 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
     env:
       CI: true
 
     strategy:
       matrix:
-        node-version: [8.x, 10.x, 12.x, 14.x, 16.x, 18.x]
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        node-version: [8, 10, 12, 14, 16, 18, lts/*]
+        experimental: [false]
+        include:
+          - node-version: latest
+            experimental: [true]
 
     steps:
       - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js ${{ matrix.node-version }} on ${{ matrix.os }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
