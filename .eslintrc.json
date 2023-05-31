@@ -12,7 +12,6 @@
   "rules": {
     "no-console": "error",
     "no-unused-vars": "warn",
-    "no-prototype-builtins": "warn",
-    "one-var": ["warn", "never"]
+    "no-prototype-builtins": "warn"
   }
 }
