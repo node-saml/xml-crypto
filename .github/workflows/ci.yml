@@ -20,7 +20,7 @@ jobs:
         experimental: [false]
         include:
           - node-version: latest
-            experimental: [true]
+            experimental: true
 
     steps:
       - uses: actions/checkout@v3
