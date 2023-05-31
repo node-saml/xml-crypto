@@ -5,6 +5,7 @@
     "canonicalized",
     "codecov",
     "feide",
+    "HMAC",
     "reserialization",
     "wsfederation",
     "wssecurity"
