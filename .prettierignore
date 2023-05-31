@@ -1,0 +1,7 @@
+# Ignore artifacts:
+node_modules
+package-lock.json
+.eslintcache
+.prettierignore
+test/static/*
+test/validators/*
