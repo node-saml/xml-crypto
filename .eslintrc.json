@@ -10,7 +10,7 @@
   },
   "extends": ["eslint:recommended", "prettier"],
   "rules": {
-    "no-console": "warn",
+    "no-console": "error",
     "no-unused-vars": "warn",
     "no-prototype-builtins": "warn"
   }

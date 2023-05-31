@@ -4,6 +4,8 @@
     "canonicalize",
     "canonicalized",
     "codecov",
+    "feide",
+    "reserialization",
     "wsfederation",
     "wssecurity"
   ]

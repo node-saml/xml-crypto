@@ -151,7 +151,6 @@ module.exports = {
     sig.computeSignature(xml)      
     
     var signed = sig.getSignedXml();
-    console.log(signed);
     
     var doc = new Dom().parseFromString(signed);
     
