@@ -14,10 +14,10 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node-version: [8, 10, 12, 14, 16, 18, lts/*]
+        node-version: [8, lts/-1, lts/*]
         experimental: [false]
         include:
-          - os: [windows-latest, ubuntu-latest]
+          - os: ubuntu-latest
             node-version: latest
             experimental: true
     runs-on: ${{ matrix.os }}
