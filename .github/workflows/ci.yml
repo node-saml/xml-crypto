@@ -8,8 +8,6 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.experimental }}
     env:
       CI: true
 
@@ -21,7 +19,9 @@ jobs:
         include:
           - node-version: latest
             experimental: true
-
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+        
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }} on ${{ matrix.os }}
