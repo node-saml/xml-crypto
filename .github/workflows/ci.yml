@@ -17,7 +17,8 @@ jobs:
         node-version: [8, 10, 12, 14, 16, 18, lts/*]
         experimental: [false]
         include:
-          - node-version: latest
+          - os: [windows-latest, ubuntu-latest]
+            node-version: latest
             experimental: true
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental }}
