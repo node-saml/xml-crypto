@@ -12,6 +12,13 @@
   "rules": {
     "no-console": "error",
     "no-unused-vars": "warn",
-    "no-prototype-builtins": "warn"
+    "no-prototype-builtins": "warn",
+    "one-var": ["warn", "never"],
+    "no-duplicate-imports": "error",
+    "no-use-before-define": "error",
+    "curly": "warn",
+    "eqeqeq": ["error", "smart"],
+    "no-var": "warn",
+    "prefer-const":"warn"
   }
 }
