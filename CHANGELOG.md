@@ -1,16 +1,32 @@
 # Changelog
 
-## master (2023-04-17)
+## v3.1.0 (2023-06-05)
+
+### 🚀 Minor Changes
+
+- [**enhancement**] Add support for appending attributes to KeyInfo element [#285](https://github.com/node-saml/xml-crypto/pull/285)
+- [**enhancement**] Use inclusiveNamespacesPrefixList to generate InclusiveNamespaces [#284](https://github.com/node-saml/xml-crypto/pull/284)
+- [**enhancement**] build: add release-it to facilitate builds [#275](https://github.com/node-saml/xml-crypto/pull/275)
+- [**enhancement**] [**documentation**] feat: add type declaration [#277](https://github.com/node-saml/xml-crypto/pull/277)
+- [**enhancement**] make FileKeyInfo extensible for compatibility with TypeScript [#273](https://github.com/node-saml/xml-crypto/pull/273)
+- [**enhancement**] Updated getKeyInfo function with actual implementation [#249](https://github.com/node-saml/xml-crypto/pull/249)
 
 ### 🔗 Dependencies
 
+- [**dependencies**] Update dependencies [#296](https://github.com/node-saml/xml-crypto/pull/296)
 - [**dependencies**] Bump minimatch from 3.0.4 to 3.1.2 [#276](https://github.com/node-saml/xml-crypto/pull/276)
 - [**dependencies**] [**javascript**] Bump qs from 6.5.2 to 6.5.3 [#271](https://github.com/node-saml/xml-crypto/pull/271)
 
-### 🙈 Other
+### 📚 Documentation
 
-- [**closed**] make FileKeyInfo extensible for compatibility with TypeScript [#273](https://github.com/node-saml/xml-crypto/pull/273)
-- [**closed**] Updated getKeyInfo function with actual implementation [#249](https://github.com/node-saml/xml-crypto/pull/249)
+- [**documentation**] [**chore**] Adjust references for `node-saml` organization [#298](https://github.com/node-saml/xml-crypto/pull/298)
+
+### ⚙️ Technical Tasks
+
+- [**chore**] Force CI to run on every PR [#286](https://github.com/node-saml/xml-crypto/pull/286)
+- [**chore**] Format code [#289](https://github.com/node-saml/xml-crypto/pull/289)
+- [**chore**] Lint code [#288](https://github.com/node-saml/xml-crypto/pull/288)
+- [**chore**] Add support for linting [#287](https://github.com/node-saml/xml-crypto/pull/287)
 
 ---
 
@@ -35,17 +51,17 @@
 - [**dependencies**] [**javascript**] Bump ejs from 2.6.1 to 3.1.7 [#244](https://github.com/node-saml/xml-crypto/pull/244)
 - [**dependencies**] [**javascript**] Bump path-parse from 1.0.5 to 1.0.7 [#245](https://github.com/node-saml/xml-crypto/pull/245)
 
-### 🙈 Other
+### ⚙️ Technical Tasks
 
-- [**closed**] build(ci): test on later node versions [#251](https://github.com/node-saml/xml-crypto/pull/251)
+- [**chore**] build(ci): test on later node versions [#251](https://github.com/node-saml/xml-crypto/pull/251)
 
 ---
 
 ## v2.1.4 (2022-07-08)
 
-### 🙈 Other
+### 🐛 Bug Fixes
 
-- [**closed**] Correct behavior for XML canonicalization with namespaces and nested elements [#242](https://github.com/node-saml/xml-crypto/pull/242)
+- [**bug**] Correct behavior for XML canonicalization with namespaces and nested elements [#242](https://github.com/node-saml/xml-crypto/pull/242)
 
 ---
 
@@ -53,11 +69,8 @@
 
 ### 🔗 Dependencies
 
+- [**dependencies**] [**javascript**] [**security**] Update xmldom to 0.7.0 [#236](https://github.com/node-saml/xml-crypto/pull/236)
 - [**dependencies**] [**java**] Bump commons-io from 2.4 to 2.7 in /test/validators/XmlCryptoJava [#229](https://github.com/node-saml/xml-crypto/pull/229)
-
-### 🙈 Other
-
-- [**closed**] Update xmldom to 0.7.0 [#236](https://github.com/node-saml/xml-crypto/pull/236)
 
 ---
 
@@ -80,9 +93,12 @@ _No changelog for this release._
 - [**dependencies**] [**javascript**] Bump xmldom from 0.1.27 to 0.5.0 [#225](https://github.com/node-saml/xml-crypto/pull/225)
 - [**dependencies**] [**java**] Bump junit from 4.12 to 4.13.1 in /test/validators/XmlCryptoJava [#217](https://github.com/node-saml/xml-crypto/pull/217)
 
+### ⚙️ Technical Tasks
+
+- [**chore**] Don't pull the example folder into the module build [#220](https://github.com/node-saml/xml-crypto/pull/220)
+
 ### 🙈 Other
 
-- [**closed**] Don't pull the example folder into the module build [#220](https://github.com/node-saml/xml-crypto/pull/220)
 - [**closed**] fix for #201 [#218](https://github.com/node-saml/xml-crypto/pull/218)
 
 ---
@@ -140,7 +156,7 @@ _No changelog for this release._
 
 ### 🙈 Other
 
-- [**closed**] Fix canon xml being computed differently when signing, than when verfying [#183](https://github.com/node-saml/xml-crypto/pull/183)
+- [**closed**] Fix canon xml being computed differently when signing, than when verifying [#183](https://github.com/node-saml/xml-crypto/pull/183)
 
 ---
 
