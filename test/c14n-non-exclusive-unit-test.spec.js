@@ -1,3 +1,5 @@
+var expect = require("chai").expect;
+
 var C14nCanonicalization = require("../lib/c14n-canonicalization").C14nCanonicalization,
     Dom = require("@xmldom/xmldom").DOMParser,
     select = require("xpath").select,
@@ -13,14 +15,14 @@ var test_C14nCanonicalization = function (xml, xpath, expected) {
         })
         .toString();
 
-    expect(result).toEqual(expected);
+    expect(result).to.equal(expected);
 };
 
 var test_findAncestorNs = function (xml, xpath, expected) {
     var doc = new Dom().parseFromString(xml);
     var result = findAncestorNs(doc, xpath);
 
-    expect(result).toEqual(expected);
+    expect(result).to.deep.equal(expected);
 };
 
 describe("C14N non-exclusive canonicalization tests", function () {

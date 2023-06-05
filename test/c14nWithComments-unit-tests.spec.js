@@ -1,3 +1,5 @@
+var expect = require("chai").expect;
+
 var c14nWithComments =
         require("../lib/exclusive-canonicalization").ExclusiveCanonicalizationWithComments,
     Dom = require("@xmldom/xmldom").DOMParser,
@@ -12,7 +14,7 @@ var compare = function (xml, xpath, expected, inclusiveNamespacesPrefixList) {
         .process(elem, {inclusiveNamespacesPrefixList: inclusiveNamespacesPrefixList})
         .toString();
 
-    expect(result).toEqual(expected);
+    expect(result).to.equal(expected);
 };
 
 describe("Exclusive canonicalization with comments", function () {
@@ -377,7 +379,7 @@ describe("Exclusive canonicalization with comments", function () {
             ],
             node
         );
-        expect(res).toEqual('<p:y xmlns:p="myns"></p:y>');
+        expect(res).to.equal('<p:y xmlns:p="myns"></p:y>');
     });
 
     it("Enveloped-signature canonicalization respects currentnode", function () {
@@ -391,7 +393,7 @@ describe("Exclusive canonicalization with comments", function () {
         var sig = new SignedXml();
         var transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
         var res = sig.getCanonXml(transforms, node);
-        expect(res).toEqual("<y/>");
+        expect(res).to.equal("<y/>");
     });
 
     it("The XML canonicalization method processes a node-set by imposing the following additional document order rules on the namespace and attribute nodes of each element: \

@@ -4,6 +4,7 @@ var select = require("xpath").select,
     FileKeyInfo = require("../lib/signed-xml.js").FileKeyInfo,
     fs = require("fs"),
     crypto = require("crypto");
+    var expect = require("chai").expect;
 
 describe("Signature unit tests", function () {
 
@@ -30,15 +31,14 @@ describe("Signature unit tests", function () {
         var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
         var sig = new SignedXml();
 
-        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+        sig.signingKey = fs.readFileSync("./test/static/client.pem");
         sig.addReference("//*[local-name(.)='name']");
         sig.computeSignature(xml);
 
         var doc = new dom().parseFromString(sig.getSignedXml());
 
-        expect(doc.documentElement.lastChild.localName)
-            .withContext("the signature must be appended to the root node by default")
-            .toBe("Signature");
+        expect(doc.documentElement.lastChild.localName, "the signature must be appended to the root node by default")
+            .to.equal("Signature");
 
     });
 
@@ -46,7 +46,7 @@ describe("Signature unit tests", function () {
         var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
         var sig = new SignedXml();
 
-        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+        sig.signingKey = fs.readFileSync("./test/static/client.pem");
         sig.addReference("//*[local-name(.)='repository']");
 
         sig.computeSignature(xml, {
@@ -59,9 +59,8 @@ describe("Signature unit tests", function () {
         var doc = new dom().parseFromString(sig.getSignedXml());
         var referenceNode = select("/root/name", doc)[0];
 
-        expect(referenceNode.lastChild.localName)
-            .withContext("the signature should be appended to root/name")
-            .toBe("Signature");
+        expect(referenceNode.lastChild.localName,"the signature should be appended to root/name")
+            .to.equal("Signature");
 
     });
 
@@ -69,7 +68,7 @@ describe("Signature unit tests", function () {
         var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
         var sig = new SignedXml();
 
-        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+        sig.signingKey = fs.readFileSync("./test/static/client.pem");
         sig.addReference("//*[local-name(.)='repository']");
 
         sig.computeSignature(xml, {
@@ -82,9 +81,8 @@ describe("Signature unit tests", function () {
         var doc = new dom().parseFromString(sig.getSignedXml());
         var referenceNode = select("/root/name", doc)[0];
 
-        expect(referenceNode.firstChild.localName)
-            .withContext("the signature should be prepended to root/name")
-            .toBe("Signature");
+        expect(referenceNode.firstChild.localName, "the signature should be prepended to root/name")
+            .to.equal("Signature");
 
     });
 
@@ -92,7 +90,7 @@ describe("Signature unit tests", function () {
         var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
         var sig = new SignedXml();
 
-        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+        sig.signingKey = fs.readFileSync("./test/static/client.pem");
         sig.addReference("//*[local-name(.)='repository']");
 
         sig.computeSignature(xml, {
@@ -105,9 +103,8 @@ describe("Signature unit tests", function () {
         var doc = new dom().parseFromString(sig.getSignedXml());
         var referenceNode = select("/root/name", doc)[0];
 
-        expect(referenceNode.previousSibling.localName)
-            .withContext("the signature should be inserted before to root/name")
-            .toBe("Signature");
+        expect(referenceNode.previousSibling.localName,"the signature should be inserted before to root/name")
+            .to.equal("Signature");
 
     });
 
@@ -115,7 +112,7 @@ describe("Signature unit tests", function () {
         var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
         var sig = new SignedXml();
 
-        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+        sig.signingKey = fs.readFileSync("./test/static/client.pem");
         sig.addReference("//*[local-name(.)='repository']");
 
         sig.computeSignature(xml, {
@@ -128,9 +125,8 @@ describe("Signature unit tests", function () {
         var doc = new dom().parseFromString(sig.getSignedXml());
         var referenceNode = select("/root/name", doc)[0];
 
-        expect(referenceNode.nextSibling.localName)
-            .withContext("the signature should be inserted after to root/name")
-            .toBe("Signature");
+        expect(referenceNode.nextSibling.localName,"the signature should be inserted after to root/name")
+            .to.equal("Signature");
 
     });
 
@@ -244,7 +240,7 @@ describe("Signature unit tests", function () {
             "</KeyInfo>" +
             "</Signature>";
 
-        expect(expected).withContext("wrong signature format").toEqual(signature);
+        expect(expected, "wrong signature format").to.equal(signature);
 
         var signedXml = sig.getSignedXml();
         var expectedSignedXml =
@@ -282,12 +278,12 @@ describe("Signature unit tests", function () {
             "</Signature>" +
             "</root>";
 
-        expect(expectedSignedXml).withContext("wrong signedXml format").toEqual(signedXml);
+        expect(expectedSignedXml, "wrong signedXml format").to.equal(signedXml);
 
         var originalXmlWithIds = sig.getOriginalXmlWithIds();
         var expectedOriginalXmlWithIds =
             '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z></root>';
-        expect(expectedOriginalXmlWithIds).withContext("wrong OriginalXmlWithIds").toEqual(originalXmlWithIds);
+        expect(expectedOriginalXmlWithIds, "wrong OriginalXmlWithIds").to.equal(originalXmlWithIds);
 
 
     });
@@ -405,7 +401,7 @@ describe("Signature unit tests", function () {
             "</ds:KeyInfo>" +
             "</ds:Signature>";
 
-        expect(expected).withContext("wrong signature format").toEqual(signature);
+        expect(expected, "wrong signature format").to.equal(signature);
 
         var signedXml = sig.getSignedXml();
         var expectedSignedXml =
@@ -443,12 +439,12 @@ describe("Signature unit tests", function () {
             "</ds:Signature>" +
             "</root>";
 
-        expect(expectedSignedXml).withContext("wrong signedXml format").toEqual(signedXml);
+        expect(expectedSignedXml, "wrong signedXml format").to.equal(signedXml);
 
         var originalXmlWithIds = sig.getOriginalXmlWithIds();
         var expectedOriginalXmlWithIds =
             '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z></root>';
-        expect(expectedOriginalXmlWithIds).withContext("wrong OriginalXmlWithIds").toEqual(originalXmlWithIds);
+        expect(expectedOriginalXmlWithIds, "wrong OriginalXmlWithIds").to.equal(originalXmlWithIds);
 
 
     });
@@ -457,7 +453,7 @@ describe("Signature unit tests", function () {
         var xml =
             '<root><x xmlns="ns" Id="_0"></x><y attr="value" Id="_1"></y><z><w Id="_2"></w></z></root>';
         var sig = new SignedXml();
-        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+        sig.signingKey = fs.readFileSync("./test/static/client.pem");
         sig.keyInfoProvider = null;
 
         sig.addReference("//*[local-name(.)='x']");
@@ -497,7 +493,7 @@ describe("Signature unit tests", function () {
             "</Signature>" +
             "</root>";
 
-        expect(expected).withContext("wrong signature format").toEqual(signedXml);
+        expect(expected, "wrong signature format").to.equal(signedXml);
 
 
     });
@@ -521,7 +517,7 @@ describe("Signature unit tests", function () {
         SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithmAsync"] = DummySignatureAlgorithm;
         var sig = new SignedXml();
         sig.signatureAlgorithm = "http://dummySignatureAlgorithmAsync";
-        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+        sig.signingKey = fs.readFileSync("./test/static/client.pem");
         sig.keyInfoProvider = null;
 
         sig.addReference("//*[local-name(.)='x']");
@@ -561,45 +557,45 @@ describe("Signature unit tests", function () {
                 "</Signature>" +
                 "</root>";
 
-            expect(expected).withContext("wrong signature format").toEqual(signedXml);
+            expect(expected, "wrong signature format").to.equal(signedXml);
 
         });
     });
 
     it("correctly loads signature", function () {
-        passLoadSignature("./spec/static/valid_signature.xml");
-        passLoadSignature("./spec/static/valid_signature.xml", true);
-        passLoadSignature("./spec/static/valid_signature_with_root_level_sig_namespace.xml");
+        passLoadSignature("./test/static/valid_signature.xml");
+        passLoadSignature("./test/static/valid_signature.xml", true);
+        passLoadSignature("./test/static/valid_signature_with_root_level_sig_namespace.xml");
 
     });
 
     it("verify valid signature", function () {
-        passValidSignature("./spec/static/valid_signature.xml");
-        passValidSignature("./spec/static/valid_signature_with_lowercase_id_attribute.xml");
-        passValidSignature("./spec/static/valid_signature wsu.xml", "wssecurity");
-        passValidSignature("./spec/static/valid_signature_with_reference_keyInfo.xml");
-        passValidSignature("./spec/static/valid_signature_with_whitespace_in_digestvalue.xml");
-        passValidSignature("./spec/static/valid_signature_utf8.xml");
-        passValidSignature("./spec/static/valid_signature_with_unused_prefixes.xml");
+        passValidSignature("./test/static/valid_signature.xml");
+        passValidSignature("./test/static/valid_signature_with_lowercase_id_attribute.xml");
+        passValidSignature("./test/static/valid_signature wsu.xml", "wssecurity");
+        passValidSignature("./test/static/valid_signature_with_reference_keyInfo.xml");
+        passValidSignature("./test/static/valid_signature_with_whitespace_in_digestvalue.xml");
+        passValidSignature("./test/static/valid_signature_utf8.xml");
+        passValidSignature("./test/static/valid_signature_with_unused_prefixes.xml");
 
     });
 
     it("fail invalid signature", function () {
-        failInvalidSignature("./spec/static/invalid_signature - signature value.xml");
-        failInvalidSignature("./spec/static/invalid_signature - hash.xml");
-        failInvalidSignature("./spec/static/invalid_signature - non existing reference.xml");
-        failInvalidSignature("./spec/static/invalid_signature - changed content.xml");
+        failInvalidSignature("./test/static/invalid_signature - signature value.xml");
+        failInvalidSignature("./test/static/invalid_signature - hash.xml");
+        failInvalidSignature("./test/static/invalid_signature - non existing reference.xml");
+        failInvalidSignature("./test/static/invalid_signature - changed content.xml");
         failInvalidSignature(
-            "./spec/static/invalid_signature - wsu - invalid signature value.xml",
+            "./test/static/invalid_signature - wsu - invalid signature value.xml",
             "wssecurity"
         );
-        failInvalidSignature("./spec/static/invalid_signature - wsu - hash.xml", "wssecurity");
+        failInvalidSignature("./test/static/invalid_signature - wsu - hash.xml", "wssecurity");
         failInvalidSignature(
-            "./spec/static/invalid_signature - wsu - non existing reference.xml",
+            "./test/static/invalid_signature - wsu - non existing reference.xml",
             "wssecurity"
         );
         failInvalidSignature(
-            "./spec/static/invalid_signature - wsu - changed content.xml",
+            "./test/static/invalid_signature - wsu - changed content.xml",
             "wssecurity"
         );
     });
@@ -607,7 +603,7 @@ describe("Signature unit tests", function () {
     it("allow empty reference uri when signing", function () {
         var xml = "<root><x /></root>";
         var sig = new SignedXml();
-        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+        sig.signingKey = fs.readFileSync("./test/static/client.pem");
         sig.keyInfoProvider = null;
 
         sig.addReference(
@@ -624,16 +620,15 @@ describe("Signature unit tests", function () {
         var signedXml = sig.getSignedXml();
         var doc = new dom().parseFromString(signedXml);
         var URI = select("//*[local-name(.)='Reference']/@URI", doc)[0];
-        expect(URI.value)
-            .withContext("uri should be empty but instead was " + URI.value)
-            .toEqual("");
+        expect(URI.value, "uri should be empty but instead was " + URI.value)
+            .to.equal("");
     });
 
     it("signer appends signature to a non-existing reference node", function () {
         var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
         var sig = new SignedXml();
 
-        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+        sig.signingKey = fs.readFileSync("./test/static/client.pem");
         sig.addReference("//*[local-name(.)='repository']");
 
         try {
@@ -643,9 +638,9 @@ describe("Signature unit tests", function () {
                     action: "append"
                 }
             });
-            fail("Expected an error to be thrown");
+            expect.fail("Expected an error to be thrown");
         } catch (err) {
-            expect(err instanceof TypeError).toBeFalsy();
+            expect(err).not.to.be.an.instanceof(TypeError);
         }
 
     });
@@ -677,7 +672,7 @@ describe("Signature unit tests", function () {
 
         var sig = new SignedXml();
         sig.keyInfoProvider = new AssertionKeyInfo("_81d5fba5c807be9e9cf60c58566349b1");
-        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+        sig.signingKey = fs.readFileSync("./test/static/client.pem");
         sig.computeSignature(xml, {
             prefix: "ds",
             location: {
@@ -690,15 +685,15 @@ describe("Signature unit tests", function () {
             },
         });
         var result = sig.getSignedXml();
-        expect((result.match(/xmlns:wsu=/g) || []).length).toEqual(1);
-        expect((result.match(/xmlns:wsse=/g) || []).length).toEqual(1);
+        expect((result.match(/xmlns:wsu=/g) || []).length).to.equal(1);
+        expect((result.match(/xmlns:wsse=/g) || []).length).to.equal(1);
     });
 
     it("creates InclusiveNamespaces element when inclusiveNamespacesPrefixList is set on Reference",
         function () {
             var xml = "<root><x /></root>";
             var sig = new SignedXml();
-            sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+            sig.signingKey = fs.readFileSync("./test/static/client.pem");
             sig.keyInfoProvider = null;
 
             sig.addReference(
@@ -718,21 +713,19 @@ describe("Signature unit tests", function () {
                 "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
                 doc.documentElement
             );
-            expect(inclusiveNamespaces.length)
-                .withContext("InclusiveNamespaces element should exist")
-                .toEqual(1);
+            expect(inclusiveNamespaces.length, "InclusiveNamespaces element should exist")
+                .to.equal(1);
 
             var prefixListAttribute = inclusiveNamespaces[0].getAttribute("PrefixList");
-            expect(prefixListAttribute)
-                .withContext("InclusiveNamespaces element should have the correct PrefixList attribute value")
-                .toEqual("prefix1 prefix2");
+            expect(prefixListAttribute, "InclusiveNamespaces element should have the correct PrefixList attribute value")
+                .to.equal("prefix1 prefix2");
         });
 
     it("does not create InclusiveNamespaces element when inclusiveNamespacesPrefixList is not set on Reference",
         function () {
             var xml = "<root><x /></root>";
             var sig = new SignedXml();
-            sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+            sig.signingKey = fs.readFileSync("./test/static/client.pem");
             sig.keyInfoProvider = null;
 
             sig.addReference(
@@ -753,9 +746,8 @@ describe("Signature unit tests", function () {
                 doc.documentElement
             );
 
-            expect(inclusiveNamespaces.length)
-                .withContext("InclusiveNamespaces element should not exist")
-                .toEqual(0);
+            expect(inclusiveNamespaces.length, "InclusiveNamespaces element should not exist")
+                .to.equal(0);
 
         });
 
@@ -763,7 +755,7 @@ describe("Signature unit tests", function () {
         function () {
             var xml = "<root><x /></root>";
             var sig = new SignedXml(null, {inclusiveNamespacesPrefixList: "prefix1 prefix2"});
-            sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+            sig.signingKey = fs.readFileSync("./test/static/client.pem");
             sig.keyInfoProvider = null;
 
             sig.addReference(
@@ -781,12 +773,12 @@ describe("Signature unit tests", function () {
                 doc.documentElement
             );
 
-            expect(inclusiveNamespaces.length).withContext("InclusiveNamespaces element should exist inside CanonicalizationMethod"
-            ).toEqual(1);
+            expect(inclusiveNamespaces.length, "InclusiveNamespaces element should exist inside CanonicalizationMethod"
+            ).to.equal(1);
 
             var prefixListAttribute = inclusiveNamespaces[0].getAttribute("PrefixList");
-            expect(prefixListAttribute).withContext("InclusiveNamespaces element inside CanonicalizationMethod should have the correct PrefixList attribute value"
-            ).toEqual("prefix1 prefix2");
+            expect(prefixListAttribute, "InclusiveNamespaces element inside CanonicalizationMethod should have the correct PrefixList attribute value"
+            ).to.equal("prefix1 prefix2");
 
 
         });
@@ -795,7 +787,7 @@ describe("Signature unit tests", function () {
         function () {
             var xml = "<root><x /></root>";
             var sig = new SignedXml(null); // Omit inclusiveNamespacesPrefixList property
-            sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+            sig.signingKey = fs.readFileSync("./test/static/client.pem");
             sig.keyInfoProvider = null;
 
             sig.addReference(
@@ -813,8 +805,8 @@ describe("Signature unit tests", function () {
                 doc.documentElement
             );
 
-            expect(inclusiveNamespaces.length).withContext("InclusiveNamespaces element should not exist inside CanonicalizationMethod"
-            ).toEqual(0);
+            expect(inclusiveNamespaces.length, "InclusiveNamespaces element should not exist inside CanonicalizationMethod"
+            ).to.equal(0);
 
 
         });
@@ -822,7 +814,7 @@ describe("Signature unit tests", function () {
     it("adds attributes to KeyInfo element when attrs are present in keyInfoProvider", function () {
         var xml = "<root><x /></root>";
         var sig = new SignedXml();
-        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+        sig.signingKey = fs.readFileSync("./test/static/client.pem");
         sig.keyInfoProvider = {
             attrs: {
                 CustomUri: "http://www.example.com/keyinfo",
@@ -838,17 +830,15 @@ describe("Signature unit tests", function () {
 
         var doc = new dom().parseFromString(signedXml);
         var keyInfoElement = select("//*[local-name(.)='KeyInfo']", doc.documentElement);
-        expect(keyInfoElement.length).withContext("KeyInfo element should exist").toEqual(1);
+        expect(keyInfoElement.length, "KeyInfo element should exist").to.equal(1);
 
         var algorithmAttribute = keyInfoElement[0].getAttribute("CustomUri");
-        expect(algorithmAttribute)
-            .withContext("KeyInfo element should have the correct CustomUri attribute value")
-            .toEqual("http://www.example.com/keyinfo");
+        expect(algorithmAttribute, "KeyInfo element should have the correct CustomUri attribute value")
+            .to.equal("http://www.example.com/keyinfo");
 
         var customAttribute = keyInfoElement[0].getAttribute("CustomAttribute");
-        expect(customAttribute)
-            .withContext("KeyInfo element should have the correct CustomAttribute attribute value")
-            .toEqual("custom-value");
+        expect(customAttribute, "KeyInfo element should have the correct CustomAttribute attribute value")
+            .to.equal("custom-value");
 
     });
 
@@ -857,7 +847,7 @@ describe("Signature unit tests", function () {
 function passValidSignature(file, mode) {
     var xml = fs.readFileSync(file).toString();
     var res = verifySignature(xml, mode);
-    expect(res).withContext("expected signature to be valid, but it was reported invalid").toBe(true);
+    expect(res, "expected signature to be valid, but it was reported invalid").to.equal(true);
 }
 
 function passLoadSignature(file, toString) {
@@ -870,27 +860,23 @@ function passLoadSignature(file, toString) {
     var sig = new SignedXml();
     sig.loadSignature(toString ? node.toString() : node);
 
-    expect(sig.canonicalizationAlgorithm)
-        .withContext("wrong canonicalization method")
-        .toEqual("http://www.w3.org/2001/10/xml-exc-c14n#");
+    expect(sig.canonicalizationAlgorithm, "wrong canonicalization method")
+        .to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
 
-    expect(sig.signatureAlgorithm)
-        .withContext("wrong signature method")
-        .toEqual("http://www.w3.org/2000/09/xmldsig#rsa-sha1");
+    expect(sig.signatureAlgorithm, "wrong signature method")
+        .to.equal("http://www.w3.org/2000/09/xmldsig#rsa-sha1");
 
-    expect(sig.signatureValue)
-        .withContext("wrong signature value")
-        .toEqual("PI2xGt3XrVcxYZ34Kw7nFdq75c7Mmo7J0q7yeDhBprHuJal/KV9KyKG+Zy3bmQIxNwkPh0KMP5r1YMTKlyifwbWK0JitRCSa0Fa6z6+TgJi193yiR5S1MQ+esoQT0RzyIOBl9/GuJmXx/1rXnqrTxmL7UxtqKuM29/eHwF0QDUI=");
+    expect(sig.signatureValue, "wrong signature value")
+        .to.equal("PI2xGt3XrVcxYZ34Kw7nFdq75c7Mmo7J0q7yeDhBprHuJal/KV9KyKG+Zy3bmQIxNwkPh0KMP5r1YMTKlyifwbWK0JitRCSa0Fa6z6+TgJi193yiR5S1MQ+esoQT0RzyIOBl9/GuJmXx/1rXnqrTxmL7UxtqKuM29/eHwF0QDUI=");
 
     var keyInfo = select(
         "//*[local-name(.)='KeyInfo']/*[local-name(.)='dummyKey']",
         sig.keyInfo[0]
     )[0];
-    expect(keyInfo.firstChild.data)
-        .withContext("keyInfo clause not correctly loaded")
-        .toEqual("1234");
+    expect(keyInfo.firstChild.data, "keyInfo clause not correctly loaded")
+        .to.equal("1234");
 
-    expect(sig.references.length).toEqual(3);
+    expect(sig.references.length).to.equal(3);
 
     var digests = [
         "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
@@ -901,20 +887,19 @@ function passLoadSignature(file, toString) {
     for (var i = 0; i < sig.references.length; i++) {
         var ref = sig.references[i];
         var expectedUri = "#_" + i;
-        expect(ref.uri)
-            .withContext("wrong uri for index " + i + ". expected: " + expectedUri + " actual: " + ref.uri)
-            .toEqual(expectedUri);
-        expect(ref.transforms.length).toEqual(1);
-        expect(ref.transforms[0]).toEqual("http://www.w3.org/2001/10/xml-exc-c14n#");
-        expect(ref.digestValue).toEqual(digests[i]);
-        expect(ref.digestAlgorithm).toEqual("http://www.w3.org/2000/09/xmldsig#sha1");
+        expect(ref.uri, "wrong uri for index " + i + ". expected: " + expectedUri + " actual: " + ref.uri)
+            .to.equal(expectedUri);
+        expect(ref.transforms.length).to.equal(1);
+        expect(ref.transforms[0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
+        expect(ref.digestValue).to.equal(digests[i]);
+        expect(ref.digestAlgorithm).to.equal("http://www.w3.org/2000/09/xmldsig#sha1");
     }
 }
 
 function failInvalidSignature(file, mode) {
     var xml = fs.readFileSync(file).toString();
     var res = verifySignature(xml, mode);
-    expect(res).withContext("expected signature to be invalid, but it was reported valid").toBe(false);
+    expect(res, "expected signature to be invalid, but it was reported valid").to.equal(false);
 }
 
 function verifySignature(xml, mode) {
@@ -925,7 +910,7 @@ function verifySignature(xml, mode) {
     )[0];
 
     var sig = new SignedXml(mode);
-    sig.keyInfoProvider = new FileKeyInfo("./spec/static/client_public.pem");
+    sig.keyInfoProvider = new FileKeyInfo("./test/static/client_public.pem");
     sig.loadSignature(node);
     var res = sig.checkSignature(xml);
 
@@ -938,19 +923,19 @@ function verifyDoesNotDuplicateIdAttributes(mode, prefix) {
         prefix +
         "Id='_1'></x>";
     var sig = new SignedXml(mode);
-    sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+    sig.signingKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='x']");
     sig.computeSignature(xml);
     var signedXml = sig.getOriginalXmlWithIds();
     var doc = new dom().parseFromString(signedXml);
     var attrs = select("//@*", doc);
-    expect(attrs.length).withContext("wrong number of attributes").toEqual(2);
+    expect(attrs.length, "wrong number of attributes").to.equal(2);
 }
 
 function verifyAddsId(mode, nsMode) {
     var xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
     var sig = new SignedXml(mode);
-    sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+    sig.signingKey = fs.readFileSync("./test/static/client.pem");
 
     sig.addReference("//*[local-name(.)='x']");
     sig.addReference("//*[local-name(.)='y']");
@@ -982,7 +967,7 @@ function verifyAddsAttrs() {
         xmlns: "http://custom-xmlns#",
     };
 
-    sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+    sig.signingKey = fs.readFileSync("./test/static/client.pem");
 
     sig.addReference("//*[local-name(.)='name']");
 
@@ -994,18 +979,14 @@ function verifyAddsAttrs() {
     var doc = new dom().parseFromString(signedXml);
     var signatureNode = doc.documentElement;
 
-    expect(attrs.Id)
-        .withContext('Id attribute is not equal to the expected value: "' + attrs.Id + '"')
-        .toBe(signatureNode.getAttribute("Id"));
-    expect(attrs.data)
-        .withContext('data attribute is not equal to the expected value: "' + attrs.data + '"')
-        .toBe(signatureNode.getAttribute("data"));
-    expect(attrs.xmlns)
-        .withContext("xmlns attribute can not be overriden")
-        .not.toBe(signatureNode.getAttribute("xmlns"));
-    expect(signatureNode.getAttribute("xmlns"))
-        .withContext('xmlns attribute is not equal to the expected value: "http://www.w3.org/2000/09/xmldsig#"')
-        .toBe("http://www.w3.org/2000/09/xmldsig#");
+    expect(attrs.Id, 'Id attribute is not equal to the expected value: "' + attrs.Id + '"')
+        .to.equal(signatureNode.getAttribute("Id"));
+    expect(attrs.data, 'data attribute is not equal to the expected value: "' + attrs.data + '"')
+        .to.equal(signatureNode.getAttribute("data"));
+    expect(attrs.xmlns, "xmlns attribute can not be overridden")
+        .not.to.equal(signatureNode.getAttribute("xmlns"));
+    expect(signatureNode.getAttribute("xmlns"), 'xmlns attribute is not equal to the expected value: "http://www.w3.org/2000/09/xmldsig#"')
+        .to.equal("http://www.w3.org/2000/09/xmldsig#");
 }
 
 function verifyReferenceNS() {
@@ -1013,7 +994,7 @@ function verifyReferenceNS() {
         '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><name wsu:Id="_1">xml-crypto</name><repository wsu:Id="_2">github</repository></root>';
     var sig = new SignedXml("wssecurity");
 
-    sig.signingKey = fs.readFileSync("./spec/static/client.pem");
+    sig.signingKey = fs.readFileSync("./test/static/client.pem");
 
     sig.addReference("//*[@wsu:Id]");
 
@@ -1026,11 +1007,11 @@ function verifyReferenceNS() {
     var signedXml = sig.getSignatureXml();
     var doc = new dom().parseFromString(signedXml);
     var references = select("//*[local-name(.)='Reference']", doc);
-    expect(references.length).toEqual(2);
+    expect(references.length).to.equal(2);
 }
 
 function nodeExists(doc, xpath) {
     if (!doc && !xpath) return;
     var node = select(xpath, doc);
-    expect(node.length).withContext("xpath " + xpath + " not found").toBe(1);
+    expect(node.length, "xpath " + xpath + " not found").to.equal(1);
 }
