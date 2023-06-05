@@ -6,7 +6,7 @@ var fs = require("fs");
 describe("Document tests", function () {
 
     it("test with a document (using FileKeyInfo)", function () {
-        var xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
+        var xml = fs.readFileSync("./spec/static/valid_saml.xml", "utf-8");
         var doc = new xmldom.DOMParser().parseFromString(xml);
         var signature = new xmldom.DOMParser().parseFromString(
             xpath
@@ -17,7 +17,7 @@ describe("Document tests", function () {
                 .toString()
         );
         var sig = new crypto.SignedXml();
-        sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/feide_public.pem");
+        sig.keyInfoProvider = new crypto.FileKeyInfo("./spec/static/feide_public.pem");
         sig.loadSignature(signature);
         var result = sig.checkSignature(xml);
 
@@ -25,7 +25,7 @@ describe("Document tests", function () {
     });
 
     it("test with a document (using StringKeyInfo)", function () {
-        var xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
+        var xml = fs.readFileSync("./spec/static/valid_saml.xml", "utf-8");
         var doc = new xmldom.DOMParser().parseFromString(xml);
         var signature = new xmldom.DOMParser().parseFromString(
             xpath
@@ -36,7 +36,7 @@ describe("Document tests", function () {
                 .toString()
         );
         var sig = new crypto.SignedXml();
-        var feidePublicCert = fs.readFileSync("./test/static/feide_public.pem");
+        var feidePublicCert = fs.readFileSync("./spec/static/feide_public.pem");
         sig.keyInfoProvider = new crypto.StringKeyInfo(feidePublicCert);
         sig.loadSignature(signature);
         var result = sig.checkSignature(xml);

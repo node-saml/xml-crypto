@@ -30,7 +30,7 @@ describe("Signature unit tests", function () {
         var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
         var sig = new SignedXml();
 
-        sig.signingKey = fs.readFileSync("./test/static/client.pem");
+        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
         sig.addReference("//*[local-name(.)='name']");
         sig.computeSignature(xml);
 
@@ -46,7 +46,7 @@ describe("Signature unit tests", function () {
         var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
         var sig = new SignedXml();
 
-        sig.signingKey = fs.readFileSync("./test/static/client.pem");
+        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
         sig.addReference("//*[local-name(.)='repository']");
 
         sig.computeSignature(xml, {
@@ -69,7 +69,7 @@ describe("Signature unit tests", function () {
         var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
         var sig = new SignedXml();
 
-        sig.signingKey = fs.readFileSync("./test/static/client.pem");
+        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
         sig.addReference("//*[local-name(.)='repository']");
 
         sig.computeSignature(xml, {
@@ -92,7 +92,7 @@ describe("Signature unit tests", function () {
         var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
         var sig = new SignedXml();
 
-        sig.signingKey = fs.readFileSync("./test/static/client.pem");
+        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
         sig.addReference("//*[local-name(.)='repository']");
 
         sig.computeSignature(xml, {
@@ -115,7 +115,7 @@ describe("Signature unit tests", function () {
         var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
         var sig = new SignedXml();
 
-        sig.signingKey = fs.readFileSync("./test/static/client.pem");
+        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
         sig.addReference("//*[local-name(.)='repository']");
 
         sig.computeSignature(xml, {
@@ -457,7 +457,7 @@ describe("Signature unit tests", function () {
         var xml =
             '<root><x xmlns="ns" Id="_0"></x><y attr="value" Id="_1"></y><z><w Id="_2"></w></z></root>';
         var sig = new SignedXml();
-        sig.signingKey = fs.readFileSync("./test/static/client.pem");
+        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
         sig.keyInfoProvider = null;
 
         sig.addReference("//*[local-name(.)='x']");
@@ -521,7 +521,7 @@ describe("Signature unit tests", function () {
         SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithmAsync"] = DummySignatureAlgorithm;
         var sig = new SignedXml();
         sig.signatureAlgorithm = "http://dummySignatureAlgorithmAsync";
-        sig.signingKey = fs.readFileSync("./test/static/client.pem");
+        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
         sig.keyInfoProvider = null;
 
         sig.addReference("//*[local-name(.)='x']");
@@ -567,39 +567,39 @@ describe("Signature unit tests", function () {
     });
 
     it("correctly loads signature", function () {
-        passLoadSignature("./test/static/valid_signature.xml");
-        passLoadSignature("./test/static/valid_signature.xml", true);
-        passLoadSignature("./test/static/valid_signature_with_root_level_sig_namespace.xml");
+        passLoadSignature("./spec/static/valid_signature.xml");
+        passLoadSignature("./spec/static/valid_signature.xml", true);
+        passLoadSignature("./spec/static/valid_signature_with_root_level_sig_namespace.xml");
 
     });
 
     it("verify valid signature", function () {
-        passValidSignature("./test/static/valid_signature.xml");
-        passValidSignature("./test/static/valid_signature_with_lowercase_id_attribute.xml");
-        passValidSignature("./test/static/valid_signature wsu.xml", "wssecurity");
-        passValidSignature("./test/static/valid_signature_with_reference_keyInfo.xml");
-        passValidSignature("./test/static/valid_signature_with_whitespace_in_digestvalue.xml");
-        passValidSignature("./test/static/valid_signature_utf8.xml");
-        passValidSignature("./test/static/valid_signature_with_unused_prefixes.xml");
+        passValidSignature("./spec/static/valid_signature.xml");
+        passValidSignature("./spec/static/valid_signature_with_lowercase_id_attribute.xml");
+        passValidSignature("./spec/static/valid_signature wsu.xml", "wssecurity");
+        passValidSignature("./spec/static/valid_signature_with_reference_keyInfo.xml");
+        passValidSignature("./spec/static/valid_signature_with_whitespace_in_digestvalue.xml");
+        passValidSignature("./spec/static/valid_signature_utf8.xml");
+        passValidSignature("./spec/static/valid_signature_with_unused_prefixes.xml");
 
     });
 
     it("fail invalid signature", function () {
-        failInvalidSignature("./test/static/invalid_signature - signature value.xml");
-        failInvalidSignature("./test/static/invalid_signature - hash.xml");
-        failInvalidSignature("./test/static/invalid_signature - non existing reference.xml");
-        failInvalidSignature("./test/static/invalid_signature - changed content.xml");
+        failInvalidSignature("./spec/static/invalid_signature - signature value.xml");
+        failInvalidSignature("./spec/static/invalid_signature - hash.xml");
+        failInvalidSignature("./spec/static/invalid_signature - non existing reference.xml");
+        failInvalidSignature("./spec/static/invalid_signature - changed content.xml");
         failInvalidSignature(
-            "./test/static/invalid_signature - wsu - invalid signature value.xml",
+            "./spec/static/invalid_signature - wsu - invalid signature value.xml",
             "wssecurity"
         );
-        failInvalidSignature("./test/static/invalid_signature - wsu - hash.xml", "wssecurity");
+        failInvalidSignature("./spec/static/invalid_signature - wsu - hash.xml", "wssecurity");
         failInvalidSignature(
-            "./test/static/invalid_signature - wsu - non existing reference.xml",
+            "./spec/static/invalid_signature - wsu - non existing reference.xml",
             "wssecurity"
         );
         failInvalidSignature(
-            "./test/static/invalid_signature - wsu - changed content.xml",
+            "./spec/static/invalid_signature - wsu - changed content.xml",
             "wssecurity"
         );
     });
@@ -607,7 +607,7 @@ describe("Signature unit tests", function () {
     it("allow empty reference uri when signing", function () {
         var xml = "<root><x /></root>";
         var sig = new SignedXml();
-        sig.signingKey = fs.readFileSync("./test/static/client.pem");
+        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
         sig.keyInfoProvider = null;
 
         sig.addReference(
@@ -633,7 +633,7 @@ describe("Signature unit tests", function () {
         var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
         var sig = new SignedXml();
 
-        sig.signingKey = fs.readFileSync("./test/static/client.pem");
+        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
         sig.addReference("//*[local-name(.)='repository']");
 
         try {
@@ -677,7 +677,7 @@ describe("Signature unit tests", function () {
 
         var sig = new SignedXml();
         sig.keyInfoProvider = new AssertionKeyInfo("_81d5fba5c807be9e9cf60c58566349b1");
-        sig.signingKey = fs.readFileSync("./test/static/client.pem");
+        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
         sig.computeSignature(xml, {
             prefix: "ds",
             location: {
@@ -698,7 +698,7 @@ describe("Signature unit tests", function () {
         function () {
             var xml = "<root><x /></root>";
             var sig = new SignedXml();
-            sig.signingKey = fs.readFileSync("./test/static/client.pem");
+            sig.signingKey = fs.readFileSync("./spec/static/client.pem");
             sig.keyInfoProvider = null;
 
             sig.addReference(
@@ -732,7 +732,7 @@ describe("Signature unit tests", function () {
         function () {
             var xml = "<root><x /></root>";
             var sig = new SignedXml();
-            sig.signingKey = fs.readFileSync("./test/static/client.pem");
+            sig.signingKey = fs.readFileSync("./spec/static/client.pem");
             sig.keyInfoProvider = null;
 
             sig.addReference(
@@ -763,7 +763,7 @@ describe("Signature unit tests", function () {
         function () {
             var xml = "<root><x /></root>";
             var sig = new SignedXml(null, {inclusiveNamespacesPrefixList: "prefix1 prefix2"});
-            sig.signingKey = fs.readFileSync("./test/static/client.pem");
+            sig.signingKey = fs.readFileSync("./spec/static/client.pem");
             sig.keyInfoProvider = null;
 
             sig.addReference(
@@ -795,7 +795,7 @@ describe("Signature unit tests", function () {
         function () {
             var xml = "<root><x /></root>";
             var sig = new SignedXml(null); // Omit inclusiveNamespacesPrefixList property
-            sig.signingKey = fs.readFileSync("./test/static/client.pem");
+            sig.signingKey = fs.readFileSync("./spec/static/client.pem");
             sig.keyInfoProvider = null;
 
             sig.addReference(
@@ -822,7 +822,7 @@ describe("Signature unit tests", function () {
     it("adds attributes to KeyInfo element when attrs are present in keyInfoProvider", function () {
         var xml = "<root><x /></root>";
         var sig = new SignedXml();
-        sig.signingKey = fs.readFileSync("./test/static/client.pem");
+        sig.signingKey = fs.readFileSync("./spec/static/client.pem");
         sig.keyInfoProvider = {
             attrs: {
                 CustomUri: "http://www.example.com/keyinfo",
@@ -925,7 +925,7 @@ function verifySignature(xml, mode) {
     )[0];
 
     var sig = new SignedXml(mode);
-    sig.keyInfoProvider = new FileKeyInfo("./test/static/client_public.pem");
+    sig.keyInfoProvider = new FileKeyInfo("./spec/static/client_public.pem");
     sig.loadSignature(node);
     var res = sig.checkSignature(xml);
 
@@ -938,7 +938,7 @@ function verifyDoesNotDuplicateIdAttributes(mode, prefix) {
         prefix +
         "Id='_1'></x>";
     var sig = new SignedXml(mode);
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.signingKey = fs.readFileSync("./spec/static/client.pem");
     sig.addReference("//*[local-name(.)='x']");
     sig.computeSignature(xml);
     var signedXml = sig.getOriginalXmlWithIds();
@@ -950,7 +950,7 @@ function verifyDoesNotDuplicateIdAttributes(mode, prefix) {
 function verifyAddsId(mode, nsMode) {
     var xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
     var sig = new SignedXml(mode);
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.signingKey = fs.readFileSync("./spec/static/client.pem");
 
     sig.addReference("//*[local-name(.)='x']");
     sig.addReference("//*[local-name(.)='y']");
@@ -982,7 +982,7 @@ function verifyAddsAttrs() {
         xmlns: "http://custom-xmlns#",
     };
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.signingKey = fs.readFileSync("./spec/static/client.pem");
 
     sig.addReference("//*[local-name(.)='name']");
 
@@ -1013,7 +1013,7 @@ function verifyReferenceNS() {
         '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><name wsu:Id="_1">xml-crypto</name><repository wsu:Id="_2">github</repository></root>';
     var sig = new SignedXml("wssecurity");
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.signingKey = fs.readFileSync("./spec/static/client.pem");
 
     sig.addReference("//*[@wsu:Id]");
 

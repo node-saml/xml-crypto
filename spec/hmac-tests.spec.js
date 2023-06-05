@@ -17,14 +17,14 @@ describe("HMAC tests", function () {
   });
 
   it("test validating HMAC signature", function () {
-    var xml = fs.readFileSync("./test/static/hmac_signature.xml", "utf-8");
+    var xml = fs.readFileSync("./spec/static/hmac_signature.xml", "utf-8");
     var doc = new xmldom.DOMParser().parseFromString(xml);
     var signature = xpath.select(
         "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
         doc
     )[0];
     var sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/hmac.key");
+    sig.keyInfoProvider = new crypto.FileKeyInfo("./spec/static/hmac.key");
     sig.loadSignature(signature);
     var result = sig.checkSignature(xml);
 
@@ -32,14 +32,14 @@ describe("HMAC tests", function () {
   });
 
   it("test HMAC signature with incorrect key", function () {
-    var xml = fs.readFileSync("./test/static/hmac_signature.xml", "utf-8");
+    var xml = fs.readFileSync("./spec/static/hmac_signature.xml", "utf-8");
     var doc = new xmldom.DOMParser().parseFromString(xml);
     var signature = xpath.select(
         "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
         doc
     )[0];
     var sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/hmac-foobar.key");
+    sig.keyInfoProvider = new crypto.FileKeyInfo("./spec/static/hmac-foobar.key");
     sig.loadSignature(signature);
     var result = sig.checkSignature(xml);
 
@@ -49,7 +49,7 @@ describe("HMAC tests", function () {
   it("test create and validate HMAC signature", function () {
     var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
     var sig = new crypto.SignedXml();
-    sig.signingKey = fs.readFileSync("./test/static/hmac.key");
+    sig.signingKey = fs.readFileSync("./spec/static/hmac.key");
     sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#hmac-sha1";
     sig.addReference("//*[local-name(.)='book']");
     sig.computeSignature(xml);
@@ -60,7 +60,7 @@ describe("HMAC tests", function () {
         doc
     )[0];
     var verify = new crypto.SignedXml();
-    verify.keyInfoProvider = new crypto.FileKeyInfo("./test/static/hmac.key");
+    verify.keyInfoProvider = new crypto.FileKeyInfo("./spec/static/hmac.key");
     verify.loadSignature(signature);
     var result = verify.checkSignature(sig.getSignedXml());
 

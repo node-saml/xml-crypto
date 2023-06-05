@@ -8,7 +8,7 @@ describe("Signature integration tests", function () {
   it("verify signature", function () {
     var xml =
       '<root><x xmlns="ns"></x><y z_attr="value" a_attr1="foo"></y><z><ns:w ns:attr="value" xmlns:ns="myns"></ns:w></z></root>';
-    verifySignature(xml, "./test/static/integration/expectedVerify.xml", [
+    verifySignature(xml, "./spec/static/integration/expectedVerify.xml", [
       "//*[local-name(.)='x']",
       "//*[local-name(.)='y']",
       "//*[local-name(.)='w']",
@@ -27,7 +27,7 @@ describe("Signature integration tests", function () {
       "</book>" +
       "</library>";
 
-    verifySignature(xml, "./test/static/integration/expectedVerifyComplex.xml", [
+    verifySignature(xml, "./spec/static/integration/expectedVerifyComplex.xml", [
       "//*[local-name(.)='book']",
     ]);
   });
@@ -52,7 +52,7 @@ describe("Signature integration tests", function () {
       "</Signature>";
 
     var sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/client_public.pem");
+    sig.keyInfoProvider = new crypto.FileKeyInfo("./spec/static/client_public.pem");
     sig.loadSignature(signature);
     var result = sig.checkSignature(xml);
 
@@ -60,7 +60,7 @@ describe("Signature integration tests", function () {
   });
 
   it("add canonicalization if output of transforms will be a node-set rather than an octet stream", function () {
-      var xml = fs.readFileSync("./test/static/windows_store_signature.xml", "utf-8");
+      var xml = fs.readFileSync("./spec/static/windows_store_signature.xml", "utf-8");
 
       // Make sure that whitespace in the source document is removed -- see xml-crypto issue #23 and post at
       //   http://webservices20.blogspot.co.il/2013/06/validating-windows-mobile-app-store.html
@@ -76,7 +76,7 @@ describe("Signature integration tests", function () {
         doc
       )[0];
       var sig = new crypto.SignedXml();
-      sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/windows_store_certificate.pem");
+      sig.keyInfoProvider = new crypto.FileKeyInfo("./spec/static/windows_store_certificate.pem");
       sig.loadSignature(signature);
       var result = sig.checkSignature(xml);
 
@@ -84,7 +84,7 @@ describe("Signature integration tests", function () {
   });
 
   it("signature with inclusive namespaces", function () {
-    var xml = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.xml", "utf-8");
+    var xml = fs.readFileSync("./spec/static/signature_with_inclusivenamespaces.xml", "utf-8");
     var doc = new Dom().parseFromString(xml);
     xml = doc.firstChild.toString();
 
@@ -94,7 +94,7 @@ describe("Signature integration tests", function () {
     )[0];
     var sig = new crypto.SignedXml();
     sig.keyInfoProvider = new crypto.FileKeyInfo(
-      "./test/static/signature_with_inclusivenamespaces.pem"
+      "./spec/static/signature_with_inclusivenamespaces.pem"
     );
     sig.loadSignature(signature);
     var result = sig.checkSignature(xml);
@@ -104,7 +104,7 @@ describe("Signature integration tests", function () {
 
   it("signature with inclusive namespaces with unix line separators", function () {
     var xml = fs.readFileSync(
-      "./test/static/signature_with_inclusivenamespaces_lines.xml",
+      "./spec/static/signature_with_inclusivenamespaces_lines.xml",
       "utf-8"
     );
     var doc = new Dom().parseFromString(xml);
@@ -116,7 +116,7 @@ describe("Signature integration tests", function () {
     )[0];
     var sig = new crypto.SignedXml();
     sig.keyInfoProvider = new crypto.FileKeyInfo(
-      "./test/static/signature_with_inclusivenamespaces.pem"
+      "./spec/static/signature_with_inclusivenamespaces.pem"
     );
     sig.loadSignature(signature);
     var result = sig.checkSignature(xml);
@@ -126,7 +126,7 @@ describe("Signature integration tests", function () {
 
   it("signature with inclusive namespaces with windows line separators", function () {
     var xml = fs.readFileSync(
-      "./test/static/signature_with_inclusivenamespaces_lines_windows.xml",
+      "./spec/static/signature_with_inclusivenamespaces_lines_windows.xml",
       "utf-8"
     );
     var doc = new Dom().parseFromString(xml);
@@ -138,7 +138,7 @@ describe("Signature integration tests", function () {
     )[0];
     var sig = new crypto.SignedXml();
     sig.keyInfoProvider = new crypto.FileKeyInfo(
-      "./test/static/signature_with_inclusivenamespaces.pem"
+      "./spec/static/signature_with_inclusivenamespaces.pem"
     );
     sig.loadSignature(signature);
     var result = sig.checkSignature(xml);
@@ -151,7 +151,7 @@ describe("Signature integration tests", function () {
 
     var sig = new SignedXml();
     sig.addReference("//*[local-name(.)='book']");
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.signingKey = fs.readFileSync("./spec/static/client.pem");
     sig.computeSignature(xml);
 
     var signed = sig.getSignedXml();
@@ -189,7 +189,7 @@ describe("Signature integration tests", function () {
 
 function verifySignature(xml, expected, xpath) {
   var sig = new SignedXml();
-  sig.signingKey = fs.readFileSync("./test/static/client.pem");
+  sig.signingKey = fs.readFileSync("./spec/static/client.pem");
   sig.keyInfo = null;
 
   xpath.map(function (n) {
@@ -199,12 +199,12 @@ function verifySignature(xml, expected, xpath) {
   sig.computeSignature(xml);
   var signed = sig.getSignedXml();
 
-  //fs.writeFileSync("./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/signedExample.xml", signed)
+  //fs.writeFileSync("./spec/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/signedExample.xml", signed)
   var expectedContent = fs.readFileSync(expected).toString();
   expect(signed).withContext("signature xml different than expected").toEqual(expectedContent);
   /*
   var spawn = require('child_process').spawn
-  var proc = spawn('./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.exe', ['verify'])
+  var proc = spawn('./spec/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.exe', ['verify'])
 
   proc.stdout.on('data', function (data) {
     console.log('stdout: ' + data);

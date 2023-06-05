@@ -31,7 +31,7 @@
     "prettier-format": "prettier --config .prettierrc.json --write .",
     "prerelease": "git clean -xfd && npm ci && npm test",
     "release": "release-it",
-    "test": "nodeunit ./test/canonicalization-unit-tests.js ./test/c14nWithComments-unit-tests.js ./test/signature-unit-tests.js ./test/saml-response-test.js ./test/signature-integration-tests.js ./test/document-test.js ./test/wsfed-metadata-test.js ./test/hmac-tests.js ./test/c14n-non-exclusive-unit-test.js"
+    "test": "jasmine"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.8.5",
@@ -44,7 +44,6 @@
     "eslint": "^8.41.0",
     "eslint-config-prettier": "^8.8.0",
     "jasmine": "^5.0.0",
-    "nodeunit": "^0.11.3",
     "prettier": "^2.8.8",
     "prettier-plugin-packagejson": "^2.4.3",
     "release-it": "^15.6.0"
