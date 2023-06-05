@@ -7,7 +7,6 @@ var expect = require("chai").expect;
 var sigAlgs;
 
 describe("HMAC tests", function () {
-
   beforeEach(function () {
     sigAlgs = crypto.SignedXml.SignatureAlgorithms;
     crypto.SignedXml.enableHMAC();
@@ -21,8 +20,8 @@ describe("HMAC tests", function () {
     var xml = fs.readFileSync("./test/static/hmac_signature.xml", "utf-8");
     var doc = new xmldom.DOMParser().parseFromString(xml);
     var signature = xpath.select(
-        "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-        doc
+      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc
     )[0];
     var sig = new crypto.SignedXml();
     sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/hmac.key");
@@ -36,8 +35,8 @@ describe("HMAC tests", function () {
     var xml = fs.readFileSync("./test/static/hmac_signature.xml", "utf-8");
     var doc = new xmldom.DOMParser().parseFromString(xml);
     var signature = xpath.select(
-        "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-        doc
+      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc
     )[0];
     var sig = new crypto.SignedXml();
     sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/hmac-foobar.key");
@@ -57,8 +56,8 @@ describe("HMAC tests", function () {
 
     var doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
     var signature = xpath.select(
-        "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-        doc
+      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc
     )[0];
     var verify = new crypto.SignedXml();
     verify.keyInfoProvider = new crypto.FileKeyInfo("./test/static/hmac.key");
@@ -67,5 +66,4 @@ describe("HMAC tests", function () {
 
     expect(result).to.be.true;
   });
-
 });

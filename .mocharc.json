@@ -1,10 +1,10 @@
 {
-    "diff": true,
-    "extension": "spec.js",
-    "package": "./package.json",
-    "recursive": true,
-    "reporter": "spec",
-    "require": ["choma"],
-    "spec": "test/**/*.spec.js",
-    "watch-files": "test/**/*.spec.js"
-  }
+  "diff": true,
+  "extension": "spec.js",
+  "package": "./package.json",
+  "recursive": true,
+  "reporter": "spec",
+  "require": ["choma"],
+  "spec": "test/**/*.spec.js",
+  "watch-files": "test/**/*.spec.js"
+}

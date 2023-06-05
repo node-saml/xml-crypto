@@ -3,7 +3,7 @@ var xpath = require("xpath"),
   SignedXml = require("../lib/signed-xml.js").SignedXml,
   fs = require("fs"),
   crypto = require("../index");
-  var expect = require("chai").expect;
+var expect = require("chai").expect;
 
 describe("Signature integration tests", function () {
   it("verify signature", function () {
@@ -61,27 +61,27 @@ describe("Signature integration tests", function () {
   });
 
   it("add canonicalization if output of transforms will be a node-set rather than an octet stream", function () {
-      var xml = fs.readFileSync("./test/static/windows_store_signature.xml", "utf-8");
+    var xml = fs.readFileSync("./test/static/windows_store_signature.xml", "utf-8");
 
-      // Make sure that whitespace in the source document is removed -- see xml-crypto issue #23 and post at
-      //   http://webservices20.blogspot.co.il/2013/06/validating-windows-mobile-app-store.html
-      // This regex is naive but works for this test case; for a more general solution consider
-      //   the xmldom-fork-fixed library which can pass {ignoreWhiteSpace: true} into the Dom constructor.
-      xml = xml.replace(/>\s*</g, "><");
+    // Make sure that whitespace in the source document is removed -- see xml-crypto issue #23 and post at
+    //   http://webservices20.blogspot.co.il/2013/06/validating-windows-mobile-app-store.html
+    // This regex is naive but works for this test case; for a more general solution consider
+    //   the xmldom-fork-fixed library which can pass {ignoreWhiteSpace: true} into the Dom constructor.
+    xml = xml.replace(/>\s*</g, "><");
 
-      var doc = new Dom().parseFromString(xml);
-      xml = doc.firstChild.toString();
+    var doc = new Dom().parseFromString(xml);
+    xml = doc.firstChild.toString();
 
-      var signature = xpath.select(
-        "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-        doc
-      )[0];
-      var sig = new crypto.SignedXml();
-      sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/windows_store_certificate.pem");
-      sig.loadSignature(signature);
-      var result = sig.checkSignature(xml);
+    var signature = xpath.select(
+      "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc
+    )[0];
+    var sig = new crypto.SignedXml();
+    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/windows_store_certificate.pem");
+    sig.loadSignature(signature);
+    var result = sig.checkSignature(xml);
 
-      expect(result).to.be.true
+    expect(result).to.be.true;
   });
 
   it("signature with inclusive namespaces", function () {
@@ -181,9 +181,11 @@ describe("Signature integration tests", function () {
     */
 
     expect(doc.documentElement.nodeName, "root node = <library>.").to.equal("library");
-    expect(doc.childNodes.length,"only one root node is expected.").to.equal(1);
-    expect(doc.documentElement.childNodes.length, "<library> should have two child nodes : <book> and <Signature>")
-        .to.equal(2);
+    expect(doc.childNodes.length, "only one root node is expected.").to.equal(1);
+    expect(
+      doc.documentElement.childNodes.length,
+      "<library> should have two child nodes : <book> and <Signature>"
+    ).to.equal(2);
   });
 });
 
@@ -201,7 +203,7 @@ function verifySignature(xml, expected, xpath) {
 
   //fs.writeFileSync("./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/signedExample.xml", signed)
   var expectedContent = fs.readFileSync(expected).toString();
-  expect(signed,"signature xml different than expected").to.equal(expectedContent);
+  expect(signed, "signature xml different than expected").to.equal(expectedContent);
   /*
   var spawn = require('child_process').spawn
   var proc = spawn('./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.exe', ['verify'])
