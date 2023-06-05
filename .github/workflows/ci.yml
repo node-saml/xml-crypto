@@ -8,6 +8,7 @@ on:
 
 jobs:
   test:
+    name: Test Code
     env:
       CI: true
 
@@ -38,3 +39,15 @@ jobs:
         uses: codecov/codecov-action@v3.1.1
         with:
           verbose: true
+
+  lint:
+    name: Lint Code
+    env:
+      CI: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "lts/*"
+      - run: npm run lint
