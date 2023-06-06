@@ -218,7 +218,8 @@ describe("Exclusive canonicalization with comments", function () {
     );
   });
 
-  /* Uncomment this when this issue is fixed
+  /* 
+  TODO: Uncomment this when this issue is fixed
     it("Exclusive canonicalization removal of whitespace between PITarget and its data", function () {
       compare(
         "<root xmlns=\"\"><child><inner>123</inner></child></root><?pi-without-data   ?>",
@@ -243,7 +244,8 @@ describe("Exclusive canonicalization with comments", function () {
     );
   });
 
-  /* Uncomment this when this issue is fixed
+  /* 
+  TODO: Uncomment this when this issue is fixed
     it("The XML declaration and document type declaration (DTD) are removed, stylesheet retained", function () {
       compare(
         "<?xml version=\"1.0\" encoding=\"utf-8\"?><?xml-stylesheet   href=\"doc.xsl\"   type=\"text/xsl\"   ?><root><child><inner>123</inner></child></root>",
