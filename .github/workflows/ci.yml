@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node-version: [8, lts/-1, lts/*]
+        node-version: [14, 16, 18]
         experimental: [false]
         include:
           - os: ubuntu-latest
