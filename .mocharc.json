@@ -5,6 +5,6 @@
   "recursive": true,
   "reporter": "spec",
   "require": ["choma"],
-  "spec": "test/**/*.spec.js",
-  "watch-files": "test/**/*.spec.js"
+  "spec": "test/*.js",
+  "watch-files": "test/*.js"
 }
