@@ -8,13 +8,14 @@ on:
 
 jobs:
   test:
+    name: Test Code
     env:
       CI: true
 
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node-version: [8, lts/-1, lts/*]
+        node-version: [14, 16, 18]
         experimental: [false]
         include:
           - os: ubuntu-latest
@@ -22,7 +23,7 @@ jobs:
             experimental: true
     runs-on: ${{ matrix.os }}
     continue-on-error: ${{ matrix.experimental }}
-        
+
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node-version }} on ${{ matrix.os }}
@@ -35,6 +36,20 @@ jobs:
       - run: npm ci
       - run: npm test
       - name: Codecov
-        uses: codecov/codecov-action@v3.1.1
+        uses: codecov/codecov-action@v3.1.4
         with:
           verbose: true
+
+  lint:
+    name: Lint Code
+    env:
+      CI: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "lts/*"
+      - run: |
+          npm ci
+          npm run lint

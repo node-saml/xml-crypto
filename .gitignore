@@ -8,3 +8,5 @@ p.txt
 npm-debug.log
 /test/validators/XmlCryptoJava/target/
 .eslintcache
+.nyc_output/
+coverage/
