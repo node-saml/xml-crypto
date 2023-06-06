@@ -257,6 +257,7 @@ describe("Canonicalization unit tests", function () {
       "<child><inner>123</inner></child>"
     );
   });
+  
   /*
     TODO: Uncomment this when this issue is fixed
     it("Exclusive canonicalization removal of whitespace between PITarget and its data", function() {
