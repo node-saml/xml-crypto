@@ -1,6 +1,6 @@
 {
-  "name": "@node-saml/xml-crypto",
-  "version": "3.0.1",
+  "name": "xml-crypto",
+  "version": "3.1.0",
   "private": false,
   "description": "Xml digital signature and encryption library for Node.js",
   "keywords": [
@@ -16,7 +16,8 @@
   "license": "MIT",
   "author": "Yaron Naveh <yaronn01@gmail.com> (http://webservices20.blogspot.com/)",
   "contributors": [
-    "LoneRifle <LoneRifle@users.noreply.github.com>"
+    "LoneRifle <LoneRifle@users.noreply.github.com>",
+    "Chris Barth <chrisjbarth@hotmail.com>"
   ],
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -34,7 +35,7 @@
     "test": "nyc mocha"
   },
   "dependencies": {
-    "@xmldom/xmldom": "^0.8.5",
+    "@xmldom/xmldom": "^0.8.8",
     "xpath": "0.0.32"
   },
   "devDependencies": {
@@ -50,9 +51,9 @@
     "nyc": "^15.1.0",
     "prettier": "^2.8.8",
     "prettier-plugin-packagejson": "^2.4.3",
-    "release-it": "^15.6.0"
+    "release-it": "^15.11.0"
   },
   "engines": {
-    "node": ">=0.4.0"
+    "node": ">=14"
   }
 }
