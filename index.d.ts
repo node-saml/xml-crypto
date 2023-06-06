@@ -26,6 +26,17 @@ type SignatureAlgorithmType =
   | "http://www.w3.org/2000/09/xmldsig#hmac-sha1";
 
 /**
+ * Options for the SignedXml constructor.
+ */
+type SignedXmlOptions = {
+  canonicalizationAlgorithm?: CanonicalizationAlgorithmType | undefined;
+  inclusiveNamespacesPrefixList?: string | undefined;
+  idAttribute?: string | undefined;
+  implicitTransforms?: ReadonlyArray<CanonicalizationAlgorithmType> | undefined;
+  signatureAlgorithm?: SignatureAlgorithmType | undefined;
+};
+
+/**
  * Options for the computeSignature method.
  */
 type ComputeSignatureOptions = {
@@ -43,12 +54,6 @@ type ComputeSignatureOptions = {
  */
 type ComputeSignatureCallback = (error: Error | null, signature: SignedXml | null) => void;
 
-export class HashAlgorithm {
-  getAlgorithmName(): string;
-
-  getHash(xml: string): string;
-}
-
 export interface Reference {
   xpath: string;
   transforms?: ReadonlyArray<CanonicalizationAlgorithmType> | undefined;
@@ -59,13 +64,19 @@ export interface Reference {
   isEmptyUri?: boolean | undefined;
 }
 
-export class SignatureAlgorithm {
+export interface HashAlgorithm {
+  getAlgorithmName(): string;
+
+  getHash(xml: string): string;
+}
+
+export interface SignatureAlgorithm {
   getAlgorithmName(): string;
 
   getSignature(signedInfo: Node, signingKey: Buffer): string;
 }
 
-export class TransformationAlgorithm {
+export interface TransformationAlgorithm {
   getAlgorithmName(): string;
 
   process(node: Node): string;
@@ -85,16 +96,7 @@ export class SignedXml {
   signingKey: Buffer | string;
   validationErrors: string[];
 
-  constructor(
-    idMode?: string | null,
-    options?: {
-      canonicalizationAlgorithm?: CanonicalizationAlgorithmType | undefined;
-      inclusiveNamespacesPrefixList?: string | undefined;
-      idAttribute?: string | undefined;
-      implicitTransforms?: ReadonlyArray<CanonicalizationAlgorithmType> | undefined;
-      signatureAlgorithm?: SignatureAlgorithmType | undefined;
-    }
-  );
+  constructor(idMode?: string | null, options?: SignedXmlOptions);
 
   /**
    * Due to key-confusion issues, its risky to have both hmac
