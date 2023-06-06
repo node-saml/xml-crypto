@@ -1,5 +1,5 @@
 {
-  "name": "@node-saml/xml-crypto",
+  "name": "xml-crypto",
   "version": "3.0.1",
   "private": false,
   "description": "Xml digital signature and encryption library for Node.js",

@@ -1,6 +1,6 @@
 # xml-crypto
 
-![Build](https://github.com/yaronn/xml-crypto/actions/workflows/ci.yml/badge.svg)
+![Build](https://github.com/node-saml/xml-crypto/actions/workflows/ci.yml/badge.svg)
 [![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-Ready--to--Code-blue?logo=gitpod)](https://gitpod.io/from-referrer/)
 
 An xml digital signature library for node. Xml encryption is coming soon. Written in pure javascript!
