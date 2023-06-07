@@ -156,7 +156,7 @@ export class SignedXml {
    * Compute the signature of the given XML (using the already defined settings).
    *
    * @param xml The XML to compute the signature for.
-   * @returns If no callback is provided, returns `this` (the instance of SignedXml).
+   * @returns `this` (the instance of SignedXml).
    */
   computeSignature(xml: string): SignedXml;
 
@@ -217,7 +217,7 @@ export class SignedXml {
 }
 
 export interface KeyInfo {
-  getKey(keyInfo?: Node[] | null): Buffer;
+  getKey(keyInfo?: Node[] | undefined): string | Buffer;
 
   getKeyInfo(key?: string, prefix?: string): string;
 
@@ -229,7 +229,7 @@ export class FileKeyInfo implements KeyInfo {
 
   constructor(file?: string);
 
-  getKey(keyInfo?: Node[] | null): Buffer;
+  getKey(keyInfo?: Node[] | undefined): Buffer;
 
   getKeyInfo(key?: string, prefix?: string): string;
 }
@@ -239,7 +239,7 @@ export class StringKeyInfo implements KeyInfo {
 
   constructor(key?: string);
 
-  getKey(keyInfo?: Node[] | null): Buffer;
+  getKey(keyInfo?: Node[] | undefined): string;
 
   getKeyInfo(key?: string, prefix?: string): string;
 }
