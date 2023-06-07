@@ -26,8 +26,8 @@
   },
   "scripts": {
     "changelog": "gren changelog --override --generate --head master",
-    "lint": "eslint --ext .js \"**/*.js\" --cache && npm run prettier-check",
-    "lint:fix": "eslint --ext .js --fix \"**/*.js\" && npm run prettier-format",
+    "lint": "eslint --ext .js \"{lib,test}/*.js\" --cache && npm run prettier-check",
+    "lint:fix": "eslint --ext .js --fix \"{lib,test}/*.js\" && npm run prettier-format",
     "prettier-check": "prettier --config .prettierrc.json --check .",
     "prettier-format": "prettier --config .prettierrc.json --write .",
     "prerelease": "git clean -xfd && npm ci && npm test",
@@ -41,7 +41,6 @@
   "devDependencies": {
     "@cjbarth/github-release-notes": "^4.0.0",
     "@prettier/plugin-xml": "^2.2.0",
-    "@types/node": "^20.2.5",
     "chai": "^4.3.7",
     "choma": "^1.2.1",
     "ejs": "^3.1.9",
