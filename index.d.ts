@@ -97,7 +97,6 @@ export interface Reference {
   isEmptyUri?: boolean;
 }
 
-
 /** Implement this to create a new HashAlgorithm */
 export interface HashAlgorithm {
   getAlgorithmName(): string;
@@ -132,7 +131,7 @@ export interface TransformationAlgorithm {
  *  - {@link SignedXml#getSignedXml}
  *  - {@link SignedXml#getSignatureXml}
  *  - {@link SignedXml#getOriginalXmlWithIds}
- *  
+ *
  * ### Verify
  * #### Properties
  * -  {@link SignedXml#keyInfoProvider} [required]
@@ -304,7 +303,7 @@ export interface KeyInfoProvider {
    * @return A string or Buffer representing the key.
    */
   getKey(keyInfo?: Node[] | undefined): string | Buffer;
-  
+
   /**
    * Method to return an XML string representing the contents of a KeyInfo element.
    *
@@ -328,7 +327,7 @@ export class FileKeyInfo implements KeyInfoProvider {
    * The path to the file from which the certificate is to be read.
    */
   file: string;
-  
+
   /**
    * Initializes a new instance of the FileKeyInfo class.
    *
@@ -375,11 +374,11 @@ export class StringKeyInfo implements KeyInfoProvider {
    * @param key - An optional string representing the certificate.
    */
   constructor(key?: string);
-  
+
   /**
    * Returns the certificate loaded in the constructor.
    * The keyInfo parameter is ignored. (not implemented)
-   * 
+   *
    * @param keyInfo (not used) an array with exactly one KeyInfo element
    * @return the signing certificate as a string
    */
