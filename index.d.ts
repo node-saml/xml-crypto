@@ -90,7 +90,7 @@ export class SignedXml {
   static SignatureAlgorithms: { [uri in SignatureAlgorithmType]: new () => SignatureAlgorithm };
   canonicalizationAlgorithm: CanonicalizationAlgorithmType;
   inclusiveNamespacesPrefixList: string;
-  keyInfoProvider: KeyInfo;
+  keyInfoProvider: KeyInfoProvider;
   references: Reference[];
   signatureAlgorithm: SignatureAlgorithmType;
   signingKey: Buffer | string;
@@ -216,7 +216,7 @@ export class SignedXml {
   getSignedXml(): string;
 }
 
-export interface KeyInfo {
+export interface KeyInfoProvider {
   getKey(keyInfo?: Node[] | undefined): string | Buffer;
 
   getKeyInfo(key?: string, prefix?: string): string;
@@ -224,7 +224,7 @@ export interface KeyInfo {
   attrs?: { [key: string]: any } | undefined;
 }
 
-export class FileKeyInfo implements KeyInfo {
+export class FileKeyInfo implements KeyInfoProvider {
   file: string;
 
   constructor(file?: string);
@@ -234,7 +234,7 @@ export class FileKeyInfo implements KeyInfo {
   getKeyInfo(key?: string, prefix?: string): string;
 }
 
-export class StringKeyInfo implements KeyInfo {
+export class StringKeyInfo implements KeyInfoProvider {
   key: string;
 
   constructor(key?: string);
