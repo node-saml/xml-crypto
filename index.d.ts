@@ -7,11 +7,12 @@
 
 import { SelectedValue } from "xpath";
 
-type CanonicalizationAlgorithmType =
-  | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
+type CanonicalizationAlgorithmType = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
   | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
   | "http://www.w3.org/2001/10/xml-exc-c14n#"
-  | "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"
+  | "http://www.w3.org/2001/10/xml-exc-c14n#WithComments";
+
+type TransformAlgorithmType = CanonicalizationAlgorithmType
   | "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
   | string;
 
@@ -32,10 +33,10 @@ type SignatureAlgorithmType =
  * Options for the SignedXml constructor.
  */
 type SignedXmlOptions = {
-  canonicalizationAlgorithm?: CanonicalizationAlgorithmType;
+  canonicalizationAlgorithm?: TransformAlgorithmType;
   inclusiveNamespacesPrefixList?: string;
   idAttribute?: string;
-  implicitTransforms?: ReadonlyArray<CanonicalizationAlgorithmType>;
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmType>;
   signatureAlgorithm?: SignatureAlgorithmType;
 };
 
@@ -53,7 +54,7 @@ type ComputeSignatureOptions = {
 };
 
 /**
- * Callback signature for the computeSignature method.
+ * Callback signature for the {@link SignedXml#computeSignature} method.
  */
 type ComputeSignatureCallback = (error: Error | null, signature: SignedXml | null) => void;
 
@@ -61,59 +62,45 @@ type ComputeSignatureCallback = (error: Error | null, signature: SignedXml | nul
  * Represents a reference node for XML digital signature.
  */
 export interface Reference {
-  /**
-   * The XPath expression that selects the data to be signed.
-   */
+  // The XPath expression that selects the data to be signed.
   xpath: string;
 
-  /**
-   * Optional. An array of transforms to be applied to the data before signing.
-   */
-  transforms?: ReadonlyArray<CanonicalizationAlgorithmType>;
+  // Optional. An array of transforms to be applied to the data before signing.
+  transforms?: ReadonlyArray<TransformAlgorithmType>;
 
-  /**
-   * Optional. The algorithm used to calculate the digest value of the data.
-   */
+  // Optional. The algorithm used to calculate the digest value of the data.
   digestAlgorithm?: HashAlgorithmType;
 
-  /**
-   * Optional. The URI that identifies the data to be signed.
-   */
+  // Optional. The URI that identifies the data to be signed.
   uri?: string;
 
-  /**
-   * Optional. The digest value of the referenced data.
-   */
+  // Optional. The digest value of the referenced data.
   digestValue?: string;
 
-  /**
-   * Optional. A list of namespace prefixes to be treated as "inclusive" during canonicalization.
-   */
+  // Optional. A list of namespace prefixes to be treated as "inclusive" during canonicalization.
   inclusiveNamespacesPrefixList?: string;
 
-  /**
-   * Optional. Indicates whether the URI is empty.
-   */
+  // Optional. Indicates whether the URI is empty.
   isEmptyUri?: boolean;
 }
 
 /** Implement this to create a new HashAlgorithm */
 export interface HashAlgorithm {
-  getAlgorithmName(): string;
+  getAlgorithmName(): HashAlgorithmType;
 
   getHash(xml: string): string;
 }
 
 /** Implement this to create a new SignatureAlgorithm */
 export interface SignatureAlgorithm {
-  getAlgorithmName(): string;
+  getAlgorithmName(): SignatureAlgorithmType;
 
   getSignature(signedInfo: Node, signingKey: Buffer): string;
 }
 
-/** Implement this to create a new TransformationAlgorithm */
-export interface TransformationAlgorithm {
-  getAlgorithmName(): string;
+/** Implement this to create a new TransformAlgorithm */
+export interface TransformAlgorithm {
+  getAlgorithmName(): TransformAlgorithmType;
 
   process(node: Node): string;
 }
@@ -141,16 +128,16 @@ export interface TransformationAlgorithm {
  *  - {@link SignedXml#validationErrors}
  */
 export class SignedXml {
-  // To add a new canonicalization algorithm create a new class that implements the {@link TransformationAlgorithm} interface, and register it here.
+  // To add a new transformation algorithm create a new class that implements the {@link TransformationAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
   static CanonicalizationAlgorithms: {
-    [uri in CanonicalizationAlgorithmType]: new () => TransformationAlgorithm;
+    [uri in TransformAlgorithmType]: new () => TransformAlgorithm;
   };
-  // To add a new hash algorithm create a new class that implements the {@link HashAlgorithm} interface, and register it here.
+  // To add a new hash algorithm create a new class that implements the {@link HashAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
   static HashAlgorithms: { [uri in HashAlgorithmType]: new () => HashAlgorithm };
-  // To add a new signature algorithm create a new class that implements the {@link SignatureAlgorithm} interface, and register it here.
+  // To add a new signature algorithm create a new class that implements the {@link SignatureAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
   static SignatureAlgorithms: { [uri in SignatureAlgorithmType]: new () => SignatureAlgorithm };
   // Rules used to convert an XML document into its canonical form.
-  canonicalizationAlgorithm: CanonicalizationAlgorithmType;
+  canonicalizationAlgorithm: TransformAlgorithmType;
   // It specifies a list of namespace prefixes that should be considered "inclusive" during the canonicalization process.
   inclusiveNamespacesPrefixList: string;
   // The structure for managing keys and KeyInfo section in XML data. See {@link KeyInfoProvider}
@@ -169,7 +156,7 @@ export class SignedXml {
    * @param idMode  if the value of "wssecurity" is passed it will create/validate id's with the ws-security namespace.
    * @param options {@link SignedXmlOptions
    */
-  constructor(idMode?: string | null, options?: SignedXmlOptions);
+  constructor(idMode?: "wssecurity" | null, options?: SignedXmlOptions);
 
   /**
    * Due to key-confusion issues, it's risky to have both hmac
@@ -217,7 +204,7 @@ export class SignedXml {
    */
   addReference(
     xpath: string,
-    transforms?: CanonicalizationAlgorithmType[],
+    transforms?: TransformAlgorithmType[],
     digestAlgorithm?: HashAlgorithmType,
     uri?: string,
     digestValue?: string,
@@ -314,9 +301,9 @@ export interface KeyInfoProvider {
   getKeyInfo(key?: string, prefix?: string): string;
 
   /**
-   * An optional dictionary of attributes for the KeyInfo element.
+   * An optional dictionary of attributes which will be added to the KeyInfo element.
    */
-  attrs?: { [key: string]: any };
+  attrs?: { [key: string]: string };
 }
 
 /**
