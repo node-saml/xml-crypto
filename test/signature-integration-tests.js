@@ -6,6 +6,40 @@ var xpath = require("xpath"),
 var expect = require("chai").expect;
 
 describe("Signature integration tests", function () {
+  function verifySignature(xml, expected, xpath) {
+    var sig = new SignedXml();
+    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.keyInfo = null;
+
+    xpath.map(function (n) {
+      sig.addReference(n);
+    });
+
+    sig.computeSignature(xml);
+    var signed = sig.getSignedXml();
+
+    //fs.writeFileSync("./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/signedExample.xml", signed)
+    var expectedContent = fs.readFileSync(expected).toString();
+    expect(signed, "signature xml different than expected").to.equal(expectedContent);
+    /*
+    var spawn = require('child_process').spawn
+    var proc = spawn('./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.exe', ['verify'])
+  
+    proc.stdout.on('data', function (data) {
+      console.log('stdout: ' + data);
+    });
+  
+    proc.stderr.on('data', function (data) {
+      console.log('stderr: ' + data);
+    });
+  
+    proc.on('exit', function (code) {
+      test.equal(0, code, "signature validation failed")
+      test.done()
+    });
+    */
+  }
+
   it("verify signature", function () {
     var xml =
       '<root><x xmlns="ns"></x><y z_attr="value" a_attr1="foo"></y><z><ns:w ns:attr="value" xmlns:ns="myns"></ns:w></z></root>';
@@ -188,37 +222,3 @@ describe("Signature integration tests", function () {
     ).to.equal(2);
   });
 });
-
-function verifySignature(xml, expected, xpath) {
-  var sig = new SignedXml();
-  sig.signingKey = fs.readFileSync("./test/static/client.pem");
-  sig.keyInfo = null;
-
-  xpath.map(function (n) {
-    sig.addReference(n);
-  });
-
-  sig.computeSignature(xml);
-  var signed = sig.getSignedXml();
-
-  //fs.writeFileSync("./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/signedExample.xml", signed)
-  var expectedContent = fs.readFileSync(expected).toString();
-  expect(signed, "signature xml different than expected").to.equal(expectedContent);
-  /*
-  var spawn = require('child_process').spawn
-  var proc = spawn('./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.exe', ['verify'])
-
-  proc.stdout.on('data', function (data) {
-    console.log('stdout: ' + data);
-  });
-
-  proc.stderr.on('data', function (data) {
-    console.log('stderr: ' + data);
-  });
-
-  proc.on('exit', function (code) {
-    test.equal(0, code, "signature validation failed")
-    test.done()
-  });
-  */
-}

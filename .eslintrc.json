@@ -19,6 +19,6 @@
     "curly": "warn",
     "eqeqeq": ["warn", "smart"],
     "no-var": "warn",
-    "prefer-const":"warn"
+    "prefer-const": "warn"
   }
 }
