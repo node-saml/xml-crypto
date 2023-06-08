@@ -32,11 +32,11 @@ type SignatureAlgorithmType =
  * Options for the SignedXml constructor.
  */
 type SignedXmlOptions = {
-  canonicalizationAlgorithm?: CanonicalizationAlgorithmType | undefined;
-  inclusiveNamespacesPrefixList?: string | undefined;
-  idAttribute?: string | undefined;
-  implicitTransforms?: ReadonlyArray<CanonicalizationAlgorithmType> | undefined;
-  signatureAlgorithm?: SignatureAlgorithmType | undefined;
+  canonicalizationAlgorithm?: CanonicalizationAlgorithmType;
+  inclusiveNamespacesPrefixList?: string;
+  idAttribute?: string;
+  implicitTransforms?: ReadonlyArray<CanonicalizationAlgorithmType>;
+  signatureAlgorithm?: SignatureAlgorithmType;
 };
 
 /**
@@ -302,7 +302,7 @@ export interface KeyInfoProvider {
    * @param keyInfo - An optional array of XML Nodes.
    * @return A string or Buffer representing the key.
    */
-  getKey(keyInfo?: Node[] | undefined): string | Buffer;
+  getKey(keyInfo?: Node[]): string | Buffer;
 
   /**
    * Method to return an XML string representing the contents of a KeyInfo element.
@@ -316,7 +316,7 @@ export interface KeyInfoProvider {
   /**
    * An optional dictionary of attributes for the KeyInfo element.
    */
-  attrs?: { [key: string]: any } | undefined;
+  attrs?: { [key: string]: any };
 }
 
 /**
@@ -342,7 +342,7 @@ export class FileKeyInfo implements KeyInfoProvider {
    * @param keyInfo - (not used) An optional array of XML Elements.
    * @return A Buffer representing the certificate.
    */
-  getKey(keyInfo?: Node[] | undefined): Buffer;
+  getKey(keyInfo?: Node[]): Buffer;
 
   /**
    * Builds the contents of a KeyInfo element as an XML string.
@@ -382,7 +382,7 @@ export class StringKeyInfo implements KeyInfoProvider {
    * @param keyInfo (not used) an array with exactly one KeyInfo element
    * @return the signing certificate as a string
    */
-  getKey(keyInfo?: Node[] | undefined): string;
+  getKey(keyInfo?: Node[]): string;
 
   /**
    * Builds the contents of a KeyInfo element as an XML string.
