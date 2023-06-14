@@ -369,7 +369,7 @@ describe("Signature unit tests", function () {
     SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
 
     sig.signatureAlgorithm = "http://dummySignatureAlgorithm";
-    sig.composeKeyInfoContent = function () {
+    sig.getKeyInfoContent = function () {
       return "dummy key info";
     };
     sig.canonicalizationAlgorithm = "http://DummyCanonicalization";
@@ -523,7 +523,7 @@ describe("Signature unit tests", function () {
     SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
 
     sig.signatureAlgorithm = "http://dummySignatureAlgorithm";
-    sig.composeKeyInfoContent = function () {
+    sig.getKeyInfoContent = function () {
       return "<ds:dummy>dummy key info</ds:dummy>";
     };
     sig.canonicalizationAlgorithm = "http://DummyCanonicalization";
@@ -816,7 +816,7 @@ describe("Signature unit tests", function () {
   });
 
   it("signer adds existing prefixes", function () {
-    function composeKeyInfoContentWithAssertionId({ assertionId }) {
+    function getKeyInfoContentWithAssertionId({ assertionId }) {
       return (
         '<wsse:SecurityTokenReference wsse11:TokenType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.1#SAMLV1.1" wsu:Id="0" ' +
         'xmlns:wsse11="http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd"> ' +
@@ -840,7 +840,7 @@ describe("Signature unit tests", function () {
 
     var sig = new SignedXml();
     const assertionId = "_81d5fba5c807be9e9cf60c58566349b1";
-    sig.composeKeyInfoContent = composeKeyInfoContentWithAssertionId.bind(this, { assertionId });
+    sig.getKeyInfoContent = getKeyInfoContentWithAssertionId.bind(this, { assertionId });
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
     sig.computeSignature(xml, {
       prefix: "ds",
@@ -986,7 +986,7 @@ describe("Signature unit tests", function () {
       CustomUri: "http://www.example.com/keyinfo",
       CustomAttribute: "custom-value",
     };
-    sig.composeKeyInfoContent = () => "<dummy/>";
+    sig.getKeyInfoContent = () => "<dummy/>";
 
     sig.computeSignature(xml);
     var signedXml = sig.getSignedXml();

@@ -134,8 +134,8 @@ export interface TransformAlgorithm {
  * @param cert the certificate as a string or array of strings (see https://www.w3.org/TR/2008/REC-xmldsig-core-20080610/#sec-X509Data)
  * @param prefix an optional namespace alias to be used for the generated XML
  */
-export interface ComposeKeyInfoContentArgs {
-  cert: string;
+export interface GetKeyInfoContentArgs {
+  cert: string | string[];
   prefix: string;
 }
 
@@ -297,7 +297,7 @@ export class SignedXml {
    *
    * @return an XML string representation of the contents of a KeyInfo element, or `null` if no `KeyInfo` element should be included
    */
-  composeKeyInfoContent(args: ComposeKeyInfoContentArgs): string | null;
+  getKeyInfoContent(args: GetKeyInfoContentArgs): string | null;
 
   /**
    * Returns the value of the signing certificate based on the contents of the

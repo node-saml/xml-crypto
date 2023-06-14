@@ -6,7 +6,7 @@
   },
   "root": true,
   "parserOptions": {
-    "ecmaVersion": 6
+    "ecmaVersion": 2020
   },
   "extends": ["eslint:recommended", "prettier"],
   "rules": {
