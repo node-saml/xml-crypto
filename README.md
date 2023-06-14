@@ -118,7 +118,7 @@ To generate a `<X509Data></X509Data>` element in the signature you must provide 
 
 When verifying a xml document you must specify the following properties on a ``SignedXml` instance:
 
-- `sign.signingCert` - **[optional]** your certificate, see [customizing algorithms](#customizing-algorithms) for an implementation example
+- `sign.signingCert` - **[optional]** your certificate as a string, a string of multiple certs in PEM format, or a Buffer, see [customizing algorithms](#customizing-algorithms) for an implementation example
 
 The certificate that will be used to check the signature will first be determined by calling `.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `.signingCert` is used. If that is `null`, then `.signingKey` is used (for symmetrical signing applications).
 
