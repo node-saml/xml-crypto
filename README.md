@@ -68,7 +68,6 @@ _Signature Algorithm:_ RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
 When signing a xml document you can specify the following properties on a `SignedXml` instance to customize the signature process:
 
 - `sign.signingKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
-- `sign.keyInfoProvider` - **[optional]** a key info provider instance, see [customizing algorithms](#customizing-algorithms) for an implementation example
 - `sign.signatureAlgorithm` - **[optional]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
 - `sign.canonicalizationAlgorithm` - **[optional]** one of the supported [canonicalization algorithms](#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
 
@@ -119,7 +118,9 @@ To generate a `<X509Data></X509Data>` element in the signature you must provide 
 
 When verifying a xml document you must specify the following properties on a ``SignedXml` instance:
 
-- `sign.keyInfoProvider` - **[required]** a key info provider instance containing your certificate, see [customizing algorithms](#customizing-algorithms) for an implementation example
+- `sign.signingCert` - **[optional]** your certificate, see [customizing algorithms](#customizing-algorithms) for an implementation example
+
+The certificate that will be used to check the signature will first be determined by calling `.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `.signingCert` is used. If that is `null`, then `.signingKey` is used (for symmetrical signing applications).
 
 You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom) so you should install it first:
 
@@ -143,7 +144,7 @@ var signature = select(
   "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']"
 )[0];
 var sig = new SignedXml();
-sig.keyInfoProvider = new FileKeyInfo("client_public.pem");
+sig.signingCert = new FileKeyInfo("client_public.pem");
 sig.loadSignature(signature);
 var res = sig.checkSignature(xml);
 if (!res) console.log(sig.validationErrors);
@@ -178,7 +179,7 @@ If you keep failing verification, it is worth trying to guess such a hidden tran
 ```javascript
 var option = { implicitTransforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"] };
 var sig = new SignedXml(null, option);
-sig.keyInfoProvider = new FileKeyInfo("client_public.pem");
+sig.signingCert = new FileKeyInfo("client_public.pem");
 sig.loadSignature(signature);
 var res = sig.checkSignature(xml);
 ```
@@ -231,14 +232,6 @@ To verify xml documents:
 - `checkSignature(xml)` - validates the given xml document and returns true if the validation was successful, `sig.validationErrors` will have the validation errors if any, where:
   - `xml` - a string containing a xml document
 
-### FileKeyInfo
-
-A basic key info provider implementation using `fs.readFileSync(file)`, is constructed using `new FileKeyInfo([file])` where:
-
-- `file` - a path to a pem encoded certificate
-
-See [verifying xml documents](#verifying-xml-documents) for an example usage
-
 ## Customizing Algorithms
 
 The following sample shows how to sign a message using custom algorithms.
@@ -252,8 +245,13 @@ var SignedXml = require("xml-crypto").SignedXml,
 
 Now define the extension point you want to implement. You can choose one or more.
 
-A key info provider is used to extract and construct the key and the KeyInfo xml section.
-Implement it if you want to create a signature with a KeyInfo section, or you want to read your key in a different way then the built-in file-read or string methods. See the implementation in `string-key-info.js` for more information.
+To determine the inclusion and contents of a `<KeyInfo />` element, the function
+`getKeyInfoContent()` is called. There is a default implementation of this. If you wish to change
+this implementation, provide your own function assigned to the property `.getKeyInfoContent`. If
+there are no attributes and no contents to the `<KeyInfo />` element, it won't be included in the
+generated XML.
+
+To specify custom attributes on `<KeyInfo />`, add the properties to the `.keyInfoAttributes` property.
 
 A custom hash algorithm is used to calculate digests. Implement it if you want a hash other than the built-in methods.
 
@@ -269,7 +267,7 @@ function MyDigest() {
 }
 ```
 
-A custom signing algorithm. The default is RSA-SHA1
+A custom signing algorithm. The default is RSA-SHA1.
 
 ```javascript
 function MySignatureAlgorithm() {
@@ -335,7 +333,7 @@ function signXml(xml, xpath, key, dest) {
 
   /*configure the signature object to use the custom algorithms*/
   sig.signatureAlgorithm = "http://mySignatureAlgorithm";
-  sig.keyInfoProvider = new MyKeyInfo();
+  sig.signingCert = fs.readFileSync("my_public_cert.pem", "latin1");
   sig.canonicalizationAlgorithm = "http://MyCanonicalization";
   sig.addReference(
     "//*[local-name(.)='x']",
@@ -355,7 +353,7 @@ var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>";
 signXml(xml, "//*[local-name(.)='book']", "client.pem", "result.xml");
 ```
 
-You can always look at the actual code as a sample (or drop me a [mail](mailto:yaronn01@gmail.com)).
+You can always look at the actual code as a sample.
 
 ## Asynchronous signing and verification
 
