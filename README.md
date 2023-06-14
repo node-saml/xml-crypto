@@ -133,7 +133,6 @@ Example:
 var select = require("xml-crypto").xpath,
   dom = require("@xmldom/xmldom").DOMParser,
   SignedXml = require("xml-crypto").SignedXml,
-  FileKeyInfo = require("xml-crypto").FileKeyInfo,
   fs = require("fs");
 
 var xml = fs.readFileSync("signed.xml").toString();
@@ -254,23 +253,9 @@ var SignedXml = require("xml-crypto").SignedXml,
 Now define the extension point you want to implement. You can choose one or more.
 
 A key info provider is used to extract and construct the key and the KeyInfo xml section.
-Implement it if you want to create a signature with a KeyInfo section, or you want to read your key in a different way then the default file read option.
+Implement it if you want to create a signature with a KeyInfo section, or you want to read your key in a different way then the built-in file-read or string methods. See the implementation in `string-key-info.js` for more information.
 
-```javascript
-function MyKeyInfo() {
-  this.getKeyInfo = function (key, prefix) {
-    prefix = prefix || "";
-    prefix = prefix ? prefix + ":" : prefix;
-    return "<" + prefix + "X509Data></" + prefix + "X509Data>";
-  };
-  this.getKey = function (keyInfo) {
-    //you can use the keyInfo parameter to extract the key in any way you want
-    return fs.readFileSync("key.pem");
-  };
-}
-```
-
-A custom hash algorithm is used to calculate digests. Implement it if you want a hash other than the default SHA1.
+A custom hash algorithm is used to calculate digests. Implement it if you want a hash other than the built-in methods.
 
 ```javascript
 function MyDigest() {

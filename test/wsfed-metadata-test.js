@@ -13,7 +13,7 @@ describe("WS-Fed Metadata tests", function () {
       doc
     )[0];
     var sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/wsfederation_metadata.pem");
+    sig.signingCert = fs.readFileSync("./test/static/wsfederation_metadata.pem");
     sig.loadSignature(signature);
     var result = sig.checkSignature(xml);
 

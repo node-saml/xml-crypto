@@ -24,7 +24,7 @@ describe("HMAC tests", function () {
       doc
     )[0];
     var sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/hmac.key");
+    sig.signingCert = fs.readFileSync("./test/static/hmac.key");
     sig.loadSignature(signature);
     var result = sig.checkSignature(xml);
 
@@ -39,7 +39,7 @@ describe("HMAC tests", function () {
       doc
     )[0];
     var sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/hmac-foobar.key");
+    sig.signingCert = fs.readFileSync("./test/static/hmac-foobar.key");
     sig.loadSignature(signature);
     var result = sig.checkSignature(xml);
 
@@ -60,7 +60,7 @@ describe("HMAC tests", function () {
       doc
     )[0];
     var verify = new crypto.SignedXml();
-    verify.keyInfoProvider = new crypto.FileKeyInfo("./test/static/hmac.key");
+    verify.signingCert = fs.readFileSync("./test/static/hmac.key");
     verify.loadSignature(signature);
     var result = verify.checkSignature(sig.getSignedXml());
 
