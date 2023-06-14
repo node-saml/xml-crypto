@@ -135,7 +135,7 @@ export interface TransformAlgorithm {
  * @param prefix an optional namespace alias to be used for the generated XML
  */
 export interface GetKeyInfoContentArgs {
-  cert: string | string[];
+  cert: string | string[] | Buffer;
   prefix: string;
 }
 
