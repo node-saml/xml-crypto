@@ -1,16 +1,16 @@
-var expect = require("chai").expect;
+const expect = require("chai").expect;
 
-var ExclusiveCanonicalization =
+const ExclusiveCanonicalization =
   require("../lib/exclusive-canonicalization").ExclusiveCanonicalization;
-var Dom = require("@xmldom/xmldom").DOMParser;
-var select = require("xpath").select;
-var SignedXml = require("../lib/signed-xml.js").SignedXml;
+const Dom = require("@xmldom/xmldom").DOMParser;
+const select = require("xpath").select;
+const SignedXml = require("../lib/signed-xml.js").SignedXml;
 
-var compare = function (xml, xpath, expected, inclusiveNamespacesPrefixList, defaultNsForPrefix) {
-  var doc = new Dom().parseFromString(xml);
-  var elem = select(xpath, doc)[0];
-  var can = new ExclusiveCanonicalization();
-  var result = can
+const compare = function (xml, xpath, expected, inclusiveNamespacesPrefixList, defaultNsForPrefix) {
+  const doc = new Dom().parseFromString(xml);
+  const elem = select(xpath, doc)[0];
+  const can = new ExclusiveCanonicalization();
+  const result = can
     .process(elem, {
       inclusiveNamespacesPrefixList: inclusiveNamespacesPrefixList,
       defaultNsForPrefix: defaultNsForPrefix,
@@ -392,10 +392,10 @@ describe("Canonicalization unit tests", function () {
 
   it("Multiple Canonicalization with namespace definition outside of signed element", function () {
     //var doc = new Dom().parseFromString("<x xmlns:p=\"myns\"><p:y><ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"></ds:Signature></p:y></x>")
-    var doc = new Dom().parseFromString('<x xmlns:p="myns"><p:y></p:y></x>');
-    var node = select("//*[local-name(.)='y']", doc)[0];
-    var sig = new SignedXml();
-    var res = sig.getCanonXml(
+    const doc = new Dom().parseFromString('<x xmlns:p="myns"><p:y></p:y></x>');
+    const node = select("//*[local-name(.)='y']", doc)[0];
+    const sig = new SignedXml();
+    const res = sig.getCanonXml(
       [
         "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
         "http://www.w3.org/2001/10/xml-exc-c14n#",
@@ -409,13 +409,13 @@ describe("Canonicalization unit tests", function () {
     // older versions of enveloped-signature removed the first signature in the whole doc, but should
     //   be the signature inside the current node if we want to be able to verify multiple signatures
     //   in a document.
-    var xml =
+    const xml =
       '<x><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /><y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /></y></x>';
-    var doc = new Dom().parseFromString(xml);
-    var node = select("//*[local-name(.)='y']", doc)[0];
-    var sig = new SignedXml();
-    var transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
-    var res = sig.getCanonXml(transforms, node);
+    const doc = new Dom().parseFromString(xml);
+    const node = select("//*[local-name(.)='y']", doc)[0];
+    const sig = new SignedXml();
+    const transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
+    const res = sig.getCanonXml(transforms, node);
     expect(res).to.equal("<y/>");
   });
 
