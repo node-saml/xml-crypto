@@ -363,10 +363,10 @@ describe("Signature unit tests", function () {
     var xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
     var sig = new SignedXml();
 
-    SignedXml.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
-    SignedXml.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
-    SignedXml.HashAlgorithms["http://dummyDigest"] = DummyDigest;
-    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
+    sig.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
+    sig.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
+    sig.HashAlgorithms["http://dummyDigest"] = DummyDigest;
+    sig.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
 
     sig.signatureAlgorithm = "http://dummySignatureAlgorithm";
     sig.getKeyInfoContent = function () {
@@ -517,10 +517,10 @@ describe("Signature unit tests", function () {
     var xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
     var sig = new SignedXml();
 
-    SignedXml.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
-    SignedXml.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
-    SignedXml.HashAlgorithms["http://dummyDigest"] = DummyDigest;
-    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
+    sig.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
+    sig.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
+    sig.HashAlgorithms["http://dummyDigest"] = DummyDigest;
+    sig.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
 
     sig.signatureAlgorithm = "http://dummySignatureAlgorithm";
     sig.getKeyInfoContent = function () {
@@ -689,8 +689,8 @@ describe("Signature unit tests", function () {
 
     var xml =
       '<root><x xmlns="ns" Id="_0"></x><y attr="value" Id="_1"></y><z><w Id="_2"></w></z></root>';
-    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithmAsync"] = DummySignatureAlgorithm;
     var sig = new SignedXml();
+    sig.SignatureAlgorithms["http://dummySignatureAlgorithmAsync"] = DummySignatureAlgorithm;
     sig.signatureAlgorithm = "http://dummySignatureAlgorithmAsync";
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
     sig.signingCert = null;
@@ -1006,5 +1006,34 @@ describe("Signature unit tests", function () {
       customAttribute,
       "KeyInfo element should have the correct CustomAttribute attribute value"
     ).to.equal("custom-value");
+  });
+
+  it("adds all certificates and does not add private keys to KeyInfo element", function () {
+    var xml = "<root><x /></root>";
+    var sig = new SignedXml();
+    var pemBuffer = fs.readFileSync("./test/static/client_bundle.pem")
+    sig.signingKey = pemBuffer;
+    sig.signingCert = pemBuffer;
+    sig.computeSignature(xml);
+    var signedXml = sig.getSignedXml();
+
+    var doc = new dom().parseFromString(signedXml);
+
+    var x509certificates = select("//*[local-name(.)='X509Certificate']", doc.documentElement);
+    expect(x509certificates.length, "There should be exactly two certificates").to.equal(2);
+
+    var cert1 = x509certificates[0];
+    var cert2 = x509certificates[1];
+    expect(cert1.textContent, "X509Certificate[0] TextContent does not exist").to.exist;
+    expect(cert2.textContent, "X509Certificate[1] TextContent does not exist").to.exist;
+
+    var trimmedTextContent1 = cert1.textContent.trim();
+    var trimmedTextContent2 = cert2.textContent.trim();
+    expect(trimmedTextContent1, "Empty certificate added [0]").to.not.be.empty;
+    expect(trimmedTextContent2, "Empty certificate added [1]").to.not.be.empty;
+
+    expect(trimmedTextContent1.substring(0,5), "Incorrect value for X509Certificate[0]").to.equal("MIIDC");
+    expect(trimmedTextContent2.substring(0,5), "Incorrect value for X509Certificate[1]").to.equal("MIIDZ");
+
   });
 });

@@ -5,8 +5,6 @@ var fs = require("fs");
 const { sign } = require("crypto");
 var expect = require("chai").expect;
 
-var sigAlgs;
-
 describe("HMAC tests", function () {
    it("test validating HMAC signature", function () {
     var xml = fs.readFileSync("./test/static/hmac_signature.xml", "utf-8");
@@ -55,6 +53,7 @@ describe("HMAC tests", function () {
       doc
     )[0];
     var verify = new crypto.SignedXml();
+    verify.enableHMAC();
     verify.signingCert = fs.readFileSync("./test/static/hmac.key");
     verify.loadSignature(signature);
     var result = verify.checkSignature(sig.getSignedXml());
