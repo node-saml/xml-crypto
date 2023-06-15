@@ -1019,7 +1019,15 @@ describe("Signature unit tests", function () {
     var doc = new dom().parseFromString(signedXml);
     var x509certificates = select("//*[local-name(.)='X509Certificate']", doc.documentElement);
 
-    expect(x509certificates.length,
-        "There should be only one certificate (private key was added to X509Certificate)").to.equal(1);
+    expect(x509certificates.length, "There should be only one certificate (private key was added to X509Certificate)").to.equal(1);
+
+    const { textContent } = x509certificates[0];
+    expect(textContent, "X509Certificate TextContent does not exist").to.exist;
+
+    const trimmedTextContent = textContent.trim();
+    expect(trimmedTextContent, "Empty certificate added").to.not.be.empty;
+
+    // In case private key was added instead of the certificate
+    expect(trimmedTextContent.substring(0,4), "Private key was added to X509Certificate").to.equal("MIIB");
   });
 });
