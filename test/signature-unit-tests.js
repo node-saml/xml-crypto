@@ -1011,7 +1011,7 @@ describe("Signature unit tests", function () {
   it("adds all certificates and does not add private keys to KeyInfo element", function () {
     var xml = "<root><x /></root>";
     var sig = new SignedXml();
-    var pemBuffer = fs.readFileSync("./test/static/client_bundle.pem")
+    var pemBuffer = fs.readFileSync("./test/static/client_bundle.pem");
     sig.signingKey = pemBuffer;
     sig.signingCert = pemBuffer;
     sig.computeSignature(xml);
@@ -1032,8 +1032,11 @@ describe("Signature unit tests", function () {
     expect(trimmedTextContent1, "Empty certificate added [0]").to.not.be.empty;
     expect(trimmedTextContent2, "Empty certificate added [1]").to.not.be.empty;
 
-    expect(trimmedTextContent1.substring(0,5), "Incorrect value for X509Certificate[0]").to.equal("MIIDC");
-    expect(trimmedTextContent2.substring(0,5), "Incorrect value for X509Certificate[1]").to.equal("MIIDZ");
-
+    expect(trimmedTextContent1.substring(0, 5), "Incorrect value for X509Certificate[0]").to.equal(
+      "MIIDC"
+    );
+    expect(trimmedTextContent2.substring(0, 5), "Incorrect value for X509Certificate[1]").to.equal(
+      "MIIDZ"
+    );
   });
 });

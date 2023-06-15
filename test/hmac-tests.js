@@ -6,7 +6,7 @@ const { sign } = require("crypto");
 var expect = require("chai").expect;
 
 describe("HMAC tests", function () {
-   it("test validating HMAC signature", function () {
+  it("test validating HMAC signature", function () {
     var xml = fs.readFileSync("./test/static/hmac_signature.xml", "utf-8");
     var doc = new xmldom.DOMParser().parseFromString(xml);
     var signature = xpath.select(
@@ -14,7 +14,7 @@ describe("HMAC tests", function () {
       doc
     )[0];
     var sig = new crypto.SignedXml();
-    sig.enableHMAC()
+    sig.enableHMAC();
     sig.signingCert = fs.readFileSync("./test/static/hmac.key");
     sig.loadSignature(signature);
     var result = sig.checkSignature(xml);
@@ -30,7 +30,7 @@ describe("HMAC tests", function () {
       doc
     )[0];
     var sig = new crypto.SignedXml();
-    sig.enableHMAC()
+    sig.enableHMAC();
     sig.signingCert = fs.readFileSync("./test/static/hmac-foobar.key");
     sig.loadSignature(signature);
     var result = sig.checkSignature(xml);
@@ -41,7 +41,7 @@ describe("HMAC tests", function () {
   it("test create and validate HMAC signature", function () {
     var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
     var sig = new crypto.SignedXml();
-    sig.enableHMAC()
+    sig.enableHMAC();
     sig.signingKey = fs.readFileSync("./test/static/hmac.key");
     sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#hmac-sha1";
     sig.addReference("//*[local-name(.)='book']");
