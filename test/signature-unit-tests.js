@@ -1008,26 +1008,32 @@ describe("Signature unit tests", function () {
     ).to.equal("custom-value");
   });
 
-  it("does not add private keys to KeyInfo element", function () {
+  it("adds all certificates and does not add private keys to KeyInfo element", function () {
     var xml = "<root><x /></root>";
     var sig = new SignedXml();
-    sig.signingKey = fs.readFileSync("./test/static/client_bundle.pem");
-    sig.signingCert = fs.readFileSync("./test/static/client_bundle.pem");
+    var pemBuffer = fs.readFileSync("./test/static/client_bundle.pem")
+    sig.signingKey = pemBuffer;
+    sig.signingCert = pemBuffer;
     sig.computeSignature(xml);
     var signedXml = sig.getSignedXml();
 
     var doc = new dom().parseFromString(signedXml);
+
     var x509certificates = select("//*[local-name(.)='X509Certificate']", doc.documentElement);
+    expect(x509certificates.length, "There should be exactly two certificates").to.equal(2);
 
-    expect(x509certificates.length, "There should be only one certificate (private key was added to X509Certificate)").to.equal(1);
+    var cert1 = x509certificates[0];
+    var cert2 = x509certificates[1];
+    expect(cert1.textContent, "X509Certificate[0] TextContent does not exist").to.exist;
+    expect(cert2.textContent, "X509Certificate[1] TextContent does not exist").to.exist;
 
-    const { textContent } = x509certificates[0];
-    expect(textContent, "X509Certificate TextContent does not exist").to.exist;
+    var trimmedTextContent1 = cert1.textContent.trim();
+    var trimmedTextContent2 = cert2.textContent.trim();
+    expect(trimmedTextContent1, "Empty certificate added [0]").to.not.be.empty;
+    expect(trimmedTextContent2, "Empty certificate added [1]").to.not.be.empty;
 
-    const trimmedTextContent = textContent.trim();
-    expect(trimmedTextContent, "Empty certificate added").to.not.be.empty;
+    expect(trimmedTextContent1.substring(0,5), "Incorrect value for X509Certificate[0]").to.equal("MIIDC");
+    expect(trimmedTextContent2.substring(0,5), "Incorrect value for X509Certificate[1]").to.equal("MIIDZ");
 
-    // In case private key was added instead of the certificate
-    expect(trimmedTextContent.substring(0,4), "Private key was added to X509Certificate").to.equal("MIIB");
   });
 });
