@@ -1,14 +1,14 @@
-var crypto = require("../index");
-var xpath = require("xpath");
-var xmldom = require("@xmldom/xmldom");
-var fs = require("fs");
-var expect = require("chai").expect;
+const crypto = require("../index");
+const xpath = require("xpath");
+const xmldom = require("@xmldom/xmldom");
+const fs = require("fs");
+const expect = require("chai").expect;
 
 describe("Document tests", function () {
   it("test with a document (using FileKeyInfo)", function () {
-    var xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
-    var doc = new xmldom.DOMParser().parseFromString(xml);
-    var signature = new xmldom.DOMParser().parseFromString(
+    const xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
+    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const signature = new xmldom.DOMParser().parseFromString(
       xpath
         .select(
           "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
@@ -16,18 +16,18 @@ describe("Document tests", function () {
         )[0]
         .toString()
     );
-    var sig = new crypto.SignedXml();
+    const sig = new crypto.SignedXml();
     sig.signingCert = fs.readFileSync("./test/static/feide_public.pem");
     sig.loadSignature(signature);
-    var result = sig.checkSignature(xml);
+    const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
   });
 
   it("test with a document (using StringKeyInfo)", function () {
-    var xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
-    var doc = new xmldom.DOMParser().parseFromString(xml);
-    var signature = new xmldom.DOMParser().parseFromString(
+    const xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
+    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const signature = new xmldom.DOMParser().parseFromString(
       xpath
         .select(
           "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
@@ -35,11 +35,11 @@ describe("Document tests", function () {
         )[0]
         .toString()
     );
-    var sig = new crypto.SignedXml();
-    var feidePublicCert = fs.readFileSync("./test/static/feide_public.pem");
+    const sig = new crypto.SignedXml();
+    const feidePublicCert = fs.readFileSync("./test/static/feide_public.pem");
     sig.signingCert = feidePublicCert;
     sig.loadSignature(signature);
-    var result = sig.checkSignature(xml);
+    const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
   });

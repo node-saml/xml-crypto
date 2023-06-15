@@ -18,7 +18,7 @@
     "no-use-before-define": "error",
     "curly": "error",
     "eqeqeq": ["warn", "smart"],
-    "no-var": "warn",
+    "no-var": "error",
     "prefer-const": "warn"
   }
 }

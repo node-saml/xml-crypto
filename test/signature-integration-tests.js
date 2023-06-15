@@ -1,13 +1,13 @@
-var xpath = require("xpath");
-var Dom = require("@xmldom/xmldom").DOMParser;
-var SignedXml = require("../lib/signed-xml.js").SignedXml;
-var fs = require("fs");
-var crypto = require("../index");
-var expect = require("chai").expect;
+const xpath = require("xpath");
+const Dom = require("@xmldom/xmldom").DOMParser;
+const SignedXml = require("../lib/signed-xml.js").SignedXml;
+const fs = require("fs");
+const crypto = require("../index");
+const expect = require("chai").expect;
 
 describe("Signature integration tests", function () {
   function verifySignature(xml, expected, xpath) {
-    var sig = new SignedXml();
+    const sig = new SignedXml();
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
     sig.keyInfo = null;
 
@@ -16,10 +16,10 @@ describe("Signature integration tests", function () {
     });
 
     sig.computeSignature(xml);
-    var signed = sig.getSignedXml();
+    const signed = sig.getSignedXml();
 
     //fs.writeFileSync("./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/signedExample.xml", signed)
-    var expectedContent = fs.readFileSync(expected).toString();
+    const expectedContent = fs.readFileSync(expected).toString();
     expect(signed, "signature xml different than expected").to.equal(expectedContent);
     /*
     var spawn = require('child_process').spawn
@@ -41,7 +41,7 @@ describe("Signature integration tests", function () {
   }
 
   it("verify signature", function () {
-    var xml =
+    const xml =
       '<root><x xmlns="ns"></x><y z_attr="value" a_attr1="foo"></y><z><ns:w ns:attr="value" xmlns:ns="myns"></ns:w></z></root>';
     verifySignature(xml, "./test/static/integration/expectedVerify.xml", [
       "//*[local-name(.)='x']",
@@ -51,7 +51,7 @@ describe("Signature integration tests", function () {
   });
 
   it("verify signature of complex element", function () {
-    var xml =
+    const xml =
       "<library>" +
       "<book>" +
       "<name>Harry Potter</name>" +
@@ -68,9 +68,9 @@ describe("Signature integration tests", function () {
   });
 
   it("empty URI reference should consider the whole document", function () {
-    var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+    const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
-    var signature =
+    const signature =
       '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">' +
       "<SignedInfo>" +
       '<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
@@ -86,16 +86,16 @@ describe("Signature integration tests", function () {
       "<SignatureValue>FONRc5/nnQE2GMuEV0wK5/ofUJMHH7dzZ6VVd+oHDLfjfWax/lCMzUahJxW1i/dtm9Pl0t2FbJONVd3wwDSZzy6u5uCnj++iWYkRpIEN19RAzEMD1ejfZET8j3db9NeBq2JjrPbw81Fm7qKvte6jGa9ThTTB+1MHFRkC8qjukRM=</SignatureValue>" +
       "</Signature>";
 
-    var sig = new crypto.SignedXml();
+    const sig = new crypto.SignedXml();
     sig.signingCert = fs.readFileSync("./test/static/client_public.pem");
     sig.loadSignature(signature);
-    var result = sig.checkSignature(xml);
+    const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
   });
 
   it("add canonicalization if output of transforms will be a node-set rather than an octet stream", function () {
-    var xml = fs.readFileSync("./test/static/windows_store_signature.xml", "utf-8");
+    let xml = fs.readFileSync("./test/static/windows_store_signature.xml", "utf-8");
 
     // Make sure that whitespace in the source document is removed -- see xml-crypto issue #23 and post at
     //   http://webservices20.blogspot.co.il/2013/06/validating-windows-mobile-app-store.html
@@ -103,89 +103,89 @@ describe("Signature integration tests", function () {
     //   the xmldom-fork-fixed library which can pass {ignoreWhiteSpace: true} into the Dom constructor.
     xml = xml.replace(/>\s*</g, "><");
 
-    var doc = new Dom().parseFromString(xml);
+    const doc = new Dom().parseFromString(xml);
     xml = doc.firstChild.toString();
 
-    var signature = xpath.select(
+    const signature = xpath.select(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc
     )[0];
-    var sig = new crypto.SignedXml();
+    const sig = new crypto.SignedXml();
     sig.signingCert = fs.readFileSync("./test/static/windows_store_certificate.pem");
     sig.loadSignature(signature);
-    var result = sig.checkSignature(xml);
+    const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
   });
 
   it("signature with inclusive namespaces", function () {
-    var xml = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.xml", "utf-8");
-    var doc = new Dom().parseFromString(xml);
+    let xml = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.xml", "utf-8");
+    const doc = new Dom().parseFromString(xml);
     xml = doc.firstChild.toString();
 
-    var signature = xpath.select(
+    const signature = xpath.select(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc
     )[0];
-    var sig = new crypto.SignedXml();
+    const sig = new crypto.SignedXml();
     sig.signingCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
     sig.loadSignature(signature);
-    var result = sig.checkSignature(xml);
+    const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
   });
 
   it("signature with inclusive namespaces with unix line separators", function () {
-    var xml = fs.readFileSync(
+    let xml = fs.readFileSync(
       "./test/static/signature_with_inclusivenamespaces_lines.xml",
       "utf-8"
     );
-    var doc = new Dom().parseFromString(xml);
+    const doc = new Dom().parseFromString(xml);
     xml = doc.firstChild.toString();
 
-    var signature = xpath.select(
+    const signature = xpath.select(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc
     )[0];
-    var sig = new crypto.SignedXml();
+    const sig = new crypto.SignedXml();
     sig.signingCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
     sig.loadSignature(signature);
-    var result = sig.checkSignature(xml);
+    const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
   });
 
   it("signature with inclusive namespaces with windows line separators", function () {
-    var xml = fs.readFileSync(
+    let xml = fs.readFileSync(
       "./test/static/signature_with_inclusivenamespaces_lines_windows.xml",
       "utf-8"
     );
-    var doc = new Dom().parseFromString(xml);
+    const doc = new Dom().parseFromString(xml);
     xml = doc.firstChild.toString();
 
-    var signature = xpath.select(
+    const signature = xpath.select(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc
     )[0];
-    var sig = new crypto.SignedXml();
+    const sig = new crypto.SignedXml();
     sig.signingCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
     sig.loadSignature(signature);
-    var result = sig.checkSignature(xml);
+    const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
   });
 
   it("should create single root xml document when signing inner node", function () {
-    var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+    const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
-    var sig = new SignedXml();
+    const sig = new SignedXml();
     sig.addReference("//*[local-name(.)='book']");
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
     sig.computeSignature(xml);
 
-    var signed = sig.getSignedXml();
+    const signed = sig.getSignedXml();
 
-    var doc = new Dom().parseFromString(signed);
+    const doc = new Dom().parseFromString(signed);
 
     /*
         Expecting this structure:

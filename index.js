@@ -1,4 +1,4 @@
-var select = require("xpath").select;
+const select = require("xpath").select;
 
 module.exports = require("./lib/signed-xml");
 module.exports.xpath = function (node, xpath) {
