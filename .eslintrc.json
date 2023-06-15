@@ -19,6 +19,6 @@
     "curly": "error",
     "eqeqeq": ["warn", "smart"],
     "no-var": "error",
-    "prefer-const": "warn"
+    "prefer-const": "error"
   }
 }
