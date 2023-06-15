@@ -13,7 +13,7 @@
     "no-console": "error",
     "no-unused-vars": "warn",
     "no-prototype-builtins": "warn",
-    "one-var": ["warn", "never"],
+    "one-var": ["error", "never"],
     "no-duplicate-imports": "error",
     "no-use-before-define": "error",
     "curly": "warn",
