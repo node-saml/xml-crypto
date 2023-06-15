@@ -363,10 +363,10 @@ describe("Signature unit tests", function () {
     var xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
     var sig = new SignedXml();
 
-    SignedXml.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
-    SignedXml.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
-    SignedXml.HashAlgorithms["http://dummyDigest"] = DummyDigest;
-    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
+    sig.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
+    sig.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
+    sig.HashAlgorithms["http://dummyDigest"] = DummyDigest;
+    sig.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
 
     sig.signatureAlgorithm = "http://dummySignatureAlgorithm";
     sig.getKeyInfoContent = function () {
@@ -517,10 +517,10 @@ describe("Signature unit tests", function () {
     var xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
     var sig = new SignedXml();
 
-    SignedXml.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
-    SignedXml.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
-    SignedXml.HashAlgorithms["http://dummyDigest"] = DummyDigest;
-    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
+    sig.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
+    sig.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
+    sig.HashAlgorithms["http://dummyDigest"] = DummyDigest;
+    sig.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
 
     sig.signatureAlgorithm = "http://dummySignatureAlgorithm";
     sig.getKeyInfoContent = function () {
@@ -689,8 +689,8 @@ describe("Signature unit tests", function () {
 
     var xml =
       '<root><x xmlns="ns" Id="_0"></x><y attr="value" Id="_1"></y><z><w Id="_2"></w></z></root>';
-    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithmAsync"] = DummySignatureAlgorithm;
     var sig = new SignedXml();
+    sig.SignatureAlgorithms["http://dummySignatureAlgorithmAsync"] = DummySignatureAlgorithm;
     sig.signatureAlgorithm = "http://dummySignatureAlgorithmAsync";
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
     sig.signingCert = null;
