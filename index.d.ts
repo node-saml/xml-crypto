@@ -141,13 +141,13 @@ export interface GetKeyInfoContentArgs {
 
 export class SignedXml {
   // To add a new transformation algorithm create a new class that implements the {@link TransformationAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
-  static CanonicalizationAlgorithms: {
+  CanonicalizationAlgorithms: {
     [uri in TransformAlgorithmType]: new () => TransformAlgorithm;
   };
   // To add a new hash algorithm create a new class that implements the {@link HashAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
-  static HashAlgorithms: { [uri in HashAlgorithmType]: new () => HashAlgorithm };
+  HashAlgorithms: { [uri in HashAlgorithmType]: new () => HashAlgorithm };
   // To add a new signature algorithm create a new class that implements the {@link SignatureAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
-  static SignatureAlgorithms: { [uri in SignatureAlgorithmType]: new () => SignatureAlgorithm };
+  SignatureAlgorithms: { [uri in SignatureAlgorithmType]: new () => SignatureAlgorithm };
   // Rules used to convert an XML document into its canonical form.
   canonicalizationAlgorithm: TransformAlgorithmType;
   // It specifies a list of namespace prefixes that should be considered "inclusive" during the canonicalization process.
