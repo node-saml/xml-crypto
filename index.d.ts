@@ -359,7 +359,7 @@ export interface Utils {
    *     should not cause any issues in context of PKIX, PKCS and CMS.
    */
   PEM_FORMAT_REGEX: RegExp;
-  MULTI_PEM_SPLIT: RegExp;
+  EXTRACT_X509_CERTS: RegExp;
   BASE64_REGEX: RegExp;
 }
 
