@@ -23,7 +23,9 @@ function validateXml(xml, key) {
   sig.signingCert = key;
   sig.loadSignature(signature.toString());
   var res = sig.checkSignature(xml);
-  if (!res) console.log(sig.validationErrors);
+  if (!res) {
+    console.log(sig.validationErrors);
+  }
   return res;
 }
 
@@ -38,5 +40,8 @@ var signedXml = fs.readFileSync("result.xml").toString();
 console.log("validating signature...");
 
 //validate an xml document
-if (validateXml(signedXml, "client_public.pem")) console.log("signature is valid");
-else console.log("signature not valid");
+if (validateXml(signedXml, "client_public.pem")) {
+  console.log("signature is valid");
+} else {
+  console.log("signature not valid");
+}

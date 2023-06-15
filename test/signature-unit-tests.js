@@ -103,7 +103,9 @@ describe("Signature unit tests", function () {
   }
 
   function nodeExists(doc, xpath) {
-    if (!doc && !xpath) return;
+    if (!doc && !xpath) {
+      return;
+    }
     var node = select(xpath, doc);
     expect(node.length, "xpath " + xpath + " not found").to.equal(1);
   }
