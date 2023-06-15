@@ -1,8 +1,8 @@
-var xpath = require("xpath"),
-  Dom = require("@xmldom/xmldom").DOMParser,
-  SignedXml = require("../lib/signed-xml.js").SignedXml,
-  fs = require("fs"),
-  crypto = require("../index");
+var xpath = require("xpath");
+var Dom = require("@xmldom/xmldom").DOMParser;
+var SignedXml = require("../lib/signed-xml.js").SignedXml;
+var fs = require("fs");
+var crypto = require("../index");
 var expect = require("chai").expect;
 
 describe("Signature integration tests", function () {

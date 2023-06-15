@@ -1,10 +1,10 @@
 var expect = require("chai").expect;
 
 var ExclusiveCanonicalization =
-    require("../lib/exclusive-canonicalization").ExclusiveCanonicalization,
-  Dom = require("@xmldom/xmldom").DOMParser,
-  select = require("xpath").select,
-  SignedXml = require("../lib/signed-xml.js").SignedXml;
+  require("../lib/exclusive-canonicalization").ExclusiveCanonicalization;
+var Dom = require("@xmldom/xmldom").DOMParser;
+var select = require("xpath").select;
+var SignedXml = require("../lib/signed-xml.js").SignedXml;
 
 var compare = function (xml, xpath, expected, inclusiveNamespacesPrefixList, defaultNsForPrefix) {
   var doc = new Dom().parseFromString(xml);

@@ -1,10 +1,10 @@
 /* eslint-disable no-console */
 
-var select = require("xml-crypto").xpath,
-  dom = require("@xmldom/xmldom").DOMParser,
-  SignedXml = require("xml-crypto").SignedXml,
-  FileKeyInfo = require("xml-crypto").FileKeyInfo,
-  fs = require("fs");
+var select = require("xml-crypto").xpath;
+var dom = require("@xmldom/xmldom").DOMParser;
+var SignedXml = require("xml-crypto").SignedXml;
+var FileKeyInfo = require("xml-crypto").FileKeyInfo;
+var fs = require("fs");
 
 function signXml(xml, xpath, key, dest) {
   var sig = new SignedXml();

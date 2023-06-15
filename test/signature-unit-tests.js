@@ -1,9 +1,9 @@
-var select = require("xpath").select,
-  dom = require("@xmldom/xmldom").DOMParser,
-  SignedXml = require("../lib/signed-xml.js").SignedXml,
-  FileKeyInfo = require("../lib/signed-xml.js").FileKeyInfo,
-  fs = require("fs"),
-  crypto = require("crypto");
+var select = require("xpath").select;
+var dom = require("@xmldom/xmldom").DOMParser;
+var SignedXml = require("../lib/signed-xml.js").SignedXml;
+var FileKeyInfo = require("../lib/signed-xml.js").FileKeyInfo;
+var fs = require("fs");
+var crypto = require("crypto");
 var expect = require("chai").expect;
 
 describe("Signature unit tests", function () {
