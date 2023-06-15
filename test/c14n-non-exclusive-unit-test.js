@@ -1,9 +1,9 @@
 var expect = require("chai").expect;
 
-var C14nCanonicalization = require("../lib/c14n-canonicalization").C14nCanonicalization,
-  Dom = require("@xmldom/xmldom").DOMParser,
-  select = require("xpath").select,
-  findAncestorNs = require("../lib/signed-xml").SignedXml.findAncestorNs;
+var C14nCanonicalization = require("../lib/c14n-canonicalization").C14nCanonicalization;
+var Dom = require("@xmldom/xmldom").DOMParser;
+var select = require("xpath").select;
+var findAncestorNs = require("../lib/signed-xml").SignedXml.findAncestorNs;
 
 var test_C14nCanonicalization = function (xml, xpath, expected) {
   var doc = new Dom().parseFromString(xml);
