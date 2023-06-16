@@ -6,6 +6,7 @@
 /// <reference types="node" />
 
 import { SelectedValue } from "xpath";
+import * as crypto from "crypto";
 
 type CanonicalizationAlgorithmType =
   | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
@@ -87,21 +88,26 @@ export interface Reference {
 }
 
 /** Implement this to create a new HashAlgorithm */
-export interface HashAlgorithm {
+export class HashAlgorithm {
   getAlgorithmName(): HashAlgorithmType;
 
   getHash(xml: string): string;
 }
 
 /** Implement this to create a new SignatureAlgorithm */
-export interface SignatureAlgorithm {
+export class SignatureAlgorithm {
   getAlgorithmName(): SignatureAlgorithmType;
 
-  getSignature(signedInfo: Node, privateKey: Buffer): string;
+  getSignature(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike, callback?: (err: Error, signedInfo: string) => never): string;
+
+  /**
+   * @param key a public cert, public key, or private key can be passed here
+   */
+  verifySignature(material: string, key: crypto.KeyLike, signatureValue: string, callback?: (err: Error, verified: boolean) => never): boolean
 }
 
 /** Implement this to create a new TransformAlgorithm */
-export interface TransformAlgorithm {
+export class TransformAlgorithm {
   getAlgorithmName(): TransformAlgorithmType;
 
   process(node: Node): string;
@@ -139,7 +145,7 @@ export interface GetKeyInfoContentArgs {
   prefix: string;
 }
 
-export class SignedXml {
+export class SignedXml implements {
   // To add a new transformation algorithm create a new class that implements the {@link TransformationAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
   CanonicalizationAlgorithms: {
     [uri in TransformAlgorithmType]: new () => TransformAlgorithm;
