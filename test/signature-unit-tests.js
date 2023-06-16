@@ -14,7 +14,7 @@ describe("Signature unit tests", function () {
     )[0];
 
     const sig = new SignedXml(mode);
-    sig.signingCert = fs.readFileSync("./test/static/client_public.pem");
+    sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
     sig.loadSignature(node);
     try {
       const res = sig.checkSignature(xml);
@@ -93,7 +93,7 @@ describe("Signature unit tests", function () {
       prefix +
       "Id='_1'></x>";
     const sig = new SignedXml(mode);
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='x']");
     sig.computeSignature(xml);
     const signedXml = sig.getOriginalXmlWithIds();
@@ -113,7 +113,7 @@ describe("Signature unit tests", function () {
   function verifyAddsId(mode, nsMode) {
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
     const sig = new SignedXml(mode);
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
     sig.addReference("//*[local-name(.)='x']");
     sig.addReference("//*[local-name(.)='y']");
@@ -145,7 +145,7 @@ describe("Signature unit tests", function () {
       xmlns: "http://custom-xmlns#",
     };
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
     sig.addReference("//*[local-name(.)='name']");
 
@@ -179,7 +179,7 @@ describe("Signature unit tests", function () {
       '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><name wsu:Id="_1">xml-crypto</name><repository wsu:Id="_2">github</repository></root>';
     const sig = new SignedXml("wssecurity");
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
     sig.addReference("//*[@wsu:Id]");
 
@@ -217,7 +217,7 @@ describe("Signature unit tests", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
     const sig = new SignedXml();
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='name']");
     sig.computeSignature(xml);
 
@@ -233,7 +233,7 @@ describe("Signature unit tests", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
     const sig = new SignedXml();
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='repository']");
 
     sig.computeSignature(xml, {
@@ -256,7 +256,7 @@ describe("Signature unit tests", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
     const sig = new SignedXml();
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='repository']");
 
     sig.computeSignature(xml, {
@@ -279,7 +279,7 @@ describe("Signature unit tests", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
     const sig = new SignedXml();
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='repository']");
 
     sig.computeSignature(xml, {
@@ -302,7 +302,7 @@ describe("Signature unit tests", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
     const sig = new SignedXml();
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='repository']");
 
     sig.computeSignature(xml, {
@@ -632,8 +632,8 @@ describe("Signature unit tests", function () {
     const xml =
       '<root><x xmlns="ns" Id="_0"></x><y attr="value" Id="_1"></y><z><w Id="_2"></w></z></root>';
     const sig = new SignedXml();
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.signingCert = null;
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
 
     sig.addReference("//*[local-name(.)='x']");
     sig.addReference("//*[local-name(.)='y']");
@@ -677,10 +677,10 @@ describe("Signature unit tests", function () {
 
   it("signer creates correct signature values using async callback", function () {
     function DummySignatureAlgorithm() {
-      this.getSignature = function (signedInfo, signingKey, callback) {
+      this.getSignature = function (signedInfo, privateKey, callback) {
         const signer = crypto.createSign("RSA-SHA1");
         signer.update(signedInfo);
-        const res = signer.sign(signingKey, "base64");
+        const res = signer.sign(privateKey, "base64");
         //Do some asynchronous things here
         callback(null, res);
       };
@@ -694,8 +694,8 @@ describe("Signature unit tests", function () {
     const sig = new SignedXml();
     sig.SignatureAlgorithms["http://dummySignatureAlgorithmAsync"] = DummySignatureAlgorithm;
     sig.signatureAlgorithm = "http://dummySignatureAlgorithmAsync";
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.signingCert = null;
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
 
     sig.addReference("//*[local-name(.)='x']");
     sig.addReference("//*[local-name(.)='y']");
@@ -777,8 +777,8 @@ describe("Signature unit tests", function () {
   it("allow empty reference uri when signing", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.signingCert = null;
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
 
     sig.addReference(
       "//*[local-name(.)='root']",
@@ -801,7 +801,7 @@ describe("Signature unit tests", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
     const sig = new SignedXml();
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='repository']");
 
     try {
@@ -843,7 +843,7 @@ describe("Signature unit tests", function () {
     const sig = new SignedXml();
     const assertionId = "_81d5fba5c807be9e9cf60c58566349b1";
     sig.getKeyInfoContent = getKeyInfoContentWithAssertionId.bind(this, { assertionId });
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.computeSignature(xml, {
       prefix: "ds",
       location: {
@@ -864,8 +864,8 @@ describe("Signature unit tests", function () {
   it("creates InclusiveNamespaces element when inclusiveNamespacesPrefixList is set on Reference", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.signingCert = null;
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
 
     sig.addReference(
       "//*[local-name(.)='root']",
@@ -896,8 +896,8 @@ describe("Signature unit tests", function () {
   it("does not create InclusiveNamespaces element when inclusiveNamespacesPrefixList is not set on Reference", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.signingCert = null;
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
 
     sig.addReference(
       "//*[local-name(.)='root']",
@@ -923,8 +923,8 @@ describe("Signature unit tests", function () {
   it("creates InclusiveNamespaces element inside CanonicalizationMethod when inclusiveNamespacesPrefixList is set on SignedXml options", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml(null, { inclusiveNamespacesPrefixList: "prefix1 prefix2" });
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.signingCert = null;
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
 
     sig.addReference(
       "//*[local-name(.)='root']",
@@ -956,8 +956,8 @@ describe("Signature unit tests", function () {
   it("does not create InclusiveNamespaces element inside CanonicalizationMethod when inclusiveNamespacesPrefixList is not set on SignedXml options", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml(null); // Omit inclusiveNamespacesPrefixList property
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.signingCert = null;
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
 
     sig.addReference(
       "//*[local-name(.)='root']",
@@ -983,7 +983,7 @@ describe("Signature unit tests", function () {
   it("adds attributes to KeyInfo element when attrs are present in keyInfoProvider", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.keyInfoAttributes = {
       CustomUri: "http://www.example.com/keyinfo",
       CustomAttribute: "custom-value",
@@ -1014,8 +1014,8 @@ describe("Signature unit tests", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
     const pemBuffer = fs.readFileSync("./test/static/client_bundle.pem");
-    sig.signingKey = pemBuffer;
-    sig.signingCert = pemBuffer;
+    sig.privateKey = pemBuffer;
+    sig.publicCert = pemBuffer;
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 

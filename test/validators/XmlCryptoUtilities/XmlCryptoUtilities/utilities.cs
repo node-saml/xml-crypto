@@ -30,7 +30,7 @@ namespace ConsoleApplication31
             var c = new X509Certificate2(
                 File.ReadAllBytes(@"C:\Program Files\Microsoft WSE\v2.0\Samples\Sample Test Certificates\Client Private.pfx"), "wse2qs");
 
-            signedXml.SigningKey = c.PrivateKey;
+            signedXml.privateKey = c.PrivateKey;
             signedXml.Signature.SignedInfo.CanonicalizationMethod = "http://www.w3.org/2001/10/xml-exc-c14n#";
 
             Reference ref0 = new Reference();
