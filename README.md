@@ -67,7 +67,7 @@ _Signature Algorithm:_ RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
 
 When signing a xml document you can specify the following properties on a `SignedXml` instance to customize the signature process:
 
-- `sign.signingKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
+- `sign.privateKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
 - `sign.signatureAlgorithm` - **[optional]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
 - `sign.canonicalizationAlgorithm` - **[optional]** one of the supported [canonicalization algorithms](#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
 
@@ -81,7 +81,7 @@ var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</
 
 var sig = new SignedXml();
 sig.addReference("//*[local-name(.)='book']");
-sig.signingKey = fs.readFileSync("client.pem");
+sig.privateKey = fs.readFileSync("client.pem");
 sig.computeSignature(xml);
 fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
@@ -118,9 +118,9 @@ To generate a `<X509Data></X509Data>` element in the signature you must provide 
 
 When verifying a xml document you must specify the following properties on a ``SignedXml` instance:
 
-- `sign.signingCert` - **[optional]** your certificate as a string, a string of multiple certs in PEM format, or a Buffer, see [customizing algorithms](#customizing-algorithms) for an implementation example
+- `sign.publicCert` - **[optional]** your certificate as a string, a string of multiple certs in PEM format, or a Buffer, see [customizing algorithms](#customizing-algorithms) for an implementation example
 
-The certificate that will be used to check the signature will first be determined by calling `.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `.signingCert` is used. If that is `null`, then `.signingKey` is used (for symmetrical signing applications).
+The certificate that will be used to check the signature will first be determined by calling `.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `.publicCert` is used. If that is `null`, then `.privateKey` is used (for symmetrical signing applications).
 
 You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom) so you should install it first:
 
@@ -144,7 +144,7 @@ var signature = select(
   "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']"
 )[0];
 var sig = new SignedXml();
-sig.signingCert = new FileKeyInfo("client_public.pem");
+sig.publicCert = new FileKeyInfo("client_public.pem");
 sig.loadSignature(signature);
 var res = sig.checkSignature(xml);
 if (!res) console.log(sig.validationErrors);
@@ -179,7 +179,7 @@ If you keep failing verification, it is worth trying to guess such a hidden tran
 ```javascript
 var option = { implicitTransforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"] };
 var sig = new SignedXml(null, option);
-sig.signingCert = new FileKeyInfo("client_public.pem");
+sig.publicCert = new FileKeyInfo("client_public.pem");
 sig.loadSignature(signature);
 var res = sig.checkSignature(xml);
 ```
@@ -272,7 +272,7 @@ A custom signing algorithm. The default is RSA-SHA1.
 ```javascript
 function MySignatureAlgorithm() {
   /*sign the given SignedInfo using the key. return base64 signature value*/
-  this.getSignature = function (signedInfo, signingKey) {
+  this.getSignature = function (signedInfo, privateKey) {
     return "signature of signedInfo as base64...";
   };
 
@@ -333,7 +333,7 @@ function signXml(xml, xpath, key, dest) {
 
   /*configure the signature object to use the custom algorithms*/
   sig.signatureAlgorithm = "http://mySignatureAlgorithm";
-  sig.signingCert = fs.readFileSync("my_public_cert.pem", "latin1");
+  sig.publicCert = fs.readFileSync("my_public_cert.pem", "latin1");
   sig.canonicalizationAlgorithm = "http://MyCanonicalization";
   sig.addReference(
     "//*[local-name(.)='x']",
@@ -341,7 +341,7 @@ function signXml(xml, xpath, key, dest) {
     "http://myDigestAlgorithm"
   );
 
-  sig.signingKey = fs.readFileSync(key);
+  sig.privateKey = fs.readFileSync(key);
   sig.addReference(xpath);
   sig.computeSignature(xml);
   fs.writeFileSync(dest, sig.getSignedXml());
@@ -361,10 +361,10 @@ If the private key is not stored locally and you wish to use a signing server or
 
 ```javascript
 function AsyncSignatureAlgorithm() {
-  this.getSignature = function (signedInfo, signingKey, callback) {
+  this.getSignature = function (signedInfo, privateKey, callback) {
     var signer = crypto.createSign("RSA-SHA1");
     signer.update(signedInfo);
-    var res = signer.sign(signingKey, "base64");
+    var res = signer.sign(privateKey, "base64");
     //Do some asynchronous things here
     callback(null, res);
   };
@@ -427,7 +427,7 @@ var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</
 
 var sig = new SignedXml();
 sig.addReference("//*[local-name(.)='book']");
-sig.signingKey = fs.readFileSync("client.pem");
+sig.privateKey = fs.readFileSync("client.pem");
 sig.computeSignature(xml, {
   prefix: "ds",
 });
@@ -451,7 +451,7 @@ var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</
 
 var sig = new SignedXml();
 sig.addReference("//*[local-name(.)='book']");
-sig.signingKey = fs.readFileSync("client.pem");
+sig.privateKey = fs.readFileSync("client.pem");
 sig.computeSignature(xml, {
   location: { reference: "//*[local-name(.)='book']", action: "after" }, //This will place the signature after the book element
 });

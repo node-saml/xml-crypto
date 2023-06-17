@@ -7,7 +7,7 @@ const fs = require("fs");
 
 function signXml(xml, xpath, key, dest) {
   const sig = new SignedXml();
-  sig.signingKey = fs.readFileSync(key);
+  sig.privateKey = fs.readFileSync(key);
   sig.addReference(xpath);
   sig.computeSignature(xml);
   fs.writeFileSync(dest, sig.getSignedXml());
@@ -20,7 +20,7 @@ function validateXml(xml, key) {
     doc
   )[0];
   const sig = new SignedXml();
-  sig.signingCert = key;
+  sig.publicCert = key;
   sig.loadSignature(signature.toString());
   const res = sig.checkSignature(xml);
   if (!res) {

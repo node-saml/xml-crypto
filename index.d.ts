@@ -97,7 +97,7 @@ export interface HashAlgorithm {
 export interface SignatureAlgorithm {
   getAlgorithmName(): SignatureAlgorithmType;
 
-  getSignature(signedInfo: Node, signingKey: Buffer): string;
+  getSignature(signedInfo: Node, privateKey: Buffer): string;
 }
 
 /** Implement this to create a new TransformAlgorithm */
@@ -110,8 +110,8 @@ export interface TransformAlgorithm {
 /**
  * ### Sign
  * #### Properties
- * - {@link SignedXml#signingKey} [required]
- * - {@link SignedXml#keyInfoProvider} [optional]
+ * - {@link SignedXml#privateKey} [required]
+ * - {@link SignedXml#publicCert} [optional]
  * - {@link SignedXml#signatureAlgorithm} [optional]
  * - {@link SignedXml#canonicalizationAlgorithm} [optional]
  * #### Api
@@ -123,7 +123,7 @@ export interface TransformAlgorithm {
  *
  * ### Verify
  * #### Properties
- * -  {@link SignedXml#keyInfoProvider} [required]
+ * -  {@link SignedXml#publicCert} [optional]
  * #### Api
  *  - {@link SignedXml#loadSignature}
  *  - {@link SignedXml#checkSignature}
