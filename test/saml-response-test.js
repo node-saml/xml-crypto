@@ -13,7 +13,7 @@ describe("SAML response tests", function () {
       doc
     )[0];
     const sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/feide_public.pem");
+    sig.signingCert = fs.readFileSync("./test/static/feide_public.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -29,7 +29,7 @@ describe("SAML response tests", function () {
       assertion
     )[0];
     const sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/feide_public.pem");
+    sig.signingCert = fs.readFileSync("./test/static/feide_public.pem");
     sig.loadSignature(signature);
     expect(function () {
       sig.checkSignature(xml);
@@ -46,7 +46,7 @@ describe("SAML response tests", function () {
       doc
     )[0];
     const sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/saml_external_ns.pem");
+    sig.signingCert = fs.readFileSync("./test/static/saml_external_ns.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
     expect(result).to.be.true;
@@ -61,7 +61,7 @@ describe("SAML response tests", function () {
       assertion
     )[0];
     const sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/feide_public.pem");
+    sig.signingCert = fs.readFileSync("./test/static/feide_public.pem");
     sig.loadSignature(signature);
     expect(function () {
       sig.checkSignature(xml);
@@ -76,7 +76,7 @@ describe("SAML response tests", function () {
       doc
     )[0];
     const sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/feide_public.pem");
+    sig.signingCert = fs.readFileSync("./test/static/feide_public.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
     // This doesn't matter, just want to make sure that we don't fail due to unknown algorithm

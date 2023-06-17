@@ -1,7 +1,6 @@
 const select = require("xpath").select;
 const dom = require("@xmldom/xmldom").DOMParser;
 const SignedXml = require("../lib/signed-xml.js").SignedXml;
-const FileKeyInfo = require("../lib/signed-xml.js").FileKeyInfo;
 const fs = require("fs");
 const crypto = require("crypto");
 const expect = require("chai").expect;
@@ -15,11 +14,15 @@ describe("Signature unit tests", function () {
     )[0];
 
     const sig = new SignedXml(mode);
-    sig.keyInfoProvider = new FileKeyInfo("./test/static/client_public.pem");
+    sig.signingCert = fs.readFileSync("./test/static/client_public.pem");
     sig.loadSignature(node);
-    const res = sig.checkSignature(xml);
+    try {
+      const res = sig.checkSignature(xml);
 
-    return res;
+      return res;
+    } catch (e) {
+      return false;
+    }
   }
 
   function passValidSignature(file, mode) {
@@ -319,12 +322,6 @@ describe("Signature unit tests", function () {
   });
 
   it("signer creates signature with correct structure", function () {
-    function DummyKeyInfo() {
-      this.getKeyInfo = function () {
-        return "dummy key info";
-      };
-    }
-
     function DummyDigest() {
       this.getHash = function () {
         return "dummy digest";
@@ -368,13 +365,15 @@ describe("Signature unit tests", function () {
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
     const sig = new SignedXml();
 
-    SignedXml.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
-    SignedXml.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
-    SignedXml.HashAlgorithms["http://dummyDigest"] = DummyDigest;
-    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
+    sig.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
+    sig.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
+    sig.HashAlgorithms["http://dummyDigest"] = DummyDigest;
+    sig.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
 
     sig.signatureAlgorithm = "http://dummySignatureAlgorithm";
-    sig.keyInfoProvider = new DummyKeyInfo();
+    sig.getKeyInfoContent = function () {
+      return "dummy key info";
+    };
     sig.canonicalizationAlgorithm = "http://DummyCanonicalization";
 
     sig.addReference(
@@ -477,12 +476,6 @@ describe("Signature unit tests", function () {
   it("signer creates signature with correct structure (with prefix)", function () {
     const prefix = "ds";
 
-    function DummyKeyInfo() {
-      this.getKeyInfo = function () {
-        return "<ds:dummy>dummy key info</ds:dummy>";
-      };
-    }
-
     function DummyDigest() {
       this.getHash = function () {
         return "dummy digest";
@@ -526,13 +519,15 @@ describe("Signature unit tests", function () {
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
     const sig = new SignedXml();
 
-    SignedXml.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
-    SignedXml.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
-    SignedXml.HashAlgorithms["http://dummyDigest"] = DummyDigest;
-    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
+    sig.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
+    sig.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
+    sig.HashAlgorithms["http://dummyDigest"] = DummyDigest;
+    sig.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
 
     sig.signatureAlgorithm = "http://dummySignatureAlgorithm";
-    sig.keyInfoProvider = new DummyKeyInfo();
+    sig.getKeyInfoContent = function () {
+      return "<ds:dummy>dummy key info</ds:dummy>";
+    };
     sig.canonicalizationAlgorithm = "http://DummyCanonicalization";
 
     sig.addReference(
@@ -638,7 +633,7 @@ describe("Signature unit tests", function () {
       '<root><x xmlns="ns" Id="_0"></x><y attr="value" Id="_1"></y><z><w Id="_2"></w></z></root>';
     const sig = new SignedXml();
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.keyInfoProvider = null;
+    sig.signingCert = null;
 
     sig.addReference("//*[local-name(.)='x']");
     sig.addReference("//*[local-name(.)='y']");
@@ -696,11 +691,11 @@ describe("Signature unit tests", function () {
 
     const xml =
       '<root><x xmlns="ns" Id="_0"></x><y attr="value" Id="_1"></y><z><w Id="_2"></w></z></root>';
-    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithmAsync"] = DummySignatureAlgorithm;
     const sig = new SignedXml();
+    sig.SignatureAlgorithms["http://dummySignatureAlgorithmAsync"] = DummySignatureAlgorithm;
     sig.signatureAlgorithm = "http://dummySignatureAlgorithmAsync";
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.keyInfoProvider = null;
+    sig.signingCert = null;
 
     sig.addReference("//*[local-name(.)='x']");
     sig.addReference("//*[local-name(.)='y']");
@@ -783,7 +778,7 @@ describe("Signature unit tests", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.keyInfoProvider = null;
+    sig.signingCert = null;
 
     sig.addReference(
       "//*[local-name(.)='root']",
@@ -823,17 +818,15 @@ describe("Signature unit tests", function () {
   });
 
   it("signer adds existing prefixes", function () {
-    function AssertionKeyInfo(assertionId) {
-      this.getKeyInfo = function () {
-        return (
-          '<wsse:SecurityTokenReference wsse11:TokenType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.1#SAMLV1.1" wsu:Id="0" ' +
-          'xmlns:wsse11="http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd"> ' +
-          '<wsse:KeyIdentifier ValueType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.0#SAMLAssertionID">' +
-          assertionId +
-          "</wsse:KeyIdentifier>" +
-          "</wsse:SecurityTokenReference>"
-        );
-      };
+    function getKeyInfoContentWithAssertionId({ assertionId }) {
+      return (
+        '<wsse:SecurityTokenReference wsse11:TokenType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.1#SAMLV1.1" wsu:Id="0" ' +
+        'xmlns:wsse11="http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd"> ' +
+        '<wsse:KeyIdentifier ValueType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.0#SAMLAssertionID">' +
+        assertionId +
+        "</wsse:KeyIdentifier>" +
+        "</wsse:SecurityTokenReference>"
+      );
     }
 
     const xml =
@@ -848,7 +841,8 @@ describe("Signature unit tests", function () {
       "</SOAP-ENV:Envelope>";
 
     const sig = new SignedXml();
-    sig.keyInfoProvider = new AssertionKeyInfo("_81d5fba5c807be9e9cf60c58566349b1");
+    const assertionId = "_81d5fba5c807be9e9cf60c58566349b1";
+    sig.getKeyInfoContent = getKeyInfoContentWithAssertionId.bind(this, { assertionId });
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
     sig.computeSignature(xml, {
       prefix: "ds",
@@ -864,13 +858,14 @@ describe("Signature unit tests", function () {
     const result = sig.getSignedXml();
     expect((result.match(/xmlns:wsu=/g) || []).length).to.equal(1);
     expect((result.match(/xmlns:wsse=/g) || []).length).to.equal(1);
+    expect(result.includes(assertionId)).to.be.true;
   });
 
   it("creates InclusiveNamespaces element when inclusiveNamespacesPrefixList is set on Reference", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.keyInfoProvider = null;
+    sig.signingCert = null;
 
     sig.addReference(
       "//*[local-name(.)='root']",
@@ -902,7 +897,7 @@ describe("Signature unit tests", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.keyInfoProvider = null;
+    sig.signingCert = null;
 
     sig.addReference(
       "//*[local-name(.)='root']",
@@ -929,7 +924,7 @@ describe("Signature unit tests", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml(null, { inclusiveNamespacesPrefixList: "prefix1 prefix2" });
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.keyInfoProvider = null;
+    sig.signingCert = null;
 
     sig.addReference(
       "//*[local-name(.)='root']",
@@ -962,7 +957,7 @@ describe("Signature unit tests", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml(null); // Omit inclusiveNamespacesPrefixList property
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.keyInfoProvider = null;
+    sig.signingCert = null;
 
     sig.addReference(
       "//*[local-name(.)='root']",
@@ -989,15 +984,11 @@ describe("Signature unit tests", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
     sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.keyInfoProvider = {
-      attrs: {
-        CustomUri: "http://www.example.com/keyinfo",
-        CustomAttribute: "custom-value",
-      },
-      getKeyInfo: function () {
-        return "<dummy/>";
-      },
+    sig.keyInfoAttributes = {
+      CustomUri: "http://www.example.com/keyinfo",
+      CustomAttribute: "custom-value",
     };
+    sig.getKeyInfoContent = () => "<dummy/>";
 
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
@@ -1017,5 +1008,37 @@ describe("Signature unit tests", function () {
       customAttribute,
       "KeyInfo element should have the correct CustomAttribute attribute value"
     ).to.equal("custom-value");
+  });
+
+  it("adds all certificates and does not add private keys to KeyInfo element", function () {
+    const xml = "<root><x /></root>";
+    const sig = new SignedXml();
+    const pemBuffer = fs.readFileSync("./test/static/client_bundle.pem");
+    sig.signingKey = pemBuffer;
+    sig.signingCert = pemBuffer;
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new dom().parseFromString(signedXml);
+
+    const x509certificates = select("//*[local-name(.)='X509Certificate']", doc.documentElement);
+    expect(x509certificates.length, "There should be exactly two certificates").to.equal(2);
+
+    const cert1 = x509certificates[0];
+    const cert2 = x509certificates[1];
+    expect(cert1.textContent, "X509Certificate[0] TextContent does not exist").to.exist;
+    expect(cert2.textContent, "X509Certificate[1] TextContent does not exist").to.exist;
+
+    const trimmedTextContent1 = cert1.textContent.trim();
+    const trimmedTextContent2 = cert2.textContent.trim();
+    expect(trimmedTextContent1, "Empty certificate added [0]").to.not.be.empty;
+    expect(trimmedTextContent2, "Empty certificate added [1]").to.not.be.empty;
+
+    expect(trimmedTextContent1.substring(0, 5), "Incorrect value for X509Certificate[0]").to.equal(
+      "MIIDC"
+    );
+    expect(trimmedTextContent2.substring(0, 5), "Incorrect value for X509Certificate[1]").to.equal(
+      "MIIDZ"
+    );
   });
 });

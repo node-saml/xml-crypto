@@ -1,4 +1,4 @@
-﻿//
+//
 // This example signs an XML file using an
 // envelope signature. It then verifies the 
 // signed XML.

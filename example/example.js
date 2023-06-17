@@ -3,7 +3,6 @@
 const select = require("xml-crypto").xpath;
 const dom = require("@xmldom/xmldom").DOMParser;
 const SignedXml = require("xml-crypto").SignedXml;
-const FileKeyInfo = require("xml-crypto").FileKeyInfo;
 const fs = require("fs");
 
 function signXml(xml, xpath, key, dest) {
@@ -21,7 +20,7 @@ function validateXml(xml, key) {
     doc
   )[0];
   const sig = new SignedXml();
-  sig.keyInfoProvider = new FileKeyInfo(key);
+  sig.signingCert = key;
   sig.loadSignature(signature.toString());
   const res = sig.checkSignature(xml);
   if (!res) {

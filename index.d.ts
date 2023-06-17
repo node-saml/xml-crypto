@@ -129,15 +129,25 @@ export interface TransformAlgorithm {
  *  - {@link SignedXml#checkSignature}
  *  - {@link SignedXml#validationErrors}
  */
+
+/**
+ * @param cert the certificate as a string or array of strings (see https://www.w3.org/TR/2008/REC-xmldsig-core-20080610/#sec-X509Data)
+ * @param prefix an optional namespace alias to be used for the generated XML
+ */
+export interface GetKeyInfoContentArgs {
+  cert: string | string[] | Buffer;
+  prefix: string;
+}
+
 export class SignedXml {
   // To add a new transformation algorithm create a new class that implements the {@link TransformationAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
-  static CanonicalizationAlgorithms: {
+  CanonicalizationAlgorithms: {
     [uri in TransformAlgorithmType]: new () => TransformAlgorithm;
   };
   // To add a new hash algorithm create a new class that implements the {@link HashAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
-  static HashAlgorithms: { [uri in HashAlgorithmType]: new () => HashAlgorithm };
+  HashAlgorithms: { [uri in HashAlgorithmType]: new () => HashAlgorithm };
   // To add a new signature algorithm create a new class that implements the {@link SignatureAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
-  static SignatureAlgorithms: { [uri in SignatureAlgorithmType]: new () => SignatureAlgorithm };
+  SignatureAlgorithms: { [uri in SignatureAlgorithmType]: new () => SignatureAlgorithm };
   // Rules used to convert an XML document into its canonical form.
   canonicalizationAlgorithm: TransformAlgorithmType;
   // It specifies a list of namespace prefixes that should be considered "inclusive" during the canonicalization process.
@@ -149,7 +159,7 @@ export class SignedXml {
   // One of the supported signature algorithms. See {@link SignatureAlgorithmType}
   signatureAlgorithm: SignatureAlgorithmType;
   // A {@link Buffer} or pem encoded {@link String} containing your private key
-  signingKey: Buffer | string;
+  privateKey: Buffer | string;
   // Contains validation errors (if any) after {@link checkSignature} method is called
   validationErrors: string[];
 
@@ -278,115 +288,79 @@ export class SignedXml {
    * @returns The signed XML.
    */
   getSignedXml(): string;
-}
-
-/**
- * KeyInfoProvider interface represents the structure for managing keys
- * and KeyInfo section in XML data when dealing with XML digital signatures.
- */
-export interface KeyInfoProvider {
-  /**
-   * Method to return the key based on the contents of the specified KeyInfo.
-   *
-   * @param keyInfo - An optional array of XML Nodes.
-   * @return A string or Buffer representing the key.
-   */
-  getKey(keyInfo?: Node[]): string | Buffer;
-
-  /**
-   * Method to return an XML string representing the contents of a KeyInfo element.
-   *
-   * @param key - An optional string representing the key.
-   * @param prefix - An optional string representing the namespace alias.
-   * @return An XML string representation of the contents of a KeyInfo element.
-   */
-  getKeyInfo(key?: string, prefix?: string): string;
-
-  /**
-   * An optional dictionary of attributes which will be added to the KeyInfo element.
-   */
-  attrs?: { [key: string]: string };
-}
-
-/**
- * The FileKeyInfo class loads the certificate from the file provided in the constructor.
- */
-export class FileKeyInfo implements KeyInfoProvider {
-  /**
-   * The path to the file from which the certificate is to be read.
-   */
-  file: string;
-
-  /**
-   * Initializes a new instance of the FileKeyInfo class.
-   *
-   * @param file - An optional string representing the file path of the certificate.
-   */
-  constructor(file?: string);
-
-  /**
-   * Return the loaded certificate. The certificate is read from the file specified in the constructor.
-   * The keyInfo parameter is ignored. (not implemented)
-   *
-   * @param keyInfo - (not used) An optional array of XML Elements.
-   * @return A Buffer representing the certificate.
-   */
-  getKey(keyInfo?: Node[]): Buffer;
 
   /**
    * Builds the contents of a KeyInfo element as an XML string.
    *
-   * Currently, this returns exactly one empty X509Data element
-   * (e.g. "<X509Data></X509Data>"). The resultant X509Data element will be
-   * prefaced with a namespace alias if a value for the prefix argument
-   * is provided. In example, if the value of the prefix argument is 'foo', then
+   * For example, if the value of the prefix argument is 'foo', then
    * the resultant XML string will be "<foo:X509Data></foo:X509Data>"
    *
-   * @param key (not used) the signing/private key as a string
-   * @param  prefix an optional namespace alias to be used for the generated XML
-   * @return an XML string representation of the contents of a KeyInfo element
+   * @return an XML string representation of the contents of a KeyInfo element, or `null` if no `KeyInfo` element should be included
    */
-  getKeyInfo(key?: string, prefix?: string): string;
+  getKeyInfoContent(args: GetKeyInfoContentArgs): string | null;
+
+  /**
+   * Returns the value of the signing certificate based on the contents of the
+   * specified KeyInfo.
+   *
+   * @param keyInfo an array with exactly one KeyInfo element (see https://www.w3.org/TR/2008/REC-xmldsig-core-20080610/#sec-X509Data)
+   * @return the signing certificate as a string in PEM format
+   */
+  getCertFromKeyInfo(keyInfo: string): string | null;
 }
 
-/**
- * The StringKeyInfo class loads the certificate from the string provided in the constructor.
- */
-export class StringKeyInfo implements KeyInfoProvider {
+export interface Utils {
   /**
-   * The certificate in string form.
+   * @param pem The PEM-encoded base64 certificate to strip headers from
    */
-  key: string;
+  static pemToDer(pem: string): string;
 
   /**
-   * Initializes a new instance of the StringKeyInfo class.
-   * @param key - An optional string representing the certificate.
+   * @param der The DER-encoded base64 certificate to add PEM headers too
+   * @param pemLabel The label of the header and footer to add
    */
-  constructor(key?: string);
+  static derToPem(
+    der: string,
+    pemLabel: ["CERTIFICATE" | "PRIVATE KEY" | "RSA PUBLIC KEY"]
+  ): string;
 
   /**
-   * Returns the certificate loaded in the constructor.
-   * The keyInfo parameter is ignored. (not implemented)
+   * -----BEGIN [LABEL]-----
+   * base64([DATA])
+   * -----END [LABEL]-----
    *
-   * @param keyInfo (not used) an array with exactly one KeyInfo element
-   * @return the signing certificate as a string
+   * Above is shown what PEM file looks like. As can be seen, base64 data
+   * can be in single line or multiple lines.
+   *
+   * This function normalizes PEM presentation to;
+   *  - contain PEM header and footer as they are given
+   *  - normalize line endings to '\n'
+   *  - normalize line length to maximum of 64 characters
+   *  - ensure that 'preeb' has line ending '\n'
+   *
+   * With couple of notes:
+   *  - 'eol' is normalized to '\n'
+   *
+   * @param pem The PEM string to normalize to RFC7468 'stricttextualmsg' definition
    */
-  getKey(keyInfo?: Node[]): string;
+  static normalizePem(pem: string): string;
 
   /**
-   * Builds the contents of a KeyInfo element as an XML string.
+   * PEM format has wide range of usages, but this library
+   * is enforcing RFC7468 which focuses on PKIX, PKCS and CMS.
    *
-   * Currently, this returns exactly one empty X509Data element
-   * (e.g. "<X509Data></X509Data>"). The resultant X509Data element will be
-   * prefaced with a namespace alias if a value for the prefix argument
-   * is provided. In example, if the value of the prefix argument is 'foo', then
-   * the resultant XML string will be "<foo:X509Data></foo:X509Data>"
+   * https://www.rfc-editor.org/rfc/rfc7468
    *
-   * @param key (not used) the signing/private key as a string
-   * @param  prefix an optional namespace alias to be used for the generated XML
-   * @return an XML string representation of the contents of a KeyInfo element
+   * PEM_FORMAT_REGEX is validating given PEM file against RFC7468 'stricttextualmsg' definition.
+   *
+   * With few exceptions;
+   *  - 'posteb' MAY have 'eol', but it is not mandatory.
+   *  - 'preeb' and 'posteb' lines are limited to 64 characters, but
+   *     should not cause any issues in context of PKIX, PKCS and CMS.
    */
-  getKeyInfo(key?: string, prefix?: string): string;
+  PEM_FORMAT_REGEX: RegExp;
+  EXTRACT_X509_CERTS: RegExp;
+  BASE64_REGEX: RegExp;
 }
 
 /**

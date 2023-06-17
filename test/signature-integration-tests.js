@@ -87,7 +87,7 @@ describe("Signature integration tests", function () {
       "</Signature>";
 
     const sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/client_public.pem");
+    sig.signingCert = fs.readFileSync("./test/static/client_public.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -111,7 +111,7 @@ describe("Signature integration tests", function () {
       doc
     )[0];
     const sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/windows_store_certificate.pem");
+    sig.signingCert = fs.readFileSync("./test/static/windows_store_certificate.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -128,9 +128,7 @@ describe("Signature integration tests", function () {
       doc
     )[0];
     const sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo(
-      "./test/static/signature_with_inclusivenamespaces.pem"
-    );
+    sig.signingCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -150,9 +148,7 @@ describe("Signature integration tests", function () {
       doc
     )[0];
     const sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo(
-      "./test/static/signature_with_inclusivenamespaces.pem"
-    );
+    sig.signingCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -172,9 +168,7 @@ describe("Signature integration tests", function () {
       doc
     )[0];
     const sig = new crypto.SignedXml();
-    sig.keyInfoProvider = new crypto.FileKeyInfo(
-      "./test/static/signature_with_inclusivenamespaces.pem"
-    );
+    sig.signingCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
