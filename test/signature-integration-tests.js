@@ -8,7 +8,7 @@ const expect = require("chai").expect;
 describe("Signature integration tests", function () {
   function verifySignature(xml, expected, xpath) {
     const sig = new SignedXml();
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.keyInfo = null;
 
     xpath.map(function (n) {
@@ -87,7 +87,7 @@ describe("Signature integration tests", function () {
       "</Signature>";
 
     const sig = new crypto.SignedXml();
-    sig.signingCert = fs.readFileSync("./test/static/client_public.pem");
+    sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -111,7 +111,7 @@ describe("Signature integration tests", function () {
       doc
     )[0];
     const sig = new crypto.SignedXml();
-    sig.signingCert = fs.readFileSync("./test/static/windows_store_certificate.pem");
+    sig.publicCert = fs.readFileSync("./test/static/windows_store_certificate.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -128,7 +128,7 @@ describe("Signature integration tests", function () {
       doc
     )[0];
     const sig = new crypto.SignedXml();
-    sig.signingCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
+    sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -148,7 +148,7 @@ describe("Signature integration tests", function () {
       doc
     )[0];
     const sig = new crypto.SignedXml();
-    sig.signingCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
+    sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -168,7 +168,7 @@ describe("Signature integration tests", function () {
       doc
     )[0];
     const sig = new crypto.SignedXml();
-    sig.signingCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
+    sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -180,7 +180,7 @@ describe("Signature integration tests", function () {
 
     const sig = new SignedXml();
     sig.addReference("//*[local-name(.)='book']");
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.computeSignature(xml);
 
     const signed = sig.getSignedXml();

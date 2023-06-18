@@ -17,7 +17,7 @@ describe("Document tests", function () {
         .toString()
     );
     const sig = new crypto.SignedXml();
-    sig.signingCert = fs.readFileSync("./test/static/feide_public.pem");
+    sig.publicCert = fs.readFileSync("./test/static/feide_public.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -37,7 +37,7 @@ describe("Document tests", function () {
     );
     const sig = new crypto.SignedXml();
     const feidePublicCert = fs.readFileSync("./test/static/feide_public.pem");
-    sig.signingCert = feidePublicCert;
+    sig.publicCert = feidePublicCert;
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
