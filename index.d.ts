@@ -6,6 +6,7 @@
 /// <reference types="node" />
 
 import { SelectedValue } from "xpath";
+import * as crypto from "crypto";
 
 type CanonicalizationAlgorithmType =
   | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
@@ -87,36 +88,35 @@ export interface Reference {
 }
 
 /** Implement this to create a new HashAlgorithm */
-export interface HashAlgorithm {
+export class HashAlgorithm {
   getAlgorithmName(): HashAlgorithmType;
 
   getHash(xml: string): string;
 }
 
 /** Implement this to create a new SignatureAlgorithm */
-export interface SignatureAlgorithm {
+export class SignatureAlgorithm {
   /**
    * Sign the given string using the given key
    *
-   */
-  getSignature(signedInfo: Node, privateKey: Buffer): string;
+    signedInfo: crypto.BinaryLike,
+    privateKey: crypto.KeyLike,
+    callback?: (err: Error, signedInfo: string) => never
+  ): string;
 
   /**
-   * Verify the given signature of the given string using key
    *
    */
   verifySignature(
-    signature: string,
     signedInfo: Node,
-    publicKey: Buffer,
-    callback?: (error: Error | null, result: boolean) => void
+    signatureValue: string,
   ): boolean;
 
   getAlgorithmName(): SignatureAlgorithmType;
 }
 
 /** Implement this to create a new TransformAlgorithm */
-export interface TransformAlgorithm {
+export class TransformAlgorithm {
   getAlgorithmName(): TransformAlgorithmType;
 
   process(node: Node): string;
@@ -174,9 +174,10 @@ export class SignedXml {
   // One of the supported signature algorithms. See {@link SignatureAlgorithmType}
   signatureAlgorithm: SignatureAlgorithmType;
   // A {@link Buffer} or pem encoded {@link String} containing your private key
-  privateKey: Buffer | string;
+  privateKey: crypto.KeyLike;
   // Contains validation errors (if any) after {@link checkSignature} method is called
   validationErrors: string[];
+  publicCert: crypto.KeyLike;
 
   /**
    * The SignedXml constructor provides an abstraction for sign and verify xml documents. The object is constructed using
