@@ -98,12 +98,21 @@ export class HashAlgorithm {
 export class SignatureAlgorithm {
   getAlgorithmName(): SignatureAlgorithmType;
 
-  getSignature(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike, callback?: (err: Error, signedInfo: string) => never): string;
+  getSignature(
+    signedInfo: crypto.BinaryLike,
+    privateKey: crypto.KeyLike,
+    callback?: (err: Error, signedInfo: string) => never
+  ): string;
 
   /**
    * @param key a public cert, public key, or private key can be passed here
    */
-  verifySignature(material: string, key: crypto.KeyLike, signatureValue: string, callback?: (err: Error, verified: boolean) => never): boolean
+  verifySignature(
+    material: string,
+    key: crypto.KeyLike,
+    signatureValue: string,
+    callback?: (err: Error, verified: boolean) => never
+  ): boolean;
 }
 
 /** Implement this to create a new TransformAlgorithm */
@@ -145,7 +154,7 @@ export interface GetKeyInfoContentArgs {
   prefix: string;
 }
 
-export class SignedXml implements {
+export class SignedXml {
   // To add a new transformation algorithm create a new class that implements the {@link TransformationAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
   CanonicalizationAlgorithms: {
     [uri in TransformAlgorithmType]: new () => TransformAlgorithm;
