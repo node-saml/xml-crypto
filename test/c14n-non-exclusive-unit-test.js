@@ -3,7 +3,7 @@ const expect = require("chai").expect;
 const C14nCanonicalization = require("../lib/c14n-canonicalization").C14nCanonicalization;
 const Dom = require("@xmldom/xmldom").DOMParser;
 const select = require("xpath").select;
-const findAncestorNs = require("../lib/signed-xml").SignedXml.findAncestorNs;
+const findAncestorNs = require("../lib/signed-xml").findAncestorNs;
 
 const test_C14nCanonicalization = function (xml, xpath, expected) {
   const doc = new Dom().parseFromString(xml);
