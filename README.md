@@ -45,7 +45,6 @@ HMAC-SHA1 is also available but it is disabled by default
 
 to enable HMAC-SHA1, call `enableHMAC()` on your instance of `SignedXml`.
 
-
 This will enable HMAC and disable digital signature algorithms. Due to key
 confusion issues, it is risky to have both HMAC-based and public key digital
 signature algorithms enabled at same time.

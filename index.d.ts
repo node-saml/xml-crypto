@@ -121,6 +121,8 @@ export class SignatureAlgorithm {
 
   /**
    * Verify the given signature of the given string using key
+   *
+   * @param key a public cert, public key, or private key can be passed here
    */
   verifySignature(
     material: string,
