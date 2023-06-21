@@ -3,7 +3,7 @@ const expect = require("chai").expect;
 const C14nCanonicalization = require("../lib/c14n-canonicalization").C14nCanonicalization;
 const Dom = require("@xmldom/xmldom").DOMParser;
 const select = require("xpath").select;
-const findAncestorNs = require("../lib/signed-xml").findAncestorNs;
+const utils = require("../lib/utils");
 
 const test_C14nCanonicalization = function (xml, xpath, expected) {
   const doc = new Dom().parseFromString(xml);
@@ -11,7 +11,7 @@ const test_C14nCanonicalization = function (xml, xpath, expected) {
   const can = new C14nCanonicalization();
   const result = can
     .process(elem, {
-      ancestorNamespaces: findAncestorNs(doc, xpath),
+      ancestorNamespaces: utils.findAncestorNs(doc, xpath),
     })
     .toString();
 
@@ -20,7 +20,7 @@ const test_C14nCanonicalization = function (xml, xpath, expected) {
 
 const test_findAncestorNs = function (xml, xpath, expected) {
   const doc = new Dom().parseFromString(xml);
-  const result = findAncestorNs(doc, xpath);
+  const result = utils.findAncestorNs(doc, xpath);
 
   expect(result).to.deep.equal(expected);
 };
