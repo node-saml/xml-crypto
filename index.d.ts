@@ -6,7 +6,6 @@
 /// <reference types="node" />
 
 import { SelectedValue } from "xpath";
-import * as crypto from "crypto";
 
 type CanonicalizationAlgorithmType =
   | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
@@ -88,35 +87,36 @@ export interface Reference {
 }
 
 /** Implement this to create a new HashAlgorithm */
-export class HashAlgorithm {
+export interface HashAlgorithm {
   getAlgorithmName(): HashAlgorithmType;
 
   getHash(xml: string): string;
 }
 
 /** Implement this to create a new SignatureAlgorithm */
-export class SignatureAlgorithm {
-  getAlgorithmName(): SignatureAlgorithmType;
-
-  getSignature(
-    signedInfo: crypto.BinaryLike,
-    privateKey: crypto.KeyLike,
-    callback?: (err: Error, signedInfo: string) => never
-  ): string;
+export interface SignatureAlgorithm {
+  /**
+   * Sign the given string using the given key
+   *
+   */
+  getSignature(signedInfo: Node, privateKey: Buffer): string;
 
   /**
-   * @param key a public cert, public key, or private key can be passed here
+   * Verify the given signature of the given string using key
+   *
    */
   verifySignature(
-    material: string,
-    key: crypto.KeyLike,
-    signatureValue: string,
-    callback?: (err: Error, verified: boolean) => never
+    signature: string,
+    signedInfo: Node,
+    publicKey: Buffer,
+    callback?: (error: Error | null, result: boolean) => void
   ): boolean;
+
+  getAlgorithmName(): SignatureAlgorithmType;
 }
 
 /** Implement this to create a new TransformAlgorithm */
-export class TransformAlgorithm {
+export interface TransformAlgorithm {
   getAlgorithmName(): TransformAlgorithmType;
 
   process(node: Node): string;
@@ -174,10 +174,9 @@ export class SignedXml {
   // One of the supported signature algorithms. See {@link SignatureAlgorithmType}
   signatureAlgorithm: SignatureAlgorithmType;
   // A {@link Buffer} or pem encoded {@link String} containing your private key
-  privateKey: crypto.KeyLike;
+  privateKey: Buffer | string;
   // Contains validation errors (if any) after {@link checkSignature} method is called
   validationErrors: string[];
-  publicCert: crypto.KeyLike;
 
   /**
    * The SignedXml constructor provides an abstraction for sign and verify xml documents. The object is constructed using
