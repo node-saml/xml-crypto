@@ -194,7 +194,7 @@ public class SignVerifyEnvelope
         SignedXml signedXml = new SignedXml(doc);
 
         // Add the key to the SignedXml document. 
-        signedXml.privateKey = Key;
+        signedXml.SigningKey = Key;
 
         // Create a reference to be signed.
         Reference reference = new Reference();
