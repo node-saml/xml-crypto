@@ -43,6 +43,13 @@ type SignedXmlOptions = {
   signatureAlgorithm?: SignatureAlgorithmType;
 };
 
+type CanonicalizationOrTransformationAlgorithmProcessOptions = {
+  defaultNs?: string;
+  defaultForPrefix?: {};
+  ancestorNamespaces?: [];
+  signatureNode: Node;
+};
+
 /**
  * Options for the computeSignature method.
  */
@@ -87,6 +94,13 @@ export interface Reference {
   isEmptyUri?: boolean;
 }
 
+/** Implement this to create a new CanonicalizationAlgorithm */
+export class CanonicalizationOrTransformationAlgorithm {
+  process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions): string;
+
+  getAlgorithmName(): CanonicalizationAlgorithmType;
+}
+
 /** Implement this to create a new HashAlgorithm */
 export class HashAlgorithm {
   getAlgorithmName(): HashAlgorithmType;
@@ -98,18 +112,21 @@ export class HashAlgorithm {
 export class SignatureAlgorithm {
   /**
    * Sign the given string using the given key
-   *
+   */
+  getSignature(
     signedInfo: crypto.BinaryLike,
     privateKey: crypto.KeyLike,
     callback?: (err: Error, signedInfo: string) => never
   ): string;
 
   /**
-   *
+   * Verify the given signature of the given string using key
    */
   verifySignature(
-    signedInfo: Node,
+    material: string,
+    key: crypto.KeyLike,
     signatureValue: string,
+    callback?: (err: Error, verified: boolean) => never
   ): boolean;
 
   getAlgorithmName(): SignatureAlgorithmType;
@@ -325,7 +342,7 @@ export class SignedXml {
   getCertFromKeyInfo(keyInfo: string): string | null;
 }
 
-export interface Utils {
+export class Utils {
   /**
    * @param pem The PEM-encoded base64 certificate to strip headers from
    */
