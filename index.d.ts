@@ -174,9 +174,10 @@ export class SignedXml {
   // One of the supported signature algorithms. See {@link SignatureAlgorithmType}
   signatureAlgorithm: SignatureAlgorithmType;
   // A {@link Buffer} or pem encoded {@link String} containing your private key
-  privateKey: Buffer | string;
+  privateKey: crypto.KeyLike;
   // Contains validation errors (if any) after {@link checkSignature} method is called
   validationErrors: string[];
+  publicCert: crypto.KeyLike;
 
   /**
    * The SignedXml constructor provides an abstraction for sign and verify xml documents. The object is constructed using
