@@ -43,11 +43,7 @@ HMAC-SHA1 is also available but it is disabled by default
 
 - HMAC-SHA1 http://www.w3.org/2000/09/xmldsig#hmac-sha1
 
-to enable HMAC-SHA1, do:
-
-```javascript
-require("xml-crypto").SignedXml.enableHMAC();
-```
+to enable HMAC-SHA1, call `enableHMAC()` on your instance of `SignedXml`.
 
 This will enable HMAC and disable digital signature algorithms. Due to key
 confusion issues, it is risky to have both HMAC-based and public key digital

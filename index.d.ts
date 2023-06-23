@@ -43,6 +43,13 @@ type SignedXmlOptions = {
   signatureAlgorithm?: SignatureAlgorithmType;
 };
 
+type CanonicalizationOrTransformationAlgorithmProcessOptions = {
+  defaultNs?: string;
+  defaultForPrefix?: {};
+  ancestorNamespaces?: [];
+  signatureNode: Node;
+};
+
 /**
  * Options for the computeSignature method.
  */
@@ -87,6 +94,13 @@ export interface Reference {
   isEmptyUri?: boolean;
 }
 
+/** Implement this to create a new CanonicalizationAlgorithm */
+export class CanonicalizationOrTransformationAlgorithm {
+  process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions): string;
+
+  getAlgorithmName(): CanonicalizationAlgorithmType;
+}
+
 /** Implement this to create a new HashAlgorithm */
 export class HashAlgorithm {
   getAlgorithmName(): HashAlgorithmType;
@@ -96,8 +110,9 @@ export class HashAlgorithm {
 
 /** Implement this to create a new SignatureAlgorithm */
 export class SignatureAlgorithm {
-  getAlgorithmName(): SignatureAlgorithmType;
-
+  /**
+   * Sign the given string using the given key
+   */
   getSignature(
     signedInfo: crypto.BinaryLike,
     privateKey: crypto.KeyLike,
@@ -105,6 +120,8 @@ export class SignatureAlgorithm {
   ): string;
 
   /**
+   * Verify the given signature of the given string using key
+   *
    * @param key a public cert, public key, or private key can be passed here
    */
   verifySignature(
@@ -113,6 +130,8 @@ export class SignatureAlgorithm {
     signatureValue: string,
     callback?: (err: Error, verified: boolean) => never
   ): boolean;
+
+  getAlgorithmName(): SignatureAlgorithmType;
 }
 
 /** Implement this to create a new TransformAlgorithm */
@@ -174,9 +193,10 @@ export class SignedXml {
   // One of the supported signature algorithms. See {@link SignatureAlgorithmType}
   signatureAlgorithm: SignatureAlgorithmType;
   // A {@link Buffer} or pem encoded {@link String} containing your private key
-  privateKey: Buffer | string;
+  privateKey: crypto.KeyLike;
   // Contains validation errors (if any) after {@link checkSignature} method is called
   validationErrors: string[];
+  publicCert: crypto.KeyLike;
 
   /**
    * The SignedXml constructor provides an abstraction for sign and verify xml documents. The object is constructed using
@@ -324,7 +344,7 @@ export class SignedXml {
   getCertFromKeyInfo(keyInfo: string): string | null;
 }
 
-export interface Utils {
+export class Utils {
   /**
    * @param pem The PEM-encoded base64 certificate to strip headers from
    */

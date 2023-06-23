@@ -1,13 +1,11 @@
 {
   "env": {
+    "browser": false,
     "node": true,
     "mocha": true,
-    "es6": false
+    "es2020": true
   },
   "root": true,
-  "parserOptions": {
-    "ecmaVersion": 2020
-  },
   "extends": ["eslint:recommended", "prettier"],
   "rules": {
     "no-console": "error",
