@@ -10,7 +10,7 @@
   "rules": {
     "no-console": "error",
     "no-unused-vars": "warn",
-    "no-prototype-builtins": "warn",
+    "no-prototype-builtins": "error",
     "one-var": ["error", "never"],
     "no-duplicate-imports": "error",
     "no-use-before-define": "error",
