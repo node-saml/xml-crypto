@@ -15,7 +15,7 @@
     "no-duplicate-imports": "error",
     "no-use-before-define": "error",
     "curly": "error",
-    "eqeqeq": ["warn", "smart"],
+    "eqeqeq": ["error", "smart"],
     "no-var": "error",
     "prefer-const": "error"
   }
