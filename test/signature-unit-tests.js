@@ -123,7 +123,7 @@ describe("Signature unit tests", function () {
     const signedXml = sig.getOriginalXmlWithIds();
     const doc = new dom().parseFromString(signedXml);
 
-    const op = nsMode == "equal" ? "=" : "!=";
+    const op = nsMode === "equal" ? "=" : "!=";
 
     const xpath =
       "//*[local-name(.)='{elem}' and '_{id}' = @*[local-name(.)='Id' and namespace-uri(.)" +
