@@ -2,7 +2,6 @@ const crypto = require("../index");
 const xpath = require("xpath");
 const xmldom = require("@xmldom/xmldom");
 const fs = require("fs");
-const { sign } = require("crypto");
 const expect = require("chai").expect;
 
 describe("HMAC tests", function () {

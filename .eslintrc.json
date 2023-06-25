@@ -9,7 +9,7 @@
   "extends": ["eslint:recommended", "prettier"],
   "rules": {
     "no-console": "error",
-    "no-unused-vars": "warn",
+    "no-unused-vars": "error",
     "no-prototype-builtins": "error",
     "one-var": ["error", "never"],
     "no-duplicate-imports": "error",
