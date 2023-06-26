@@ -36,11 +36,17 @@ type SignatureAlgorithmType =
  * Options for the SignedXml constructor.
  */
 type SignedXmlOptions = {
-  canonicalizationAlgorithm?: TransformAlgorithmType;
-  inclusiveNamespacesPrefixList?: string;
+  idMode?: "wssecurity";
   idAttribute?: string;
-  implicitTransforms?: ReadonlyArray<TransformAlgorithmType>;
+  privateKey?: crypto.KeyLike;
+  publicCert?: crypto.KeyLike;
   signatureAlgorithm?: SignatureAlgorithmType;
+  canonicalizationAlgorithm?: CanonicalizationAlgorithmType;
+  inclusiveNamespacesPrefixList?: string;
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmType>;
+  keyInfoAttributes?: { [attrName: string]: string };
+  getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
+  getCertFromKeyInfo?(keyInfo: string): string | null;
 };
 
 type CanonicalizationOrTransformationAlgorithmProcessOptions = {
@@ -186,8 +192,6 @@ export class SignedXml {
   canonicalizationAlgorithm: TransformAlgorithmType;
   // It specifies a list of namespace prefixes that should be considered "inclusive" during the canonicalization process.
   inclusiveNamespacesPrefixList: string;
-  // The structure for managing keys and KeyInfo section in XML data. See {@link KeyInfoProvider}
-  keyInfoProvider: KeyInfoProvider;
   // Specifies the data to be signed within an XML document. See {@link Reference}
   references: Reference[];
   // One of the supported signature algorithms. See {@link SignatureAlgorithmType}
@@ -200,10 +204,9 @@ export class SignedXml {
 
   /**
    * The SignedXml constructor provides an abstraction for sign and verify xml documents. The object is constructed using
-   * @param idMode  if the value of "wssecurity" is passed it will create/validate id's with the ws-security namespace.
-   * @param options {@link SignedXmlOptions
+   * @param options {@link SignedXmlOptions}
    */
-  constructor(idMode?: "wssecurity" | null, options?: SignedXmlOptions);
+  constructor(options?: SignedXmlOptions);
 
   /**
    * Due to key-confusion issues, it's risky to have both hmac
@@ -344,17 +347,17 @@ export class SignedXml {
   getCertFromKeyInfo(keyInfo: string): string | null;
 }
 
-export class Utils {
+export declare module utils {
   /**
    * @param pem The PEM-encoded base64 certificate to strip headers from
    */
-  static pemToDer(pem: string): string;
+  export function pemToDer(pem: string): string;
 
   /**
    * @param der The DER-encoded base64 certificate to add PEM headers too
    * @param pemLabel The label of the header and footer to add
    */
-  static derToPem(
+  export function derToPem(
     der: string,
     pemLabel: ["CERTIFICATE" | "PRIVATE KEY" | "RSA PUBLIC KEY"]
   ): string;
@@ -373,12 +376,12 @@ export class Utils {
    *  - normalize line length to maximum of 64 characters
    *  - ensure that 'preeb' has line ending '\n'
    *
-   * With couple of notes:
+   * With a couple of notes:
    *  - 'eol' is normalized to '\n'
    *
    * @param pem The PEM string to normalize to RFC7468 'stricttextualmsg' definition
    */
-  static normalizePem(pem: string): string;
+  export function normalizePem(pem: string): string;
 
   /**
    * PEM format has wide range of usages, but this library
@@ -393,9 +396,9 @@ export class Utils {
    *  - 'preeb' and 'posteb' lines are limited to 64 characters, but
    *     should not cause any issues in context of PKIX, PKCS and CMS.
    */
-  PEM_FORMAT_REGEX: RegExp;
-  EXTRACT_X509_CERTS: RegExp;
-  BASE64_REGEX: RegExp;
+  export const EXTRACT_X509_CERTS: RegExp;
+  export const PEM_FORMAT_REGEX: RegExp;
+  export const BASE64_REGEX: RegExp;
 }
 
 /**
