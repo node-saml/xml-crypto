@@ -120,7 +120,7 @@ When verifying a xml document you can pass the following options to the `SignedX
 
 The certificate that will be used to check the signature will first be determined by calling `.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `publicCert` is used. If that is `null`, then `privateKey` is used (for symmetrical signing applications).
 
-You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom), so you should install it first:
+You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/xmldom/xmldom), so you should install it first:
 
 ```shell
 npm install @xmldom/xmldom
@@ -237,7 +237,7 @@ To sign xml documents:
 To verify xml documents:
 
 - `loadSignature(signatureXml)` - loads the signature where:
-  - `signatureXml` - a string or node object (like an [xml-dom](https://github.com/jindw/xmldom) node) containing the xml representation of the signature
+  - `signatureXml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the signature
 - `checkSignature(xml)` - validates the given xml document and returns true if the validation was successful, `sig.validationErrors` will have the validation errors if any, where:
   - `xml` - a string containing a xml document
 
