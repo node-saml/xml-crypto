@@ -61,11 +61,12 @@ _Signature Algorithm:_ RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
 
 ## Signing Xml documents
 
-When signing a xml document you can specify the following properties on a `SignedXml` instance to customize the signature process:
+When signing a xml document you can pass the following options to the `SignedXml` constructor to customize the signature process:
 
-- `sign.privateKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
-- `sign.signatureAlgorithm` - **[optional]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
-- `sign.canonicalizationAlgorithm` - **[optional]** one of the supported [canonicalization algorithms](#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
+- `privateKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
+- `publicCert` - **[optional]** a `Buffer` or pem encoded `String` containing your public key
+- `signatureAlgorithm` - **[optional]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
+- `canonicalizationAlgorithm` - **[optional]** one of the supported [canonicalization algorithms](#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
 
 Use this code:
 
@@ -107,20 +108,22 @@ The result will be:
 
 Note:
 
-To generate a `<X509Data></X509Data>` element in the signature you must provide a key info implementation, see [customizing algorithms](#customizing-algorithms) for an example.
+If you set the `publicCert` property, a `<X509Data></X509Data>` element with the public certificate will be generated in the signature.
+To customize this see [customizing algorithms](#customizing-algorithms) for an example.
 
 ## Verifying Xml documents
 
-When verifying a xml document you must specify the following properties on a ``SignedXml` instance:
+When verifying a xml document you can pass the following options to the `SignedXml` constructor to customize the verify process:
 
-- `sign.publicCert` - **[optional]** your certificate as a string, a string of multiple certs in PEM format, or a Buffer, see [customizing algorithms](#customizing-algorithms) for an implementation example
+- `publicCert` - **[optional]** your certificate as a string, a string of multiple certs in PEM format, or a Buffer
+- `privateKey` - **[optional]** your private key as a string or a Buffer - used for verifying symmetrical signatures (HMAC)
 
-The certificate that will be used to check the signature will first be determined by calling `.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `.publicCert` is used. If that is `null`, then `.privateKey` is used (for symmetrical signing applications).
+The certificate that will be used to check the signature will first be determined by calling `.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `publicCert` is used. If that is `null`, then `privateKey` is used (for symmetrical signing applications).
 
-You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom) so you should install it first:
+You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom), so you should install it first:
 
 ```shell
-npm install xmldom
+npm install @xmldom/xmldom
 ```
 
 Example:
@@ -144,7 +147,7 @@ var res = sig.checkSignature(xml);
 if (!res) console.log(sig.validationErrors);
 ```
 
-if the verification process fails `sig.validationErrors` will have the errors.
+If the verification process fails `sig.validationErrors` will contain the errors.
 
 In order to protect from some attacks we must check the content we want to use is the one that has been signed:
 
@@ -366,7 +369,7 @@ You can always look at the actual code as a sample.
 
 ## Asynchronous signing and verification
 
-If the private key is not stored locally and you wish to use a signing server or Hardware Security Module (HSM) to sign documents you can create a custom signing algorithm that uses an asynchronous callback.
+If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents you can create a custom signing algorithm that uses an asynchronous callback.
 
 ```javascript
 function AsyncSignatureAlgorithm() {
@@ -467,8 +470,9 @@ sig.computeSignature(xml, {
 
 ## Development
 
-The test framework is [nodeunit](https://github.com/caolan/nodeunit). To run tests use:
+The testing framework we use is [Mocha](https://github.com/mochajs/mocha) with [Chai](https://github.com/chaijs/chai) as the assertion framework.
 
+To run tests use:
 ```shell
 npm test
 ```
