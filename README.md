@@ -473,6 +473,7 @@ sig.computeSignature(xml, {
 The testing framework we use is [Mocha](https://github.com/mochajs/mocha) with [Chai](https://github.com/chaijs/chai) as the assertion framework.
 
 To run tests use:
+
 ```shell
 npm test
 ```
