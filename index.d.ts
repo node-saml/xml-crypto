@@ -100,22 +100,22 @@ export interface Reference {
   isEmptyUri?: boolean;
 }
 
-/** Implement this to create a new CanonicalizationAlgorithm */
-export class CanonicalizationOrTransformationAlgorithm {
+/** Implement this to create a new CanonicalizationOrTransformationAlgorithm */
+export interface CanonicalizationOrTransformationAlgorithm {
   process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions): string;
 
   getAlgorithmName(): CanonicalizationAlgorithmType;
 }
 
 /** Implement this to create a new HashAlgorithm */
-export class HashAlgorithm {
+export interface HashAlgorithm {
   getAlgorithmName(): HashAlgorithmType;
 
   getHash(xml: string): string;
 }
 
 /** Implement this to create a new SignatureAlgorithm */
-export class SignatureAlgorithm {
+export interface SignatureAlgorithm {
   /**
    * Sign the given string using the given key
    */
@@ -141,7 +141,7 @@ export class SignatureAlgorithm {
 }
 
 /** Implement this to create a new TransformAlgorithm */
-export class TransformAlgorithm {
+export interface TransformAlgorithm {
   getAlgorithmName(): TransformAlgorithmType;
 
   process(node: Node): string;
