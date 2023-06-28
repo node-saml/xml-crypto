@@ -369,7 +369,7 @@ You can always look at the actual code as a sample.
 
 ## Asynchronous signing and verification
 
-If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents you can create a custom signing algorithm that uses an asynchronous callback.
+If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, you can create a custom signing algorithm that uses an asynchronous callback.
 
 ```javascript
 function AsyncSignatureAlgorithm() {
