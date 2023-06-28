@@ -13,7 +13,7 @@ describe("Signature unit tests", function () {
       doc
     )[0];
 
-    const sig = new SignedXml(mode);
+    const sig = new SignedXml({ idMode: mode });
     sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
     sig.loadSignature(node);
     try {
@@ -92,7 +92,7 @@ describe("Signature unit tests", function () {
       "<x xmlns:wsu='http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd' " +
       prefix +
       "Id='_1'></x>";
-    const sig = new SignedXml(mode);
+    const sig = new SignedXml({ idMode: mode });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='x']");
     sig.computeSignature(xml);
@@ -112,7 +112,7 @@ describe("Signature unit tests", function () {
 
   function verifyAddsId(mode, nsMode) {
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
-    const sig = new SignedXml(mode);
+    const sig = new SignedXml({ idMode: mode });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
     sig.addReference("//*[local-name(.)='x']");
@@ -177,7 +177,7 @@ describe("Signature unit tests", function () {
   function verifyReferenceNS() {
     const xml =
       '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><name wsu:Id="_1">xml-crypto</name><repository wsu:Id="_2">github</repository></root>';
-    const sig = new SignedXml("wssecurity");
+    const sig = new SignedXml({ idMode: "wssecurity" });
 
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
@@ -922,7 +922,7 @@ describe("Signature unit tests", function () {
 
   it("creates InclusiveNamespaces element inside CanonicalizationMethod when inclusiveNamespacesPrefixList is set on SignedXml options", function () {
     const xml = "<root><x /></root>";
-    const sig = new SignedXml(null, { inclusiveNamespacesPrefixList: "prefix1 prefix2" });
+    const sig = new SignedXml({ inclusiveNamespacesPrefixList: "prefix1 prefix2" });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.publicCert = null;
 
@@ -955,7 +955,7 @@ describe("Signature unit tests", function () {
 
   it("does not create InclusiveNamespaces element inside CanonicalizationMethod when inclusiveNamespacesPrefixList is not set on SignedXml options", function () {
     const xml = "<root><x /></root>";
-    const sig = new SignedXml(null); // Omit inclusiveNamespacesPrefixList property
+    const sig = new SignedXml(); // Omit inclusiveNamespacesPrefixList property
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.publicCert = null;
 
