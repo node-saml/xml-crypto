@@ -61,11 +61,12 @@ _Signature Algorithm:_ RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
 
 ## Signing Xml documents
 
-When signing a xml document you can specify the following properties on a `SignedXml` instance to customize the signature process:
+When signing a xml document you can pass the following options to the `SignedXml` constructor to customize the signature process:
 
-- `sign.privateKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
-- `sign.signatureAlgorithm` - **[optional]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
-- `sign.canonicalizationAlgorithm` - **[optional]** one of the supported [canonicalization algorithms](#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
+- `privateKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
+- `publicCert` - **[optional]** a `Buffer` or pem encoded `String` containing your public key
+- `signatureAlgorithm` - **[optional]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
+- `canonicalizationAlgorithm` - **[optional]** one of the supported [canonicalization algorithms](#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
 
 Use this code:
 
@@ -75,9 +76,8 @@ var SignedXml = require("xml-crypto").SignedXml,
 
 var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
-var sig = new SignedXml();
+var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
 sig.addReference("//*[local-name(.)='book']");
-sig.privateKey = fs.readFileSync("client.pem");
 sig.computeSignature(xml);
 fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
@@ -108,20 +108,22 @@ The result will be:
 
 Note:
 
-To generate a `<X509Data></X509Data>` element in the signature you must provide a key info implementation, see [customizing algorithms](#customizing-algorithms) for an example.
+If you set the `publicCert` property, a `<X509Data></X509Data>` element with the public certificate will be generated in the signature.
+To customize this see [customizing algorithms](#customizing-algorithms) for an example.
 
 ## Verifying Xml documents
 
-When verifying a xml document you must specify the following properties on a ``SignedXml` instance:
+When verifying a xml document you can pass the following options to the `SignedXml` constructor to customize the verify process:
 
-- `sign.publicCert` - **[optional]** your certificate as a string, a string of multiple certs in PEM format, or a Buffer, see [customizing algorithms](#customizing-algorithms) for an implementation example
+- `publicCert` - **[optional]** your certificate as a string, a string of multiple certs in PEM format, or a Buffer
+- `privateKey` - **[optional]** your private key as a string or a Buffer - used for verifying symmetrical signatures (HMAC)
 
-The certificate that will be used to check the signature will first be determined by calling `.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `.publicCert` is used. If that is `null`, then `.privateKey` is used (for symmetrical signing applications).
+The certificate that will be used to check the signature will first be determined by calling `.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `publicCert` is used. If that is `null`, then `privateKey` is used (for symmetrical signing applications).
 
-You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/jindw/xmldom) so you should install it first:
+You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/xmldom/xmldom), so you should install it first:
 
 ```shell
-npm install xmldom
+npm install @xmldom/xmldom
 ```
 
 Example:
@@ -139,14 +141,13 @@ var signature = select(
   doc,
   "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']"
 )[0];
-var sig = new SignedXml();
-sig.publicCert = new FileKeyInfo("client_public.pem");
+var sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
 sig.loadSignature(signature);
 var res = sig.checkSignature(xml);
 if (!res) console.log(sig.validationErrors);
 ```
 
-if the verification process fails `sig.validationErrors` will have the errors.
+If the verification process fails `sig.validationErrors` will contain the errors.
 
 In order to protect from some attacks we must check the content we want to use is the one that has been signed:
 
@@ -173,9 +174,11 @@ which makes XML developers confused and then leads to incorrect implementation f
 If you keep failing verification, it is worth trying to guess such a hidden transform and specify it to the option as below:
 
 ```javascript
-var option = { implicitTransforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"] };
-var sig = new SignedXml(null, option);
-sig.publicCert = new FileKeyInfo("client_public.pem");
+var options = {
+  implicitTransforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"],
+  publicCert: fs.readFileSync("client_public.pem"),
+};
+var sig = new SignedXml(options);
 sig.loadSignature(signature);
 var res = sig.checkSignature(xml);
 ```
@@ -196,9 +199,19 @@ See [xpath.js](https://github.com/yaronn/xpath.js) for usage. Note that this is 
 
 ### SignedXml
 
-The `SignedXml` constructor provides an abstraction for sign and verify xml documents. The object is constructed using `new SignedXml([idMode])` where:
+The `SignedXml` constructor provides an abstraction for sign and verify xml documents. The object is constructed using `new SignedXml(options?: SignedXmlOptions)` where the possible options are:
 
-- `idMode` - if the value of `"wssecurity"` is passed it will create/validate id's with the ws-security namespace.
+- `idMode` - default `null` - if the value of `wssecurity` is passed it will create/validate id's with the ws-security namespace.
+- `idAttribute` - string - default `Id` or `ID` or `id` - the name of the attribute that contains the id of the element
+- `privateKey` - string or Buffer - default `null` - the private key to use for signing
+- `publicCert` - string or Buffer - default `null` - the public certificate to use for verifying
+- `signatureAlgorithm` - string - default `http://www.w3.org/2000/09/xmldsig#rsa-sha1` - the signature algorithm to use
+- `canonicalizationAlgorithm` - string - default `http://www.w3.org/TR/2001/REC-xml-c14n-20010315` - the canonicalization algorithm to use
+- `inclusiveNamespacesPrefixList` - string - default `null` - a list of namespace prefixes to include during canonicalization
+- `implicitTransforms` - string[] - default `[]` - a list of implicit transforms to use during verification
+- `keyInfoAttributes` - object - default `{}` - a hash of attributes and values `attrName: value` to add to the KeyInfo node
+- `getKeyInfoContent` - function - default `SignedXml.geTKeyInfoContent` - a function that returns the content of the KeyInfo node
+- `getCertFromKeyInfo` - function - default `SignedXml.getCertFromKeyInfo` - a function that returns the certificate from the KeyInfo node
 
 #### API
 
@@ -224,7 +237,7 @@ To sign xml documents:
 To verify xml documents:
 
 - `loadSignature(signatureXml)` - loads the signature where:
-  - `signatureXml` - a string or node object (like an [xml-dom](https://github.com/jindw/xmldom) node) containing the xml representation of the signature
+  - `signatureXml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the signature
 - `checkSignature(xml)` - validates the given xml document and returns true if the validation was successful, `sig.validationErrors` will have the validation errors if any, where:
   - `xml` - a string containing a xml document
 
@@ -325,19 +338,22 @@ Now do the signing. Note how we configure the signature to use the above algorit
 
 ```javascript
 function signXml(xml, xpath, key, dest) {
-  var sig = new SignedXml();
+  var options = {
+    publicCert: fs.readFileSync("my_public_cert.pem", "latin1"),
+    privateKey: fs.readFileSync(key),
+    /*configure the signature object to use the custom algorithms*/
+    signatureAlgorithm: "http://mySignatureAlgorithm",
+    canonicalizationAlgorithm: "http://MyCanonicalization",
+  };
 
-  /*configure the signature object to use the custom algorithms*/
-  sig.signatureAlgorithm = "http://mySignatureAlgorithm";
-  sig.publicCert = fs.readFileSync("my_public_cert.pem", "latin1");
-  sig.canonicalizationAlgorithm = "http://MyCanonicalization";
+  var sig = new SignedXml(options);
+
   sig.addReference(
     "//*[local-name(.)='x']",
     ["http://MyTransformation"],
     "http://myDigestAlgorithm"
   );
 
-  sig.privateKey = fs.readFileSync(key);
   sig.addReference(xpath);
   sig.computeSignature(xml);
   fs.writeFileSync(dest, sig.getSignedXml());
@@ -353,7 +369,7 @@ You can always look at the actual code as a sample.
 
 ## Asynchronous signing and verification
 
-If the private key is not stored locally and you wish to use a signing server or Hardware Security Module (HSM) to sign documents you can create a custom signing algorithm that uses an asynchronous callback.
+If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, you can create a custom signing algorithm that uses an asynchronous callback.
 
 ```javascript
 function AsyncSignatureAlgorithm() {
@@ -369,9 +385,8 @@ function AsyncSignatureAlgorithm() {
   };
 }
 
-SignedXml.SignatureAlgorithms["http://asyncSignatureAlgorithm"] = AsyncSignatureAlgorithm;
-var sig = new SignedXml();
-sig.signatureAlgorithm = "http://asyncSignatureAlgorithm";
+var sig = new SignedXml({ signatureAlgorithm: "http://asyncSignatureAlgorithm" });
+sig.SignatureAlgorithms["http://asyncSignatureAlgorithm"] = AsyncSignatureAlgorithm;
 sig.computeSignature(xml, opts, function (err) {
   var signedResponse = sig.getSignedXml();
 });
@@ -421,9 +436,8 @@ var SignedXml = require("xml-crypto").SignedXml,
 
 var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
-var sig = new SignedXml();
+var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
 sig.addReference("//*[local-name(.)='book']");
-sig.privateKey = fs.readFileSync("client.pem");
 sig.computeSignature(xml, {
   prefix: "ds",
 });
@@ -445,9 +459,8 @@ var SignedXml = require("xml-crypto").SignedXml,
 
 var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
-var sig = new SignedXml();
+var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
 sig.addReference("//*[local-name(.)='book']");
-sig.privateKey = fs.readFileSync("client.pem");
 sig.computeSignature(xml, {
   location: { reference: "//*[local-name(.)='book']", action: "after" }, //This will place the signature after the book element
 });
@@ -457,7 +470,9 @@ sig.computeSignature(xml, {
 
 ## Development
 
-The test framework is [nodeunit](https://github.com/caolan/nodeunit). To run tests use:
+The testing framework we use is [Mocha](https://github.com/mochajs/mocha) with [Chai](https://github.com/chaijs/chai) as the assertion framework.
+
+To run tests use:
 
 ```shell
 npm test
