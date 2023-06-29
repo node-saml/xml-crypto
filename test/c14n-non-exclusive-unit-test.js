@@ -97,6 +97,22 @@ describe("C14N non-exclusive canonicalization tests", function () {
     test_findAncestorNs(xml, xpath, expected);
   });
 
+  it("findAncestorNs: Should find namespace without prefix", function () {
+    const xml = "<root xmlns='bbb'><child1><ds:child2 xmlns:ds='ddd'><ds:child3></ds:child3></ds:child2></child1></root>";
+    const xpath = "//*[local-name()='child2']";
+    const expected = [{ prefix: "", namespaceURI: "bbb" }];
+
+    test_findAncestorNs(xml, xpath, expected);
+  });
+
+  it("findAncestorNs: Should not find namespace when both has no prefix", function () {
+    const xml = "<root xmlns='bbb'><child1><child2 xmlns='ddd'></child2></child1></root>";
+    const xpath = "//*[local-name()='child2']";
+    const expected = [];
+
+    test_findAncestorNs(xml, xpath, expected);
+  });
+
   // Tests for c14nCanonicalization
   it("C14n: Correctly picks up root ancestor namespace", function () {
     const xml = "<root xmlns:aaa='bbb'><child1><child2></child2></child1></root>";
@@ -178,6 +194,16 @@ describe("C14N non-exclusive canonicalization tests", function () {
     const xpath = "/root/child1";
     const expected =
       '<child1 xmlns:aaa="bbb"><child2><child3 aaa:foo="bar"></child3></child2></child1>';
+
+    test_C14nCanonicalization(xml, xpath, expected);
+  });
+
+  it("C14n: should not has colon when parent namespace has no prefix", function () {
+    const xml =
+      "<root xmlns='bbb'><child1><cc:child2 xmlns:cc='ddd'><cc:child3></cc:child3></cc:child2></child1></root>";
+    const xpath = "//*[local-name()='child3']";
+    const expected =
+      '<cc:child3 xmlns="bbb" xmlns:cc="ddd"></cc:child3>';
 
     test_C14nCanonicalization(xml, xpath, expected);
   });
