@@ -98,7 +98,8 @@ describe("C14N non-exclusive canonicalization tests", function () {
   });
 
   it("findAncestorNs: Should find namespace without prefix", function () {
-    const xml = "<root xmlns='bbb'><child1><ds:child2 xmlns:ds='ddd'><ds:child3></ds:child3></ds:child2></child1></root>";
+    const xml =
+      "<root xmlns='bbb'><child1><ds:child2 xmlns:ds='ddd'><ds:child3></ds:child3></ds:child2></child1></root>";
     const xpath = "//*[local-name()='child2']";
     const expected = [{ prefix: "", namespaceURI: "bbb" }];
 
@@ -202,8 +203,7 @@ describe("C14N non-exclusive canonicalization tests", function () {
     const xml =
       "<root xmlns='bbb'><child1><cc:child2 xmlns:cc='ddd'><cc:child3></cc:child3></cc:child2></child1></root>";
     const xpath = "//*[local-name()='child3']";
-    const expected =
-      '<cc:child3 xmlns="bbb" xmlns:cc="ddd"></cc:child3>';
+    const expected = '<cc:child3 xmlns="bbb" xmlns:cc="ddd"></cc:child3>';
 
     test_C14nCanonicalization(xml, xpath, expected);
   });
