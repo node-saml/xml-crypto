@@ -1,57 +1,239 @@
-var select = require("xpath").select,
-  dom = require("@xmldom/xmldom").DOMParser,
-  SignedXml = require("../lib/signed-xml.js").SignedXml,
-  FileKeyInfo = require("../lib/signed-xml.js").FileKeyInfo,
-  fs = require("fs"),
-  crypto = require("crypto");
+const select = require("xpath").select;
+const dom = require("@xmldom/xmldom").DOMParser;
+const SignedXml = require("../lib/signed-xml.js").SignedXml;
+const fs = require("fs");
+const crypto = require("crypto");
+const expect = require("chai").expect;
 
-module.exports = {
-  "signer adds increasing id attributes to elements": function (test) {
-    verifyAddsId(test, "wssecurity", "equal");
-    verifyAddsId(test, null, "different");
-    test.done();
-  },
+describe("Signature unit tests", function () {
+  function verifySignature(xml, mode) {
+    const doc = new dom().parseFromString(xml);
+    const node = select(
+      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc
+    )[0];
 
-  "signer adds references with namespaces": function (test) {
-    verifyReferenceNS(test);
-    test.done();
-  },
+    const sig = new SignedXml({ idMode: mode });
+    sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    sig.loadSignature(node);
+    try {
+      const res = sig.checkSignature(xml);
 
-  "signer does not duplicate existing id attributes": function (test) {
-    verifyDoesNotDuplicateIdAttributes(test, null, "");
-    verifyDoesNotDuplicateIdAttributes(test, "wssecurity", "wsu:");
+      return res;
+    } catch (e) {
+      return false;
+    }
+  }
 
-    test.done();
-  },
+  function passValidSignature(file, mode) {
+    const xml = fs.readFileSync(file).toString();
+    const res = verifySignature(xml, mode);
+    expect(res, "expected signature to be valid, but it was reported invalid").to.equal(true);
+  }
 
-  "signer adds custom attributes to the signature root node": function (test) {
-    verifyAddsAttrs(test);
-    test.done();
-  },
+  function passLoadSignature(file, toString) {
+    const xml = fs.readFileSync(file).toString();
+    const doc = new dom().parseFromString(xml);
+    const node = select(
+      "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc
+    )[0];
+    const sig = new SignedXml();
+    sig.loadSignature(toString ? node.toString() : node);
 
-  "signer appends signature to the root node by default": function (test) {
-    var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
-    var sig = new SignedXml();
+    expect(sig.canonicalizationAlgorithm, "wrong canonicalization method").to.equal(
+      "http://www.w3.org/2001/10/xml-exc-c14n#"
+    );
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    expect(sig.signatureAlgorithm, "wrong signature method").to.equal(
+      "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
+    );
+
+    expect(sig.signatureValue, "wrong signature value").to.equal(
+      "PI2xGt3XrVcxYZ34Kw7nFdq75c7Mmo7J0q7yeDhBprHuJal/KV9KyKG+Zy3bmQIxNwkPh0KMP5r1YMTKlyifwbWK0JitRCSa0Fa6z6+TgJi193yiR5S1MQ+esoQT0RzyIOBl9/GuJmXx/1rXnqrTxmL7UxtqKuM29/eHwF0QDUI="
+    );
+
+    const keyInfo = select(
+      "//*[local-name(.)='KeyInfo']/*[local-name(.)='dummyKey']",
+      sig.keyInfo[0]
+    )[0];
+    expect(keyInfo.firstChild.data, "keyInfo clause not correctly loaded").to.equal("1234");
+
+    expect(sig.references.length).to.equal(3);
+
+    const digests = [
+      "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
+      "K4dI497ZCxzweDIrbndUSmtoezY=",
+      "sH1gxKve8wlU8LlFVa2l6w3HMJ0=",
+    ];
+
+    for (let i = 0; i < sig.references.length; i++) {
+      const ref = sig.references[i];
+      const expectedUri = "#_" + i;
+      expect(
+        ref.uri,
+        "wrong uri for index " + i + ". expected: " + expectedUri + " actual: " + ref.uri
+      ).to.equal(expectedUri);
+      expect(ref.transforms.length).to.equal(1);
+      expect(ref.transforms[0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
+      expect(ref.digestValue).to.equal(digests[i]);
+      expect(ref.digestAlgorithm).to.equal("http://www.w3.org/2000/09/xmldsig#sha1");
+    }
+  }
+
+  function failInvalidSignature(file, mode) {
+    const xml = fs.readFileSync(file).toString();
+    const res = verifySignature(xml, mode);
+    expect(res, "expected signature to be invalid, but it was reported valid").to.equal(false);
+  }
+
+  function verifyDoesNotDuplicateIdAttributes(mode, prefix) {
+    const xml =
+      "<x xmlns:wsu='http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd' " +
+      prefix +
+      "Id='_1'></x>";
+    const sig = new SignedXml({ idMode: mode });
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference("//*[local-name(.)='x']");
+    sig.computeSignature(xml);
+    const signedXml = sig.getOriginalXmlWithIds();
+    const doc = new dom().parseFromString(signedXml);
+    const attrs = select("//@*", doc);
+    expect(attrs.length, "wrong number of attributes").to.equal(2);
+  }
+
+  function nodeExists(doc, xpath) {
+    if (!doc && !xpath) {
+      return;
+    }
+    const node = select(xpath, doc);
+    expect(node.length, "xpath " + xpath + " not found").to.equal(1);
+  }
+
+  function verifyAddsId(mode, nsMode) {
+    const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
+    const sig = new SignedXml({ idMode: mode });
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+
+    sig.addReference("//*[local-name(.)='x']");
+    sig.addReference("//*[local-name(.)='y']");
+    sig.addReference("//*[local-name(.)='w']");
+
+    sig.computeSignature(xml);
+    const signedXml = sig.getOriginalXmlWithIds();
+    const doc = new dom().parseFromString(signedXml);
+
+    const op = nsMode === "equal" ? "=" : "!=";
+
+    const xpath =
+      "//*[local-name(.)='{elem}' and '_{id}' = @*[local-name(.)='Id' and namespace-uri(.)" +
+      op +
+      "'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd']]";
+
+    //verify each of the signed nodes now has an "Id" attribute with the right value
+    nodeExists(doc, xpath.replace("{id}", "0").replace("{elem}", "x"));
+    nodeExists(doc, xpath.replace("{id}", "1").replace("{elem}", "y"));
+    nodeExists(doc, xpath.replace("{id}", "2").replace("{elem}", "w"));
+  }
+
+  function verifyAddsAttrs() {
+    const xml = '<root xmlns="ns"><name>xml-crypto</name><repository>github</repository></root>';
+    const sig = new SignedXml();
+    const attrs = {
+      Id: "signatureTest",
+      data: "dataValue",
+      xmlns: "http://custom-xmlns#",
+    };
+
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+
+    sig.addReference("//*[local-name(.)='name']");
+
+    sig.computeSignature(xml, {
+      attrs: attrs,
+    });
+
+    const signedXml = sig.getSignatureXml();
+    const doc = new dom().parseFromString(signedXml);
+    const signatureNode = doc.documentElement;
+
+    expect(
+      attrs.Id,
+      'Id attribute is not equal to the expected value: "' + attrs.Id + '"'
+    ).to.equal(signatureNode.getAttribute("Id"));
+    expect(
+      attrs.data,
+      'data attribute is not equal to the expected value: "' + attrs.data + '"'
+    ).to.equal(signatureNode.getAttribute("data"));
+    expect(attrs.xmlns, "xmlns attribute can not be overridden").not.to.equal(
+      signatureNode.getAttribute("xmlns")
+    );
+    expect(
+      signatureNode.getAttribute("xmlns"),
+      'xmlns attribute is not equal to the expected value: "http://www.w3.org/2000/09/xmldsig#"'
+    ).to.equal("http://www.w3.org/2000/09/xmldsig#");
+  }
+
+  function verifyReferenceNS() {
+    const xml =
+      '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><name wsu:Id="_1">xml-crypto</name><repository wsu:Id="_2">github</repository></root>';
+    const sig = new SignedXml({ idMode: "wssecurity" });
+
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+
+    sig.addReference("//*[@wsu:Id]");
+
+    sig.computeSignature(xml, {
+      existingPrefixes: {
+        wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
+      },
+    });
+
+    const signedXml = sig.getSignatureXml();
+    const doc = new dom().parseFromString(signedXml);
+    const references = select("//*[local-name(.)='Reference']", doc);
+    expect(references.length).to.equal(2);
+  }
+
+  it("signer adds increasing id attributes to elements", function () {
+    verifyAddsId("wssecurity", "equal");
+    verifyAddsId(null, "different");
+  });
+
+  it("signer adds references with namespaces", function () {
+    verifyReferenceNS();
+  });
+
+  it("signer does not duplicate existing id attributes", function () {
+    verifyDoesNotDuplicateIdAttributes(null, "");
+    verifyDoesNotDuplicateIdAttributes("wssecurity", "wsu:");
+  });
+
+  it("signer adds custom attributes to the signature root node", function () {
+    verifyAddsAttrs();
+  });
+
+  it("signer appends signature to the root node by default", function () {
+    const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
+    const sig = new SignedXml();
+
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='name']");
     sig.computeSignature(xml);
 
-    var doc = new dom().parseFromString(sig.getSignedXml());
+    const doc = new dom().parseFromString(sig.getSignedXml());
 
-    test.strictEqual(
+    expect(
       doc.documentElement.lastChild.localName,
-      "Signature",
       "the signature must be appended to the root node by default"
-    );
-    test.done();
-  },
+    ).to.equal("Signature");
+  });
 
-  "signer appends signature to a reference node": function (test) {
-    var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
-    var sig = new SignedXml();
+  it("signer appends signature to a reference node", function () {
+    const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
+    const sig = new SignedXml();
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='repository']");
 
     sig.computeSignature(xml, {
@@ -61,22 +243,20 @@ module.exports = {
       },
     });
 
-    var doc = new dom().parseFromString(sig.getSignedXml());
-    var referenceNode = select("/root/name", doc)[0];
+    const doc = new dom().parseFromString(sig.getSignedXml());
+    const referenceNode = select("/root/name", doc)[0];
 
-    test.strictEqual(
+    expect(
       referenceNode.lastChild.localName,
-      "Signature",
       "the signature should be appended to root/name"
-    );
-    test.done();
-  },
+    ).to.equal("Signature");
+  });
 
-  "signer prepends signature to a reference node": function (test) {
-    var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
-    var sig = new SignedXml();
+  it("signer prepends signature to a reference node", function () {
+    const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
+    const sig = new SignedXml();
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='repository']");
 
     sig.computeSignature(xml, {
@@ -86,22 +266,20 @@ module.exports = {
       },
     });
 
-    var doc = new dom().parseFromString(sig.getSignedXml());
-    var referenceNode = select("/root/name", doc)[0];
+    const doc = new dom().parseFromString(sig.getSignedXml());
+    const referenceNode = select("/root/name", doc)[0];
 
-    test.strictEqual(
+    expect(
       referenceNode.firstChild.localName,
-      "Signature",
       "the signature should be prepended to root/name"
-    );
-    test.done();
-  },
+    ).to.equal("Signature");
+  });
 
-  "signer inserts signature before a reference node": function (test) {
-    var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
-    var sig = new SignedXml();
+  it("signer inserts signature before a reference node", function () {
+    const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
+    const sig = new SignedXml();
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='repository']");
 
     sig.computeSignature(xml, {
@@ -111,22 +289,20 @@ module.exports = {
       },
     });
 
-    var doc = new dom().parseFromString(sig.getSignedXml());
-    var referenceNode = select("/root/name", doc)[0];
+    const doc = new dom().parseFromString(sig.getSignedXml());
+    const referenceNode = select("/root/name", doc)[0];
 
-    test.strictEqual(
+    expect(
       referenceNode.previousSibling.localName,
-      "Signature",
       "the signature should be inserted before to root/name"
-    );
-    test.done();
-  },
+    ).to.equal("Signature");
+  });
 
-  "signer inserts signature after a reference node": function (test) {
-    var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
-    var sig = new SignedXml();
+  it("signer inserts signature after a reference node", function () {
+    const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
+    const sig = new SignedXml();
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='repository']");
 
     sig.computeSignature(xml, {
@@ -136,24 +312,16 @@ module.exports = {
       },
     });
 
-    var doc = new dom().parseFromString(sig.getSignedXml());
-    var referenceNode = select("/root/name", doc)[0];
+    const doc = new dom().parseFromString(sig.getSignedXml());
+    const referenceNode = select("/root/name", doc)[0];
 
-    test.strictEqual(
+    expect(
       referenceNode.nextSibling.localName,
-      "Signature",
       "the signature should be inserted after to root/name"
-    );
-    test.done();
-  },
+    ).to.equal("Signature");
+  });
 
-  "signer creates signature with correct structure": function (test) {
-    function DummyKeyInfo() {
-      this.getKeyInfo = function () {
-        return "dummy key info";
-      };
-    }
-
+  it("signer creates signature with correct structure", function () {
     function DummyDigest() {
       this.getHash = function () {
         return "dummy digest";
@@ -194,16 +362,18 @@ module.exports = {
       };
     }
 
-    var xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
-    var sig = new SignedXml();
+    const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
+    const sig = new SignedXml();
 
-    SignedXml.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
-    SignedXml.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
-    SignedXml.HashAlgorithms["http://dummyDigest"] = DummyDigest;
-    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
+    sig.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
+    sig.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
+    sig.HashAlgorithms["http://dummyDigest"] = DummyDigest;
+    sig.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
 
     sig.signatureAlgorithm = "http://dummySignatureAlgorithm";
-    sig.keyInfoProvider = new DummyKeyInfo();
+    sig.getKeyInfoContent = function () {
+      return "dummy key info";
+    };
     sig.canonicalizationAlgorithm = "http://DummyCanonicalization";
 
     sig.addReference(
@@ -223,8 +393,8 @@ module.exports = {
     );
 
     sig.computeSignature(xml);
-    var signature = sig.getSignatureXml();
-    var expected =
+    const signature = sig.getSignatureXml();
+    const expected =
       '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">' +
       "<SignedInfo>" +
       '<CanonicalizationMethod Algorithm="dummy canonicalization"/>' +
@@ -257,10 +427,10 @@ module.exports = {
       "</KeyInfo>" +
       "</Signature>";
 
-    test.equal(expected, signature, "wrong signature format");
+    expect(expected, "wrong signature format").to.equal(signature);
 
-    var signedXml = sig.getSignedXml();
-    var expectedSignedXml =
+    const signedXml = sig.getSignedXml();
+    const expectedSignedXml =
       '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z>' +
       '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">' +
       "<SignedInfo>" +
@@ -295,24 +465,16 @@ module.exports = {
       "</Signature>" +
       "</root>";
 
-    test.equal(expectedSignedXml, signedXml, "wrong signedXml format");
+    expect(expectedSignedXml, "wrong signedXml format").to.equal(signedXml);
 
-    var originalXmlWithIds = sig.getOriginalXmlWithIds();
-    var expectedOriginalXmlWithIds =
+    const originalXmlWithIds = sig.getOriginalXmlWithIds();
+    const expectedOriginalXmlWithIds =
       '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z></root>';
-    test.equal(expectedOriginalXmlWithIds, originalXmlWithIds, "wrong OriginalXmlWithIds");
+    expect(expectedOriginalXmlWithIds, "wrong OriginalXmlWithIds").to.equal(originalXmlWithIds);
+  });
 
-    test.done();
-  },
-
-  "signer creates signature with correct structure (with prefix)": function (test) {
-    var prefix = "ds";
-
-    function DummyKeyInfo() {
-      this.getKeyInfo = function () {
-        return "<ds:dummy>dummy key info</ds:dummy>";
-      };
-    }
+  it("signer creates signature with correct structure (with prefix)", function () {
+    const prefix = "ds";
 
     function DummyDigest() {
       this.getHash = function () {
@@ -354,16 +516,18 @@ module.exports = {
       };
     }
 
-    var xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
-    var sig = new SignedXml();
+    const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
+    const sig = new SignedXml();
 
-    SignedXml.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
-    SignedXml.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
-    SignedXml.HashAlgorithms["http://dummyDigest"] = DummyDigest;
-    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
+    sig.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
+    sig.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
+    sig.HashAlgorithms["http://dummyDigest"] = DummyDigest;
+    sig.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
 
     sig.signatureAlgorithm = "http://dummySignatureAlgorithm";
-    sig.keyInfoProvider = new DummyKeyInfo();
+    sig.getKeyInfoContent = function () {
+      return "<ds:dummy>dummy key info</ds:dummy>";
+    };
     sig.canonicalizationAlgorithm = "http://DummyCanonicalization";
 
     sig.addReference(
@@ -383,9 +547,9 @@ module.exports = {
     );
 
     sig.computeSignature(xml, { prefix: prefix });
-    var signature = sig.getSignatureXml();
+    const signature = sig.getSignatureXml();
 
-    var expected =
+    const expected =
       '<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">' +
       "<ds:SignedInfo>" +
       '<ds:CanonicalizationMethod Algorithm="dummy canonicalization"/>' +
@@ -418,10 +582,10 @@ module.exports = {
       "</ds:KeyInfo>" +
       "</ds:Signature>";
 
-    test.equal(expected, signature, "wrong signature format");
+    expect(expected, "wrong signature format").to.equal(signature);
 
-    var signedXml = sig.getSignedXml();
-    var expectedSignedXml =
+    const signedXml = sig.getSignedXml();
+    const expectedSignedXml =
       '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z>' +
       '<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">' +
       "<ds:SignedInfo>" +
@@ -456,30 +620,28 @@ module.exports = {
       "</ds:Signature>" +
       "</root>";
 
-    test.equal(expectedSignedXml, signedXml, "wrong signedXml format");
+    expect(expectedSignedXml, "wrong signedXml format").to.equal(signedXml);
 
-    var originalXmlWithIds = sig.getOriginalXmlWithIds();
-    var expectedOriginalXmlWithIds =
+    const originalXmlWithIds = sig.getOriginalXmlWithIds();
+    const expectedOriginalXmlWithIds =
       '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z></root>';
-    test.equal(expectedOriginalXmlWithIds, originalXmlWithIds, "wrong OriginalXmlWithIds");
+    expect(expectedOriginalXmlWithIds, "wrong OriginalXmlWithIds").to.equal(originalXmlWithIds);
+  });
 
-    test.done();
-  },
-
-  "signer creates correct signature values": function (test) {
-    var xml =
+  it("signer creates correct signature values", function () {
+    const xml =
       '<root><x xmlns="ns" Id="_0"></x><y attr="value" Id="_1"></y><z><w Id="_2"></w></z></root>';
-    var sig = new SignedXml();
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.keyInfoProvider = null;
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
 
     sig.addReference("//*[local-name(.)='x']");
     sig.addReference("//*[local-name(.)='y']");
     sig.addReference("//*[local-name(.)='w']");
 
     sig.computeSignature(xml);
-    var signedXml = sig.getSignedXml();
-    var expected =
+    const signedXml = sig.getSignedXml();
+    const expected =
       '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z>' +
       '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">' +
       "<SignedInfo>" +
@@ -510,17 +672,15 @@ module.exports = {
       "</Signature>" +
       "</root>";
 
-    test.equal(expected, signedXml, "wrong signature format");
+    expect(expected, "wrong signature format").to.equal(signedXml);
+  });
 
-    test.done();
-  },
-
-  "signer creates correct signature values using async callback": function (test) {
+  it("signer creates correct signature values using async callback", function () {
     function DummySignatureAlgorithm() {
-      this.getSignature = function (signedInfo, signingKey, callback) {
-        var signer = crypto.createSign("RSA-SHA1");
+      this.getSignature = function (signedInfo, privateKey, callback) {
+        const signer = crypto.createSign("RSA-SHA1");
         signer.update(signedInfo);
-        var res = signer.sign(signingKey, "base64");
+        const res = signer.sign(privateKey, "base64");
         //Do some asynchronous things here
         callback(null, res);
       };
@@ -529,21 +689,21 @@ module.exports = {
       };
     }
 
-    var xml =
+    const xml =
       '<root><x xmlns="ns" Id="_0"></x><y attr="value" Id="_1"></y><z><w Id="_2"></w></z></root>';
-    SignedXml.SignatureAlgorithms["http://dummySignatureAlgorithmAsync"] = DummySignatureAlgorithm;
-    var sig = new SignedXml();
+    const sig = new SignedXml();
+    sig.SignatureAlgorithms["http://dummySignatureAlgorithmAsync"] = DummySignatureAlgorithm;
     sig.signatureAlgorithm = "http://dummySignatureAlgorithmAsync";
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.keyInfoProvider = null;
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
 
     sig.addReference("//*[local-name(.)='x']");
     sig.addReference("//*[local-name(.)='y']");
     sig.addReference("//*[local-name(.)='w']");
 
     sig.computeSignature(xml, function () {
-      var signedXml = sig.getSignedXml();
-      var expected =
+      const signedXml = sig.getSignedXml();
+      const expected =
         '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z>' +
         '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">' +
         "<SignedInfo>" +
@@ -574,59 +734,51 @@ module.exports = {
         "</Signature>" +
         "</root>";
 
-      test.equal(expected, signedXml, "wrong signature format");
-      test.done();
+      expect(expected, "wrong signature format").to.equal(signedXml);
     });
-  },
+  });
 
-  "correctly loads signature": function (test) {
-    passLoadSignature(test, "./test/static/valid_signature.xml");
-    passLoadSignature(test, "./test/static/valid_signature.xml", true);
-    passLoadSignature(test, "./test/static/valid_signature_with_root_level_sig_namespace.xml");
-    test.done();
-  },
+  it("correctly loads signature", function () {
+    passLoadSignature("./test/static/valid_signature.xml");
+    passLoadSignature("./test/static/valid_signature.xml", true);
+    passLoadSignature("./test/static/valid_signature_with_root_level_sig_namespace.xml");
+  });
 
-  "verify valid signature": function (test) {
-    passValidSignature(test, "./test/static/valid_signature.xml");
-    passValidSignature(test, "./test/static/valid_signature_with_lowercase_id_attribute.xml");
-    passValidSignature(test, "./test/static/valid_signature wsu.xml", "wssecurity");
-    passValidSignature(test, "./test/static/valid_signature_with_reference_keyInfo.xml");
-    passValidSignature(test, "./test/static/valid_signature_with_whitespace_in_digestvalue.xml");
-    passValidSignature(test, "./test/static/valid_signature_utf8.xml");
-    passValidSignature(test, "./test/static/valid_signature_with_unused_prefixes.xml");
-    test.done();
-  },
+  it("verify valid signature", function () {
+    passValidSignature("./test/static/valid_signature.xml");
+    passValidSignature("./test/static/valid_signature_with_lowercase_id_attribute.xml");
+    passValidSignature("./test/static/valid_signature wsu.xml", "wssecurity");
+    passValidSignature("./test/static/valid_signature_with_reference_keyInfo.xml");
+    passValidSignature("./test/static/valid_signature_with_whitespace_in_digestvalue.xml");
+    passValidSignature("./test/static/valid_signature_utf8.xml");
+    passValidSignature("./test/static/valid_signature_with_unused_prefixes.xml");
+  });
 
-  "fail invalid signature": function (test) {
-    failInvalidSignature(test, "./test/static/invalid_signature - signature value.xml");
-    failInvalidSignature(test, "./test/static/invalid_signature - hash.xml");
-    failInvalidSignature(test, "./test/static/invalid_signature - non existing reference.xml");
-    failInvalidSignature(test, "./test/static/invalid_signature - changed content.xml");
+  it("fail invalid signature", function () {
+    failInvalidSignature("./test/static/invalid_signature - signature value.xml");
+    failInvalidSignature("./test/static/invalid_signature - hash.xml");
+    failInvalidSignature("./test/static/invalid_signature - non existing reference.xml");
+    failInvalidSignature("./test/static/invalid_signature - changed content.xml");
     failInvalidSignature(
-      test,
       "./test/static/invalid_signature - wsu - invalid signature value.xml",
       "wssecurity"
     );
-    failInvalidSignature(test, "./test/static/invalid_signature - wsu - hash.xml", "wssecurity");
+    failInvalidSignature("./test/static/invalid_signature - wsu - hash.xml", "wssecurity");
     failInvalidSignature(
-      test,
       "./test/static/invalid_signature - wsu - non existing reference.xml",
       "wssecurity"
     );
     failInvalidSignature(
-      test,
       "./test/static/invalid_signature - wsu - changed content.xml",
       "wssecurity"
     );
+  });
 
-    test.done();
-  },
-
-  "allow empty reference uri when signing": function (test) {
-    var xml = "<root><x /></root>";
-    var sig = new SignedXml();
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.keyInfoProvider = null;
+  it("allow empty reference uri when signing", function () {
+    const xml = "<root><x /></root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
 
     sig.addReference(
       "//*[local-name(.)='root']",
@@ -639,18 +791,17 @@ module.exports = {
     );
 
     sig.computeSignature(xml);
-    var signedXml = sig.getSignedXml();
-    var doc = new dom().parseFromString(signedXml);
-    var URI = select("//*[local-name(.)='Reference']/@URI", doc)[0];
-    test.equal(URI.value, "", "uri should be empty but instead was " + URI.value);
-    test.done();
-  },
+    const signedXml = sig.getSignedXml();
+    const doc = new dom().parseFromString(signedXml);
+    const URI = select("//*[local-name(.)='Reference']/@URI", doc)[0];
+    expect(URI.value, "uri should be empty but instead was " + URI.value).to.equal("");
+  });
 
-  "signer appends signature to a non-existing reference node": function (test) {
-    var xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
-    var sig = new SignedXml();
+  it("signer appends signature to a non-existing reference node", function () {
+    const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
+    const sig = new SignedXml();
 
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference("//*[local-name(.)='repository']");
 
     try {
@@ -660,28 +811,25 @@ module.exports = {
           action: "append",
         },
       });
-      test.ok(false);
+      expect.fail("Expected an error to be thrown");
     } catch (err) {
-      test.ok(!(err instanceof TypeError));
+      expect(err).not.to.be.an.instanceof(TypeError);
     }
-    test.done();
-  },
+  });
 
-  "signer adds existing prefixes": function (test) {
-    function AssertionKeyInfo(assertionId) {
-      this.getKeyInfo = function () {
-        return (
-          '<wsse:SecurityTokenReference wsse11:TokenType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.1#SAMLV1.1" wsu:Id="0" ' +
-          'xmlns:wsse11="http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd"> ' +
-          '<wsse:KeyIdentifier ValueType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.0#SAMLAssertionID">' +
-          assertionId +
-          "</wsse:KeyIdentifier>" +
-          "</wsse:SecurityTokenReference>"
-        );
-      };
+  it("signer adds existing prefixes", function () {
+    function getKeyInfoContentWithAssertionId({ assertionId }) {
+      return (
+        '<wsse:SecurityTokenReference wsse11:TokenType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.1#SAMLV1.1" wsu:Id="0" ' +
+        'xmlns:wsse11="http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd"> ' +
+        '<wsse:KeyIdentifier ValueType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.0#SAMLAssertionID">' +
+        assertionId +
+        "</wsse:KeyIdentifier>" +
+        "</wsse:SecurityTokenReference>"
+      );
     }
 
-    var xml =
+    const xml =
       '<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"> ' +
       "<SOAP-ENV:Header> " +
       "<wsse:Security " +
@@ -692,9 +840,10 @@ module.exports = {
       "</SOAP-ENV:Header> " +
       "</SOAP-ENV:Envelope>";
 
-    var sig = new SignedXml();
-    sig.keyInfoProvider = new AssertionKeyInfo("_81d5fba5c807be9e9cf60c58566349b1");
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    const sig = new SignedXml();
+    const assertionId = "_81d5fba5c807be9e9cf60c58566349b1";
+    sig.getKeyInfoContent = getKeyInfoContentWithAssertionId.bind(this, { assertionId });
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.computeSignature(xml, {
       prefix: "ds",
       location: {
@@ -706,376 +855,190 @@ module.exports = {
         wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
       },
     });
-    var result = sig.getSignedXml();
-    test.equal((result.match(/xmlns:wsu=/g) || []).length, 1);
-    test.equal((result.match(/xmlns:wsse=/g) || []).length, 1);
-    test.done();
-  },
+    const result = sig.getSignedXml();
+    expect((result.match(/xmlns:wsu=/g) || []).length).to.equal(1);
+    expect((result.match(/xmlns:wsse=/g) || []).length).to.equal(1);
+    expect(result.includes(assertionId)).to.be.true;
+  });
 
-  "creates InclusiveNamespaces element when inclusiveNamespacesPrefixList is set on Reference":
-    function (test) {
-      var xml = "<root><x /></root>";
-      var sig = new SignedXml();
-      sig.signingKey = fs.readFileSync("./test/static/client.pem");
-      sig.keyInfoProvider = null;
+  it("creates InclusiveNamespaces element when inclusiveNamespacesPrefixList is set on Reference", function () {
+    const xml = "<root><x /></root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
 
-      sig.addReference(
-        "//*[local-name(.)='root']",
-        ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
-        "http://www.w3.org/2000/09/xmldsig#sha1",
-        "",
-        "",
-        "prefix1 prefix2"
-      );
-
-      sig.computeSignature(xml);
-      var signedXml = sig.getSignedXml();
-
-      var doc = new dom().parseFromString(signedXml);
-      var inclusiveNamespaces = select(
-        "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
-        doc.documentElement
-      );
-      test.equal(inclusiveNamespaces.length, 1, "InclusiveNamespaces element should exist");
-
-      var prefixListAttribute = inclusiveNamespaces[0].getAttribute("PrefixList");
-      test.equal(
-        prefixListAttribute,
-        "prefix1 prefix2",
-        "InclusiveNamespaces element should have the correct PrefixList attribute value"
-      );
-
-      test.done();
-    },
-
-  "does not create InclusiveNamespaces element when inclusiveNamespacesPrefixList is not set on Reference":
-    function (test) {
-      var xml = "<root><x /></root>";
-      var sig = new SignedXml();
-      sig.signingKey = fs.readFileSync("./test/static/client.pem");
-      sig.keyInfoProvider = null;
-
-      sig.addReference(
-        "//*[local-name(.)='root']",
-        ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
-        "http://www.w3.org/2000/09/xmldsig#sha1",
-        "",
-        "",
-        ""
-      );
-
-      sig.computeSignature(xml);
-      var signedXml = sig.getSignedXml();
-
-      var doc = new dom().parseFromString(signedXml);
-      var inclusiveNamespaces = select(
-        "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
-        doc.documentElement
-      );
-      test.equal(inclusiveNamespaces.length, 0, "InclusiveNamespaces element should not exist");
-
-      test.done();
-    },
-
-  "creates InclusiveNamespaces element inside CanonicalizationMethod when inclusiveNamespacesPrefixList is set on SignedXml options":
-    function (test) {
-      var xml = "<root><x /></root>";
-      var sig = new SignedXml(null, { inclusiveNamespacesPrefixList: "prefix1 prefix2" });
-      sig.signingKey = fs.readFileSync("./test/static/client.pem");
-      sig.keyInfoProvider = null;
-
-      sig.addReference(
-        "//*[local-name(.)='root']",
-        ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
-        "http://www.w3.org/2000/09/xmldsig#sha1"
-      );
-
-      sig.computeSignature(xml);
-      var signedXml = sig.getSignedXml();
-
-      var doc = new dom().parseFromString(signedXml);
-      var inclusiveNamespaces = select(
-        "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
-        doc.documentElement
-      );
-
-      test.equal(
-        inclusiveNamespaces.length,
-        1,
-        "InclusiveNamespaces element should exist inside CanonicalizationMethod"
-      );
-
-      var prefixListAttribute = inclusiveNamespaces[0].getAttribute("PrefixList");
-      test.equal(
-        prefixListAttribute,
-        "prefix1 prefix2",
-        "InclusiveNamespaces element inside CanonicalizationMethod should have the correct PrefixList attribute value"
-      );
-
-      test.done();
-    },
-
-  "does not create InclusiveNamespaces element inside CanonicalizationMethod when inclusiveNamespacesPrefixList is not set on SignedXml options":
-    function (test) {
-      var xml = "<root><x /></root>";
-      var sig = new SignedXml(null); // Omit inclusiveNamespacesPrefixList property
-      sig.signingKey = fs.readFileSync("./test/static/client.pem");
-      sig.keyInfoProvider = null;
-
-      sig.addReference(
-        "//*[local-name(.)='root']",
-        ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
-        "http://www.w3.org/2000/09/xmldsig#sha1"
-      );
-
-      sig.computeSignature(xml);
-      var signedXml = sig.getSignedXml();
-
-      var doc = new dom().parseFromString(signedXml);
-      var inclusiveNamespaces = select(
-        "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
-        doc.documentElement
-      );
-
-      test.equal(
-        inclusiveNamespaces.length,
-        0,
-        "InclusiveNamespaces element should not exist inside CanonicalizationMethod"
-      );
-
-      test.done();
-    },
-
-  "adds attributes to KeyInfo element when attrs are present in keyInfoProvider": function (test) {
-    var xml = "<root><x /></root>";
-    var sig = new SignedXml();
-    sig.signingKey = fs.readFileSync("./test/static/client.pem");
-    sig.keyInfoProvider = {
-      attrs: {
-        CustomUri: "http://www.example.com/keyinfo",
-        CustomAttribute: "custom-value",
-      },
-      getKeyInfo: function () {
-        return "<dummy/>";
-      },
-    };
+    sig.addReference(
+      "//*[local-name(.)='root']",
+      ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+      "http://www.w3.org/2000/09/xmldsig#sha1",
+      "",
+      "",
+      "prefix1 prefix2"
+    );
 
     sig.computeSignature(xml);
-    var signedXml = sig.getSignedXml();
+    const signedXml = sig.getSignedXml();
 
-    var doc = new dom().parseFromString(signedXml);
-    var keyInfoElement = select("//*[local-name(.)='KeyInfo']", doc.documentElement);
-    test.equal(keyInfoElement.length, 1, "KeyInfo element should exist");
+    const doc = new dom().parseFromString(signedXml);
+    const inclusiveNamespaces = select(
+      "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
+      doc.documentElement
+    );
+    expect(inclusiveNamespaces.length, "InclusiveNamespaces element should exist").to.equal(1);
 
-    var algorithmAttribute = keyInfoElement[0].getAttribute("CustomUri");
-    test.equal(
+    const prefixListAttribute = inclusiveNamespaces[0].getAttribute("PrefixList");
+    expect(
+      prefixListAttribute,
+      "InclusiveNamespaces element should have the correct PrefixList attribute value"
+    ).to.equal("prefix1 prefix2");
+  });
+
+  it("does not create InclusiveNamespaces element when inclusiveNamespacesPrefixList is not set on Reference", function () {
+    const xml = "<root><x /></root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
+
+    sig.addReference(
+      "//*[local-name(.)='root']",
+      ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+      "http://www.w3.org/2000/09/xmldsig#sha1",
+      "",
+      "",
+      ""
+    );
+
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new dom().parseFromString(signedXml);
+    const inclusiveNamespaces = select(
+      "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
+      doc.documentElement
+    );
+
+    expect(inclusiveNamespaces.length, "InclusiveNamespaces element should not exist").to.equal(0);
+  });
+
+  it("creates InclusiveNamespaces element inside CanonicalizationMethod when inclusiveNamespacesPrefixList is set on SignedXml options", function () {
+    const xml = "<root><x /></root>";
+    const sig = new SignedXml({ inclusiveNamespacesPrefixList: "prefix1 prefix2" });
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
+
+    sig.addReference(
+      "//*[local-name(.)='root']",
+      ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+      "http://www.w3.org/2000/09/xmldsig#sha1"
+    );
+
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new dom().parseFromString(signedXml);
+    const inclusiveNamespaces = select(
+      "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
+      doc.documentElement
+    );
+
+    expect(
+      inclusiveNamespaces.length,
+      "InclusiveNamespaces element should exist inside CanonicalizationMethod"
+    ).to.equal(1);
+
+    const prefixListAttribute = inclusiveNamespaces[0].getAttribute("PrefixList");
+    expect(
+      prefixListAttribute,
+      "InclusiveNamespaces element inside CanonicalizationMethod should have the correct PrefixList attribute value"
+    ).to.equal("prefix1 prefix2");
+  });
+
+  it("does not create InclusiveNamespaces element inside CanonicalizationMethod when inclusiveNamespacesPrefixList is not set on SignedXml options", function () {
+    const xml = "<root><x /></root>";
+    const sig = new SignedXml(); // Omit inclusiveNamespacesPrefixList property
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = null;
+
+    sig.addReference(
+      "//*[local-name(.)='root']",
+      ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+      "http://www.w3.org/2000/09/xmldsig#sha1"
+    );
+
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new dom().parseFromString(signedXml);
+    const inclusiveNamespaces = select(
+      "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
+      doc.documentElement
+    );
+
+    expect(
+      inclusiveNamespaces.length,
+      "InclusiveNamespaces element should not exist inside CanonicalizationMethod"
+    ).to.equal(0);
+  });
+
+  it("adds attributes to KeyInfo element when attrs are present in keyInfoProvider", function () {
+    const xml = "<root><x /></root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.keyInfoAttributes = {
+      CustomUri: "http://www.example.com/keyinfo",
+      CustomAttribute: "custom-value",
+    };
+    sig.getKeyInfoContent = () => "<dummy/>";
+
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new dom().parseFromString(signedXml);
+    const keyInfoElement = select("//*[local-name(.)='KeyInfo']", doc.documentElement);
+    expect(keyInfoElement.length, "KeyInfo element should exist").to.equal(1);
+
+    const algorithmAttribute = keyInfoElement[0].getAttribute("CustomUri");
+    expect(
       algorithmAttribute,
-      "http://www.example.com/keyinfo",
       "KeyInfo element should have the correct CustomUri attribute value"
-    );
+    ).to.equal("http://www.example.com/keyinfo");
 
-    var customAttribute = keyInfoElement[0].getAttribute("CustomAttribute");
-    test.equal(
+    const customAttribute = keyInfoElement[0].getAttribute("CustomAttribute");
+    expect(
       customAttribute,
-      "custom-value",
       "KeyInfo element should have the correct CustomAttribute attribute value"
-    );
-
-    test.done();
-  },
-};
-
-function passValidSignature(test, file, mode) {
-  var xml = fs.readFileSync(file).toString();
-  var res = verifySignature(xml, mode);
-  test.equal(true, res, "expected signature to be valid, but it was reported invalid");
-}
-
-function passLoadSignature(test, file, toString) {
-  var xml = fs.readFileSync(file).toString();
-  var doc = new dom().parseFromString(xml);
-  var node = select(
-    "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-    doc
-  )[0];
-  var sig = new SignedXml();
-  sig.loadSignature(toString ? node.toString() : node);
-
-  test.equal(
-    "http://www.w3.org/2001/10/xml-exc-c14n#",
-    sig.canonicalizationAlgorithm,
-    "wrong canonicalization method"
-  );
-
-  test.equal(
-    "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
-    sig.signatureAlgorithm,
-    "wrong signature method"
-  );
-
-  test.equal(
-    "PI2xGt3XrVcxYZ34Kw7nFdq75c7Mmo7J0q7yeDhBprHuJal/KV9KyKG+Zy3bmQIxNwkPh0KMP5r1YMTKlyifwbWK0JitRCSa0Fa6z6+TgJi193yiR5S1MQ+esoQT0RzyIOBl9/GuJmXx/1rXnqrTxmL7UxtqKuM29/eHwF0QDUI=",
-    sig.signatureValue,
-    "wrong signature value"
-  );
-
-  var keyInfo = select(
-    "//*[local-name(.)='KeyInfo']/*[local-name(.)='dummyKey']",
-    sig.keyInfo[0]
-  )[0];
-  test.equal(keyInfo.firstChild.data, "1234", "keyInfo clause not correctly loaded");
-
-  test.equal(3, sig.references.length);
-
-  var digests = [
-    "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
-    "K4dI497ZCxzweDIrbndUSmtoezY=",
-    "sH1gxKve8wlU8LlFVa2l6w3HMJ0=",
-  ];
-
-  for (var i = 0; i < sig.references.length; i++) {
-    var ref = sig.references[i];
-    var expectedUri = "#_" + i;
-    test.equal(
-      expectedUri,
-      ref.uri,
-      "wrong uri for index " + i + ". expected: " + expectedUri + " actual: " + ref.uri
-    );
-    test.equal(1, ref.transforms.length);
-    test.equal("http://www.w3.org/2001/10/xml-exc-c14n#", ref.transforms[0]);
-    test.equal(digests[i], ref.digestValue);
-    test.equal("http://www.w3.org/2000/09/xmldsig#sha1", ref.digestAlgorithm);
-  }
-}
-
-function failInvalidSignature(test, file, mode) {
-  var xml = fs.readFileSync(file).toString();
-  var res = verifySignature(xml, mode);
-  test.equal(false, res, "expected signature to be invalid, but it was reported valid");
-}
-
-function verifySignature(xml, mode) {
-  var doc = new dom().parseFromString(xml);
-  var node = select(
-    "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-    doc
-  )[0];
-
-  var sig = new SignedXml(mode);
-  sig.keyInfoProvider = new FileKeyInfo("./test/static/client_public.pem");
-  sig.loadSignature(node);
-  var res = sig.checkSignature(xml);
-
-  return res;
-}
-
-function verifyDoesNotDuplicateIdAttributes(test, mode, prefix) {
-  var xml =
-    "<x xmlns:wsu='http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd' " +
-    prefix +
-    "Id='_1'></x>";
-  var sig = new SignedXml(mode);
-  sig.signingKey = fs.readFileSync("./test/static/client.pem");
-  sig.addReference("//*[local-name(.)='x']");
-  sig.computeSignature(xml);
-  var signedXml = sig.getOriginalXmlWithIds();
-  var doc = new dom().parseFromString(signedXml);
-  var attrs = select("//@*", doc);
-  test.equals(2, attrs.length, "wrong number of attributes");
-}
-
-function verifyAddsId(test, mode, nsMode) {
-  var xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
-  var sig = new SignedXml(mode);
-  sig.signingKey = fs.readFileSync("./test/static/client.pem");
-
-  sig.addReference("//*[local-name(.)='x']");
-  sig.addReference("//*[local-name(.)='y']");
-  sig.addReference("//*[local-name(.)='w']");
-
-  sig.computeSignature(xml);
-  var signedXml = sig.getOriginalXmlWithIds();
-  var doc = new dom().parseFromString(signedXml);
-
-  var op = nsMode == "equal" ? "=" : "!=";
-
-  var xpath =
-    "//*[local-name(.)='{elem}' and '_{id}' = @*[local-name(.)='Id' and namespace-uri(.)" +
-    op +
-    "'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd']]";
-
-  //verify each of the signed nodes now has an "Id" attribute with the right value
-  nodeExists(test, doc, xpath.replace("{id}", "0").replace("{elem}", "x"));
-  nodeExists(test, doc, xpath.replace("{id}", "1").replace("{elem}", "y"));
-  nodeExists(test, doc, xpath.replace("{id}", "2").replace("{elem}", "w"));
-}
-
-function verifyAddsAttrs(test) {
-  var xml = '<root xmlns="ns"><name>xml-crypto</name><repository>github</repository></root>';
-  var sig = new SignedXml();
-  var attrs = {
-    Id: "signatureTest",
-    data: "dataValue",
-    xmlns: "http://custom-xmlns#",
-  };
-
-  sig.signingKey = fs.readFileSync("./test/static/client.pem");
-
-  sig.addReference("//*[local-name(.)='name']");
-
-  sig.computeSignature(xml, {
-    attrs: attrs,
+    ).to.equal("custom-value");
   });
 
-  var signedXml = sig.getSignatureXml();
-  var doc = new dom().parseFromString(signedXml);
-  var signatureNode = doc.documentElement;
+  it("adds all certificates and does not add private keys to KeyInfo element", function () {
+    const xml = "<root><x /></root>";
+    const sig = new SignedXml();
+    const pemBuffer = fs.readFileSync("./test/static/client_bundle.pem");
+    sig.privateKey = pemBuffer;
+    sig.publicCert = pemBuffer;
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
 
-  test.strictEqual(
-    signatureNode.getAttribute("Id"),
-    attrs.Id,
-    'Id attribute is not equal to the expected value: "' + attrs.Id + '"'
-  );
-  test.strictEqual(
-    signatureNode.getAttribute("data"),
-    attrs.data,
-    'data attribute is not equal to the expected value: "' + attrs.data + '"'
-  );
-  test.notStrictEqual(
-    signatureNode.getAttribute("xmlns"),
-    attrs.xmlns,
-    "xmlns attribute can not be overridden"
-  );
-  test.strictEqual(
-    signatureNode.getAttribute("xmlns"),
-    "http://www.w3.org/2000/09/xmldsig#",
-    'xmlns attribute is not equal to the expected value: "http://www.w3.org/2000/09/xmldsig#"'
-  );
-}
+    const doc = new dom().parseFromString(signedXml);
 
-function verifyReferenceNS(test) {
-  var xml =
-    '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><name wsu:Id="_1">xml-crypto</name><repository wsu:Id="_2">github</repository></root>';
-  var sig = new SignedXml("wssecurity");
+    const x509certificates = select("//*[local-name(.)='X509Certificate']", doc.documentElement);
+    expect(x509certificates.length, "There should be exactly two certificates").to.equal(2);
 
-  sig.signingKey = fs.readFileSync("./test/static/client.pem");
+    const cert1 = x509certificates[0];
+    const cert2 = x509certificates[1];
+    expect(cert1.textContent, "X509Certificate[0] TextContent does not exist").to.exist;
+    expect(cert2.textContent, "X509Certificate[1] TextContent does not exist").to.exist;
 
-  sig.addReference("//*[@wsu:Id]");
+    const trimmedTextContent1 = cert1.textContent.trim();
+    const trimmedTextContent2 = cert2.textContent.trim();
+    expect(trimmedTextContent1, "Empty certificate added [0]").to.not.be.empty;
+    expect(trimmedTextContent2, "Empty certificate added [1]").to.not.be.empty;
 
-  sig.computeSignature(xml, {
-    existingPrefixes: {
-      wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
-    },
+    expect(trimmedTextContent1.substring(0, 5), "Incorrect value for X509Certificate[0]").to.equal(
+      "MIIDC"
+    );
+    expect(trimmedTextContent2.substring(0, 5), "Incorrect value for X509Certificate[1]").to.equal(
+      "MIIDZ"
+    );
   });
-
-  var signedXml = sig.getSignatureXml();
-  var doc = new dom().parseFromString(signedXml);
-  var references = select("//*[local-name(.)='Reference']", doc);
-  test.equal(references.length, 2);
-}
-
-function nodeExists(test, doc, xpath) {
-  if (!doc && !xpath) return;
-  var node = select(xpath, doc);
-  test.ok(node.length == 1, "xpath " + xpath + " not found");
-}
+});

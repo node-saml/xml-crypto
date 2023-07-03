@@ -5,3 +5,5 @@ package-lock.json
 .prettierignore
 test/static/*
 test/validators/*
+.nyc_output/*
+coverage/*

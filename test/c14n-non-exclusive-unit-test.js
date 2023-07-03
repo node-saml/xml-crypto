@@ -1,199 +1,210 @@
-var C14nCanonicalization = require("../lib/c14n-canonicalization").C14nCanonicalization,
-  Dom = require("@xmldom/xmldom").DOMParser,
-  select = require("xpath").select,
-  findAncestorNs = require("../lib/signed-xml").SignedXml.findAncestorNs;
+const expect = require("chai").expect;
 
-var test_C14nCanonicalization = function (test, xml, xpath, expected) {
-  var doc = new Dom().parseFromString(xml);
-  var elem = select(xpath, doc)[0];
-  var can = new C14nCanonicalization();
-  var result = can
+const C14nCanonicalization = require("../lib/c14n-canonicalization").C14nCanonicalization;
+const Dom = require("@xmldom/xmldom").DOMParser;
+const select = require("xpath").select;
+const utils = require("../lib/utils");
+
+const test_C14nCanonicalization = function (xml, xpath, expected) {
+  const doc = new Dom().parseFromString(xml);
+  const elem = select(xpath, doc)[0];
+  const can = new C14nCanonicalization();
+  const result = can
     .process(elem, {
-      ancestorNamespaces: findAncestorNs(doc, xpath),
+      ancestorNamespaces: utils.findAncestorNs(doc, xpath),
     })
     .toString();
 
-  test.equal(result, expected);
-  test.done();
+  expect(result).to.equal(expected);
 };
 
-var test_findAncestorNs = function (test, xml, xpath, expected) {
-  var doc = new Dom().parseFromString(xml);
-  var result = findAncestorNs(doc, xpath);
-  test.deepEqual(result, expected);
+const test_findAncestorNs = function (xml, xpath, expected) {
+  const doc = new Dom().parseFromString(xml);
+  const result = utils.findAncestorNs(doc, xpath);
 
-  test.done();
+  expect(result).to.deep.equal(expected);
 };
 
-// Tests for findAncestorNs
-exports["findAncestorNs: Correctly picks up root ancestor namespace"] = function (test) {
-  var xml = "<root xmlns:aaa='bbb'><child1><child2></child2></child1></root>";
-  var xpath = "/root/child1/child2";
-  var expected = [{ prefix: "aaa", namespaceURI: "bbb" }];
+describe("C14N non-exclusive canonicalization tests", function () {
+  it("findAncestorNs: Correctly picks up root ancestor namespace", function () {
+    const xml = "<root xmlns:aaa='bbb'><child1><child2></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = [{ prefix: "aaa", namespaceURI: "bbb" }];
 
-  test_findAncestorNs(test, xml, xpath, expected);
-};
+    test_findAncestorNs(xml, xpath, expected);
+  });
 
-exports["findAncestorNs: Correctly picks up intermediate ancestor namespace"] = function (test) {
-  var xml = "<root><child1 xmlns:aaa='bbb'><child2></child2></child1></root>";
-  var xpath = "/root/child1/child2";
-  var expected = [{ prefix: "aaa", namespaceURI: "bbb" }];
+  it("findAncestorNs: Correctly picks up intermediate ancestor namespace", function () {
+    const xml = "<root><child1 xmlns:aaa='bbb'><child2></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = [{ prefix: "aaa", namespaceURI: "bbb" }];
 
-  test_findAncestorNs(test, xml, xpath, expected);
-};
+    test_findAncestorNs(xml, xpath, expected);
+  });
 
-exports[
-  "findAncestorNs: Correctly picks up multiple ancestor namespaces declared in the one same element"
-] = function (test) {
-  var xml = "<root xmlns:aaa='bbb' xmlns:ccc='ddd'><child1><child2></child2></child1></root>";
-  var xpath = "/root/child1/child2";
-  var expected = [
-    { prefix: "aaa", namespaceURI: "bbb" },
-    { prefix: "ccc", namespaceURI: "ddd" },
-  ];
+  it("findAncestorNs: Correctly picks up multiple ancestor namespaces declared in the one same element", function () {
+    const xml = "<root xmlns:aaa='bbb' xmlns:ccc='ddd'><child1><child2></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = [
+      { prefix: "aaa", namespaceURI: "bbb" },
+      { prefix: "ccc", namespaceURI: "ddd" },
+    ];
 
-  test_findAncestorNs(test, xml, xpath, expected);
-};
+    test_findAncestorNs(xml, xpath, expected);
+  });
 
-exports["findAncestorNs: Correctly picks up multiple ancestor namespaces scattered among depth"] =
-  function (test) {
-    var xml = "<root xmlns:aaa='bbb'><child1 xmlns:ccc='ddd'><child2></child2></child1></root>";
-    var xpath = "/root/child1/child2";
-    var expected = [
+  it("findAncestorNs: Correctly picks up multiple ancestor namespaces scattered among depth", function () {
+    const xml = "<root xmlns:aaa='bbb'><child1 xmlns:ccc='ddd'><child2></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = [
       { prefix: "ccc", namespaceURI: "ddd" },
       { prefix: "aaa", namespaceURI: "bbb" },
     ];
 
-    test_findAncestorNs(test, xml, xpath, expected);
-  };
+    test_findAncestorNs(xml, xpath, expected);
+  });
 
-exports["findAncestorNs: Correctly picks up multiple ancestor namespaces without duplicate"] =
-  function (test) {
-    var xml = "<root xmlns:ccc='bbb'><child1 xmlns:ccc='bbb'><child2></child2></child1></root>";
-    var xpath = "/root/child1/child2";
-    var expected = [{ prefix: "ccc", namespaceURI: "bbb" }];
+  it("findAncestorNs: Correctly picks up multiple ancestor namespaces without duplicate", function () {
+    const xml = "<root xmlns:ccc='bbb'><child1 xmlns:ccc='bbb'><child2></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = [{ prefix: "ccc", namespaceURI: "bbb" }];
 
-    test_findAncestorNs(test, xml, xpath, expected);
-  };
+    test_findAncestorNs(xml, xpath, expected);
+  });
 
-exports["findAncestorNs: Correctly eliminates duplicate prefix"] = function (test) {
-  var xml = "<root xmlns:ccc='bbb'><child1 xmlns:ccc='AAA'><child2></child2></child1></root>";
-  var xpath = "/root/child1/child2";
-  var expected = [{ prefix: "ccc", namespaceURI: "AAA" }];
+  it("findAncestorNs: Correctly eliminates duplicate prefix", function () {
+    const xml = "<root xmlns:ccc='bbb'><child1 xmlns:ccc='AAA'><child2></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = [{ prefix: "ccc", namespaceURI: "AAA" }];
 
-  test_findAncestorNs(test, xml, xpath, expected);
-};
+    test_findAncestorNs(xml, xpath, expected);
+  });
 
-exports[
-  "findAncestorNs: Exclude namespace which is already declared with same prefix on target node"
-] = function (test) {
-  var xml =
-    "<root xmlns:ccc='bbb'><child1 xmlns:ccc='AAA'><child2 xmlns:ccc='AAA'></child2></child1></root>";
-  var xpath = "/root/child1/child2";
-  var expected = [];
-
-  test_findAncestorNs(test, xml, xpath, expected);
-};
-
-exports["findAncestorNs: Ignores namespace declared in the target xpath node"] = function (test) {
-  var xml = "<root xmlns:aaa='bbb'><child1><child2 xmlns:ccc='ddd'></child2></child1></root>";
-  var xpath = "/root/child1/child2";
-  var expected = [{ prefix: "aaa", namespaceURI: "bbb" }];
-
-  test_findAncestorNs(test, xml, xpath, expected);
-};
-
-// Tests for c14nCanonicalization
-exports["C14n: Correctly picks up root ancestor namespace"] = function (test) {
-  var xml = "<root xmlns:aaa='bbb'><child1><child2></child2></child1></root>";
-  var xpath = "/root/child1/child2";
-  var expected = '<child2 xmlns:aaa="bbb"></child2>';
-
-  test_C14nCanonicalization(test, xml, xpath, expected);
-};
-
-exports["C14n: Correctly picks up intermediate ancestor namespace"] = function (test) {
-  var xml = "<root><child1 xmlns:aaa='bbb'><child2></child2></child1></root>";
-  var xpath = "/root/child1/child2";
-  var expected = '<child2 xmlns:aaa="bbb"></child2>';
-
-  test_C14nCanonicalization(test, xml, xpath, expected);
-};
-
-exports["C14n: Correctly picks up multiple ancestor namespaces declared in the one same element"] =
-  function (test) {
-    var xml = "<root xmlns:aaa='bbb' xmlns:ccc='ddd'><child1><child2></child2></child1></root>";
-    var xpath = "/root/child1/child2";
-    var expected = '<child2 xmlns:aaa="bbb" xmlns:ccc="ddd"></child2>';
-
-    test_C14nCanonicalization(test, xml, xpath, expected);
-  };
-
-exports["C14n: Correctly picks up multiple ancestor namespaces scattered among depth"] = function (
-  test
-) {
-  var xml = "<root xmlns:aaa='bbb'><child1 xmlns:ccc='ddd'><child2></child2></child1></root>";
-  var xpath = "/root/child1/child2";
-  var expected = '<child2 xmlns:aaa="bbb" xmlns:ccc="ddd"></child2>';
-
-  test_C14nCanonicalization(test, xml, xpath, expected);
-};
-
-exports["C14n: Correctly picks up multiple ancestor namespaces without duplicate"] = function (
-  test
-) {
-  var xml = "<root xmlns:ccc='bbb'><child1 xmlns:ccc='bbb'><child2></child2></child1></root>";
-  var xpath = "/root/child1/child2";
-  var expected = '<child2 xmlns:ccc="bbb"></child2>';
-
-  test_C14nCanonicalization(test, xml, xpath, expected);
-};
-
-exports["C14n: Correctly eliminates duplicate prefix"] = function (test) {
-  var xml = "<root xmlns:ccc='bbb'><child1 xmlns:ccc='AAA'><child2></child2></child1></root>";
-  var xpath = "/root/child1/child2";
-  var expected = '<child2 xmlns:ccc="AAA"></child2>';
-
-  test_C14nCanonicalization(test, xml, xpath, expected);
-};
-
-exports["C14n: Exclude namespace which is already declared with same prefix on target node"] =
-  function (test) {
-    var xml =
+  it("findAncestorNs: Exclude namespace which is already declared with same prefix on target node", function () {
+    const xml =
       "<root xmlns:ccc='bbb'><child1 xmlns:ccc='AAA'><child2 xmlns:ccc='AAA'></child2></child1></root>";
-    var xpath = "/root/child1/child2";
-    var expected = '<child2 xmlns:ccc="AAA"></child2>';
+    const xpath = "/root/child1/child2";
+    const expected = [];
 
-    test_C14nCanonicalization(test, xml, xpath, expected);
-  };
+    test_findAncestorNs(xml, xpath, expected);
+  });
 
-exports["C14n: Preserve namespace declared in the target xpath node"] = function (test) {
-  var xml = '<root xmlns:aaa="bbb"><child1><child2 xmlns:ccc="ddd"></child2></child1></root>';
-  var xpath = "/root/child1/child2";
-  var expected = '<child2 xmlns:aaa="bbb" xmlns:ccc="ddd"></child2>';
+  it("findAncestorNs: Ignores namespace declared in the target xpath node", function () {
+    const xml = "<root xmlns:aaa='bbb'><child1><child2 xmlns:ccc='ddd'></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = [{ prefix: "aaa", namespaceURI: "bbb" }];
 
-  test_C14nCanonicalization(test, xml, xpath, expected);
-};
+    test_findAncestorNs(xml, xpath, expected);
+  });
 
-exports["C14n: Don't redeclare an attribute's namespace prefix if already in scope"] = function (
-  test
-) {
-  var xml =
-    "<root xmlns:aaa='bbb'><child1><child2 xmlns:aaa='bbb' aaa:foo='bar'></child2></child1></root>";
-  var xpath = "/root/child1/child2";
-  var expected = '<child2 xmlns:aaa="bbb" aaa:foo="bar"></child2>';
+  it("findAncestorNs: Should find namespace without prefix", function () {
+    const xml =
+      "<root xmlns='bbb'><child1><ds:child2 xmlns:ds='ddd'><ds:child3></ds:child3></ds:child2></child1></root>";
+    const xpath = "//*[local-name()='child2']";
+    const expected = [{ prefix: "", namespaceURI: "bbb" }];
 
-  test_C14nCanonicalization(test, xml, xpath, expected);
-};
+    test_findAncestorNs(xml, xpath, expected);
+  });
 
-exports["C14n: Don't declare an attribute's namespace prefix if in scope from parent"] = function (
-  test
-) {
-  var xml =
-    "<root xmlns:aaa='bbb'><child1><child2><child3 aaa:foo='bar'></child3></child2></child1></root>";
-  var xpath = "/root/child1";
-  var expected =
-    '<child1 xmlns:aaa="bbb"><child2><child3 aaa:foo="bar"></child3></child2></child1>';
+  it("findAncestorNs: Should not find namespace when both has no prefix", function () {
+    const xml = "<root xmlns='bbb'><child1><child2 xmlns='ddd'></child2></child1></root>";
+    const xpath = "//*[local-name()='child2']";
+    const expected = [];
 
-  test_C14nCanonicalization(test, xml, xpath, expected);
-};
+    test_findAncestorNs(xml, xpath, expected);
+  });
+
+  // Tests for c14nCanonicalization
+  it("C14n: Correctly picks up root ancestor namespace", function () {
+    const xml = "<root xmlns:aaa='bbb'><child1><child2></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = '<child2 xmlns:aaa="bbb"></child2>';
+
+    test_C14nCanonicalization(xml, xpath, expected);
+  });
+
+  it("C14n: Correctly picks up intermediate ancestor namespace", function () {
+    const xml = "<root><child1 xmlns:aaa='bbb'><child2></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = '<child2 xmlns:aaa="bbb"></child2>';
+
+    test_C14nCanonicalization(xml, xpath, expected);
+  });
+
+  it("C14n: Correctly picks up multiple ancestor namespaces declared in the one same element", function () {
+    const xml = "<root xmlns:aaa='bbb' xmlns:ccc='ddd'><child1><child2></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = '<child2 xmlns:aaa="bbb" xmlns:ccc="ddd"></child2>';
+
+    test_C14nCanonicalization(xml, xpath, expected);
+  });
+
+  it("C14n: Correctly picks up multiple ancestor namespaces scattered among depth", function () {
+    const xml = "<root xmlns:aaa='bbb'><child1 xmlns:ccc='ddd'><child2></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = '<child2 xmlns:aaa="bbb" xmlns:ccc="ddd"></child2>';
+
+    test_C14nCanonicalization(xml, xpath, expected);
+  });
+
+  it("C14n: Correctly picks up multiple ancestor namespaces without duplicate", function () {
+    const xml = "<root xmlns:ccc='bbb'><child1 xmlns:ccc='bbb'><child2></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = '<child2 xmlns:ccc="bbb"></child2>';
+
+    test_C14nCanonicalization(xml, xpath, expected);
+  });
+
+  it("C14n: Correctly eliminates duplicate prefix", function () {
+    const xml = "<root xmlns:ccc='bbb'><child1 xmlns:ccc='AAA'><child2></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = '<child2 xmlns:ccc="AAA"></child2>';
+
+    test_C14nCanonicalization(xml, xpath, expected);
+  });
+
+  it("C14n: Exclude namespace which is already declared with same prefix on target node", function () {
+    const xml =
+      "<root xmlns:ccc='bbb'><child1 xmlns:ccc='AAA'><child2 xmlns:ccc='AAA'></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = '<child2 xmlns:ccc="AAA"></child2>';
+
+    test_C14nCanonicalization(xml, xpath, expected);
+  });
+
+  it("C14n: Preserve namespace declared in the target xpath node", function () {
+    const xml = '<root xmlns:aaa="bbb"><child1><child2 xmlns:ccc="ddd"></child2></child1></root>';
+    const xpath = "/root/child1/child2";
+    const expected = '<child2 xmlns:aaa="bbb" xmlns:ccc="ddd"></child2>';
+
+    test_C14nCanonicalization(xml, xpath, expected);
+  });
+
+  it("C14n: Don't redeclare an attribute's namespace prefix if already in scope", function () {
+    const xml =
+      "<root xmlns:aaa='bbb'><child1><child2 xmlns:aaa='bbb' aaa:foo='bar'></child2></child1></root>";
+    const xpath = "/root/child1/child2";
+    const expected = '<child2 xmlns:aaa="bbb" aaa:foo="bar"></child2>';
+
+    test_C14nCanonicalization(xml, xpath, expected);
+  });
+
+  it("C14n: Don't declare an attribute's namespace prefix if in scope from parent", function () {
+    const xml =
+      "<root xmlns:aaa='bbb'><child1><child2><child3 aaa:foo='bar'></child3></child2></child1></root>";
+    const xpath = "/root/child1";
+    const expected =
+      '<child1 xmlns:aaa="bbb"><child2><child3 aaa:foo="bar"></child3></child2></child1>';
+
+    test_C14nCanonicalization(xml, xpath, expected);
+  });
+
+  it("C14n: should not has colon when parent namespace has no prefix", function () {
+    const xml =
+      "<root xmlns='bbb'><child1><cc:child2 xmlns:cc='ddd'><cc:child3></cc:child3></cc:child2></child1></root>";
+    const xpath = "//*[local-name()='child3']";
+    const expected = '<cc:child3 xmlns="bbb" xmlns:cc="ddd"></cc:child3>';
+
+    test_C14nCanonicalization(xml, xpath, expected);
+  });
+});

@@ -26,30 +26,34 @@
   },
   "scripts": {
     "changelog": "gren changelog --override --generate --head master",
-    "lint": "eslint --ext .js \"**/*.js\" --cache && npm run prettier-check",
-    "lint:fix": "eslint --ext .js --fix \"**/*.js\" && npm run prettier-format",
+    "lint": "eslint --ext .js \"{lib,test}/*.js\" --cache && npm run prettier-check",
+    "lint:fix": "eslint --ext .js --fix \"{lib,test}/*.js\" && npm run prettier-format",
     "prettier-check": "prettier --config .prettierrc.json --check .",
     "prettier-format": "prettier --config .prettierrc.json --write .",
     "prerelease": "git clean -xfd && npm ci && npm test",
     "release": "release-it",
-    "test": "nodeunit ./test/canonicalization-unit-tests.js ./test/c14nWithComments-unit-tests.js ./test/signature-unit-tests.js ./test/saml-response-test.js ./test/signature-integration-tests.js ./test/document-test.js ./test/wsfed-metadata-test.js ./test/hmac-tests.js ./test/c14n-non-exclusive-unit-test.js"
+    "test": "nyc mocha"
   },
   "dependencies": {
-    "@xmldom/xmldom": "0.8.7",
+    "@xmldom/xmldom": "^0.8.8",
     "xpath": "0.0.32"
   },
   "devDependencies": {
     "@cjbarth/github-release-notes": "^4.0.0",
     "@prettier/plugin-xml": "^2.2.0",
-    "ejs": "3.1.9",
-    "eslint": "^8.42.0",
+    "chai": "^4.3.7",
+    "choma": "^1.2.1",
+    "ejs": "^3.1.9",
+    "eslint": "^8.41.0",
     "eslint-config-prettier": "^8.8.0",
-    "nodeunit": "^0.11.3",
+    "lcov": "^1.16.0",
+    "mocha": "^10.2.0",
+    "nyc": "^15.1.0",
     "prettier": "^2.8.8",
     "prettier-plugin-packagejson": "^2.4.3",
     "release-it": "^15.11.0"
   },
   "engines": {
-    "node": ">=4.0.0"
+    "node": ">=14"
   }
 }

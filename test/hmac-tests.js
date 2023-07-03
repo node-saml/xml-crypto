@@ -1,58 +1,62 @@
-var crypto = require("../index");
-var xpath = require("xpath");
-var xmldom = require("@xmldom/xmldom");
-var fs = require("fs");
+const crypto = require("../index");
+const xpath = require("xpath");
+const xmldom = require("@xmldom/xmldom");
+const fs = require("fs");
+const expect = require("chai").expect;
 
-crypto.SignedXml.enableHMAC();
+describe("HMAC tests", function () {
+  it("test validating HMAC signature", function () {
+    const xml = fs.readFileSync("./test/static/hmac_signature.xml", "utf-8");
+    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const signature = xpath.select(
+      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc
+    )[0];
+    const sig = new crypto.SignedXml();
+    sig.enableHMAC();
+    sig.publicCert = fs.readFileSync("./test/static/hmac.key");
+    sig.loadSignature(signature);
+    const result = sig.checkSignature(xml);
 
-exports["test validating HMAC signature"] = function (test) {
-  var xml = fs.readFileSync("./test/static/hmac_signature.xml", "utf-8");
-  var doc = new xmldom.DOMParser().parseFromString(xml);
-  var signature = xpath.select(
-    "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-    doc
-  )[0];
-  var sig = new crypto.SignedXml();
-  sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/hmac.key");
-  sig.loadSignature(signature);
-  var result = sig.checkSignature(xml);
-  test.equal(result, true);
-  test.done();
-};
+    expect(result).to.be.true;
+  });
 
-exports["test HMAC signature with incorrect key"] = function (test) {
-  var xml = fs.readFileSync("./test/static/hmac_signature.xml", "utf-8");
-  var doc = new xmldom.DOMParser().parseFromString(xml);
-  var signature = xpath.select(
-    "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-    doc
-  )[0];
-  var sig = new crypto.SignedXml();
-  sig.keyInfoProvider = new crypto.FileKeyInfo("./test/static/hmac-foobar.key");
-  sig.loadSignature(signature);
-  var result = sig.checkSignature(xml);
-  test.equal(result, false);
-  test.done();
-};
+  it("test HMAC signature with incorrect key", function () {
+    const xml = fs.readFileSync("./test/static/hmac_signature.xml", "utf-8");
+    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const signature = xpath.select(
+      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc
+    )[0];
+    const sig = new crypto.SignedXml();
+    sig.enableHMAC();
+    sig.publicCert = fs.readFileSync("./test/static/hmac-foobar.key");
+    sig.loadSignature(signature);
+    const result = sig.checkSignature(xml);
 
-exports["test create and validate HMAC signature"] = function (test) {
-  var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
-  var sig = new crypto.SignedXml();
-  sig.signingKey = fs.readFileSync("./test/static/hmac.key");
-  sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#hmac-sha1";
-  sig.addReference("//*[local-name(.)='book']");
-  sig.computeSignature(xml);
+    expect(result).to.be.false;
+  });
 
-  var doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
-  var signature = xpath.select(
-    "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-    doc
-  )[0];
-  var verify = new crypto.SignedXml();
-  verify.keyInfoProvider = new crypto.FileKeyInfo("./test/static/hmac.key");
-  verify.loadSignature(signature);
-  var result = verify.checkSignature(sig.getSignedXml());
-  test.equal(result, true);
+  it("test create and validate HMAC signature", function () {
+    const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+    const sig = new crypto.SignedXml();
+    sig.enableHMAC();
+    sig.privateKey = fs.readFileSync("./test/static/hmac.key");
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#hmac-sha1";
+    sig.addReference("//*[local-name(.)='book']");
+    sig.computeSignature(xml);
 
-  test.done();
-};
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const signature = xpath.select(
+      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc
+    )[0];
+    const verify = new crypto.SignedXml();
+    verify.enableHMAC();
+    verify.publicCert = fs.readFileSync("./test/static/hmac.key");
+    verify.loadSignature(signature);
+    const result = verify.checkSignature(sig.getSignedXml());
+
+    expect(result).to.be.true;
+  });
+});

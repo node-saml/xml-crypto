@@ -1,0 +1,6 @@
+{
+  "all": true,
+  "check-coverage": false,
+  "reporter": ["lcov", "text"],
+  "include": ["lib/**"]
+}
