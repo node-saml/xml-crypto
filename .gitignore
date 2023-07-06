@@ -10,3 +10,4 @@ npm-debug.log
 .eslintcache
 .nyc_output/
 coverage/
+.idea
