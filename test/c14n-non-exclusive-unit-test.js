@@ -95,6 +95,23 @@ exports[
   test_findAncestorNs(test, xml, xpath, expected);
 };
 
+exports["findAncestorNs: Should not find namespace when both has no prefix"] = function (test) {
+  var xml = "<root xmlns='bbb'><child1><child2 xmlns='ddd'></child2></child1></root>";
+  var xpath = "//*[local-name()='child2']";
+  var expected = [];
+
+  test_findAncestorNs(xml, xpath, expected);
+};
+
+exports["findAncestorNs: Should find namespace without prefix"] = function (test) {
+  var xml =
+    "<root xmlns='bbb'><child1><ds:child2 xmlns:ds='ddd'><ds:child3></ds:child3></ds:child2></child1></root>";
+  var xpath = "//*[local-name()='child2']";
+  var expected = [{ prefix: "", namespaceURI: "bbb" }];
+
+  test_findAncestorNs(xml, xpath, expected);
+};
+
 exports["findAncestorNs: Ignores namespace declared in the target xpath node"] = function (test) {
   var xml = "<root xmlns:aaa='bbb'><child1><child2 xmlns:ccc='ddd'></child2></child1></root>";
   var xpath = "/root/child1/child2";
@@ -194,6 +211,15 @@ exports["C14n: Don't declare an attribute's namespace prefix if in scope from pa
   var xpath = "/root/child1";
   var expected =
     '<child1 xmlns:aaa="bbb"><child2><child3 aaa:foo="bar"></child3></child2></child1>';
+
+  test_C14nCanonicalization(test, xml, xpath, expected);
+};
+
+exports["C14n: should not has colon when parent namespace has no prefix"] = function (test) {
+  var xml =
+    "<root xmlns='bbb'><child1><cc:child2 xmlns:cc='ddd'><cc:child3></cc:child3></cc:child2></child1></root>";
+  var xpath = "//*[local-name()='child3']";
+  var expected = '<cc:child3 xmlns="bbb" xmlns:cc="ddd"></cc:child3>';
 
   test_C14nCanonicalization(test, xml, xpath, expected);
 };
