@@ -24,7 +24,6 @@
   "files": [
     "CHANGELOG.md",
     "index.d.ts",
-    "index.js",
     "lib"
   ],
   "directories": {
