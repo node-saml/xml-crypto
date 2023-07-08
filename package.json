@@ -21,6 +21,11 @@
   ],
   "main": "./index.js",
   "types": "./index.d.ts",
+  "files": [
+    "CHANGELOG.md",
+    "index.d.ts",
+    "lib"
+  ],
   "directories": {
     "lib": "./lib"
   },
