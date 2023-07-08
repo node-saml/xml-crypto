@@ -23,11 +23,8 @@
   "types": "./index.d.ts",
   "files": [
     "CHANGELOG.md",
-    "LICENSE",
-    "README.md",
     "index.d.ts",
     "index.js",
-    "package.json",
     "lib"
   ],
   "directories": {
