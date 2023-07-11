@@ -19,15 +19,15 @@
     "LoneRifle <LoneRifle@users.noreply.github.com>",
     "Chris Barth <chrisjbarth@hotmail.com>"
   ],
-  "main": "./index.js",
-  "types": "./index.d.ts",
+  "main": "index.js",
+  "types": "index.d.ts",
   "files": [
     "CHANGELOG.md",
     "index.d.ts",
     "lib"
   ],
   "directories": {
-    "lib": "./lib"
+    "lib": "lib"
   },
   "scripts": {
     "changelog": "gren changelog --override --generate --head master",
