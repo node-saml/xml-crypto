@@ -100,7 +100,7 @@ exports["findAncestorNs: Should not find namespace when both has no prefix"] = f
   var xpath = "//*[local-name()='child2']";
   var expected = [];
 
-  test_findAncestorNs(xml, xpath, expected);
+  test_findAncestorNs(test, xml, xpath, expected);
 };
 
 exports["findAncestorNs: Should find namespace without prefix"] = function (test) {
@@ -109,7 +109,7 @@ exports["findAncestorNs: Should find namespace without prefix"] = function (test
   var xpath = "//*[local-name()='child2']";
   var expected = [{ prefix: "", namespaceURI: "bbb" }];
 
-  test_findAncestorNs(xml, xpath, expected);
+  test_findAncestorNs(test, xml, xpath, expected);
 };
 
 exports["findAncestorNs: Ignores namespace declared in the target xpath node"] = function (test) {
