@@ -1,17 +1,18 @@
-const expect = require("chai").expect;
+import { expect } from "chai";
 
-const C14nCanonicalization = require("../lib/c14n-canonicalization").C14nCanonicalization;
-const Dom = require("@xmldom/xmldom").DOMParser;
-const select = require("xpath").select;
-const utils = require("../lib/utils");
+import { C14nCanonicalization } from "../src/c14n-canonicalization";
+import { DOMParser as Dom } from "@xmldom/xmldom";
+import * as xpath from "xpath";
+import * as utils from "../src/utils";
 
-const test_C14nCanonicalization = function (xml, xpath, expected) {
+const test_C14nCanonicalization = function (xml, xpathArg, expected) {
   const doc = new Dom().parseFromString(xml);
-  const elem = select(xpath, doc)[0];
+  const elem = xpath.select1(xpathArg, doc);
   const can = new C14nCanonicalization();
   const result = can
+    // @ts-expect-error FIXME
     .process(elem, {
-      ancestorNamespaces: utils.findAncestorNs(doc, xpath),
+      ancestorNamespaces: utils.findAncestorNs(doc, xpathArg),
     })
     .toString();
 

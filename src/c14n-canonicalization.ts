@@ -1,12 +1,14 @@
-const utils = require("./utils");
+import {
+  CanonicalizationOrTransformationAlgorithm,
+  CanonicalizationOrTransformationAlgorithmProcessOptions,
+  NamespacePrefix,
+  RenderedNamespace,
+} from "./types";
+import * as utils from "./utils";
+import * as xpath from "xpath";
 
-/**
- * @type { import("../index.d.ts").CanonicalizationOrTransformationAlgorithm}
- */
-class C14nCanonicalization {
-  constructor() {
-    this.includeComments = false;
-  }
+export class C14nCanonicalization implements CanonicalizationOrTransformationAlgorithm {
+  includeComments = false;
 
   attrCompare(a, b) {
     if (!a.namespaceURI && b.namespaceURI) {
@@ -40,9 +42,9 @@ class C14nCanonicalization {
   renderAttrs(node) {
     let i;
     let attr;
-    const attrListToRender = [];
+    const attrListToRender: Attr[] = [];
 
-    if (node.nodeType === 8) {
+    if (xpath.isComment(node)) {
       return this.renderComment(node);
     }
 
@@ -69,21 +71,26 @@ class C14nCanonicalization {
   /**
    * Create the string of all namespace declarations that should appear on this element
    *
-   * @param {Node} node. The node we now render
-   * @param {Array} prefixesInScope. The prefixes defined on this node
+   * @param node. The node we now render
+   * @param prefixesInScope. The prefixes defined on this node
    *                parents which are a part of the output set
-   * @param {String} defaultNs. The current default namespace
-   * @param {String} defaultNsForPrefix.
-   * @param {String} ancestorNamespaces - Import ancestor namespaces if it is specified
-   * @return {String}
+   * @param defaultNs. The current default namespace
+   * @param  defaultNsForPrefix.
+   * @param ancestorNamespaces - Import ancestor namespaces if it is specified
    * @api private
    */
-  renderNs(node, prefixesInScope, defaultNs, defaultNsForPrefix, ancestorNamespaces) {
+  renderNs(
+    node: Element,
+    prefixesInScope: string[],
+    defaultNs: string,
+    defaultNsForPrefix: string,
+    ancestorNamespaces: NamespacePrefix[]
+  ): RenderedNamespace {
     let i;
     let attr;
-    const res = [];
+    const res: string[] = [];
     let newDefaultNs = defaultNs;
-    const nsListToRender = [];
+    const nsListToRender: { prefix: string; namespaceURI: string }[] = [];
     const currNs = node.namespaceURI || "";
 
     //handle the namespace of the node itself
@@ -97,7 +104,7 @@ class C14nCanonicalization {
       }
     } else if (defaultNs !== currNs) {
       //new default ns
-      newDefaultNs = node.namespaceURI;
+      newDefaultNs = node.namespaceURI || "";
       res.push(' xmlns="', newDefaultNs, '"');
     }
 
@@ -127,7 +134,7 @@ class C14nCanonicalization {
       }
     }
 
-    if (Array.isArray(ancestorNamespaces) && ancestorNamespaces.length > 0) {
+    if (utils.isArrayHasLength(ancestorNamespaces)) {
       // Remove namespaces which are already present in nsListToRender
       for (const ancestorNamespace of ancestorNamespaces) {
         let alreadyListed = false;
@@ -158,11 +165,11 @@ class C14nCanonicalization {
       })
     );
 
-    return { rendered: res.join(""), newDefaultNs: newDefaultNs };
+    return { rendered: res.join(""), newDefaultNs };
   }
 
   processInner(node, prefixesInScope, defaultNs, defaultNsForPrefix, ancestorNamespaces) {
-    if (node.nodeType === 8) {
+    if (xpath.isComment(node)) {
       return this.renderComment(node);
     }
     if (node.data) {
@@ -192,18 +199,18 @@ class C14nCanonicalization {
   }
 
   // Thanks to deoxxa/xml-c14n for comment renderer
-  renderComment(node) {
+  renderComment(node: Comment) {
     if (!this.includeComments) {
       return "";
     }
 
     const isOutsideDocument = node.ownerDocument === node.parentNode;
-    let isBeforeDocument = null;
-    let isAfterDocument = null;
+    let isBeforeDocument = false;
+    let isAfterDocument = false;
 
     if (isOutsideDocument) {
-      let nextNode = node;
-      let previousNode = node;
+      let nextNode: ChildNode | null = node;
+      let previousNode: ChildNode | null = node;
 
       while (nextNode !== null) {
         if (nextNode === node.ownerDocument.documentElement) {
@@ -240,13 +247,13 @@ class C14nCanonicalization {
    * @return {String}
    * @api public
    */
-  process(node, options) {
+  process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions) {
     options = options || {};
     const defaultNs = options.defaultNs || "";
     const defaultNsForPrefix = options.defaultNsForPrefix || {};
     const ancestorNamespaces = options.ancestorNamespaces || [];
 
-    const prefixesInScope = [];
+    const prefixesInScope: string[] = [];
     for (let i = 0; i < ancestorNamespaces.length; i++) {
       prefixesInScope.push(ancestorNamespaces[i].prefix);
     }
@@ -268,10 +275,8 @@ class C14nCanonicalization {
 
 /**
  * Add c14n#WithComments here (very simple subclass)
- *
- * @type { import("../index.d.ts").CanonicalizationOrTransformationAlgorithm}
  */
-class C14nCanonicalizationWithComments extends C14nCanonicalization {
+export class C14nCanonicalizationWithComments extends C14nCanonicalization {
   constructor() {
     super();
     this.includeComments = true;
@@ -281,8 +286,3 @@ class C14nCanonicalizationWithComments extends C14nCanonicalization {
     return "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments";
   }
 }
-
-module.exports = {
-  C14nCanonicalization,
-  C14nCanonicalizationWithComments,
-};

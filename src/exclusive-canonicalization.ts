@@ -1,4 +1,10 @@
-const utils = require("./utils");
+import {
+  CanonicalizationOrTransformationAlgorithm,
+  CanonicalizationOrTransformationAlgorithmProcessOptions,
+  NamespacePrefix,
+} from "./types";
+import * as utils from "./utils";
+import * as xpath from "xpath";
 
 function isPrefixInScope(prefixesInScope, prefix, namespaceURI) {
   let ret = false;
@@ -11,13 +17,8 @@ function isPrefixInScope(prefixesInScope, prefix, namespaceURI) {
   return ret;
 }
 
-/**
- * @type { import("../index.d.ts").CanonicalizationOrTransformationAlgorithm}
- */
-class ExclusiveCanonicalization {
-  constructor() {
-    this.includeComments = false;
-  }
+export class ExclusiveCanonicalization implements CanonicalizationOrTransformationAlgorithm {
+  includeComments = false;
 
   attrCompare(a, b) {
     if (!a.namespaceURI && b.namespaceURI) {
@@ -51,10 +52,10 @@ class ExclusiveCanonicalization {
   renderAttrs(node) {
     let i;
     let attr;
-    const res = [];
-    const attrListToRender = [];
+    const res: string[] = [];
+    const attrListToRender: Attr[] = [];
 
-    if (node.nodeType === 8) {
+    if (xpath.isComment(node)) {
       return this.renderComment(node);
     }
 
@@ -88,12 +89,18 @@ class ExclusiveCanonicalization {
    * @return {String}
    * @api private
    */
-  renderNs(node, prefixesInScope, defaultNs, defaultNsForPrefix, inclusiveNamespacesPrefixList) {
+  renderNs(
+    node,
+    prefixesInScope,
+    defaultNs,
+    defaultNsForPrefix,
+    inclusiveNamespacesPrefixList: string[]
+  ) {
     let i;
     let attr;
-    const res = [];
+    const res: string[] = [];
     let newDefaultNs = defaultNs;
-    const nsListToRender = [];
+    const nsListToRender: NamespacePrefix[] = [];
     const currNs = node.namespaceURI || "";
 
     //handle the namespaceof the node itself
@@ -165,9 +172,9 @@ class ExclusiveCanonicalization {
     prefixesInScope,
     defaultNs,
     defaultNsForPrefix,
-    inclusiveNamespacesPrefixList
+    inclusiveNamespacesPrefixList: string[]
   ) {
-    if (node.nodeType === 8) {
+    if (xpath.isComment(node)) {
       return this.renderComment(node);
     }
     if (node.data) {
@@ -203,20 +210,20 @@ class ExclusiveCanonicalization {
   }
 
   // Thanks to deoxxa/xml-c14n for comment renderer
-  renderComment(node) {
+  renderComment(node: Comment) {
     if (!this.includeComments) {
       return "";
     }
 
     const isOutsideDocument = node.ownerDocument === node.parentNode;
-    let isBeforeDocument = null;
-    let isAfterDocument = null;
+    let isBeforeDocument = false;
+    let isAfterDocument = false;
 
     if (isOutsideDocument) {
-      let nextNode = node;
-      let previousNode = node;
+      let nextNode: ChildNode | null = node;
+      let previousNode: ChildNode | null = node;
 
-      while (nextNode !== null) {
+      while (nextNode != null) {
         if (nextNode === node.ownerDocument.documentElement) {
           isBeforeDocument = true;
           break;
@@ -225,7 +232,7 @@ class ExclusiveCanonicalization {
         nextNode = nextNode.nextSibling;
       }
 
-      while (previousNode !== null) {
+      while (previousNode != null) {
         if (previousNode === node.ownerDocument.documentElement) {
           isAfterDocument = true;
           break;
@@ -251,21 +258,17 @@ class ExclusiveCanonicalization {
    * @return {String}
    * @api public
    */
-  process(node, options) {
+  process(node, options: CanonicalizationOrTransformationAlgorithmProcessOptions) {
     options = options || {};
     let inclusiveNamespacesPrefixList = options.inclusiveNamespacesPrefixList || [];
     const defaultNs = options.defaultNs || "";
     const defaultNsForPrefix = options.defaultNsForPrefix || {};
-    if (!(inclusiveNamespacesPrefixList instanceof Array)) {
-      inclusiveNamespacesPrefixList = inclusiveNamespacesPrefixList.split(" ");
-    }
-
     const ancestorNamespaces = options.ancestorNamespaces || [];
 
     /**
      * If the inclusiveNamespacesPrefixList has not been explicitly provided then look it up in CanonicalizationMethod/InclusiveNamespaces
      */
-    if (inclusiveNamespacesPrefixList.length === 0) {
+    if (!utils.isArrayHasLength(inclusiveNamespacesPrefixList)) {
       const CanonicalizationMethod = utils.findChilds(node, "CanonicalizationMethod");
       if (CanonicalizationMethod.length !== 0) {
         const inclusiveNamespaces = utils.findChilds(
@@ -273,9 +276,9 @@ class ExclusiveCanonicalization {
           "InclusiveNamespaces"
         );
         if (inclusiveNamespaces.length !== 0) {
-          inclusiveNamespacesPrefixList = inclusiveNamespaces[0]
-            .getAttribute("PrefixList")
-            .split(" ");
+          inclusiveNamespacesPrefixList = (
+            inclusiveNamespaces[0].getAttribute("PrefixList") || ""
+          ).split(" ");
         }
       }
     }
@@ -283,12 +286,8 @@ class ExclusiveCanonicalization {
     /**
      * If you have a PrefixList then use it and the ancestors to add the necessary namespaces
      */
-    if (inclusiveNamespacesPrefixList) {
-      const prefixList =
-        inclusiveNamespacesPrefixList instanceof Array
-          ? inclusiveNamespacesPrefixList
-          : inclusiveNamespacesPrefixList.split(" ");
-      prefixList.forEach(function (prefix) {
+    if (utils.isArrayHasLength(inclusiveNamespacesPrefixList)) {
+      inclusiveNamespacesPrefixList.forEach(function (prefix) {
         if (ancestorNamespaces) {
           ancestorNamespaces.forEach(function (ancestorNamespace) {
             if (prefix === ancestorNamespace.prefix) {
@@ -318,11 +317,7 @@ class ExclusiveCanonicalization {
   }
 }
 
-/**
- * Add c14n#WithComments here (very simple subclass)
- * @type { import("../index.d.ts").CanonicalizationOrTransformationAlgorithm}
- */
-class ExclusiveCanonicalizationWithComments extends ExclusiveCanonicalization {
+export class ExclusiveCanonicalizationWithComments extends ExclusiveCanonicalization {
   constructor() {
     super();
     this.includeComments = true;
@@ -332,8 +327,3 @@ class ExclusiveCanonicalizationWithComments extends ExclusiveCanonicalization {
     return "http://www.w3.org/2001/10/xml-exc-c14n#WithComments";
   }
 }
-
-module.exports = {
-  ExclusiveCanonicalization,
-  ExclusiveCanonicalizationWithComments,
-};

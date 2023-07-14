@@ -1,18 +1,15 @@
-const expect = require("chai").expect;
+import { expect } from "chai";
 
-const c14nWithComments =
-  require("../lib/exclusive-canonicalization").ExclusiveCanonicalizationWithComments;
-const Dom = require("@xmldom/xmldom").DOMParser;
-const select = require("xpath").select;
-const SignedXml = require("../lib/signed-xml.js").SignedXml;
+import { ExclusiveCanonicalizationWithComments as c14nWithComments } from "../src/exclusive-canonicalization";
+import { DOMParser as Dom } from "@xmldom/xmldom";
+import * as xpath from "xpath";
+import { SignedXml } from "../src/index";
 
-const compare = function (xml, xpath, expected, inclusiveNamespacesPrefixList) {
+const compare = function (xml, xpathArg, expected, inclusiveNamespacesPrefixList?: string[]) {
   const doc = new Dom().parseFromString(xml);
-  const elem = select(xpath, doc)[0];
+  const elem = xpath.select1(xpathArg, doc);
   const can = new c14nWithComments();
-  const result = can
-    .process(elem, { inclusiveNamespacesPrefixList: inclusiveNamespacesPrefixList })
-    .toString();
+  const result = can.process(elem, { inclusiveNamespacesPrefixList }).toString();
 
   expect(result).to.equal(expected);
 };
@@ -71,7 +68,7 @@ describe("Exclusive canonicalization with comments", function () {
       '<root xmlns:p="ns"><p:child xmlns:inclusive="ns2"><inclusive:inner xmlns:inclusive="ns2">123</inclusive:inner></p:child></root>',
       "//*[local-name(.)='child']",
       '<p:child xmlns:inclusive="ns2" xmlns:p="ns"><inclusive:inner>123</inclusive:inner></p:child>',
-      "inclusive"
+      ["inclusive"]
     );
   });
 
@@ -80,7 +77,7 @@ describe("Exclusive canonicalization with comments", function () {
       '<root xmlns:p="ns"><p:child xmlns:inclusive="ns2" xmlns:inclusive2="ns3"><inclusive:inner xmlns:inclusive="ns2">123</inclusive:inner><inclusive2:inner xmlns:inclusive2="ns3">456</inclusive2:inner></p:child></root>',
       "//*[local-name(.)='child']",
       '<p:child xmlns:inclusive="ns2" xmlns:inclusive2="ns3" xmlns:p="ns"><inclusive:inner>123</inclusive:inner><inclusive2:inner>456</inclusive2:inner></p:child>',
-      "inclusive inclusive2"
+      ["inclusive", "inclusive2"]
     );
   });
 
@@ -89,7 +86,7 @@ describe("Exclusive canonicalization with comments", function () {
       '<root xmlns:p="ns" xmlns:inclusive="ns2"><p:child><inclusive:inner xmlns:inclusive="ns2">123</inclusive:inner></p:child></root>',
       "//*[local-name(.)='child']",
       '<p:child xmlns:p="ns"><inclusive:inner xmlns:inclusive="ns2">123</inclusive:inner></p:child>',
-      "inclusive"
+      ["inclusive"]
     );
   });
 
@@ -98,7 +95,7 @@ describe("Exclusive canonicalization with comments", function () {
       '<root xmlns:p="ns"><p:child xmlns:inclusive="ns2"><p:inner foo="inclusive:bar">123</p:inner></p:child></root>',
       "//*[local-name(.)='child']",
       '<p:child xmlns:inclusive="ns2" xmlns:p="ns"><p:inner foo="inclusive:bar">123</p:inner></p:child>',
-      "inclusive"
+      ["inclusive"]
     );
   });
 
@@ -352,8 +349,9 @@ describe("Exclusive canonicalization with comments", function () {
   it("Multiple Canonicalization with namespace definition outside of signed element", function () {
     //var doc = new Dom().parseFromString("<x xmlns:p=\"myns\"><p:y><ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"></ds:Signature></p:y></x>")
     const doc = new Dom().parseFromString('<x xmlns:p="myns"><p:y></p:y></x>');
-    const node = select("//*[local-name(.)='y']", doc)[0];
+    const node = xpath.select1("//*[local-name(.)='y']", doc);
     const sig = new SignedXml();
+    // @ts-expect-error FIXME
     const res = sig.getCanonXml(
       [
         "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
@@ -371,9 +369,10 @@ describe("Exclusive canonicalization with comments", function () {
     const xml =
       '<x><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /><y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /></y></x>';
     const doc = new Dom().parseFromString(xml);
-    const node = select("//*[local-name(.)='y']", doc)[0];
+    const node = xpath.select1("//*[local-name(.)='y']", doc);
     const sig = new SignedXml();
     const transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
+    // @ts-expect-error FIXME
     const res = sig.getCanonXml(transforms, node);
     expect(res).to.equal("<y/>");
   });
