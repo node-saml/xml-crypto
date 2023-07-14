@@ -25,7 +25,7 @@
     "lib": "./lib"
   },
   "scripts": {
-    "changelog": "gren changelog --override --generate --head master",
+    "changelog": "gren changelog --override --generate",
     "lint": "eslint --ext .js \"{lib,test}/*.js\" --cache && npm run prettier-check",
     "lint:fix": "eslint --ext .js --fix \"{lib,test}/*.js\" && npm run prettier-format",
     "prettier-check": "prettier --config .prettierrc.json --check .",
