@@ -77,7 +77,7 @@ var SignedXml = require("xml-crypto").SignedXml,
 var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
 var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
-sig.addReference("//*[local-name(.)='book']");
+sig.addReference({ xpath: "//*[local-name(.)='book']" });
 sig.computeSignature(xml);
 fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
@@ -328,10 +328,10 @@ Now you need to register the new algorithms:
 ```javascript
 /*register all the custom algorithms*/
 
-SignedXml.CanonicalizationAlgorithms["http://MyTransformation"] = MyTransformation;
-SignedXml.CanonicalizationAlgorithms["http://MyCanonicalization"] = MyCanonicalization;
-SignedXml.HashAlgorithms["http://myDigestAlgorithm"] = MyDigest;
-SignedXml.SignatureAlgorithms["http://mySigningAlgorithm"] = MySignatureAlgorithm;
+signedXml.CanonicalizationAlgorithms["http://MyTransformation"] = MyTransformation;
+signedXml.CanonicalizationAlgorithms["http://MyCanonicalization"] = MyCanonicalization;
+signedXml.HashAlgorithms["http://myDigestAlgorithm"] = MyDigest;
+signedXml.SignatureAlgorithms["http://mySigningAlgorithm"] = MySignatureAlgorithm;
 ```
 
 Now do the signing. Note how we configure the signature to use the above algorithms:
@@ -348,13 +348,13 @@ function signXml(xml, xpath, key, dest) {
 
   var sig = new SignedXml(options);
 
-  sig.addReference(
-    "//*[local-name(.)='x']",
-    ["http://MyTransformation"],
-    "http://myDigestAlgorithm"
-  );
+  sig.addReference({
+    xpath: "//*[local-name(.)='x']",
+    transforms: ["http://MyTransformation"],
+    digestAlgorithm: "http://myDigestAlgorithm",
+  });
 
-  sig.addReference(xpath);
+  sig.addReference({ xpath });
   sig.computeSignature(xml);
   fs.writeFileSync(dest, sig.getSignedXml());
 }
@@ -437,7 +437,7 @@ var SignedXml = require("xml-crypto").SignedXml,
 var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
 var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
-sig.addReference("//*[local-name(.)='book']");
+sig.addReference({ xpath: "//*[local-name(.)='book']" });
 sig.computeSignature(xml, {
   prefix: "ds",
 });
@@ -460,7 +460,7 @@ var SignedXml = require("xml-crypto").SignedXml,
 var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
 var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
-sig.addReference("//*[local-name(.)='book']");
+sig.addReference({ xpath: "//*[local-name(.)='book']" });
 sig.computeSignature(xml, {
   location: { reference: "//*[local-name(.)='book']", action: "after" }, //This will place the signature after the book element
 });
