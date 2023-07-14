@@ -39,7 +39,7 @@
     "xpath": "0.0.32"
   },
   "devDependencies": {
-    "@cjbarth/github-release-notes": "^4.0.0",
+    "@cjbarth/github-release-notes": "^4.1.0",
     "@prettier/plugin-xml": "^2.2.0",
     "chai": "^4.3.7",
     "choma": "^1.2.1",
