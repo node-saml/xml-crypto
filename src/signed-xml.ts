@@ -230,7 +230,7 @@ export class SignedXml {
   /**
    * Validates the signature of the provided XML document synchronously using the configured key info provider.
    *
-   *  @param xml The XML document containing the signature to be validated.
+   * @param xml The XML document containing the signature to be validated.
    * @param callback Callback function to handle the validation result asynchronously.
    * @throws Error if the last parameter is provided and is not a function, or if no key info resolver is provided.
    */

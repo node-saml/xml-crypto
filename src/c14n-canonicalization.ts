@@ -71,12 +71,11 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
   /**
    * Create the string of all namespace declarations that should appear on this element
    *
-   * @param node. The node we now render
-   * @param prefixesInScope. The prefixes defined on this node
-   *                parents which are a part of the output set
-   * @param defaultNs. The current default namespace
-   * @param  defaultNsForPrefix.
-   * @param ancestorNamespaces - Import ancestor namespaces if it is specified
+   * @param node The node we now render
+   * @param prefixesInScope The prefixes defined on this node parents which are a part of the output set
+   * @param defaultNs The current default namespace
+   * @param defaultNsForPrefix
+   * @param ancestorNamespaces Import ancestor namespaces if it is specified
    * @api private
    */
   renderNs(
