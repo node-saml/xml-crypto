@@ -1,5 +1,29 @@
 # Changelog
 
+## 3.x (2023-07-14)
+
+### 🚀 Minor Changes
+
+- [**enhancement**] Exports C14nCanonicalization, ExclusiveCanonicalization [#335](https://github.com/node-saml/xml-crypto/pull/335)
+
+### 🔗 Dependencies
+
+- [**dependencies**] Update gren for better support for branches [#339](https://github.com/node-saml/xml-crypto/pull/339)
+- [**dependencies**] Bump @xmldom/xmldom [#333](https://github.com/node-saml/xml-crypto/pull/333)
+
+### 🐛 Bug Fixes
+
+- [**bug**] Fix test case error [#338](https://github.com/node-saml/xml-crypto/pull/338)
+- [**bug**] Fix missing `index.js` on release [#337](https://github.com/node-saml/xml-crypto/pull/337)
+- [**bug**] Fix issue in case when namespace has no prefix [#329](https://github.com/node-saml/xml-crypto/pull/329)
+
+### ⚙️ Technical Tasks
+
+- [**chore**] Don't force `master` branch when generating changelog [#341](https://github.com/node-saml/xml-crypto/pull/341)
+- [**chore**] Ignore unnecessary files in the release [#334](https://github.com/node-saml/xml-crypto/pull/334)
+
+---
+
 ## v3.1.0 (2023-06-05)
 
 ### 🚀 Minor Changes
