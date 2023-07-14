@@ -6,10 +6,20 @@
     "es2020": true
   },
   "root": true,
-  "extends": ["eslint:recommended", "prettier"],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint", "deprecation"],
+  "parserOptions": {
+    "project": "./tsconfig.eslint.json"
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended",
+    "prettier"
+  ],
   "rules": {
     "no-console": "error",
-    "no-unused-vars": "error",
+    "no-unused-vars": "warn",
     "no-prototype-builtins": "error",
     "one-var": ["error", "never"],
     "no-duplicate-imports": "error",
@@ -17,6 +27,10 @@
     "curly": "error",
     "eqeqeq": ["error", "smart"],
     "no-var": "error",
-    "prefer-const": "error"
+    "prefer-const": "error",
+    "deprecation/deprecation": "warn",
+    "@typescript-eslint/no-non-null-assertion": "error",
+    "@typescript-eslint/no-unused-vars": "warn",
+    "@typescript-eslint/no-this-alias": "warn"
   }
 }
