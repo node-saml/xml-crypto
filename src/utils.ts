@@ -1,5 +1,5 @@
 import * as xpath from "xpath";
-import { NamespacePrefix } from "./types";
+import type { NamespacePrefix } from "./types";
 
 export function isArrayHasLength(array: unknown): array is unknown[] {
   return Array.isArray(array) && array.length > 0;

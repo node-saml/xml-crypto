@@ -1,6 +1,6 @@
 import * as xpath from "xpath";
 
-import {
+import type {
   CanonicalizationOrTransformationAlgorithm,
   CanonicalizationOrTransformationAlgorithmProcessOptions,
   CanonicalizationOrTransformAlgorithmType,
