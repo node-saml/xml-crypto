@@ -208,7 +208,7 @@ function findNSPrefix(subset) {
 }
 
 function isElementSubset(docSubset: Node[]): docSubset is Element[] {
-  return docSubset.every((node) => xpath.isElement(node))
+  return docSubset.every((node) => xpath.isElement(node));
 }
 
 /**
@@ -265,19 +265,8 @@ export function findAncestorNs(
 }
 
 export function validateDigestValue(digest, expectedDigest) {
-  let buffer;
-  let expectedBuffer;
-
-  const majorVersion = (/^v(\d+)/.exec(process.version) || [0, 0])[1];
-
-  if (+majorVersion >= 6) {
-    buffer = Buffer.from(digest, "base64");
-    expectedBuffer = Buffer.from(expectedDigest, "base64");
-  } else {
-    // Compatibility with Node < 5.10.0
-    buffer = Buffer.from(digest, "base64");
-    expectedBuffer = Buffer.from(expectedDigest, "base64");
-  }
+  const buffer = Buffer.from(digest, "base64");
+  const expectedBuffer = Buffer.from(expectedDigest, "base64");
 
   if (typeof buffer.equals === "function") {
     return buffer.equals(expectedBuffer);
