@@ -1,5 +1,5 @@
 import * as crypto from "crypto";
-import { HashAlgorithm } from "./types";
+import type { HashAlgorithm } from "./types";
 
 export class Sha1 implements HashAlgorithm {
   getHash = function (xml) {

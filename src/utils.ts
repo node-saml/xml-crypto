@@ -1,5 +1,5 @@
 import * as xpath from "xpath";
-import { NamespacePrefix } from "./types";
+import type { NamespacePrefix } from "./types";
 
 export function isArrayHasLength(array: unknown): array is unknown[] {
   return Array.isArray(array) && array.length > 0;
@@ -207,6 +207,10 @@ function findNSPrefix(subset) {
   return subset.prefix || "";
 }
 
+function isElementSubset(docSubset: Node[]): docSubset is Element[] {
+  return docSubset.every((node) => xpath.isElement(node))
+}
+
 /**
  * Extract ancestor namespaces in order to import it to root of document subset
  * which is being canonicalized for non-exclusive c14n.
@@ -222,20 +226,17 @@ export function findAncestorNs(
   namespaceResolver?: XPathNSResolver
 ) {
   const docSubset = xpath.selectWithResolver(docSubsetXpath, doc, namespaceResolver);
-  let elementSubset: Element[] = [];
 
   if (!isArrayHasLength(docSubset)) {
     return [];
   }
 
-  if (!docSubset.every((node) => xpath.isElement(node))) {
+  if (!isElementSubset(docSubset)) {
     throw new Error("Document subset must be list of elements");
-  } else {
-    elementSubset = docSubset as Element[];
   }
 
   // Remove duplicate on ancestor namespace
-  const ancestorNs = collectAncestorNamespaces(elementSubset[0]);
+  const ancestorNs = collectAncestorNamespaces(docSubset[0]);
   const ancestorNsWithoutDuplicate: NamespacePrefix[] = [];
   for (let i = 0; i < ancestorNs.length; i++) {
     let notOnTheList = true;
