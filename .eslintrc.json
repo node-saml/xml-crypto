@@ -28,6 +28,7 @@
     "eqeqeq": ["error", "smart"],
     "no-var": "error",
     "prefer-const": "error",
+    "prefer-template": "error",
     "deprecation/deprecation": "warn",
     "@typescript-eslint/no-non-null-assertion": "error",
     "@typescript-eslint/no-unused-vars": "warn",

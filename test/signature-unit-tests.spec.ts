@@ -77,10 +77,10 @@ describe("Signature unit tests", function () {
     for (let i = 0; i < sig.references.length; i++) {
       // @ts-expect-error FIXME
       const ref = sig.references[i];
-      const expectedUri = "#_" + i;
+      const expectedUri = `#_${i}`;
       expect(
         ref.uri,
-        "wrong uri for index " + i + ". expected: " + expectedUri + " actual: " + ref.uri
+        `wrong uri for index ${i}. expected: ${expectedUri} actual: ${ref.uri}`
       ).to.equal(expectedUri);
       expect(ref.transforms.length).to.equal(1);
       expect(ref.transforms[0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
@@ -96,10 +96,7 @@ describe("Signature unit tests", function () {
   }
 
   function verifyDoesNotDuplicateIdAttributes(mode, prefix) {
-    const xml =
-      "<x xmlns:wsu='http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd' " +
-      prefix +
-      "Id='_1'></x>";
+    const xml = `<x xmlns:wsu='http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd' ${prefix}Id='_1'></x>`;
     const sig = new SignedXml({ idMode: mode });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference({ xpath: "//*[local-name(.)='x']" });
@@ -117,7 +114,7 @@ describe("Signature unit tests", function () {
     }
     const node = xpath.select(xpathArg, doc);
     // @ts-expect-error FIXME
-    expect(node.length, "xpath " + xpathArg + " not found").to.equal(1);
+    expect(node.length, `xpath ${xpathArg} not found`).to.equal(1);
   }
 
   function verifyAddsId(mode, nsMode) {
@@ -135,10 +132,7 @@ describe("Signature unit tests", function () {
 
     const op = nsMode === "equal" ? "=" : "!=";
 
-    const xpathArg =
-      "//*[local-name(.)='{elem}' and '_{id}' = @*[local-name(.)='Id' and namespace-uri(.)" +
-      op +
-      "'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd']]";
+    const xpathArg = `//*[local-name(.)='{elem}' and '_{id}' = @*[local-name(.)='Id' and namespace-uri(.)${op}'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd']]`;
 
     //verify each of the signed nodes now has an "Id" attribute with the right value
     nodeExists(doc, xpathArg.replace("{id}", "0").replace("{elem}", "x"));
@@ -168,13 +162,12 @@ describe("Signature unit tests", function () {
     const doc = new Dom().parseFromString(signedXml);
     const signatureNode = doc.documentElement;
 
-    expect(
-      attrs.Id,
-      'Id attribute is not equal to the expected value: "' + attrs.Id + '"'
-    ).to.equal(signatureNode.getAttribute("Id"));
+    expect(attrs.Id, `Id attribute is not equal to the expected value: "${attrs.Id}"`).to.equal(
+      signatureNode.getAttribute("Id")
+    );
     expect(
       attrs.data,
-      'data attribute is not equal to the expected value: "' + attrs.data + '"'
+      `data attribute is not equal to the expected value: "${attrs.data}"`
     ).to.equal(signatureNode.getAttribute("data"));
     expect(attrs.xmlns, "xmlns attribute can not be overridden").not.to.equal(
       signatureNode.getAttribute("xmlns")
@@ -889,7 +882,7 @@ describe("Signature unit tests", function () {
     const doc = new Dom().parseFromString(signedXml);
     const URI = xpath.select1("//*[local-name(.)='Reference']/@URI", doc);
     // @ts-expect-error FIXME
-    expect(URI.value, "uri should be empty but instead was " + URI.value).to.equal("");
+    expect(URI.value, `uri should be empty but instead was ${URI.value}`).to.equal("");
   });
 
   it("signer appends signature to a non-existing reference node", function () {
@@ -916,12 +909,10 @@ describe("Signature unit tests", function () {
   it("signer adds existing prefixes", function () {
     function getKeyInfoContentWithAssertionId({ assertionId }) {
       return (
-        '<wsse:SecurityTokenReference wsse11:TokenType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.1#SAMLV1.1" wsu:Id="0" ' +
-        'xmlns:wsse11="http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd"> ' +
-        '<wsse:KeyIdentifier ValueType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.0#SAMLAssertionID">' +
-        assertionId +
-        "</wsse:KeyIdentifier>" +
-        "</wsse:SecurityTokenReference>"
+        `<wsse:SecurityTokenReference wsse11:TokenType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.1#SAMLV1.1" wsu:Id="0" ` +
+        `xmlns:wsse11="http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd"> ` +
+        `<wsse:KeyIdentifier ValueType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.0#SAMLAssertionID">${assertionId}</wsse:KeyIdentifier>` +
+        `</wsse:SecurityTokenReference>`
       );
     }
 
