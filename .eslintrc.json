@@ -29,7 +29,7 @@
     "no-var": "error",
     "prefer-const": "error",
     "prefer-template": "error",
-    "deprecation/deprecation": "warn",
+    "deprecation/deprecation": "error",
     "@typescript-eslint/no-non-null-assertion": "error",
     "@typescript-eslint/no-unused-vars": "warn",
     "@typescript-eslint/no-this-alias": "error"
