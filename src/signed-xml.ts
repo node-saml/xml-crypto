@@ -821,21 +821,20 @@ export class SignedXml {
     const signedInfoNode = signedInfoNodes[0];
 
     if (typeof callback === "function") {
-      const self = this;
-      //Asynchronous flow
-      this.calculateSignatureValue(doc, function (err, signature) {
+      // Asynchronous flow
+      this.calculateSignatureValue(doc, (err, signature) => {
         if (err) {
           callback(err);
         } else {
-          self.signatureValue = signature || "";
-          signatureDoc.insertBefore(self.createSignature(prefix), signedInfoNode.nextSibling);
-          self.signatureXml = signatureDoc.toString();
-          self.signedXml = doc.toString();
-          callback(null, self);
+          this.signatureValue = signature || "";
+          signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
+          this.signatureXml = signatureDoc.toString();
+          this.signedXml = doc.toString();
+          callback(null, this);
         }
       });
     } else {
-      //Synchronous flow
+      // Synchronous flow
       this.calculateSignatureValue(doc);
       signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
       this.signatureXml = signatureDoc.toString();
