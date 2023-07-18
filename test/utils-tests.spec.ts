@@ -8,8 +8,9 @@ describe("Utils tests", function () {
       const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
       const pemAsArray = normalizedPem.trim().split("\n");
       const base64String = pemAsArray.slice(1, -1).join("");
-      const nonNormalizedPem =
-        pemAsArray[0] + "\n" + base64String + "\n" + pemAsArray[pemAsArray.length - 1];
+      const nonNormalizedPem = `${pemAsArray[0]}\n${base64String}\n${
+        pemAsArray[pemAsArray.length - 1]
+      }`;
 
       // @ts-expect-error FIXME
       expect(utils.derToPem(nonNormalizedPem)).to.equal(normalizedPem);

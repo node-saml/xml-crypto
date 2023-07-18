@@ -230,13 +230,11 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       }
     }
 
-    return (
-      (isAfterDocument ? "\n" : "") +
-      "<!--" +
-      utils.encodeSpecialCharactersInText(node.data) +
-      "-->" +
-      (isBeforeDocument ? "\n" : "")
-    );
+    const afterDocument = isAfterDocument ? "\n" : "";
+    const beforeDocument = isBeforeDocument ? "\n" : "";
+    const encodedText = utils.encodeSpecialCharactersInText(node.data);
+
+    return `${afterDocument}<!--${encodedText}-->${beforeDocument}`;
   }
 
   /**

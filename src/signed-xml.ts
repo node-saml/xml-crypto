@@ -180,7 +180,7 @@ export class SignedXml {
       return null;
     }
 
-    prefix = prefix ? prefix + ":" : "";
+    prefix = prefix ? `${prefix}:` : "";
 
     let x509Certs = "";
     if (Buffer.isBuffer(publicCert)) {
@@ -268,7 +268,7 @@ export class SignedXml {
       this.validateSignatureValue(doc, (err: Error | null, isValidSignature?: boolean) => {
         if (err) {
           this.validationErrors.push(
-            "invalid signature: the signature value " + this.signatureValue + " is incorrect"
+            `invalid signature: the signature value ${this.signatureValue} is incorrect`
           );
           callback(err);
         } else {
@@ -342,7 +342,7 @@ export class SignedXml {
       const res = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
       if (res === false) {
         this.validationErrors.push(
-          "invalid signature: the signature value " + this.signatureValue + " is incorrect"
+          `invalid signature: the signature value ${this.signatureValue} is incorrect`
         );
       }
       return res;
@@ -367,7 +367,7 @@ export class SignedXml {
     if (algo) {
       return new algo();
     } else {
-      throw new Error("signature algorithm '" + name + "' is not supported");
+      throw new Error(`signature algorithm '${name}' is not supported`);
     }
   }
 
@@ -376,7 +376,7 @@ export class SignedXml {
     if (algo) {
       return new algo();
     } else {
-      throw new Error("canonicalization algorithm '" + name + "' is not supported");
+      throw new Error(`canonicalization algorithm '${name}' is not supported`);
     }
   }
 
@@ -385,7 +385,7 @@ export class SignedXml {
     if (algo) {
       return new algo();
     } else {
-      throw new Error("hash algorithm '" + name + "' is not supported");
+      throw new Error(`hash algorithm '${name}' is not supported`);
     }
   }
 
@@ -425,9 +425,7 @@ export class SignedXml {
       // Note, we are using the last found element from the loop above
       if (!utils.isArrayHasLength(elem)) {
         this.validationErrors.push(
-          "invalid signature: the signature references an element with uri " +
-            ref.uri +
-            " but could not find such element in the xml"
+          `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`
         );
         return false;
       }
@@ -439,12 +437,7 @@ export class SignedXml {
 
       if (!utils.validateDigestValue(digest, ref.digestValue)) {
         this.validationErrors.push(
-          "invalid signature: for uri " +
-            ref.uri +
-            " calculated digest is " +
-            digest +
-            " but the xml to validate supplies digest " +
-            ref.digestValue
+          `invalid signature: for uri ${ref.uri} calculated digest is ${digest} but the xml to validate supplies digest ${ref.digestValue}`
         );
 
         return false;
@@ -525,23 +518,23 @@ export class SignedXml {
   loadReference(ref) {
     let nodes = utils.findChilds(ref, "DigestMethod");
     if (nodes.length === 0) {
-      throw new Error("could not find DigestMethod in reference " + ref.toString());
+      throw new Error(`could not find DigestMethod in reference ${ref.toString()}`);
     }
     const digestAlgoNode = nodes[0];
 
     const attr = utils.findAttr(digestAlgoNode, "Algorithm");
     if (!attr) {
-      throw new Error("could not find Algorithm attribute in node " + digestAlgoNode.toString());
+      throw new Error(`could not find Algorithm attribute in node ${digestAlgoNode.toString()}`);
     }
     const digestAlgo = attr.value;
 
     nodes = utils.findChilds(ref, "DigestValue");
     if (nodes.length === 0) {
-      throw new Error("could not find DigestValue node in reference " + ref.toString());
+      throw new Error(`could not find DigestValue node in reference ${ref.toString()}`);
     }
     const firstChild = nodes[0].firstChild;
     if (!firstChild || !("data" in firstChild)) {
-      throw new Error("could not find the value of DigestValue in " + nodes[0].toString());
+      throw new Error(`could not find the value of DigestValue in ${nodes[0].toString()}`);
     }
     const digestValue = firstChild.data;
 
@@ -720,10 +713,9 @@ export class SignedXml {
 
     if (validActions.indexOf(location.action) === -1) {
       const err = new Error(
-        "location.action option has an invalid action: " +
-          location.action +
-          ", must be any of the following values: " +
-          validActions.join(", ")
+        `location.action option has an invalid action: ${
+          location.action
+        }, must be any of the following values: ${validActions.join(", ")}`
       );
       if (!callback) {
         throw err;
@@ -735,38 +727,37 @@ export class SignedXml {
 
     // automatic insertion of `:`
     if (prefix) {
-      xmlNsAttr += ":" + prefix;
-      currentPrefix = prefix + ":";
+      xmlNsAttr += `:${prefix}`;
+      currentPrefix = `${prefix}:`;
     } else {
       currentPrefix = "";
     }
 
     Object.keys(attrs).forEach(function (name) {
       if (name !== "xmlns" && name !== xmlNsAttr) {
-        signatureAttrs.push(name + '="' + attrs[name] + '"');
+        signatureAttrs.push(`${name}="${attrs[name]}"`);
       }
     });
 
     // add the xml namespace attribute
-    signatureAttrs.push(xmlNsAttr + '="http://www.w3.org/2000/09/xmldsig#"');
+    signatureAttrs.push(`${xmlNsAttr}="http://www.w3.org/2000/09/xmldsig#"`);
 
-    let signatureXml = "<" + currentPrefix + "Signature " + signatureAttrs.join(" ") + ">";
+    let signatureXml = `<${currentPrefix}Signature ${signatureAttrs.join(" ")}>`;
 
     signatureXml += this.createSignedInfo(doc, prefix);
     signatureXml += this.getKeyInfo(prefix);
-    signatureXml += "</" + currentPrefix + "Signature>";
+    signatureXml += `</${currentPrefix}Signature>`;
 
     this.originalXmlWithIds = doc.toString();
 
     let existingPrefixesString = "";
     Object.keys(existingPrefixes).forEach(function (key) {
-      existingPrefixesString += "xmlns:" + key + '="' + existingPrefixes[key] + '" ';
+      existingPrefixesString += `xmlns:${key}="${existingPrefixes[key]}" `;
     });
 
     // A trick to remove the namespaces that already exist in the xml
     // This only works if the prefix and namespace match with those in the xml
-    const dummySignatureWrapper =
-      "<Dummy " + existingPrefixesString + ">" + signatureXml + "</Dummy>";
+    const dummySignatureWrapper = `<Dummy ${existingPrefixesString}>${signatureXml}</Dummy>`;
     const nodeXml = new Dom().parseFromString(dummySignatureWrapper);
 
     // Because we are using a dummy wrapper hack described above, we know there will be a `firstChild`
@@ -777,7 +768,7 @@ export class SignedXml {
 
     if (!xpath.isNodeLike(referenceNode)) {
       const err2 = new Error(
-        "the following xpath cannot be used because it was not found: " + location.reference
+        `the following xpath cannot be used because it was not found: ${location.reference}`
       );
       if (!callback) {
         throw err2;
@@ -843,27 +834,21 @@ export class SignedXml {
   }
 
   getKeyInfo(prefix) {
-    let res = "";
-    let currentPrefix;
-
-    currentPrefix = prefix || "";
-    currentPrefix = currentPrefix ? currentPrefix + ":" : currentPrefix;
+    const currentPrefix = prefix ? `${prefix}:` : "";
 
     let keyInfoAttrs = "";
     if (this.keyInfoAttributes) {
       Object.keys(this.keyInfoAttributes).forEach((name) => {
-        keyInfoAttrs += " " + name + '="' + this.keyInfoAttributes[name] + '"';
+        keyInfoAttrs += ` ${name}="${this.keyInfoAttributes[name]}"`;
       });
     }
+
     const keyInfoContent = this.getKeyInfoContent({ publicCert: this.publicCert, prefix });
-    if (keyInfoAttrs !== "" || keyInfoContent != null) {
-      res += "<" + currentPrefix + "KeyInfo" + keyInfoAttrs + ">";
-      res += keyInfoContent;
-      res += "</" + currentPrefix + "KeyInfo>";
-      return res;
-    } else {
-      return "";
+    if (keyInfoAttrs || keyInfoContent) {
+      return `<${currentPrefix}KeyInfo${keyInfoAttrs}>${keyInfoContent}</${currentPrefix}KeyInfo>`;
     }
+
+    return "";
   }
 
   /**
@@ -874,38 +859,35 @@ export class SignedXml {
     let res = "";
 
     prefix = prefix || "";
-    prefix = prefix ? prefix + ":" : prefix;
+    prefix = prefix ? `${prefix}:` : prefix;
 
     for (const ref of this.references) {
       const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
 
       if (!utils.isArrayHasLength(nodes)) {
         throw new Error(
-          "the following xpath cannot be signed because it was not found: " + ref.xpath
+          `the following xpath cannot be signed because it was not found: ${ref.xpath}`
         );
       }
 
       for (const node of nodes) {
         if (ref.isEmptyUri) {
-          res += "<" + prefix + 'Reference URI="">';
+          res += `<${prefix}Reference URI="">`;
         } else {
           const id = this.ensureHasId(node);
           ref.uri = id;
-          res += "<" + prefix + 'Reference URI="#' + id + '">';
+          res += `<${prefix}Reference URI="#${id}">`;
         }
-        res += "<" + prefix + "Transforms>";
+        res += `<${prefix}Transforms>`;
         for (const trans of ref.transforms || []) {
           const transform = this.findCanonicalizationAlgorithm(trans);
-          res += "<" + prefix + 'Transform Algorithm="' + transform.getAlgorithmName() + '"';
+          res += `<${prefix}Transform Algorithm="${transform.getAlgorithmName()}"`;
           if (utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList)) {
             res += ">";
-            res +=
-              '<InclusiveNamespaces PrefixList="' +
-              ref.inclusiveNamespacesPrefixList.join(" ") +
-              '" xmlns="' +
-              transform.getAlgorithmName() +
-              '"/>';
-            res += "</" + prefix + "Transform>";
+            res += `<InclusiveNamespaces PrefixList="${ref.inclusiveNamespacesPrefixList.join(
+              " "
+            )}" xmlns="${transform.getAlgorithmName()}"/>`;
+            res += `</${prefix}Transform>`;
           } else {
             res += " />";
           }
@@ -915,24 +897,10 @@ export class SignedXml {
 
         const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
         res +=
-          "</" +
-          prefix +
-          "Transforms>" +
-          "<" +
-          prefix +
-          'DigestMethod Algorithm="' +
-          digestAlgorithm.getAlgorithmName() +
-          '" />' +
-          "<" +
-          prefix +
-          "DigestValue>" +
-          digestAlgorithm.getHash(canonXml) +
-          "</" +
-          prefix +
-          "DigestValue>" +
-          "</" +
-          prefix +
-          "Reference>";
+          `</${prefix}Transforms>` +
+          `<${prefix}DigestMethod Algorithm="${digestAlgorithm.getAlgorithmName()}" />` +
+          `<${prefix}DigestValue>${digestAlgorithm.getHash(canonXml)}</${prefix}DigestValue>` +
+          `</${prefix}Reference>`;
       }
     }
 
@@ -990,7 +958,7 @@ export class SignedXml {
     }
 
     //add the attribute
-    const id = "_" + this.id++;
+    const id = `_${this.id++}`;
 
     if (this.idMode === "wssecurity") {
       node.setAttributeNS(
@@ -1020,31 +988,23 @@ export class SignedXml {
     let currentPrefix;
 
     currentPrefix = prefix || "";
-    currentPrefix = currentPrefix ? currentPrefix + ":" : currentPrefix;
+    currentPrefix = currentPrefix ? `${currentPrefix}:` : currentPrefix;
 
-    let res = "<" + currentPrefix + "SignedInfo>";
-    res +=
-      "<" +
-      currentPrefix +
-      'CanonicalizationMethod Algorithm="' +
-      transform.getAlgorithmName() +
-      '"';
+    let res = `<${currentPrefix}SignedInfo>`;
+    res += `<${currentPrefix}CanonicalizationMethod Algorithm="${transform.getAlgorithmName()}"`;
     if (utils.isArrayHasLength(this.inclusiveNamespacesPrefixList)) {
       res += ">";
-      res +=
-        '<InclusiveNamespaces PrefixList="' +
-        this.inclusiveNamespacesPrefixList.join(" ") +
-        '" xmlns="' +
-        transform.getAlgorithmName() +
-        '"/>';
-      res += "</" + currentPrefix + "CanonicalizationMethod>";
+      res += `<InclusiveNamespaces PrefixList="${this.inclusiveNamespacesPrefixList.join(
+        " "
+      )}" xmlns="${transform.getAlgorithmName()}"/>`;
+      res += `</${currentPrefix}CanonicalizationMethod>`;
     } else {
       res += " />";
     }
-    res += "<" + currentPrefix + 'SignatureMethod Algorithm="' + algo.getAlgorithmName() + '" />';
+    res += `<${currentPrefix}SignatureMethod Algorithm="${algo.getAlgorithmName()}" />`;
 
     res += this.createReferences(doc, prefix);
-    res += "</" + currentPrefix + "SignedInfo>";
+    res += `</${currentPrefix}SignedInfo>`;
     return res;
   }
 
@@ -1056,26 +1016,16 @@ export class SignedXml {
     let xmlNsAttr = "xmlns";
 
     if (prefix) {
-      xmlNsAttr += ":" + prefix;
+      xmlNsAttr += `:${prefix}`;
       prefix += ":";
     } else {
       prefix = "";
     }
 
-    const signatureValueXml =
-      "<" + prefix + "SignatureValue>" + this.signatureValue + "</" + prefix + "SignatureValue>";
+    const signatureValueXml = `<${prefix}SignatureValue>${this.signatureValue}</${prefix}SignatureValue>`;
     //the canonicalization requires to get a valid xml node.
     //we need to wrap the info in a dummy signature since it contains the default namespace.
-    const dummySignatureWrapper =
-      "<" +
-      prefix +
-      "Signature " +
-      xmlNsAttr +
-      '="http://www.w3.org/2000/09/xmldsig#">' +
-      signatureValueXml +
-      "</" +
-      prefix +
-      "Signature>";
+    const dummySignatureWrapper = `<${prefix}Signature ${xmlNsAttr}="http://www.w3.org/2000/09/xmldsig#">${signatureValueXml}</${prefix}Signature>`;
 
     const doc = new Dom().parseFromString(dummySignatureWrapper);
 

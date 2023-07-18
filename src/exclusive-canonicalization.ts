@@ -242,13 +242,11 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
       }
     }
 
-    return (
-      (isAfterDocument ? "\n" : "") +
-      "<!--" +
-      utils.encodeSpecialCharactersInText(node.data) +
-      "-->" +
-      (isBeforeDocument ? "\n" : "")
-    );
+    const afterDocument = isAfterDocument ? "\n" : "";
+    const beforeDocument = isBeforeDocument ? "\n" : "";
+    const encodedText = utils.encodeSpecialCharactersInText(node.data);
+
+    return `${afterDocument}<!--${encodedText}-->${beforeDocument}`;
   }
 
   /**
@@ -293,7 +291,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
             if (prefix === ancestorNamespace.prefix) {
               node.setAttributeNS(
                 "http://www.w3.org/2000/xmlns/",
-                "xmlns:" + prefix,
+                `xmlns:${prefix}`,
                 ancestorNamespace.namespaceURI
               );
             }
