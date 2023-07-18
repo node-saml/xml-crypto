@@ -1,18 +1,18 @@
-const xpath = require("xpath");
-const Dom = require("@xmldom/xmldom").DOMParser;
-const SignedXml = require("../lib/signed-xml.js").SignedXml;
-const fs = require("fs");
-const crypto = require("../index");
-const expect = require("chai").expect;
+import * as xpath from "xpath";
+import { DOMParser as Dom } from "@xmldom/xmldom";
+import { SignedXml } from "../src/index";
+import * as fs from "fs";
+import { expect } from "chai";
 
 describe("Signature integration tests", function () {
   function verifySignature(xml, expected, xpath) {
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    // @ts-expect-error FIXME
     sig.keyInfo = null;
 
     xpath.map(function (n) {
-      sig.addReference(n);
+      sig.addReference({ xpath: n });
     });
 
     sig.computeSignature(xml);
@@ -86,7 +86,7 @@ describe("Signature integration tests", function () {
       "<SignatureValue>FONRc5/nnQE2GMuEV0wK5/ofUJMHH7dzZ6VVd+oHDLfjfWax/lCMzUahJxW1i/dtm9Pl0t2FbJONVd3wwDSZzy6u5uCnj++iWYkRpIEN19RAzEMD1ejfZET8j3db9NeBq2JjrPbw81Fm7qKvte6jGa9ThTTB+1MHFRkC8qjukRM=</SignatureValue>" +
       "</Signature>";
 
-    const sig = new crypto.SignedXml();
+    const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
@@ -104,14 +104,16 @@ describe("Signature integration tests", function () {
     xml = xml.replace(/>\s*</g, "><");
 
     const doc = new Dom().parseFromString(xml);
+    // @ts-expect-error FIXME
     xml = doc.firstChild.toString();
 
-    const signature = xpath.select(
+    const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc
-    )[0];
-    const sig = new crypto.SignedXml();
+    );
+    const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/windows_store_certificate.pem");
+    // @ts-expect-error FIXME
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -121,14 +123,16 @@ describe("Signature integration tests", function () {
   it("signature with inclusive namespaces", function () {
     let xml = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.xml", "utf-8");
     const doc = new Dom().parseFromString(xml);
+    // @ts-expect-error FIXME
     xml = doc.firstChild.toString();
 
-    const signature = xpath.select(
+    const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc
-    )[0];
-    const sig = new crypto.SignedXml();
+    );
+    const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
+    // @ts-expect-error FIXME
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -141,14 +145,16 @@ describe("Signature integration tests", function () {
       "utf-8"
     );
     const doc = new Dom().parseFromString(xml);
+    // @ts-expect-error FIXME
     xml = doc.firstChild.toString();
 
-    const signature = xpath.select(
+    const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc
-    )[0];
-    const sig = new crypto.SignedXml();
+    );
+    const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
+    // @ts-expect-error FIXME
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -161,14 +167,16 @@ describe("Signature integration tests", function () {
       "utf-8"
     );
     const doc = new Dom().parseFromString(xml);
+    // @ts-expect-error FIXME
     xml = doc.firstChild.toString();
 
-    const signature = xpath.select(
+    const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc
-    )[0];
-    const sig = new crypto.SignedXml();
+    );
+    const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
+    // @ts-expect-error FIXME
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -179,7 +187,7 @@ describe("Signature integration tests", function () {
     const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
     const sig = new SignedXml();
-    sig.addReference("//*[local-name(.)='book']");
+    sig.addReference({ xpath: "//*[local-name(.)='book']" });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.computeSignature(xml);
 

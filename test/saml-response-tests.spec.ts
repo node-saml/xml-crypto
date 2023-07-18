@@ -1,19 +1,20 @@
-const crypto = require("../index");
-const xpath = require("xpath");
-const xmldom = require("@xmldom/xmldom");
-const fs = require("fs");
-const expect = require("chai").expect;
+import { SignedXml } from "../src/index";
+import * as xpath from "xpath";
+import * as xmldom from "@xmldom/xmldom";
+import * as fs from "fs";
+import { expect } from "chai";
 
 describe("SAML response tests", function () {
   it("test validating SAML response", function () {
     const xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
-    const signature = xpath.select(
+    const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc
-    )[0];
-    const sig = new crypto.SignedXml();
+    );
+    const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/feide_public.pem");
+    // @ts-expect-error FIXME
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
 
@@ -23,13 +24,15 @@ describe("SAML response tests", function () {
   it("test validating wrapped assertion signature", function () {
     const xml = fs.readFileSync("./test/static/valid_saml_signature_wrapping.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
-    const assertion = xpath.select("//*[local-name(.)='Assertion']", doc)[0];
-    const signature = xpath.select(
+    const assertion = xpath.select1("//*[local-name(.)='Assertion']", doc);
+    const signature = xpath.select1(
       "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      // @ts-expect-error FIXME
       assertion
-    )[0];
-    const sig = new crypto.SignedXml();
+    );
+    const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/feide_public.pem");
+    // @ts-expect-error FIXME
     sig.loadSignature(signature);
     expect(function () {
       sig.checkSignature(xml);
@@ -41,12 +44,13 @@ describe("SAML response tests", function () {
   it("test validating SAML response where a namespace is defined outside the signed element", function () {
     const xml = fs.readFileSync("./test/static/saml_external_ns.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
-    const signature = xpath.select(
+    const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc
-    )[0];
-    const sig = new crypto.SignedXml();
+    );
+    const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/saml_external_ns.pem");
+    // @ts-expect-error FIXME
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
     expect(result).to.be.true;
@@ -55,13 +59,15 @@ describe("SAML response tests", function () {
   it("test reference id does not contain quotes", function () {
     const xml = fs.readFileSync("./test/static/id_with_quotes.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
-    const assertion = xpath.select("//*[local-name(.)='Assertion']", doc)[0];
-    const signature = xpath.select(
+    const assertion = xpath.select1("//*[local-name(.)='Assertion']", doc);
+    const signature = xpath.select1(
       "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      // @ts-expect-error FIXME
       assertion
-    )[0];
-    const sig = new crypto.SignedXml();
+    );
+    const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/feide_public.pem");
+    // @ts-expect-error FIXME
     sig.loadSignature(signature);
     expect(function () {
       sig.checkSignature(xml);
@@ -71,12 +77,13 @@ describe("SAML response tests", function () {
   it("test validating SAML response WithComments", function () {
     const xml = fs.readFileSync("./test/static/valid_saml_withcomments.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
-    const signature = xpath.select(
+    const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc
-    )[0];
-    const sig = new crypto.SignedXml();
+    );
+    const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/feide_public.pem");
+    // @ts-expect-error FIXME
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
     // This doesn't matter, just want to make sure that we don't fail due to unknown algorithm

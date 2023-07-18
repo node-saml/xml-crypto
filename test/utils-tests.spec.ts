@@ -1,6 +1,6 @@
-const fs = require("fs");
-const utils = require("../lib/utils");
-const expect = require("chai").expect;
+import * as fs from "fs";
+import * as utils from "../src/utils";
+import { expect } from "chai";
 
 describe("Utils tests", function () {
   describe("derToPem", function () {
@@ -11,6 +11,7 @@ describe("Utils tests", function () {
       const nonNormalizedPem =
         pemAsArray[0] + "\n" + base64String + "\n" + pemAsArray[pemAsArray.length - 1];
 
+      // @ts-expect-error FIXME
       expect(utils.derToPem(nonNormalizedPem)).to.equal(normalizedPem);
     });
 
@@ -23,6 +24,7 @@ describe("Utils tests", function () {
     });
 
     it("will throw if the format is neither PEM nor DER", function () {
+      // @ts-expect-error FIXME
       expect(() => utils.derToPem("not a pem")).to.throw();
     });
   });
