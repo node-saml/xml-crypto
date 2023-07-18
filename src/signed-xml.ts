@@ -842,7 +842,7 @@ export class SignedXml {
         keyInfoAttrs += ` ${name}="${this.keyInfoAttributes[name]}"`;
       });
     }
-    
+
     const keyInfoContent = this.getKeyInfoContent({ publicCert: this.publicCert, prefix });
     if (keyInfoAttrs || keyInfoContent) {
       return `<${currentPrefix}KeyInfo${keyInfoAttrs}>${keyInfoContent}</${currentPrefix}KeyInfo>`;
