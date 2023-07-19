@@ -46,7 +46,7 @@ export class SignedXml {
    */
   inclusiveNamespacesPrefixList: string[] = [];
   namespaceResolver: XPathNSResolver = {
-    lookupNamespaceURI: function (prefix) {
+    lookupNamespaceURI: function (/* prefix */) {
       throw new Error("Not implemented");
     },
   };
