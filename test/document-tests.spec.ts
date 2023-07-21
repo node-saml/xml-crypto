@@ -13,9 +13,9 @@ describe("Document tests", function () {
       xpath
         .select(
           "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-          doc
+          doc,
         )[0]
-        .toString()
+        .toString(),
     );
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/feide_public.pem");
@@ -33,9 +33,9 @@ describe("Document tests", function () {
       xpath
         .select(
           "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-          doc
+          doc,
         )[0]
-        .toString()
+        .toString(),
     );
     const sig = new SignedXml();
     const feidePublicCert = fs.readFileSync("./test/static/feide_public.pem");

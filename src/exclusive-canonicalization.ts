@@ -94,7 +94,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     prefixesInScope,
     defaultNs,
     defaultNsForPrefix,
-    inclusiveNamespacesPrefixList: string[]
+    inclusiveNamespacesPrefixList: string[],
   ) {
     let i;
     let attr;
@@ -109,7 +109,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
         !isPrefixInScope(
           prefixesInScope,
           node.prefix,
-          node.namespaceURI || defaultNsForPrefix[node.prefix]
+          node.namespaceURI || defaultNsForPrefix[node.prefix],
         )
       ) {
         nsListToRender.push({
@@ -172,7 +172,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     prefixesInScope,
     defaultNs,
     defaultNsForPrefix,
-    inclusiveNamespacesPrefixList: string[]
+    inclusiveNamespacesPrefixList: string[],
   ) {
     if (xpath.isComment(node)) {
       return this.renderComment(node);
@@ -188,7 +188,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
       prefixesInScope,
       defaultNs,
       defaultNsForPrefix,
-      inclusiveNamespacesPrefixList
+      inclusiveNamespacesPrefixList,
     );
     const res = ["<", node.tagName, ns.rendered, this.renderAttrs(node), ">"];
 
@@ -200,8 +200,8 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
           pfxCopy,
           ns.newDefaultNs,
           defaultNsForPrefix,
-          inclusiveNamespacesPrefixList
-        )
+          inclusiveNamespacesPrefixList,
+        ),
       );
     }
 
@@ -271,7 +271,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
       if (CanonicalizationMethod.length !== 0) {
         const inclusiveNamespaces = utils.findChilds(
           CanonicalizationMethod[0],
-          "InclusiveNamespaces"
+          "InclusiveNamespaces",
         );
         if (inclusiveNamespaces.length !== 0) {
           inclusiveNamespacesPrefixList = (
@@ -292,7 +292,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
               node.setAttributeNS(
                 "http://www.w3.org/2000/xmlns/",
                 `xmlns:${prefix}`,
-                ancestorNamespace.namespaceURI
+                ancestorNamespace.namespaceURI,
               );
             }
           });
@@ -305,7 +305,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
       [],
       defaultNs,
       defaultNsForPrefix,
-      inclusiveNamespacesPrefixList
+      inclusiveNamespacesPrefixList,
     );
     return res;
   }

@@ -10,7 +10,7 @@ describe("HMAC tests", function () {
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc
+      doc,
     );
     const sig = new SignedXml();
     sig.enableHMAC();
@@ -27,7 +27,7 @@ describe("HMAC tests", function () {
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc
+      doc,
     );
     const sig = new SignedXml();
     sig.enableHMAC();
@@ -51,7 +51,7 @@ describe("HMAC tests", function () {
     const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc
+      doc,
     );
     const verify = new SignedXml();
     verify.enableHMAC();

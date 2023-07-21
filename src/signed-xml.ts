@@ -237,7 +237,7 @@ export class SignedXml {
   checkSignature(xml: string, callback: (error: Error | null, isValid?: boolean) => void): void;
   checkSignature(
     xml: string,
-    callback?: (error: Error | null, isValid?: boolean) => void
+    callback?: (error: Error | null, isValid?: boolean) => void,
   ): unknown {
     if (callback != null && typeof callback !== "function") {
       throw new Error("Last parameter must be a callback function");
@@ -268,7 +268,7 @@ export class SignedXml {
       this.validateSignatureValue(doc, (err: Error | null, isValidSignature?: boolean) => {
         if (err) {
           this.validationErrors.push(
-            `invalid signature: the signature value ${this.signatureValue} is incorrect`
+            `invalid signature: the signature value ${this.signatureValue} is incorrect`,
           );
           callback(err);
         } else {
@@ -295,7 +295,7 @@ export class SignedXml {
     ) {
       if (!doc || typeof doc !== "object") {
         throw new Error(
-          "When canonicalization method is non-exclusive, whole xml dom must be provided as an argument"
+          "When canonicalization method is non-exclusive, whole xml dom must be provided as an argument",
         );
       }
     }
@@ -342,7 +342,7 @@ export class SignedXml {
       const res = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
       if (res === false) {
         this.validationErrors.push(
-          `invalid signature: the signature value ${this.signatureValue} is incorrect`
+          `invalid signature: the signature value ${this.signatureValue} is incorrect`,
         );
       }
       return res;
@@ -415,7 +415,7 @@ export class SignedXml {
           throw new Error(
             "Cannot validate a document which contains multiple elements with the " +
               "same value for the ID / Id / Id attributes, in order to prevent " +
-              "signature wrapping attack."
+              "signature wrapping attack.",
           );
         }
 
@@ -425,7 +425,7 @@ export class SignedXml {
       // Note, we are using the last found element from the loop above
       if (!utils.isArrayHasLength(elem)) {
         this.validationErrors.push(
-          `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`
+          `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
         );
         return false;
       }
@@ -437,7 +437,7 @@ export class SignedXml {
 
       if (!utils.validateDigestValue(digest, ref.digestValue)) {
         this.validationErrors.push(
-          `invalid signature: for uri ${ref.uri} calculated digest is ${digest} but the xml to validate supplies digest ${ref.digestValue}`
+          `invalid signature: for uri ${ref.uri} calculated digest is ${digest} but the xml to validate supplies digest ${ref.digestValue}`,
         );
 
         return false;
@@ -462,7 +462,7 @@ export class SignedXml {
 
     const nodes = xpath.select(
       ".//*[local-name(.)='CanonicalizationMethod']/@Algorithm",
-      signatureNode
+      signatureNode,
     );
     if (!utils.isArrayHasLength(nodes)) {
       throw new Error("could not find CanonicalizationMethod/@Algorithm element");
@@ -474,7 +474,7 @@ export class SignedXml {
 
     const signatureAlgorithm = xpath.select1(
       ".//*[local-name(.)='SignatureMethod']/@Algorithm",
-      signatureNode
+      signatureNode,
     );
 
     if (xpath.isAttribute(signatureAlgorithm)) {
@@ -484,7 +484,7 @@ export class SignedXml {
     this.references = [];
     const references = xpath.select(
       ".//*[local-name(.)='SignedInfo']/*[local-name(.)='Reference']",
-      signatureNode
+      signatureNode,
     );
     if (!utils.isArrayHasLength(references)) {
       throw new Error("could not find any Reference elements");
@@ -496,7 +496,7 @@ export class SignedXml {
 
     const signatureValue = xpath.select1(
       ".//*[local-name(.)='SignatureValue']/text()",
-      signatureNode
+      signatureNode,
     );
 
     if (xpath.isTextNode(signatureValue)) {
@@ -555,7 +555,7 @@ export class SignedXml {
       // This is a little strange, we are looking for children of the last child of `transformsNode`
       const inclusiveNamespaces = utils.findChilds(
         transformsAll[transformsAll.length - 1],
-        "InclusiveNamespaces"
+        "InclusiveNamespaces",
       );
       if (utils.isArrayHasLength(inclusiveNamespaces)) {
         // Should really only be one prefix list, but maybe there's some circumstances where more than one to let's handle it
@@ -671,13 +671,13 @@ export class SignedXml {
   computeSignature(
     xml: string,
     options: ComputeSignatureOptions,
-    callback: ErrorFirstCallback<SignedXml>
+    callback: ErrorFirstCallback<SignedXml>,
   ): void;
 
   computeSignature(
     xml: string,
     options?: ComputeSignatureOptions | ErrorFirstCallback<SignedXml>,
-    callbackParam?: ErrorFirstCallback<SignedXml>
+    callbackParam?: ErrorFirstCallback<SignedXml>,
   ): void {
     let callback: ErrorFirstCallback<SignedXml>;
     if (typeof options === "function" && callbackParam == null) {
@@ -715,7 +715,7 @@ export class SignedXml {
       const err = new Error(
         `location.action option has an invalid action: ${
           location.action
-        }, must be any of the following values: ${validActions.join(", ")}`
+        }, must be any of the following values: ${validActions.join(", ")}`,
       );
       if (!callback) {
         throw err;
@@ -768,7 +768,7 @@ export class SignedXml {
 
     if (!xpath.isNodeLike(referenceNode)) {
       const err2 = new Error(
-        `the following xpath cannot be used because it was not found: ${location.reference}`
+        `the following xpath cannot be used because it was not found: ${location.reference}`,
       );
       if (!callback) {
         throw err2;
@@ -785,14 +785,14 @@ export class SignedXml {
     } else if (location.action === "before") {
       if (referenceNode.parentNode == null) {
         throw new Error(
-          "`location.reference` refers to the root node (by default), so we can't insert `before`"
+          "`location.reference` refers to the root node (by default), so we can't insert `before`",
         );
       }
       referenceNode.parentNode.insertBefore(signatureDoc, referenceNode);
     } else if (location.action === "after") {
       if (referenceNode.parentNode == null) {
         throw new Error(
-          "`location.reference` refers to the root node (by default), so we can't insert `after`"
+          "`location.reference` refers to the root node (by default), so we can't insert `after`",
         );
       }
       referenceNode.parentNode.insertBefore(signatureDoc, referenceNode.nextSibling);
@@ -866,7 +866,7 @@ export class SignedXml {
 
       if (!utils.isArrayHasLength(nodes)) {
         throw new Error(
-          `the following xpath cannot be signed because it was not found: ${ref.xpath}`
+          `the following xpath cannot be signed because it was not found: ${ref.xpath}`,
         );
       }
 
@@ -885,7 +885,7 @@ export class SignedXml {
           if (utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList)) {
             res += ">";
             res += `<InclusiveNamespaces PrefixList="${ref.inclusiveNamespacesPrefixList.join(
-              " "
+              " ",
             )}" xmlns="${transform.getAlgorithmName()}"/>`;
             res += `</${prefix}Transform>`;
           } else {
@@ -910,7 +910,7 @@ export class SignedXml {
   getCanonXml(
     transforms: CanonicalizationAlgorithmType[],
     node,
-    options: CanonicalizationOrTransformationAlgorithmProcessOptions
+    options: CanonicalizationOrTransformationAlgorithmProcessOptions,
   ) {
     options = options || {};
     options.defaultNsForPrefix = options.defaultNsForPrefix ?? SignedXml.defaultNsForPrefix;
@@ -944,7 +944,7 @@ export class SignedXml {
       attr = utils.findAttr(
         node,
         "Id",
-        "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+        "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
       );
     } else {
       this.idAttributes.some((idAttribute) => {
@@ -964,12 +964,12 @@ export class SignedXml {
       node.setAttributeNS(
         "http://www.w3.org/2000/xmlns/",
         "xmlns:wsu",
-        "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+        "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
       );
       node.setAttributeNS(
         "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
         "wsu:Id",
-        id
+        id,
       );
     } else {
       node.setAttribute("Id", id);
@@ -995,7 +995,7 @@ export class SignedXml {
     if (utils.isArrayHasLength(this.inclusiveNamespacesPrefixList)) {
       res += ">";
       res += `<InclusiveNamespaces PrefixList="${this.inclusiveNamespacesPrefixList.join(
-        " "
+        " ",
       )}" xmlns="${transform.getAlgorithmName()}"/>`;
       res += `</${currentPrefix}CanonicalizationMethod>`;
     } else {

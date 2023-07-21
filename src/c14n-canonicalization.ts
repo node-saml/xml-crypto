@@ -83,7 +83,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     prefixesInScope: string[],
     defaultNs: string,
     defaultNsForPrefix: string,
-    ancestorNamespaces: NamespacePrefix[]
+    ancestorNamespaces: NamespacePrefix[],
   ): RenderedNamespace {
     let i;
     let attr;
@@ -161,7 +161,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
           return ` xmlns:${attr.prefix}="${attr.namespaceURI}"`;
         }
         return ` xmlns="${attr.namespaceURI}"`;
-      })
+      }),
     );
 
     return { rendered: res.join(""), newDefaultNs };
@@ -182,14 +182,14 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       prefixesInScope,
       defaultNs,
       defaultNsForPrefix,
-      ancestorNamespaces
+      ancestorNamespaces,
     );
     const res = ["<", node.tagName, ns.rendered, this.renderAttrs(node), ">"];
 
     for (i = 0; i < node.childNodes.length; ++i) {
       pfxCopy = prefixesInScope.slice(0);
       res.push(
-        this.processInner(node.childNodes[i], pfxCopy, ns.newDefaultNs, defaultNsForPrefix, [])
+        this.processInner(node.childNodes[i], pfxCopy, ns.newDefaultNs, defaultNsForPrefix, []),
       );
     }
 
@@ -260,7 +260,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       prefixesInScope,
       defaultNs,
       defaultNsForPrefix,
-      ancestorNamespaces
+      ancestorNamespaces,
     );
     return res;
   }

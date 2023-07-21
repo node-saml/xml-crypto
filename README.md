@@ -139,7 +139,7 @@ var doc = new dom().parseFromString(xml);
 
 var signature = select(
   doc,
-  "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']"
+  "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
 )[0];
 var sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
 sig.loadSignature(signature);

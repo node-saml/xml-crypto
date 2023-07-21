@@ -17,7 +17,7 @@ function validateXml(xml, key) {
   const doc = new dom().parseFromString(xml);
   const signature = select(
     "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-    doc
+    doc,
   )[0];
   const sig = new SignedXml();
   sig.publicCert = key;

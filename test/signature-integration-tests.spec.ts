@@ -109,7 +109,7 @@ describe("Signature integration tests", function () {
 
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc
+      doc,
     );
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/windows_store_certificate.pem");
@@ -128,7 +128,7 @@ describe("Signature integration tests", function () {
 
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc
+      doc,
     );
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
@@ -142,7 +142,7 @@ describe("Signature integration tests", function () {
   it("signature with inclusive namespaces with unix line separators", function () {
     let xml = fs.readFileSync(
       "./test/static/signature_with_inclusivenamespaces_lines.xml",
-      "utf-8"
+      "utf-8",
     );
     const doc = new Dom().parseFromString(xml);
     // @ts-expect-error FIXME
@@ -150,7 +150,7 @@ describe("Signature integration tests", function () {
 
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc
+      doc,
     );
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
@@ -164,7 +164,7 @@ describe("Signature integration tests", function () {
   it("signature with inclusive namespaces with windows line separators", function () {
     let xml = fs.readFileSync(
       "./test/static/signature_with_inclusivenamespaces_lines_windows.xml",
-      "utf-8"
+      "utf-8",
     );
     const doc = new Dom().parseFromString(xml);
     // @ts-expect-error FIXME
@@ -172,7 +172,7 @@ describe("Signature integration tests", function () {
 
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc
+      doc,
     );
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
@@ -220,7 +220,7 @@ describe("Signature integration tests", function () {
     expect(doc.childNodes.length, "only one root node is expected.").to.equal(1);
     expect(
       doc.documentElement.childNodes.length,
-      "<library> should have two child nodes : <book> and <Signature>"
+      "<library> should have two child nodes : <book> and <Signature>",
     ).to.equal(2);
   });
 });

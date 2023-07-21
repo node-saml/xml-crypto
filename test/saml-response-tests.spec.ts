@@ -10,7 +10,7 @@ describe("SAML response tests", function () {
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc
+      doc,
     );
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/feide_public.pem");
@@ -28,17 +28,20 @@ describe("SAML response tests", function () {
     const signature = xpath.select1(
       "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       // @ts-expect-error FIXME
-      assertion
+      assertion,
     );
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/feide_public.pem");
     // @ts-expect-error FIXME
     sig.loadSignature(signature);
-    expect(function () {
-      sig.checkSignature(xml);
-    }, "Should not validate a document which contains multiple elements with the " +
-      "same value for the ID / Id / Id attributes, in order to prevent " +
-      "signature wrapping attack.").to.throw();
+    expect(
+      function () {
+        sig.checkSignature(xml);
+      },
+      "Should not validate a document which contains multiple elements with the " +
+        "same value for the ID / Id / Id attributes, in order to prevent " +
+        "signature wrapping attack.",
+    ).to.throw();
   });
 
   it("test validating SAML response where a namespace is defined outside the signed element", function () {
@@ -46,7 +49,7 @@ describe("SAML response tests", function () {
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc
+      doc,
     );
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/saml_external_ns.pem");
@@ -63,7 +66,7 @@ describe("SAML response tests", function () {
     const signature = xpath.select1(
       "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       // @ts-expect-error FIXME
-      assertion
+      assertion,
     );
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/feide_public.pem");
@@ -79,7 +82,7 @@ describe("SAML response tests", function () {
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc
+      doc,
     );
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/feide_public.pem");

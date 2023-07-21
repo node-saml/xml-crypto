@@ -9,7 +9,7 @@ export class RsaSha1 implements SignatureAlgorithm {
       const res = signer.sign(privateKey, "base64");
 
       return res;
-    }
+    },
   );
 
   verifySignature = createOptionalCallbackFunction(
@@ -19,7 +19,7 @@ export class RsaSha1 implements SignatureAlgorithm {
       const res = verifier.verify(key, signatureValue, "base64");
 
       return res;
-    }
+    },
   );
 
   getAlgorithmName = () => {
@@ -35,7 +35,7 @@ export class RsaSha256 implements SignatureAlgorithm {
       const res = signer.sign(privateKey, "base64");
 
       return res;
-    }
+    },
   );
 
   verifySignature = createOptionalCallbackFunction(
@@ -45,7 +45,7 @@ export class RsaSha256 implements SignatureAlgorithm {
       const res = verifier.verify(key, signatureValue, "base64");
 
       return res;
-    }
+    },
   );
 
   getAlgorithmName = () => {
@@ -61,7 +61,7 @@ export class RsaSha512 implements SignatureAlgorithm {
       const res = signer.sign(privateKey, "base64");
 
       return res;
-    }
+    },
   );
 
   verifySignature = createOptionalCallbackFunction(
@@ -71,7 +71,7 @@ export class RsaSha512 implements SignatureAlgorithm {
       const res = verifier.verify(key, signatureValue, "base64");
 
       return res;
-    }
+    },
   );
 
   getAlgorithmName = () => {
@@ -87,7 +87,7 @@ export class HmacSha1 implements SignatureAlgorithm {
       const res = signer.digest("base64");
 
       return res;
-    }
+    },
   );
 
   verifySignature = createOptionalCallbackFunction(
@@ -97,7 +97,7 @@ export class HmacSha1 implements SignatureAlgorithm {
       const res = verifier.digest("base64");
 
       return res === signatureValue;
-    }
+    },
   );
 
   getAlgorithmName = () => {

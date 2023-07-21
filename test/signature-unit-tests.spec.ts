@@ -10,7 +10,7 @@ describe("Signature unit tests", function () {
     const doc = new Dom().parseFromString(xml);
     const node = xpath.select1(
       "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc
+      doc,
     );
 
     const sig = new SignedXml({ idMode: mode });
@@ -37,29 +37,29 @@ describe("Signature unit tests", function () {
     const doc = new Dom().parseFromString(xml);
     const node = xpath.select1(
       "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc
+      doc,
     );
     const sig = new SignedXml();
     // @ts-expect-error FIXME
     sig.loadSignature(toString ? node.toString() : node);
 
     expect(sig.canonicalizationAlgorithm, "wrong canonicalization method").to.equal(
-      "http://www.w3.org/2001/10/xml-exc-c14n#"
+      "http://www.w3.org/2001/10/xml-exc-c14n#",
     );
 
     expect(sig.signatureAlgorithm, "wrong signature method").to.equal(
-      "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
+      "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
     );
 
     // @ts-expect-error FIXME
     expect(sig.signatureValue, "wrong signature value").to.equal(
-      "PI2xGt3XrVcxYZ34Kw7nFdq75c7Mmo7J0q7yeDhBprHuJal/KV9KyKG+Zy3bmQIxNwkPh0KMP5r1YMTKlyifwbWK0JitRCSa0Fa6z6+TgJi193yiR5S1MQ+esoQT0RzyIOBl9/GuJmXx/1rXnqrTxmL7UxtqKuM29/eHwF0QDUI="
+      "PI2xGt3XrVcxYZ34Kw7nFdq75c7Mmo7J0q7yeDhBprHuJal/KV9KyKG+Zy3bmQIxNwkPh0KMP5r1YMTKlyifwbWK0JitRCSa0Fa6z6+TgJi193yiR5S1MQ+esoQT0RzyIOBl9/GuJmXx/1rXnqrTxmL7UxtqKuM29/eHwF0QDUI=",
     );
 
     const keyInfo = xpath.select1(
       "//*[local-name(.)='KeyInfo']/*[local-name(.)='dummyKey']",
       // @ts-expect-error FIXME
-      sig.keyInfo
+      sig.keyInfo,
     );
     // @ts-expect-error FIXME
     expect(keyInfo.firstChild.data, "keyInfo clause not correctly loaded").to.equal("1234");
@@ -80,7 +80,7 @@ describe("Signature unit tests", function () {
       const expectedUri = `#_${i}`;
       expect(
         ref.uri,
-        `wrong uri for index ${i}. expected: ${expectedUri} actual: ${ref.uri}`
+        `wrong uri for index ${i}. expected: ${expectedUri} actual: ${ref.uri}`,
       ).to.equal(expectedUri);
       expect(ref.transforms.length).to.equal(1);
       expect(ref.transforms[0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
@@ -163,18 +163,18 @@ describe("Signature unit tests", function () {
     const signatureNode = doc.documentElement;
 
     expect(attrs.Id, `Id attribute is not equal to the expected value: "${attrs.Id}"`).to.equal(
-      signatureNode.getAttribute("Id")
+      signatureNode.getAttribute("Id"),
     );
     expect(
       attrs.data,
-      `data attribute is not equal to the expected value: "${attrs.data}"`
+      `data attribute is not equal to the expected value: "${attrs.data}"`,
     ).to.equal(signatureNode.getAttribute("data"));
     expect(attrs.xmlns, "xmlns attribute can not be overridden").not.to.equal(
-      signatureNode.getAttribute("xmlns")
+      signatureNode.getAttribute("xmlns"),
     );
     expect(
       signatureNode.getAttribute("xmlns"),
-      'xmlns attribute is not equal to the expected value: "http://www.w3.org/2000/09/xmldsig#"'
+      'xmlns attribute is not equal to the expected value: "http://www.w3.org/2000/09/xmldsig#"',
     ).to.equal("http://www.w3.org/2000/09/xmldsig#");
   }
 
@@ -232,7 +232,7 @@ describe("Signature unit tests", function () {
     expect(
       // @ts-expect-error FIXME
       doc.documentElement.lastChild.localName,
-      "the signature must be appended to the root node by default"
+      "the signature must be appended to the root node by default",
     ).to.equal("Signature");
   });
 
@@ -257,7 +257,7 @@ describe("Signature unit tests", function () {
     expect(
       // @ts-expect-error FIXME
       referenceNode.lastChild.localName,
-      "the signature should be appended to root/name"
+      "the signature should be appended to root/name",
     ).to.equal("Signature");
   });
 
@@ -282,7 +282,7 @@ describe("Signature unit tests", function () {
     expect(
       // @ts-expect-error FIXME
       referenceNode.firstChild.localName,
-      "the signature should be prepended to root/name"
+      "the signature should be prepended to root/name",
     ).to.equal("Signature");
   });
 
@@ -307,7 +307,7 @@ describe("Signature unit tests", function () {
     expect(
       // @ts-expect-error FIXME
       referenceNode.previousSibling.localName,
-      "the signature should be inserted before to root/name"
+      "the signature should be inserted before to root/name",
     ).to.equal("Signature");
   });
 
@@ -332,7 +332,7 @@ describe("Signature unit tests", function () {
     expect(
       // @ts-expect-error FIXME
       referenceNode.nextSibling.localName,
-      "the signature should be inserted after to root/name"
+      "the signature should be inserted after to root/name",
     ).to.equal("Signature");
   });
 
@@ -838,7 +838,7 @@ describe("Signature unit tests", function () {
   it("fails invalid signature - wsu - invalid signature value", function () {
     failInvalidSignature(
       "./test/static/invalid_signature - wsu - invalid signature value.xml",
-      "wssecurity"
+      "wssecurity",
     );
   });
 
@@ -849,14 +849,14 @@ describe("Signature unit tests", function () {
   it("fails invalid signature - wsu - non existing reference", function () {
     failInvalidSignature(
       "./test/static/invalid_signature - wsu - non existing reference.xml",
-      "wssecurity"
+      "wssecurity",
     );
   });
 
   it("fails invalid signature - wsu - changed content", function () {
     failInvalidSignature(
       "./test/static/invalid_signature - wsu - changed content.xml",
-      "wssecurity"
+      "wssecurity",
     );
   });
 
@@ -971,7 +971,7 @@ describe("Signature unit tests", function () {
     const doc = new Dom().parseFromString(signedXml);
     const inclusiveNamespaces = xpath.select(
       "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
-      doc.documentElement
+      doc.documentElement,
     );
     // @ts-expect-error FIXME
     expect(inclusiveNamespaces.length, "InclusiveNamespaces element should exist").to.equal(1);
@@ -980,7 +980,7 @@ describe("Signature unit tests", function () {
     const prefixListAttribute = inclusiveNamespaces[0].getAttribute("PrefixList");
     expect(
       prefixListAttribute,
-      "InclusiveNamespaces element should have the correct PrefixList attribute value"
+      "InclusiveNamespaces element should have the correct PrefixList attribute value",
     ).to.equal("prefix1 prefix2");
   });
 
@@ -1006,7 +1006,7 @@ describe("Signature unit tests", function () {
     const doc = new Dom().parseFromString(signedXml);
     const inclusiveNamespaces = xpath.select(
       "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
-      doc.documentElement
+      doc.documentElement,
     );
 
     // @ts-expect-error FIXME
@@ -1032,20 +1032,20 @@ describe("Signature unit tests", function () {
     const doc = new Dom().parseFromString(signedXml);
     const inclusiveNamespaces = xpath.select(
       "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
-      doc.documentElement
+      doc.documentElement,
     );
 
     expect(
       // @ts-expect-error FIXME
       inclusiveNamespaces.length,
-      "InclusiveNamespaces element should exist inside CanonicalizationMethod"
+      "InclusiveNamespaces element should exist inside CanonicalizationMethod",
     ).to.equal(1);
 
     // @ts-expect-error FIXME
     const prefixListAttribute = inclusiveNamespaces[0].getAttribute("PrefixList");
     expect(
       prefixListAttribute,
-      "InclusiveNamespaces element inside CanonicalizationMethod should have the correct PrefixList attribute value"
+      "InclusiveNamespaces element inside CanonicalizationMethod should have the correct PrefixList attribute value",
     ).to.equal("prefix1 prefix2");
   });
 
@@ -1068,13 +1068,13 @@ describe("Signature unit tests", function () {
     const doc = new Dom().parseFromString(signedXml);
     const inclusiveNamespaces = xpath.select(
       "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
-      doc.documentElement
+      doc.documentElement,
     );
 
     expect(
       // @ts-expect-error FIXME
       inclusiveNamespaces.length,
-      "InclusiveNamespaces element should not exist inside CanonicalizationMethod"
+      "InclusiveNamespaces element should not exist inside CanonicalizationMethod",
     ).to.equal(0);
   });
 
@@ -1100,14 +1100,14 @@ describe("Signature unit tests", function () {
     const algorithmAttribute = keyInfoElement[0].getAttribute("CustomUri");
     expect(
       algorithmAttribute,
-      "KeyInfo element should have the correct CustomUri attribute value"
+      "KeyInfo element should have the correct CustomUri attribute value",
     ).to.equal("http://www.example.com/keyinfo");
 
     // @ts-expect-error FIXME
     const customAttribute = keyInfoElement[0].getAttribute("CustomAttribute");
     expect(
       customAttribute,
-      "KeyInfo element should have the correct CustomAttribute attribute value"
+      "KeyInfo element should have the correct CustomAttribute attribute value",
     ).to.equal("custom-value");
   });
 
@@ -1124,7 +1124,7 @@ describe("Signature unit tests", function () {
 
     const x509certificates = xpath.select(
       "//*[local-name(.)='X509Certificate']",
-      doc.documentElement
+      doc.documentElement,
     );
     // @ts-expect-error FIXME
     expect(x509certificates.length, "There should be exactly two certificates").to.equal(2);
@@ -1142,10 +1142,10 @@ describe("Signature unit tests", function () {
     expect(trimmedTextContent2, "Empty certificate added [1]").to.not.be.empty;
 
     expect(trimmedTextContent1.substring(0, 5), "Incorrect value for X509Certificate[0]").to.equal(
-      "MIIDC"
+      "MIIDC",
     );
     expect(trimmedTextContent2.substring(0, 5), "Incorrect value for X509Certificate[1]").to.equal(
-      "MIIDZ"
+      "MIIDZ",
     );
   });
 });
