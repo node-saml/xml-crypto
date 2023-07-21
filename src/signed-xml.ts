@@ -69,7 +69,7 @@ export class SignedXml {
   /**
    * Contains validation errors (if any) after {@link checkSignature} method is called
    */
-  private validationErrors: string[] = [];
+  validationErrors: string[] = [];
   private keyInfo: Node | null = null;
 
   /**
