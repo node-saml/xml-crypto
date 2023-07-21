@@ -19,7 +19,6 @@
   ],
   "rules": {
     "no-console": "error",
-    "no-unused-vars": "warn",
     "no-prototype-builtins": "error",
     "one-var": ["error", "never"],
     "no-duplicate-imports": "error",
@@ -31,7 +30,7 @@
     "prefer-template": "error",
     "deprecation/deprecation": "error",
     "@typescript-eslint/no-non-null-assertion": "error",
-    "@typescript-eslint/no-unused-vars": "warn",
+    "@typescript-eslint/no-unused-vars": "error",
     "@typescript-eslint/no-this-alias": "error"
   }
 }
