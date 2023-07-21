@@ -12,7 +12,7 @@ export class EnvelopedSignature implements CanonicalizationOrTransformationAlgor
     if (null == options.signatureNode) {
       const signature = xpath.select1(
         "./*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-        node
+        node,
       );
       if (xpath.isNodeLike(signature) && signature.parentNode) {
         signature.parentNode.removeChild(signature);
@@ -22,19 +22,19 @@ export class EnvelopedSignature implements CanonicalizationOrTransformationAlgor
     const signatureNode = options.signatureNode;
     const expectedSignatureValue = xpath.select1(
       ".//*[local-name(.)='SignatureValue']/text()",
-      signatureNode
+      signatureNode,
     );
     if (xpath.isTextNode(expectedSignatureValue)) {
       const expectedSignatureValueData = expectedSignatureValue.data;
 
       const signatures = xpath.select(
         ".//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-        node
+        node,
       );
       for (const nodeSignature of Array.isArray(signatures) ? signatures : []) {
         const signatureValue = xpath.select1(
           ".//*[local-name(.)='SignatureValue']/text()",
-          nodeSignature
+          nodeSignature,
         );
         if (xpath.isTextNode(signatureValue)) {
           const signatureValueData = signatureValue.data;

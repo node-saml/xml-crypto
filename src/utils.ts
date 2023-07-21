@@ -95,15 +95,15 @@ export function encodeSpecialCharactersInText(text) {
  */
 export const PEM_FORMAT_REGEX = new RegExp(
   "^-----BEGIN [A-Z\x20]{1,48}-----([^-]*)-----END [A-Z\x20]{1,48}-----$",
-  "s"
+  "s",
 );
 export const EXTRACT_X509_CERTS = new RegExp(
   "-----BEGIN CERTIFICATE-----[^-]*-----END CERTIFICATE-----",
-  "g"
+  "g",
 );
 export const BASE64_REGEX = new RegExp(
   "^(?:[A-Za-z0-9\\+\\/]{4}\\n{0,1})*(?:[A-Za-z0-9\\+\\/]{2}==|[A-Za-z0-9\\+\\/]{3}=)?$",
-  "s"
+  "s",
 );
 
 /**
@@ -150,7 +150,7 @@ export function pemToDer(pem: string): string {
  */
 export function derToPem(
   der: string | Buffer,
-  pemLabel: "CERTIFICATE" | "PRIVATE KEY" | "RSA PUBLIC KEY"
+  pemLabel: "CERTIFICATE" | "PRIVATE KEY" | "RSA PUBLIC KEY",
 ): string {
   const base64Der = Buffer.isBuffer(der) ? der.toString("latin1").trim() : der.trim();
 
@@ -169,7 +169,7 @@ export function derToPem(
 
 function collectAncestorNamespaces(
   node: Element,
-  nsArray: NamespacePrefix[] = []
+  nsArray: NamespacePrefix[] = [],
 ): NamespacePrefix[] {
   if (!xpath.isElement(node.parentNode)) {
     return nsArray;
@@ -223,7 +223,7 @@ function isElementSubset(docSubset: Node[]): docSubset is Element[] {
 export function findAncestorNs(
   doc: Node,
   docSubsetXpath: string,
-  namespaceResolver?: XPathNSResolver
+  namespaceResolver?: XPathNSResolver,
 ) {
   const docSubset = xpath.selectWithResolver(docSubsetXpath, doc, namespaceResolver);
 

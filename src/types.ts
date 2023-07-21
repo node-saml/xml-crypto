@@ -151,7 +151,7 @@ export interface SignatureAlgorithm {
   getSignature(
     signedInfo: crypto.BinaryLike,
     privateKey: crypto.KeyLike,
-    callback?: ErrorFirstCallback<string>
+    callback?: ErrorFirstCallback<string>,
   ): void;
   /**
    * Verify the given signature of the given string using key
@@ -163,7 +163,7 @@ export interface SignatureAlgorithm {
     material: string,
     key: crypto.KeyLike,
     signatureValue: string,
-    callback?: ErrorFirstCallback<boolean>
+    callback?: ErrorFirstCallback<boolean>,
   ): void;
 
   getAlgorithmName(): SignatureAlgorithmType;
@@ -200,7 +200,7 @@ export interface TransformAlgorithm {
  */
 
 function isErrorFirstCallback<T>(
-  possibleCallback: unknown
+  possibleCallback: unknown,
 ): possibleCallback is ErrorFirstCallback<T> {
   return typeof possibleCallback === "function";
 }
@@ -212,7 +212,7 @@ function isErrorFirstCallback<T>(
  * Just call this function, passing the function that you'd like to add a callback version of.
  */
 export function createOptionalCallbackFunction<T, A extends unknown[]>(
-  syncVersion: (...args: A) => T
+  syncVersion: (...args: A) => T,
 ): {
   (...args: A): T;
   (...args: [...A, ErrorFirstCallback<T>]): void;
