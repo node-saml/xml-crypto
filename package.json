@@ -38,7 +38,7 @@
     "test": "nyc mocha"
   },
   "dependencies": {
-    "@xmldom/xmldom": "^0.8.8",
+    "@xmldom/xmldom": "^0.8.10",
     "xpath": "0.0.33"
   },
   "devDependencies": {
