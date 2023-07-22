@@ -154,7 +154,6 @@ describe("Signature unit tests", function () {
     sig.addReference({ xpath: "//*[local-name(.)='name']" });
 
     sig.computeSignature(xml, {
-      // @ts-expect-error FIXME
       attrs: attrs,
     });
 
@@ -188,7 +187,6 @@ describe("Signature unit tests", function () {
     sig.addReference({ xpath: "//*[@wsu:Id]" });
 
     sig.computeSignature(xml, {
-      // @ts-expect-error FIXME
       existingPrefixes: {
         wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
       },
@@ -244,7 +242,6 @@ describe("Signature unit tests", function () {
     sig.addReference({ xpath: "//*[local-name(.)='repository']" });
 
     sig.computeSignature(xml, {
-      // @ts-expect-error FIXME
       location: {
         reference: "/root/name",
         action: "append",
@@ -269,7 +266,6 @@ describe("Signature unit tests", function () {
     sig.addReference({ xpath: "//*[local-name(.)='repository']" });
 
     sig.computeSignature(xml, {
-      // @ts-expect-error FIXME
       location: {
         reference: "/root/name",
         action: "prepend",
@@ -294,7 +290,6 @@ describe("Signature unit tests", function () {
     sig.addReference({ xpath: "//*[local-name(.)='repository']" });
 
     sig.computeSignature(xml, {
-      // @ts-expect-error FIXME
       location: {
         reference: "/root/name",
         action: "before",
@@ -319,7 +314,6 @@ describe("Signature unit tests", function () {
     sig.addReference({ xpath: "//*[local-name(.)='repository']" });
 
     sig.computeSignature(xml, {
-      // @ts-expect-error FIXME
       location: {
         reference: "/root/name",
         action: "after",
@@ -571,7 +565,6 @@ describe("Signature unit tests", function () {
       digestAlgorithm: "http://dummyDigest",
     });
 
-    // @ts-expect-error FIXME
     sig.computeSignature(xml, { prefix: prefix });
     const signature = sig.getSignatureXml();
 
@@ -894,7 +887,6 @@ describe("Signature unit tests", function () {
 
     try {
       sig.computeSignature(xml, {
-        // @ts-expect-error FIXME
         location: {
           reference: "/root/foobar",
           action: "append",
@@ -932,7 +924,6 @@ describe("Signature unit tests", function () {
     sig.getKeyInfoContent = getKeyInfoContentWithAssertionId.bind(this, { assertionId });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.computeSignature(xml, {
-      // @ts-expect-error FIXME
       prefix: "ds",
       location: {
         reference: "//Assertion",

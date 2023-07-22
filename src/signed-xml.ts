@@ -657,7 +657,7 @@ export class SignedXml {
    * @returns If no callback is provided, returns `this` (the instance of SignedXml).
    * @throws TypeError If the xml can not be parsed, or Error if there were invalid options passed.
    */
-  computeSignature(xml: string, options: ErrorFirstCallback<SignedXml>): void;
+  computeSignature(xml: string, options: ComputeSignatureOptions): void;
 
   /**
    * Compute the signature of the given XML (using the already defined settings).
