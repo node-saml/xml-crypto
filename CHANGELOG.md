@@ -1,5 +1,14 @@
 # Changelog
 
+## v4.0.1 (2023-07-22)
+
+### 🐛 Bug Fixes
+
+- [**bug**] Use correct type for options [#360](https://github.com/node-saml/xml-crypto/pull/360)
+- [**bug**] Fix validationErrors type [#361](https://github.com/node-saml/xml-crypto/pull/361)
+
+---
+
 ## v4.0.0 (2023-07-21)
 
 ### 💣 Major Changes
