@@ -220,7 +220,7 @@ function isElementSubset(docSubset: Node[]): docSubset is Element[] {
  * Extract ancestor namespaces in order to import it to root of document subset
  * which is being canonicalized for non-exclusive c14n.
  *
- * @param {object} doc - Usually a product from `new DOMParser().parseFromString()`
+ * @param {object} doc - Usually a product from `new xmldom.DOMParser().parseFromString()`
  * @param {string} docSubsetXpath - xpath query to get document subset being canonicalized
  * @param {object} namespaceResolver - xpath namespace resolver
  * @returns {Array} i.e. [{prefix: "saml", namespaceURI: "urn:oasis:names:tc:SAML:2.0:assertion"}]

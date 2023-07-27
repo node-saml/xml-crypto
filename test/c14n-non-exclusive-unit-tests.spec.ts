@@ -1,12 +1,12 @@
 import { expect } from "chai";
 
 import { C14nCanonicalization } from "../src/c14n-canonicalization";
-import { DOMParser as Dom } from "@xmldom/xmldom";
+import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import * as utils from "../src/utils";
 
 const test_C14nCanonicalization = function (xml, xpathArg, expected) {
-  const doc = new Dom().parseFromString(xml);
+  const doc = new xmldom.DOMParser().parseFromString(xml);
   const elem = xpath.select1(xpathArg, doc);
   const can = new C14nCanonicalization();
   const result = can
@@ -20,7 +20,7 @@ const test_C14nCanonicalization = function (xml, xpathArg, expected) {
 };
 
 const test_findAncestorNs = function (xml, xpath, expected) {
-  const doc = new Dom().parseFromString(xml);
+  const doc = new xmldom.DOMParser().parseFromString(xml);
   const result = utils.findAncestorNs(doc, xpath);
 
   expect(result).to.deep.equal(expected);

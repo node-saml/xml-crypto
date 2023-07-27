@@ -1,5 +1,5 @@
 import * as xpath from "xpath";
-import { DOMParser as Dom } from "@xmldom/xmldom";
+import * as xmldom from "@xmldom/xmldom";
 import { SignedXml } from "../src/index";
 import * as fs from "fs";
 import * as crypto from "crypto";
@@ -7,7 +7,7 @@ import { expect } from "chai";
 
 describe("Signature unit tests", function () {
   function verifySignature(xml, mode) {
-    const doc = new Dom().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml);
     const node = xpath.select1(
       "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
@@ -34,7 +34,7 @@ describe("Signature unit tests", function () {
 
   function passLoadSignature(file, toString) {
     const xml = fs.readFileSync(file, "utf8");
-    const doc = new Dom().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml);
     const node = xpath.select1(
       "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
@@ -102,7 +102,7 @@ describe("Signature unit tests", function () {
     sig.addReference({ xpath: "//*[local-name(.)='x']" });
     sig.computeSignature(xml);
     const signedXml = sig.getOriginalXmlWithIds();
-    const doc = new Dom().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const attrs = xpath.select("//@*", doc);
     // @ts-expect-error FIXME
     expect(attrs.length, "wrong number of attributes").to.equal(2);
@@ -128,7 +128,7 @@ describe("Signature unit tests", function () {
 
     sig.computeSignature(xml);
     const signedXml = sig.getOriginalXmlWithIds();
-    const doc = new Dom().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
 
     const op = nsMode === "equal" ? "=" : "!=";
 
@@ -158,7 +158,7 @@ describe("Signature unit tests", function () {
     });
 
     const signedXml = sig.getSignatureXml();
-    const doc = new Dom().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const signatureNode = doc.documentElement;
 
     expect(attrs.Id, `Id attribute is not equal to the expected value: "${attrs.Id}"`).to.equal(
@@ -193,7 +193,7 @@ describe("Signature unit tests", function () {
     });
 
     const signedXml = sig.getSignatureXml();
-    const doc = new Dom().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const references = xpath.select("//*[local-name(.)='Reference']", doc);
     // @ts-expect-error FIXME
     expect(references.length).to.equal(2);
@@ -225,7 +225,7 @@ describe("Signature unit tests", function () {
     sig.addReference({ xpath: "//*[local-name(.)='name']" });
     sig.computeSignature(xml);
 
-    const doc = new Dom().parseFromString(sig.getSignedXml());
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
 
     expect(
       // @ts-expect-error FIXME
@@ -248,7 +248,7 @@ describe("Signature unit tests", function () {
       },
     });
 
-    const doc = new Dom().parseFromString(sig.getSignedXml());
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
     const referenceNode = xpath.select1("/root/name", doc);
 
     expect(
@@ -272,7 +272,7 @@ describe("Signature unit tests", function () {
       },
     });
 
-    const doc = new Dom().parseFromString(sig.getSignedXml());
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
     const referenceNode = xpath.select1("/root/name", doc);
 
     expect(
@@ -296,7 +296,7 @@ describe("Signature unit tests", function () {
       },
     });
 
-    const doc = new Dom().parseFromString(sig.getSignedXml());
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
     const referenceNode = xpath.select1("/root/name", doc);
 
     expect(
@@ -320,7 +320,7 @@ describe("Signature unit tests", function () {
       },
     });
 
-    const doc = new Dom().parseFromString(sig.getSignedXml());
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
     const referenceNode = xpath.select1("/root/name", doc);
 
     expect(
@@ -872,7 +872,7 @@ describe("Signature unit tests", function () {
 
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
-    const doc = new Dom().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const URI = xpath.select1("//*[local-name(.)='Reference']/@URI", doc);
     // @ts-expect-error FIXME
     expect(URI.value, `uri should be empty but instead was ${URI.value}`).to.equal("");
@@ -959,7 +959,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new Dom().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const inclusiveNamespaces = xpath.select(
       "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
       doc.documentElement,
@@ -994,7 +994,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new Dom().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const inclusiveNamespaces = xpath.select(
       "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
       doc.documentElement,
@@ -1020,7 +1020,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new Dom().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const inclusiveNamespaces = xpath.select(
       "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
       doc.documentElement,
@@ -1056,7 +1056,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new Dom().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const inclusiveNamespaces = xpath.select(
       "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
       doc.documentElement,
@@ -1082,7 +1082,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new Dom().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const keyInfoElement = xpath.select("//*[local-name(.)='KeyInfo']", doc.documentElement);
     // @ts-expect-error FIXME
     expect(keyInfoElement.length, "KeyInfo element should exist").to.equal(1);
@@ -1111,7 +1111,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new Dom().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
 
     const x509certificates = xpath.select(
       "//*[local-name(.)='X509Certificate']",
