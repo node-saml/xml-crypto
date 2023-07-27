@@ -14,12 +14,12 @@ export type CanonicalizationAlgorithmType =
   | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
   | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
   | "http://www.w3.org/2001/10/xml-exc-c14n#"
-  | "http://www.w3.org/2001/10/xml-exc-c14n#WithComments";
+  | "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"
+  | string;
 
 export type CanonicalizationOrTransformAlgorithmType =
   | CanonicalizationAlgorithmType
-  | "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
-  | string;
+  | "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
 
 export type HashAlgorithmType =
   | "http://www.w3.org/2000/09/xmldsig#sha1"
@@ -38,15 +38,15 @@ export type SignatureAlgorithmType =
  * @param cert the certificate as a string or array of strings (see https://www.w3.org/TR/2008/REC-xmldsig-core-20080610/#sec-X509Data)
  * @param prefix an optional namespace alias to be used for the generated XML
  */
-export type GetKeyInfoContentArgs = {
+export interface GetKeyInfoContentArgs {
   publicCert?: crypto.KeyLike;
   prefix?: string | null;
-};
+}
 
 /**
  * Options for the SignedXml constructor.
  */
-export type SignedXmlOptions = {
+export interface SignedXmlOptions {
   idMode?: "wssecurity";
   idAttribute?: string;
   privateKey?: crypto.KeyLike;
@@ -58,25 +58,30 @@ export type SignedXmlOptions = {
   keyInfoAttributes?: Record<string, string>;
   getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
   getCertFromKeyInfo?(keyInfo?: Node | null): string | null;
-};
+}
 
-export type NamespacePrefix = {
+export interface NamespacePrefix {
   prefix: string;
   namespaceURI: string;
-};
+}
 
-export type RenderedNamespace = {
+export interface RenderedNamespace {
   rendered: string;
   newDefaultNs: string;
-};
+}
 
-export type CanonicalizationOrTransformationAlgorithmProcessOptions = {
+export interface CanonicalizationOrTransformationAlgorithmProcessOptions {
   defaultNs?: string;
   defaultNsForPrefix?: Record<string, string>;
   ancestorNamespaces?: NamespacePrefix[];
   signatureNode?: Node | null;
   inclusiveNamespacesPrefixList?: string[];
-};
+}
+
+export interface ComputeSignatureOptionsLocation {
+  reference?: string;
+  action?: "append" | "prepend" | "before" | "after";
+}
 
 /**
  * Options for the computeSignature method.
@@ -90,15 +95,12 @@ export type CanonicalizationOrTransformationAlgorithmProcessOptions = {
  *   should contain one of the following values:
  *   `append`, `prepend`, `before`, `after`
  */
-export type ComputeSignatureOptions = {
+export interface ComputeSignatureOptions {
   prefix?: string;
-  attrs?: { [attrName: string]: string };
-  location?: {
-    reference?: string;
-    action?: "append" | "prepend" | "before" | "after";
-  };
-  existingPrefixes?: { [prefix: string]: string };
-};
+  attrs?: Record<string, string>;
+  location?: ComputeSignatureOptionsLocation;
+  existingPrefixes?: Record<string, string>;
+}
 
 /**
  * Represents a reference node for XML digital signature.
@@ -124,11 +126,17 @@ export interface Reference {
 
   // Optional. Indicates whether the URI is empty.
   isEmptyUri: boolean;
+
+  // Optional. The type of the reference node.
+  ancestorNamespaces?: NamespacePrefix[];
 }
 
 /** Implement this to create a new CanonicalizationOrTransformationAlgorithm */
 export interface CanonicalizationOrTransformationAlgorithm {
-  process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions): Node;
+  process(
+    node: Node,
+    options: CanonicalizationOrTransformationAlgorithmProcessOptions,
+  ): Node | string;
 
   getAlgorithmName(): CanonicalizationOrTransformAlgorithmType;
 

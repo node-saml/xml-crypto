@@ -386,7 +386,6 @@ describe("Signature unit tests", function () {
     sig.getKeyInfoContent = function () {
       return "dummy key info";
     };
-    // @ts-expect-error FIXME
     sig.canonicalizationAlgorithm = "http://DummyCanonicalization";
     sig.privateKey = "";
 
@@ -545,7 +544,6 @@ describe("Signature unit tests", function () {
     sig.getKeyInfoContent = function () {
       return "<ds:dummy>dummy key info</ds:dummy>";
     };
-    // @ts-expect-error FIXME
     sig.canonicalizationAlgorithm = "http://DummyCanonicalization";
     sig.privateKey = "";
 
