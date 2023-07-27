@@ -12,14 +12,17 @@ describe("HMAC tests", function () {
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    const sig = new SignedXml();
-    sig.enableHMAC();
-    sig.publicCert = fs.readFileSync("./test/static/hmac.key");
-    // @ts-expect-error FIXME
-    sig.loadSignature(signature);
-    const result = sig.checkSignature(xml);
+    if (xpath.isNodeLike(signature)) {
+      const sig = new SignedXml();
+      sig.enableHMAC();
+      sig.publicCert = fs.readFileSync("./test/static/hmac.key");
+      sig.loadSignature(signature);
+      const result = sig.checkSignature(xml);
 
-    expect(result).to.be.true;
+      expect(result).to.be.true;
+    } else {
+      expect(xpath.isNodeLike(signature)).to.be.true;
+    }
   });
 
   it("test HMAC signature with incorrect key", function () {
@@ -29,14 +32,17 @@ describe("HMAC tests", function () {
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    const sig = new SignedXml();
-    sig.enableHMAC();
-    sig.publicCert = fs.readFileSync("./test/static/hmac-foobar.key");
-    // @ts-expect-error FIXME
-    sig.loadSignature(signature);
-    const result = sig.checkSignature(xml);
+    if (xpath.isNodeLike(signature)) {
+      const sig = new SignedXml();
+      sig.enableHMAC();
+      sig.publicCert = fs.readFileSync("./test/static/hmac-foobar.key");
+      sig.loadSignature(signature);
+      const result = sig.checkSignature(xml);
 
-    expect(result).to.be.false;
+      expect(result).to.be.false;
+    } else {
+      expect(xpath.isNodeLike(signature)).to.be.true;
+    }
   });
 
   it("test create and validate HMAC signature", function () {
@@ -53,13 +59,16 @@ describe("HMAC tests", function () {
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    const verify = new SignedXml();
-    verify.enableHMAC();
-    verify.publicCert = fs.readFileSync("./test/static/hmac.key");
-    // @ts-expect-error FIXME
-    verify.loadSignature(signature);
-    const result = verify.checkSignature(sig.getSignedXml());
+    if (xpath.isNodeLike(signature)) {
+      const verify = new SignedXml();
+      verify.enableHMAC();
+      verify.publicCert = fs.readFileSync("./test/static/hmac.key");
+      verify.loadSignature(signature);
+      const result = verify.checkSignature(sig.getSignedXml());
 
-    expect(result).to.be.true;
+      expect(result).to.be.true;
+    } else {
+      expect(xpath.isNodeLike(signature)).to.be.true;
+    }
   });
 });

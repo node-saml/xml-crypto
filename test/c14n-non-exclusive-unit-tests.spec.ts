@@ -7,14 +7,17 @@ import * as utils from "../src/utils";
 
 const test_C14nCanonicalization = function (xml, xpathArg, expected) {
   const doc = new xmldom.DOMParser().parseFromString(xml);
-  const elem = xpath.select1(xpathArg, doc);
+  const node = xpath.select1(xpathArg, doc);
   const can = new C14nCanonicalization();
-  const result = can
-    // @ts-expect-error FIXME
-    .process(elem, {
-      ancestorNamespaces: utils.findAncestorNs(doc, xpathArg),
-    })
-    .toString();
+  let result = "";
+
+  if (xpath.isNodeLike(node)) {
+    result = can
+      .process(node, {
+        ancestorNamespaces: utils.findAncestorNs(doc, xpathArg),
+      })
+      .toString();
+  }
 
   expect(result).to.equal(expected);
 };
