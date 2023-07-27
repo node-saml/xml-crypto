@@ -30,7 +30,7 @@ export function findAttr(element: Element, localName: string, namespace?: string
   return null;
 }
 
-export function findChilds(node: Node | Document, localName: string, namespace?: string) {
+export function findChildren(node: Node | Document, localName: string, namespace?: string) {
   const element = (node as Document).documentElement ?? node;
   const res: Element[] = [];
   for (let i = 0; i < element.childNodes.length; i++) {
@@ -44,6 +44,11 @@ export function findChilds(node: Node | Document, localName: string, namespace?:
     }
   }
   return res;
+}
+
+/** @deprecated */
+export function findChilds(node: Node | Document, localName: string, namespace?: string) {
+  return findChildren(node, localName, namespace);
 }
 
 const xml_special_to_encoded_attribute = {

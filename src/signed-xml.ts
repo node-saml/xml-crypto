@@ -283,7 +283,7 @@ export class SignedXml {
       throw new Error("No signature found.");
     }
 
-    const signedInfo = utils.findChilds(this.signatureNode, "SignedInfo");
+    const signedInfo = utils.findChildren(this.signatureNode, "SignedInfo");
     if (signedInfo.length === 0) {
       throw new Error("could not find SignedInfo element in the message");
     }
@@ -516,7 +516,7 @@ export class SignedXml {
    *
    */
   loadReference(ref) {
-    let nodes = utils.findChilds(ref, "DigestMethod");
+    let nodes = utils.findChildren(ref, "DigestMethod");
     if (nodes.length === 0) {
       throw new Error(`could not find DigestMethod in reference ${ref.toString()}`);
     }
@@ -528,7 +528,7 @@ export class SignedXml {
     }
     const digestAlgo = attr.value;
 
-    nodes = utils.findChilds(ref, "DigestValue");
+    nodes = utils.findChildren(ref, "DigestValue");
     if (nodes.length === 0) {
       throw new Error(`could not find DigestValue node in reference ${ref.toString()}`);
     }
@@ -540,10 +540,10 @@ export class SignedXml {
 
     const transforms: string[] = [];
     let inclusiveNamespacesPrefixList: string[] = [];
-    nodes = utils.findChilds(ref, "Transforms");
+    nodes = utils.findChildren(ref, "Transforms");
     if (nodes.length !== 0) {
       const transformsNode = nodes[0];
-      const transformsAll = utils.findChilds(transformsNode, "Transform");
+      const transformsAll = utils.findChildren(transformsNode, "Transform");
       for (const transform of transformsAll) {
         const transformAttr = utils.findAttr(transform, "Algorithm");
 
@@ -553,7 +553,7 @@ export class SignedXml {
       }
 
       // This is a little strange, we are looking for children of the last child of `transformsNode`
-      const inclusiveNamespaces = utils.findChilds(
+      const inclusiveNamespaces = utils.findChildren(
         transformsAll[transformsAll.length - 1],
         "InclusiveNamespaces",
       );
@@ -799,7 +799,7 @@ export class SignedXml {
     }
 
     this.signatureNode = signatureDoc;
-    const signedInfoNodes = utils.findChilds(this.signatureNode, "SignedInfo");
+    const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
     if (signedInfoNodes.length === 0) {
       const err3 = new Error("could not find SignedInfo element in the message");
       if (!callback) {

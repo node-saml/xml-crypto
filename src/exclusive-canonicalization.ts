@@ -267,9 +267,9 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
      * If the inclusiveNamespacesPrefixList has not been explicitly provided then look it up in CanonicalizationMethod/InclusiveNamespaces
      */
     if (!utils.isArrayHasLength(inclusiveNamespacesPrefixList)) {
-      const CanonicalizationMethod = utils.findChilds(node, "CanonicalizationMethod");
+      const CanonicalizationMethod = utils.findChildren(node, "CanonicalizationMethod");
       if (CanonicalizationMethod.length !== 0) {
-        const inclusiveNamespaces = utils.findChilds(
+        const inclusiveNamespaces = utils.findChildren(
           CanonicalizationMethod[0],
           "InclusiveNamespaces",
         );
