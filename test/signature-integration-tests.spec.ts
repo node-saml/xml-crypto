@@ -8,8 +8,6 @@ describe("Signature integration tests", function () {
   function verifySignature(xml, expected, xpath) {
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    // @ts-expect-error FIXME
-    sig.keyInfo = null;
 
     xpath.map(function (n) {
       sig.addReference({ xpath: n });
@@ -18,26 +16,8 @@ describe("Signature integration tests", function () {
     sig.computeSignature(xml);
     const signed = sig.getSignedXml();
 
-    //fs.writeFileSync("./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/signedExample.xml", signed)
     const expectedContent = fs.readFileSync(expected).toString();
     expect(signed, "signature xml different than expected").to.equal(expectedContent);
-    /*
-    var spawn = require('child_process').spawn
-    var proc = spawn('./test/validators/XmlCryptoUtilities/XmlCryptoUtilities/bin/Debug/XmlCryptoUtilities.exe', ['verify'])
-  
-    proc.stdout.on('data', function (data) {
-      console.log('stdout: ' + data);
-    });
-  
-    proc.stderr.on('data', function (data) {
-      console.log('stderr: ' + data);
-    });
-  
-    proc.on('exit', function (code) {
-      test.equal(0, code, "signature validation failed")
-      test.done()
-    });
-    */
   }
 
   it("verify signature", function () {
@@ -104,83 +84,91 @@ describe("Signature integration tests", function () {
     xml = xml.replace(/>\s*</g, "><");
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
-    // @ts-expect-error FIXME
-    xml = doc.firstChild.toString();
+    const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    const sig = new SignedXml();
-    sig.publicCert = fs.readFileSync("./test/static/windows_store_certificate.pem");
-    // @ts-expect-error FIXME
-    sig.loadSignature(signature);
-    const result = sig.checkSignature(xml);
+    if (xpath.isNodeLike(signature)) {
+      const sig = new SignedXml();
+      sig.publicCert = fs.readFileSync("./test/static/windows_store_certificate.pem");
+      sig.loadSignature(signature);
+      const result = sig.checkSignature(childXml ?? "");
 
-    expect(result).to.be.true;
+      expect(result).to.be.true;
+    } else {
+      expect(xpath.isNodeLike(signature)).to.be.true;
+    }
   });
 
   it("signature with inclusive namespaces", function () {
-    let xml = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.xml", "utf-8");
+    const xml = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
-    // @ts-expect-error FIXME
-    xml = doc.firstChild.toString();
+    const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    const sig = new SignedXml();
-    sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
-    // @ts-expect-error FIXME
-    sig.loadSignature(signature);
-    const result = sig.checkSignature(xml);
+    if (xpath.isNodeLike(signature)) {
+      const sig = new SignedXml();
+      sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
+      sig.loadSignature(signature);
+      const result = sig.checkSignature(childXml ?? "");
 
-    expect(result).to.be.true;
+      expect(result).to.be.true;
+    } else {
+      expect(xpath.isNodeLike(signature)).to.be.true;
+    }
   });
 
   it("signature with inclusive namespaces with unix line separators", function () {
-    let xml = fs.readFileSync(
+    const xml = fs.readFileSync(
       "./test/static/signature_with_inclusivenamespaces_lines.xml",
       "utf-8",
     );
     const doc = new xmldom.DOMParser().parseFromString(xml);
-    // @ts-expect-error FIXME
-    xml = doc.firstChild.toString();
+    const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    const sig = new SignedXml();
-    sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
-    // @ts-expect-error FIXME
-    sig.loadSignature(signature);
-    const result = sig.checkSignature(xml);
+    if (xpath.isNodeLike(signature)) {
+      const sig = new SignedXml();
+      sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
+      sig.loadSignature(signature);
+      const result = sig.checkSignature(childXml ?? "");
 
-    expect(result).to.be.true;
+      expect(result).to.be.true;
+    } else {
+      expect(xpath.isNodeLike(signature)).to.be.true;
+    }
   });
 
   it("signature with inclusive namespaces with windows line separators", function () {
-    let xml = fs.readFileSync(
+    const xml = fs.readFileSync(
       "./test/static/signature_with_inclusivenamespaces_lines_windows.xml",
       "utf-8",
     );
     const doc = new xmldom.DOMParser().parseFromString(xml);
-    // @ts-expect-error FIXME
-    xml = doc.firstChild.toString();
+    const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    const sig = new SignedXml();
-    sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
-    // @ts-expect-error FIXME
-    sig.loadSignature(signature);
-    const result = sig.checkSignature(xml);
+    if (xpath.isNodeLike(signature)) {
+      const sig = new SignedXml();
+      sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
+      sig.loadSignature(signature);
+      const result = sig.checkSignature(childXml ?? "");
 
-    expect(result).to.be.true;
+      expect(result).to.be.true;
+    } else {
+      expect(xpath.isNodeLike(signature)).to.be.true;
+    }
   });
 
   it("should create single root xml document when signing inner node", function () {
