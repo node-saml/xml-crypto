@@ -142,11 +142,18 @@ export function normalizePem(pem: string): string {
 /**
  * @param pem The PEM-encoded base64 certificate to strip headers from
  */
-export function pemToDer(pem: string): string {
-  return pem
-    .replace(/(\r\n|\r)/g, "\n")
-    .replace(/-----BEGIN [A-Z\x20]{1,48}-----\n?/, "")
-    .replace(/-----END [A-Z\x20]{1,48}-----\n?/, "");
+export function pemToDer(pem: string): Buffer {
+  if (!PEM_FORMAT_REGEX.test(pem.trim())) {
+    throw new Error("Invalid PEM format.");
+  }
+
+  return Buffer.from(
+    pem
+      .replace(/(\r\n|\r)/g, "")
+      .replace(/-----BEGIN [A-Z\x20]{1,48}-----\n?/, "")
+      .replace(/-----END [A-Z\x20]{1,48}-----\n?/, ""),
+    "base64",
+  );
 }
 
 /**
@@ -155,15 +162,20 @@ export function pemToDer(pem: string): string {
  */
 export function derToPem(
   der: string | Buffer,
-  pemLabel: "CERTIFICATE" | "PRIVATE KEY" | "RSA PUBLIC KEY",
+  pemLabel?: "CERTIFICATE" | "PRIVATE KEY" | "RSA PUBLIC KEY",
 ): string {
-  const base64Der = Buffer.isBuffer(der) ? der.toString("latin1").trim() : der.trim();
+  const base64Der = Buffer.isBuffer(der)
+    ? der.toString("base64").trim()
+    : der.replace(/(\r\n|\r)/g, "").trim();
 
   if (PEM_FORMAT_REGEX.test(base64Der)) {
     return normalizePem(base64Der);
   }
 
   if (BASE64_REGEX.test(base64Der)) {
+    if (pemLabel == null) {
+      throw new Error("PEM label is required when DER is given.");
+    }
     const pem = `-----BEGIN ${pemLabel}-----\n${base64Der}\n-----END ${pemLabel}-----`;
 
     return normalizePem(pem);

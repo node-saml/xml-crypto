@@ -12,7 +12,6 @@ describe("Utils tests", function () {
         pemAsArray[pemAsArray.length - 1]
       }`;
 
-      // @ts-expect-error FIXME
       expect(utils.derToPem(nonNormalizedPem)).to.equal(normalizedPem);
     });
 
@@ -25,8 +24,45 @@ describe("Utils tests", function () {
     });
 
     it("will throw if the format is neither PEM nor DER", function () {
-      // @ts-expect-error FIXME
       expect(() => utils.derToPem("not a pem")).to.throw();
+    });
+
+    it("will return a normalized PEM format when given a DER Buffer", function () {
+      const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
+      const derBuffer = fs.readFileSync("./test/static/client_public.der");
+
+      expect(utils.derToPem(derBuffer, "CERTIFICATE")).to.equal(normalizedPem);
+    });
+
+    it("will return a normalized PEM format when given a base64 string with line breaks", function () {
+      const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
+      const base64String = fs.readFileSync("./test/static/client_public.der", "base64");
+
+      expect(utils.derToPem(base64String, "CERTIFICATE")).to.equal(normalizedPem);
+    });
+
+    it("will throw if the DER string is not base64 encoded", function () {
+      expect(() => utils.derToPem("not base64", "CERTIFICATE")).to.throw();
+    });
+
+    it("will throw if the PEM label is not provided", function () {
+      const derBuffer = fs.readFileSync("./test/static/client_public.der");
+      expect(() => utils.derToPem(derBuffer)).to.throw();
+    });
+  });
+
+  describe("pemToDer", function () {
+    it("will return a Buffer of binary DER when given a normalized PEM format", function () {
+      const pem = fs.readFileSync("./test/static/client_public.pem", "latin1");
+      const derBuffer = fs.readFileSync("./test/static/client_public.der");
+
+      const result = utils.pemToDer(pem);
+      expect(result).to.be.instanceOf(Buffer);
+      expect(result).to.deep.equal(derBuffer);
+    });
+
+    it("will throw if the format is not PEM", function () {
+      expect(() => utils.pemToDer("not a pem")).to.throw();
     });
   });
 });
