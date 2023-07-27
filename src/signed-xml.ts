@@ -15,7 +15,7 @@ import type {
 } from "./types";
 
 import * as xpath from "xpath";
-import { DOMParser as Dom } from "@xmldom/xmldom";
+import * as xmldom from "@xmldom/xmldom";
 import * as utils from "./utils";
 import * as c14n from "./c14n-canonicalization";
 import * as execC14n from "./exclusive-canonicalization";
@@ -246,7 +246,7 @@ export class SignedXml {
     this.validationErrors = [];
     this.signedXml = xml;
 
-    const doc = new Dom().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml);
 
     if (!this.validateReferences(doc)) {
       if (!callback) {
@@ -453,7 +453,7 @@ export class SignedXml {
    */
   loadSignature(signatureNode: Node | string): void {
     if (typeof signatureNode === "string") {
-      this.signatureNode = signatureNode = new Dom().parseFromString(signatureNode);
+      this.signatureNode = signatureNode = new xmldom.DOMParser().parseFromString(signatureNode);
     } else {
       this.signatureNode = signatureNode;
     }
@@ -688,7 +688,7 @@ export class SignedXml {
       options = (options ?? {}) as ComputeSignatureOptions;
     }
 
-    const doc = new Dom().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml);
     let xmlNsAttr = "xmlns";
     const signatureAttrs: string[] = [];
     let currentPrefix: string;
@@ -758,7 +758,7 @@ export class SignedXml {
     // A trick to remove the namespaces that already exist in the xml
     // This only works if the prefix and namespace match with those in the xml
     const dummySignatureWrapper = `<Dummy ${existingPrefixesString}>${signatureXml}</Dummy>`;
-    const nodeXml = new Dom().parseFromString(dummySignatureWrapper);
+    const nodeXml = new xmldom.DOMParser().parseFromString(dummySignatureWrapper);
 
     // Because we are using a dummy wrapper hack described above, we know there will be a `firstChild`
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -1027,7 +1027,7 @@ export class SignedXml {
     //we need to wrap the info in a dummy signature since it contains the default namespace.
     const dummySignatureWrapper = `<${prefix}Signature ${xmlNsAttr}="http://www.w3.org/2000/09/xmldsig#">${signatureValueXml}</${prefix}Signature>`;
 
-    const doc = new Dom().parseFromString(dummySignatureWrapper);
+    const doc = new xmldom.DOMParser().parseFromString(dummySignatureWrapper);
 
     // Because we are using a dummy wrapper hack described above, we know there will be a `firstChild`
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

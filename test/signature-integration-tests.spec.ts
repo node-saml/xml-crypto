@@ -1,5 +1,5 @@
 import * as xpath from "xpath";
-import { DOMParser as Dom } from "@xmldom/xmldom";
+import * as xmldom from "@xmldom/xmldom";
 import { SignedXml } from "../src/index";
 import * as fs from "fs";
 import { expect } from "chai";
@@ -103,7 +103,7 @@ describe("Signature integration tests", function () {
     //   the xmldom-fork-fixed library which can pass {ignoreWhiteSpace: true} into the Dom constructor.
     xml = xml.replace(/>\s*</g, "><");
 
-    const doc = new Dom().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml);
     // @ts-expect-error FIXME
     xml = doc.firstChild.toString();
 
@@ -122,7 +122,7 @@ describe("Signature integration tests", function () {
 
   it("signature with inclusive namespaces", function () {
     let xml = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.xml", "utf-8");
-    const doc = new Dom().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml);
     // @ts-expect-error FIXME
     xml = doc.firstChild.toString();
 
@@ -144,7 +144,7 @@ describe("Signature integration tests", function () {
       "./test/static/signature_with_inclusivenamespaces_lines.xml",
       "utf-8",
     );
-    const doc = new Dom().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml);
     // @ts-expect-error FIXME
     xml = doc.firstChild.toString();
 
@@ -166,7 +166,7 @@ describe("Signature integration tests", function () {
       "./test/static/signature_with_inclusivenamespaces_lines_windows.xml",
       "utf-8",
     );
-    const doc = new Dom().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml);
     // @ts-expect-error FIXME
     xml = doc.firstChild.toString();
 
@@ -193,7 +193,7 @@ describe("Signature integration tests", function () {
 
     const signed = sig.getSignedXml();
 
-    const doc = new Dom().parseFromString(signed);
+    const doc = new xmldom.DOMParser().parseFromString(signed);
 
     /*
         Expecting this structure:
