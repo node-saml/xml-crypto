@@ -1,5 +1,20 @@
 # Changelog
 
+## v4.1.0 (2023-07-28)
+
+### 💣 Major Changes
+
+- [**bug**] [**breaking-change**] Fix `pemToDer()` return type [#364](https://github.com/node-saml/xml-crypto/pull/364)
+
+### ⚙️ Technical Tasks
+
+- [**chore**] Improve exported typings [#367](https://github.com/node-saml/xml-crypto/pull/367)
+- [**chore**] Use stricter typing in tests [#366](https://github.com/node-saml/xml-crypto/pull/366)
+- [**chore**] Consistently reference `xmldom` [#365](https://github.com/node-saml/xml-crypto/pull/365)
+- [**chore**] Rename `findChilds()` to `findChildren()` [#363](https://github.com/node-saml/xml-crypto/pull/363)
+
+---
+
 ## v4.0.1 (2023-07-22)
 
 ### 🐛 Bug Fixes
