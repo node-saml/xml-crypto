@@ -59,18 +59,23 @@ export class SignedXml {
   /**
    * Specifies the data to be signed within an XML document. See {@link Reference}
    */
-  private references: Reference[] = [];
   private id = 0;
   private signedXml = "";
   private signatureXml = "";
   private signatureNode: Node | null = null;
   private signatureValue = "";
   private originalXmlWithIds = "";
+  private keyInfo: Node | null = null;
+
+  /**
+   * Contains the references that were signed. See {@link Reference}
+   */
+  references: Reference[] = [];
+
   /**
    * Contains validation errors (if any) after {@link checkSignature} method is called
    */
   validationErrors: string[] = [];
-  private keyInfo: Node | null = null;
 
   /**
    *  To add a new transformation algorithm create a new class that implements the {@link TransformationAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
@@ -387,6 +392,37 @@ export class SignedXml {
     } else {
       throw new Error(`hash algorithm '${name}' is not supported`);
     }
+  }
+
+  validateElementAgainstReferences(elem: Element, doc: Document): Reference | false {
+    for (const ref of this.references) {
+      const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
+      let targetElem: xpath.SelectSingleReturnType;
+
+      for (const attr of this.idAttributes) {
+        const elemId = elem.getAttribute(attr);
+        if (uri === elemId) {
+          targetElem = elem;
+          ref.xpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
+          break; // found the correct element, no need to check further
+        }
+      }
+
+      // @ts-expect-error This is a problem with the types on `xpath`
+      if (!xpath.isNodeLike(targetElem)) {
+        continue;
+      }
+
+      const canonXml = this.getCanonReferenceXml(doc, ref, targetElem);
+      const hash = this.findHashAlgorithm(ref.digestAlgorithm);
+      const digest = hash.getHash(canonXml);
+
+      if (utils.validateDigestValue(digest, ref.digestValue)) {
+        return ref;
+      }
+    }
+
+    return false; // No references passed validation
   }
 
   validateReferences(doc) {

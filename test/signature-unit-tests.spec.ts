@@ -82,7 +82,6 @@ describe("Signature unit tests", function () {
       const checkedSignature = sig.checkSignature(xml);
       expect(checkedSignature).to.be.true;
 
-      // @ts-expect-error FIXME
       expect(sig.references.length).to.equal(3);
 
       const digests = [
@@ -91,9 +90,17 @@ describe("Signature unit tests", function () {
         "sH1gxKve8wlU8LlFVa2l6w3HMJ0=",
       ];
 
+      const firstGrandchild = doc.firstChild?.firstChild;
       // @ts-expect-error FIXME
-      for (let i = 0; i < sig.references.length; i++) {
+      if (xpath.isElement(firstGrandchild)) {
+        const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
+        expect(matchedReference).to.not.be.false;
+      } else {
         // @ts-expect-error FIXME
+        expect(xpath.isElement(firstGrandchild)).to.be.true;
+      }
+
+      for (let i = 0; i < sig.references.length; i++) {
         const ref = sig.references[i];
         const expectedUri = `#_${i}`;
         expect(
