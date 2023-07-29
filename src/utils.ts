@@ -76,7 +76,7 @@ export function encodeSpecialCharactersInAttribute(attributeValue) {
   });
 }
 
-export function encodeSpecialCharactersInText(text) {
+export function encodeSpecialCharactersInText(text: string): string {
   return text.replace(/([&<>\r])/g, function (str, item) {
     // Special character normalization. See:
     // - https://www.w3.org/TR/xml-c14n#ProcessingModel (Text Nodes)
@@ -232,16 +232,20 @@ function isElementSubset(docSubset: Node[]): docSubset is Element[] {
  * Extract ancestor namespaces in order to import it to root of document subset
  * which is being canonicalized for non-exclusive c14n.
  *
- * @param {object} doc - Usually a product from `new xmldom.DOMParser().parseFromString()`
- * @param {string} docSubsetXpath - xpath query to get document subset being canonicalized
- * @param {object} namespaceResolver - xpath namespace resolver
- * @returns {Array} i.e. [{prefix: "saml", namespaceURI: "urn:oasis:names:tc:SAML:2.0:assertion"}]
+ * @param doc - Usually a product from `new xmldom.DOMParser().parseFromString()`
+ * @param docSubsetXpath - xpath query to get document subset being canonicalized
+ * @param namespaceResolver - xpath namespace resolver
+ * @returns i.e. [{prefix: "saml", namespaceURI: "urn:oasis:names:tc:SAML:2.0:assertion"}]
  */
 export function findAncestorNs(
-  doc: Node,
-  docSubsetXpath: string,
+  doc: Document,
+  docSubsetXpath?: string,
   namespaceResolver?: XPathNSResolver,
-) {
+): NamespacePrefix[] {
+  if (docSubsetXpath == null) {
+    return [];
+  }
+
   const docSubset = xpath.selectWithResolver(docSubsetXpath, doc, namespaceResolver);
 
   if (!isArrayHasLength(docSubset)) {
@@ -289,7 +293,6 @@ export function validateDigestValue(digest, expectedDigest) {
     return buffer.equals(expectedBuffer);
   }
 
-  // Compatibility with Node < 0.11.13
   if (buffer.length !== expectedBuffer.length) {
     return false;
   }
