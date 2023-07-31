@@ -15,7 +15,11 @@ describe("KeyInfo tests", function () {
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const x509 = xpath.select("//*[local-name(.)='X509Certificate']", doc.documentElement);
     // @ts-expect-error FIXME
-    expect(x509.length, "X509Certificate element should exist").to.equal(1);
+    if (xpath.isArrayOfNodes(x509)) {
+      expect(x509.length, "X509Certificate element should exist").to.equal(1);
+    } else {
+      expect(xpath.isArrayOfNodes(x509)).to.be.true;
+    }
   });
 
   it("make sure private hmac key is not leaked due to key confusion", function () {

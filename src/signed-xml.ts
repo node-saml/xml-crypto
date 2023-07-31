@@ -311,7 +311,7 @@ export class SignedXml {
     return this.getCanonXml([this.canonicalizationAlgorithm], signedInfo[0], c14nOptions);
   }
 
-  getCanonReferenceXml(doc, ref, node) {
+  getCanonReferenceXml(doc: Document, ref: Reference, node: Node) {
     /**
      * Search for ancestor namespaces before canonicalization.
      */
@@ -505,7 +505,6 @@ export class SignedXml {
 
     const keyInfo = xpath.select1(".//*[local-name(.)='KeyInfo']", signatureNode);
 
-    // TODO: should this just be a single return instead of an array that we always take the first entry of?
     if (xpath.isNodeLike(keyInfo)) {
       this.keyInfo = keyInfo;
     }
@@ -515,10 +514,10 @@ export class SignedXml {
    * Load the reference xml node to a model
    *
    */
-  loadReference(ref) {
-    let nodes = utils.findChildren(ref, "DigestMethod");
+  loadReference(refNode: Node) {
+    let nodes = utils.findChildren(refNode, "DigestMethod");
     if (nodes.length === 0) {
-      throw new Error(`could not find DigestMethod in reference ${ref.toString()}`);
+      throw new Error(`could not find DigestMethod in reference ${refNode.toString()}`);
     }
     const digestAlgoNode = nodes[0];
 
@@ -528,9 +527,9 @@ export class SignedXml {
     }
     const digestAlgo = attr.value;
 
-    nodes = utils.findChildren(ref, "DigestValue");
+    nodes = utils.findChildren(refNode, "DigestValue");
     if (nodes.length === 0) {
-      throw new Error(`could not find DigestValue node in reference ${ref.toString()}`);
+      throw new Error(`could not find DigestValue node in reference ${refNode.toString()}`);
     }
     const firstChild = nodes[0].firstChild;
     if (!firstChild || !("data" in firstChild)) {
@@ -540,7 +539,7 @@ export class SignedXml {
 
     const transforms: string[] = [];
     let inclusiveNamespacesPrefixList: string[] = [];
-    nodes = utils.findChildren(ref, "Transforms");
+    nodes = utils.findChildren(refNode, "Transforms");
     if (nodes.length !== 0) {
       const transformsNode = nodes[0];
       const transformsAll = utils.findChildren(transformsNode, "Transform");
@@ -590,7 +589,7 @@ export class SignedXml {
       this.addReference({
         transforms,
         digestAlgorithm: digestAlgo,
-        uri: utils.findAttr(ref, "URI")?.value,
+        uri: xpath.isElement(refNode) ? utils.findAttr(refNode, "URI")?.value : undefined,
         digestValue,
         inclusiveNamespacesPrefixList,
         isEmptyUri: false,
@@ -908,19 +907,19 @@ export class SignedXml {
   }
 
   getCanonXml(
-    transforms: CanonicalizationAlgorithmType[],
-    node,
-    options: CanonicalizationOrTransformationAlgorithmProcessOptions,
+    transforms: Reference["transforms"],
+    node: Node,
+    options: CanonicalizationOrTransformationAlgorithmProcessOptions = {},
   ) {
-    options = options || {};
     options.defaultNsForPrefix = options.defaultNsForPrefix ?? SignedXml.defaultNsForPrefix;
     options.signatureNode = this.signatureNode;
 
-    let canonXml = node.cloneNode(true); // Deep clone
+    const canonXml = node.cloneNode(true); // Deep clone
+    let transformedXml: string = canonXml.toString();
 
     transforms.forEach((transformName) => {
       const transform = this.findCanonicalizationAlgorithm(transformName);
-      canonXml = transform.process(canonXml, options);
+      transformedXml = transform.process(canonXml, options).toString();
       //TODO: currently transform.process may return either Node or String value (enveloped transformation returns Node, exclusive-canonicalization returns String).
       //This either needs to be more explicit in the API, or all should return the same.
       //exclusive-canonicalization returns String since it builds the Xml by hand. If it had used xmldom it would incorrectly minimize empty tags
@@ -930,7 +929,7 @@ export class SignedXml {
       //if only y is the node to sign then a string would be <p:y/> without the definition of the p namespace. probably xmldom toString() should have added it.
     });
 
-    return canonXml.toString();
+    return transformedXml;
   }
 
   /**

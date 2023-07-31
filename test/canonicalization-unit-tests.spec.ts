@@ -399,16 +399,19 @@ describe("Canonicalization unit tests", function () {
     //var doc = new Dom().parseFromString("<x xmlns:p=\"myns\"><p:y><ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"></ds:Signature></p:y></x>")
     const doc = new xmldom.DOMParser().parseFromString('<x xmlns:p="myns"><p:y></p:y></x>');
     const node = xpath.select1("//*[local-name(.)='y']", doc);
-    const sig = new SignedXml();
-    // @ts-expect-error FIXME
-    const res = sig.getCanonXml(
-      [
-        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
-        "http://www.w3.org/2001/10/xml-exc-c14n#",
-      ],
-      node,
-    );
-    expect(res).to.equal('<p:y xmlns:p="myns"></p:y>');
+    if (xpath.isNodeLike(node)) {
+      const sig = new SignedXml();
+      const res = sig.getCanonXml(
+        [
+          "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+          "http://www.w3.org/2001/10/xml-exc-c14n#",
+        ],
+        node,
+      );
+      expect(res).to.equal('<p:y xmlns:p="myns"></p:y>');
+    } else {
+      expect(xpath.isNodeLike(node)).to.be.true;
+    }
   });
 
   it("Enveloped-signature canonicalization respects currentnode", function () {
@@ -419,11 +422,14 @@ describe("Canonicalization unit tests", function () {
       '<x><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /><y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /></y></x>';
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const node = xpath.select1("//*[local-name(.)='y']", doc);
-    const sig = new SignedXml();
-    const transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
-    // @ts-expect-error FIXME
-    const res = sig.getCanonXml(transforms, node);
-    expect(res).to.equal("<y/>");
+    if (xpath.isNodeLike(node)) {
+      const sig = new SignedXml();
+      const transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
+      const res = sig.getCanonXml(transforms, node);
+      expect(res).to.equal("<y/>");
+    } else {
+      expect(xpath.isNodeLike(node)).to.be.true;
+    }
   });
 
   it("The XML canonicalization method processes a node-set by imposing the following additional document order rules on the namespace and attribute nodes of each element: \

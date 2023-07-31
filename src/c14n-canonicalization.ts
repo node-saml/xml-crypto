@@ -167,34 +167,38 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     return { rendered: res.join(""), newDefaultNs };
   }
 
-  processInner(node, prefixesInScope, defaultNs, defaultNsForPrefix, ancestorNamespaces) {
+  processInner(node: Node, prefixesInScope, defaultNs, defaultNsForPrefix, ancestorNamespaces) {
     if (xpath.isComment(node)) {
       return this.renderComment(node);
     }
-    if (node.data) {
+    if (xpath.isComment(node)) {
       return utils.encodeSpecialCharactersInText(node.data);
     }
 
-    let i;
-    let pfxCopy;
-    const ns = this.renderNs(
-      node,
-      prefixesInScope,
-      defaultNs,
-      defaultNsForPrefix,
-      ancestorNamespaces,
-    );
-    const res = ["<", node.tagName, ns.rendered, this.renderAttrs(node), ">"];
-
-    for (i = 0; i < node.childNodes.length; ++i) {
-      pfxCopy = prefixesInScope.slice(0);
-      res.push(
-        this.processInner(node.childNodes[i], pfxCopy, ns.newDefaultNs, defaultNsForPrefix, []),
+    if (xpath.isElement(node)) {
+      let i;
+      let pfxCopy;
+      const ns = this.renderNs(
+        node,
+        prefixesInScope,
+        defaultNs,
+        defaultNsForPrefix,
+        ancestorNamespaces,
       );
+      const res = ["<", node.tagName, ns.rendered, this.renderAttrs(node), ">"];
+
+      for (i = 0; i < node.childNodes.length; ++i) {
+        pfxCopy = prefixesInScope.slice(0);
+        res.push(
+          this.processInner(node.childNodes[i], pfxCopy, ns.newDefaultNs, defaultNsForPrefix, []),
+        );
+      }
+
+      res.push("</", node.tagName, ">");
+      return res.join("");
     }
 
-    res.push("</", node.tagName, ">");
-    return res.join("");
+    return "";
   }
 
   // Thanks to deoxxa/xml-c14n for comment renderer
@@ -240,8 +244,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
   /**
    * Perform canonicalization of the given node
    *
-   * @param {Node} node
-   * @return {String}
+   * @param node
    * @api public
    */
   process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions) {
