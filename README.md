@@ -161,8 +161,9 @@ if (elem.getAttribute("ID") != id && elem.getAttribute("Id") != id && elem.getAt
 
 // Use the built-in method
 let elem = xpath.select("/xpath_to_interesting_element", doc);
-const matchingReference = sig.validateElementAgainstReferences(elem, doc);
-if (!matchingReference) {
+try {
+  const matchingReference = sig.validateElementAgainstReferences(elem, doc);
+} catch {
   throw new Error("the interesting element was not the one verified by the signature");
 }
 ```

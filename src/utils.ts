@@ -84,7 +84,7 @@ export function encodeSpecialCharactersInText(text: string): string {
      * @see:
      * - https://www.w3.org/TR/xml-c14n#ProcessingModel (Text Nodes)
      * - https://www.w3.org/TR/xml-c14n#Example-Chars
-    */
+     */
     return xml_special_to_encoded_text[item];
   });
 }
