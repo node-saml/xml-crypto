@@ -91,10 +91,10 @@ describe("Signature unit tests", function () {
       ];
 
       const firstGrandchild = doc.firstChild?.firstChild;
+
       // @ts-expect-error FIXME
       if (xpath.isElement(firstGrandchild)) {
-        const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
-        expect(matchedReference).to.not.be.false;
+        expect(() => sig.validateElementAgainstReferences(firstGrandchild, doc)).to.not.throw;
       } else {
         // @ts-expect-error FIXME
         expect(xpath.isElement(firstGrandchild)).to.be.true;

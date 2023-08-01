@@ -33,7 +33,8 @@ export class SignedXml {
   privateKey?: crypto.KeyLike;
   publicCert?: crypto.KeyLike;
   /**
-   * One of the supported signature algorithms. See {@link SignatureAlgorithmType}
+   * One of the supported signature algorithms.
+   * @see {@link SignatureAlgorithmType}
    */
   signatureAlgorithm: SignatureAlgorithmType = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
   /**
@@ -56,9 +57,6 @@ export class SignedXml {
   getCertFromKeyInfo = SignedXml.getCertFromKeyInfo;
 
   // Internal state
-  /**
-   * Specifies the data to be signed within an XML document. See {@link Reference}
-   */
   private id = 0;
   private signedXml = "";
   private signatureXml = "";
@@ -68,7 +66,8 @@ export class SignedXml {
   private keyInfo: Node | null = null;
 
   /**
-   * Contains the references that were signed. See {@link Reference}
+   * Contains the references that were signed.
+   * @see {@link Reference}
    */
   references: Reference[] = [];
 
@@ -210,7 +209,7 @@ export class SignedXml {
    * Returns the value of the signing certificate based on the contents of the
    * specified KeyInfo.
    *
-   * @param keyInfo KeyInfo element (see https://www.w3.org/TR/2008/REC-xmldsig-core-20080610/#sec-X509Data)
+   * @param keyInfo KeyInfo element (@see https://www.w3.org/TR/2008/REC-xmldsig-core-20080610/#sec-X509Data)
    * @return the signing certificate as a string in PEM format
    */
   static getCertFromKeyInfo(keyInfo?: Node | null): string | null {
@@ -394,7 +393,7 @@ export class SignedXml {
     }
   }
 
-  validateElementAgainstReferences(elem: Element, doc: Document): Reference | false {
+  validateElementAgainstReferences(elem: Element, doc: Document): Reference {
     for (const ref of this.references) {
       const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
       let targetElem: xpath.SelectSingleReturnType;
@@ -422,7 +421,7 @@ export class SignedXml {
       }
     }
 
-    return false; // No references passed validation
+    throw new Error("No references passed validation");
   }
 
   validateReferences(doc) {
@@ -609,7 +608,7 @@ export class SignedXml {
        * DigestMethods take an octet stream rather than a node set. If the output of the last transform is a node set, we
        * need to canonicalize the node set to an octet stream using non-exclusive canonicalization. If there are no
        * transforms, we need to canonicalize because URI dereferencing for a same-document reference will return a node-set.
-       * See:
+       * @see:
        * https://www.w3.org/TR/xmldsig-core1/#sec-DigestMethod
        * https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
        * https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document
