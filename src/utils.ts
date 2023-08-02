@@ -69,18 +69,22 @@ const xml_special_to_encoded_text = {
 
 export function encodeSpecialCharactersInAttribute(attributeValue) {
   return attributeValue.replace(/([&<"\r\n\t])/g, function (str, item) {
-    // Special character normalization. See:
-    // - https://www.w3.org/TR/xml-c14n#ProcessingModel (Attribute Nodes)
-    // - https://www.w3.org/TR/xml-c14n#Example-Chars
+    /** Special character normalization.
+     * @see:
+     * - https://www.w3.org/TR/xml-c14n#ProcessingModel (Attribute Nodes)
+     * - https://www.w3.org/TR/xml-c14n#Example-Chars
+     */
     return xml_special_to_encoded_attribute[item];
   });
 }
 
 export function encodeSpecialCharactersInText(text: string): string {
   return text.replace(/([&<>\r])/g, function (str, item) {
-    // Special character normalization. See:
-    // - https://www.w3.org/TR/xml-c14n#ProcessingModel (Text Nodes)
-    // - https://www.w3.org/TR/xml-c14n#Example-Chars
+    /** Special character normalization.
+     * @see:
+     * - https://www.w3.org/TR/xml-c14n#ProcessingModel (Text Nodes)
+     * - https://www.w3.org/TR/xml-c14n#Example-Chars
+     */
     return xml_special_to_encoded_text[item];
   });
 }
