@@ -276,7 +276,7 @@ export class SignedXml {
           `invalid signature: the signature value ${this.signatureValue} is incorrect`,
         );
       }
-      
+
       return res;
     }
   }
