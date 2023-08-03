@@ -253,32 +253,31 @@ export class SignedXml {
     const doc = new xmldom.DOMParser().parseFromString(xml);
 
     if (!this.validateReferences(doc)) {
-      if (!callback) {
-        return false;
-      } else {
+      if (callback) {
         callback(new Error("Could not validate references"));
         return;
       }
+
+      return false;
     }
 
-    if (!callback) {
-      // Synchronous flow
-      if (!this.validateSignatureValue(doc)) {
-        return false;
-      }
-      return true;
+    const signedInfoCanon = this.getCanonSignedInfoXml(doc);
+    const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
+    const key = this.getCertFromKeyInfo(this.keyInfo) || this.publicCert || this.privateKey;
+    if (key == null) {
+      throw new Error("KeyInfo or publicCert or privateKey is required to validate signature");
+    }
+    if (callback) {
+      signer.verifySignature(signedInfoCanon, key, this.signatureValue, callback);
     } else {
-      // Asynchronous flow
-      this.validateSignatureValue(doc, (err: Error | null, isValidSignature?: boolean) => {
-        if (err) {
-          this.validationErrors.push(
-            `invalid signature: the signature value ${this.signatureValue} is incorrect`,
-          );
-          callback(err);
-        } else {
-          callback(null, isValidSignature);
-        }
-      });
+      const res = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
+      if (res === false) {
+        this.validationErrors.push(
+          `invalid signature: the signature value ${this.signatureValue} is incorrect`,
+        );
+      }
+      
+      return res;
     }
   }
 
@@ -331,25 +330,16 @@ export class SignedXml {
     return this.getCanonXml(ref.transforms, node, c14nOptions);
   }
 
+  /** @deprecated */
   validateSignatureValue(doc: Document): boolean;
+  /** @deprecated */
   validateSignatureValue(doc: Document, callback: ErrorFirstCallback<boolean>): void;
+  /** @deprecated */
   validateSignatureValue(doc: Document, callback?: ErrorFirstCallback<boolean>): boolean | void {
-    const signedInfoCanon = this.getCanonSignedInfoXml(doc);
-    const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
-    const key = this.getCertFromKeyInfo(this.keyInfo) || this.publicCert || this.privateKey;
-    if (key == null) {
-      throw new Error("KeyInfo or publicCert or privateKey is required to validate signature");
-    }
-    if (typeof callback === "function") {
-      signer.verifySignature(signedInfoCanon, key, this.signatureValue, callback);
+    if (callback) {
+      this.checkSignature(doc.toString(), callback);
     } else {
-      const res = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
-      if (res === false) {
-        this.validationErrors.push(
-          `invalid signature: the signature value ${this.signatureValue} is incorrect`,
-        );
-      }
-      return res;
+      return this.checkSignature(doc.toString());
     }
   }
 
@@ -407,7 +397,7 @@ export class SignedXml {
         }
       }
 
-      // @ts-expect-error This is a problem with the types on `xpath`
+      // @ts-expect-error FIXME: xpath types are wrong
       if (!xpath.isNodeLike(targetElem)) {
         continue;
       }
@@ -424,57 +414,65 @@ export class SignedXml {
     throw new Error("No references passed validation");
   }
 
-  validateReferences(doc) {
-    for (const ref of this.references) {
-      let elemXpath;
-      const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
-      let elem: xpath.SelectReturnType = [];
+  validateReference(ref: Reference, doc: Document) {
+    const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
+    let elem: xpath.SelectSingleReturnType;
 
-      if (uri === "") {
-        elem = xpath.select("//*", doc);
-      } else if (uri?.indexOf("'") !== -1) {
-        // xpath injection
-        throw new Error("Cannot validate a uri with quotes inside it");
-      } else {
-        let num_elements_for_id = 0;
-        for (const attr of this.idAttributes) {
-          const tmp_elemXpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
-          const tmp_elem = xpath.select(tmp_elemXpath, doc);
-          if (utils.isArrayHasLength(tmp_elem)) {
-            num_elements_for_id += tmp_elem.length;
-            elem = tmp_elem;
-            elemXpath = tmp_elemXpath;
+    if (uri === "") {
+      elem = xpath.select1("//*", doc);
+    } else if (uri?.indexOf("'") !== -1) {
+      // xpath injection
+      throw new Error("Cannot validate a uri with quotes inside it");
+    } else {
+      let num_elements_for_id = 0;
+      for (const attr of this.idAttributes) {
+        const tmp_elemXpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
+        const tmp_elem = xpath.select(tmp_elemXpath, doc);
+        if (utils.isArrayHasLength(tmp_elem)) {
+          num_elements_for_id += tmp_elem.length;
+
+          if (num_elements_for_id > 1) {
+            throw new Error(
+              "Cannot validate a document which contains multiple elements with the " +
+                "same value for the ID / Id / Id attributes, in order to prevent " +
+                "signature wrapping attack.",
+            );
           }
+
+          elem = tmp_elem[0];
+          ref.xpath = tmp_elemXpath;
         }
-        if (num_elements_for_id > 1) {
-          throw new Error(
-            "Cannot validate a document which contains multiple elements with the " +
-              "same value for the ID / Id / Id attributes, in order to prevent " +
-              "signature wrapping attack.",
-          );
-        }
-
-        ref.xpath = elemXpath;
       }
+    }
 
-      // Note, we are using the last found element from the loop above
-      if (!utils.isArrayHasLength(elem)) {
-        this.validationErrors.push(
-          `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
-        );
-        return false;
-      }
+    // @ts-expect-error FIXME: xpath types are wrong
+    if (!xpath.isNodeLike(elem)) {
+      const validationError = new Error(
+        `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
+      );
+      this.validationErrors.push(validationError.message);
+      return false;
+    }
 
-      const canonXml = this.getCanonReferenceXml(doc, ref, elem[0]);
+    const canonXml = this.getCanonReferenceXml(doc, ref, elem);
+    const hash = this.findHashAlgorithm(ref.digestAlgorithm);
+    const digest = hash.getHash(canonXml);
 
-      const hash = this.findHashAlgorithm(ref.digestAlgorithm);
-      const digest = hash.getHash(canonXml);
+    if (!utils.validateDigestValue(digest, ref.digestValue)) {
+      const validationError = new Error(
+        `invalid signature: for uri ${ref.uri} calculated digest is ${digest} but the xml to validate supplies digest ${ref.digestValue}`,
+      );
+      this.validationErrors.push(validationError.message);
 
-      if (!utils.validateDigestValue(digest, ref.digestValue)) {
-        this.validationErrors.push(
-          `invalid signature: for uri ${ref.uri} calculated digest is ${digest} but the xml to validate supplies digest ${ref.digestValue}`,
-        );
+      return false;
+    }
 
+    return true;
+  }
+
+  validateReferences(doc: Document) {
+    for (const ref of this.references) {
+      if (!this.validateReference(ref, doc)) {
         return false;
       }
     }
