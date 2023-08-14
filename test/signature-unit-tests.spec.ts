@@ -613,9 +613,7 @@ describe("Signature unit tests", function () {
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
     const sig = new SignedXml();
 
-    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
-
     sig.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
     sig.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
     sig.HashAlgorithms["http://dummyDigest"] = DummyDigest;
