@@ -613,15 +613,15 @@ describe("Signature unit tests", function () {
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
     const sig = new SignedXml();
 
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+
     sig.CanonicalizationAlgorithms["http://DummyTransformation"] = DummyTransformation;
     sig.CanonicalizationAlgorithms["http://DummyCanonicalization"] = DummyCanonicalization;
     sig.HashAlgorithms["http://dummyDigest"] = DummyDigest;
     sig.SignatureAlgorithms["http://dummySignatureAlgorithm"] = DummySignatureAlgorithm;
 
     sig.signatureAlgorithm = "http://dummySignatureAlgorithm";
-    sig.getKeyInfoContent = function () {
-      return "<ds:dummy>dummy key info</ds:dummy>";
-    };
     sig.canonicalizationAlgorithm = "http://DummyCanonicalization";
     sig.privateKey = "";
 
@@ -673,11 +673,13 @@ describe("Signature unit tests", function () {
       "</ds:SignedInfo>" +
       "<ds:SignatureValue>dummy signature</ds:SignatureValue>" +
       "<ds:KeyInfo>" +
-      "<ds:dummy>dummy key info</ds:dummy>" +
+      "<ds:X509Data>" +
+      "<ds:X509Certificate>MIIBxDCCAW6gAwIBAgIQxUSXFzWJYYtOZnmmuOMKkjANBgkqhkiG9w0BAQQFADAWMRQwEgYDVQQDEwtSb290IEFnZW5jeTAeFw0wMzA3MDgxODQ3NTlaFw0zOTEyMzEyMzU5NTlaMB8xHTAbBgNVBAMTFFdTRTJRdWlja1N0YXJ0Q2xpZW50MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC+L6aB9x928noY4+0QBsXnxkQE4quJl7c3PUPdVu7k9A02hRG481XIfWhrDY5i7OEB7KGW7qFJotLLeMec/UkKUwCgv3VvJrs2nE9xO3SSWIdNzADukYh+Cxt+FUU6tUkDeqg7dqwivOXhuOTRyOI3HqbWTbumaLdc8jufz2LhaQIDAQABo0swSTBHBgNVHQEEQDA+gBAS5AktBh0dTwCNYSHcFmRjoRgwFjEUMBIGA1UEAxMLUm9vdCBBZ2VuY3mCEAY3bACqAGSKEc+41KpcNfQwDQYJKoZIhvcNAQEEBQADQQAfIbnMPVYkNNfX1tG1F+qfLhHwJdfDUZuPyRPucWF5qkh6sSdWVBY5sT/txBnVJGziyO8DPYdu2fPMER8ajJfl</ds:X509Certificate>" +
+      "</ds:X509Data>" +
       "</ds:KeyInfo>" +
       "</ds:Signature>";
 
-    expect(expected, "wrong signature format").to.equal(signature);
+    expect(signature, "wrong signature format").to.equal(expected);
 
     const signedXml = sig.getSignedXml();
     const expectedSignedXml =
@@ -710,17 +712,19 @@ describe("Signature unit tests", function () {
       "</ds:SignedInfo>" +
       "<ds:SignatureValue>dummy signature</ds:SignatureValue>" +
       "<ds:KeyInfo>" +
-      "<ds:dummy>dummy key info</ds:dummy>" +
+      "<ds:X509Data>" +
+      "<ds:X509Certificate>MIIBxDCCAW6gAwIBAgIQxUSXFzWJYYtOZnmmuOMKkjANBgkqhkiG9w0BAQQFADAWMRQwEgYDVQQDEwtSb290IEFnZW5jeTAeFw0wMzA3MDgxODQ3NTlaFw0zOTEyMzEyMzU5NTlaMB8xHTAbBgNVBAMTFFdTRTJRdWlja1N0YXJ0Q2xpZW50MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC+L6aB9x928noY4+0QBsXnxkQE4quJl7c3PUPdVu7k9A02hRG481XIfWhrDY5i7OEB7KGW7qFJotLLeMec/UkKUwCgv3VvJrs2nE9xO3SSWIdNzADukYh+Cxt+FUU6tUkDeqg7dqwivOXhuOTRyOI3HqbWTbumaLdc8jufz2LhaQIDAQABo0swSTBHBgNVHQEEQDA+gBAS5AktBh0dTwCNYSHcFmRjoRgwFjEUMBIGA1UEAxMLUm9vdCBBZ2VuY3mCEAY3bACqAGSKEc+41KpcNfQwDQYJKoZIhvcNAQEEBQADQQAfIbnMPVYkNNfX1tG1F+qfLhHwJdfDUZuPyRPucWF5qkh6sSdWVBY5sT/txBnVJGziyO8DPYdu2fPMER8ajJfl</ds:X509Certificate>" +
+      "</ds:X509Data>" +
       "</ds:KeyInfo>" +
       "</ds:Signature>" +
       "</root>";
 
-    expect(expectedSignedXml, "wrong signedXml format").to.equal(signedXml);
+    expect(signedXml, "wrong signedXml format").to.equal(expectedSignedXml);
 
     const originalXmlWithIds = sig.getOriginalXmlWithIds();
     const expectedOriginalXmlWithIds =
       '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z></root>';
-    expect(expectedOriginalXmlWithIds, "wrong OriginalXmlWithIds").to.equal(originalXmlWithIds);
+    expect(originalXmlWithIds, "wrong OriginalXmlWithIds").to.equal(expectedOriginalXmlWithIds);
   });
 
   it("signer creates correct signature values", function () {
