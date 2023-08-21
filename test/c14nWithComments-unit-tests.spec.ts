@@ -347,8 +347,9 @@ describe("Exclusive canonicalization with comments", function () {
   });
 
   it("Multiple Canonicalization with namespace definition outside of signed element", function () {
-    //var doc = new Dom().parseFromString("<x xmlns:p=\"myns\"><p:y><ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"></ds:Signature></p:y></x>")
-    const doc = new xmldom.DOMParser().parseFromString('<x xmlns:p="myns"><p:y></p:y></x>');
+    const doc = new xmldom.DOMParser().parseFromString(
+      '<x xmlns:p="myns"><p:y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y></x>',
+    );
     const node = xpath.select1("//*[local-name(.)='y']", doc);
     if (xpath.isNodeLike(node)) {
       const sig = new SignedXml();
@@ -365,7 +366,7 @@ describe("Exclusive canonicalization with comments", function () {
     }
   });
 
-  it("Enveloped-signature canonicalization respects currentnode", function () {
+  it("Enveloped-signature canonicalization respects current node", function () {
     // older versions of enveloped-signature removed the first signature in the whole doc, but should
     //   be the signature inside the current node if we want to be able to verify multiple signatures
     //   in a document.
