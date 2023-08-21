@@ -471,12 +471,11 @@ export class SignedXml {
   }
 
   validateReferences(doc: Document) {
-    for (const ref of this.references) {
-      if (!this.validateReference(ref, doc)) {
-        return false;
-      }
-    }
-    return true;
+    return (
+      Array.isArray(this.references) &&
+      this.references.length > 0 &&
+      this.references.every((ref) => this.validateReference(ref, doc))
+    );
   }
 
   /**
@@ -595,39 +594,38 @@ export class SignedXml {
           .flatMap((namespace) => (namespace.getAttribute("PrefixList") ?? "").split(" "))
           .filter((value) => value.length > 0);
       }
+    }
 
-      if (utils.isArrayHasLength(this.implicitTransforms)) {
-        this.implicitTransforms.forEach(function (t) {
-          transforms.push(t);
-        });
-      }
-
-      /**
-       * DigestMethods take an octet stream rather than a node set. If the output of the last transform is a node set, we
-       * need to canonicalize the node set to an octet stream using non-exclusive canonicalization. If there are no
-       * transforms, we need to canonicalize because URI dereferencing for a same-document reference will return a node-set.
-       * @see:
-       * https://www.w3.org/TR/xmldsig-core1/#sec-DigestMethod
-       * https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
-       * https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document
-       */
-      if (
-        transforms.length === 0 ||
-        transforms[transforms.length - 1] ===
-          "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
-      ) {
-        transforms.push("http://www.w3.org/TR/2001/REC-xml-c14n-20010315");
-      }
-
-      this.addReference({
-        transforms,
-        digestAlgorithm: digestAlgo,
-        uri: xpath.isElement(refNode) ? utils.findAttr(refNode, "URI")?.value : undefined,
-        digestValue,
-        inclusiveNamespacesPrefixList,
-        isEmptyUri: false,
+    if (utils.isArrayHasLength(this.implicitTransforms)) {
+      this.implicitTransforms.forEach(function (t) {
+        transforms.push(t);
       });
     }
+
+    /**
+     * DigestMethods take an octet stream rather than a node set. If the output of the last transform is a node set, we
+     * need to canonicalize the node set to an octet stream using non-exclusive canonicalization. If there are no
+     * transforms, we need to canonicalize because URI dereferencing for a same-document reference will return a node-set.
+     * @see:
+     * https://www.w3.org/TR/xmldsig-core1/#sec-DigestMethod
+     * https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
+     * https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document
+     */
+    if (
+      transforms.length === 0 ||
+      transforms[transforms.length - 1] === "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
+    ) {
+      transforms.push("http://www.w3.org/TR/2001/REC-xml-c14n-20010315");
+    }
+
+    this.addReference({
+      transforms,
+      digestAlgorithm: digestAlgo,
+      uri: xpath.isElement(refNode) ? utils.findAttr(refNode, "URI")?.value : undefined,
+      digestValue,
+      inclusiveNamespacesPrefixList,
+      isEmptyUri: false,
+    });
   }
 
   /**

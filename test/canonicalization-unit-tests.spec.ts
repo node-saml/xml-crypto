@@ -15,14 +15,18 @@ const compare = function (
   const doc = new xmldom.DOMParser().parseFromString(xml);
   const elem = xpath.select1(xpathArg, doc);
   const can = new ExclusiveCanonicalization();
-  const result = can
-    .process(elem, {
-      inclusiveNamespacesPrefixList,
-      defaultNsForPrefix,
-    })
-    .toString();
+  if (xpath.isElement(elem)) {
+    const result = can
+      .process(elem, {
+        inclusiveNamespacesPrefixList,
+        defaultNsForPrefix,
+      })
+      .toString();
 
-  expect(expected).to.equal(result);
+    expect(expected).to.equal(result);
+  } else {
+    throw new Error("Invalid element");
+  }
 };
 
 describe("Canonicalization unit tests", function () {

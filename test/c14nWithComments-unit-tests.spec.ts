@@ -9,9 +9,12 @@ const compare = function (xml, xpathArg, expected, inclusiveNamespacesPrefixList
   const doc = new xmldom.DOMParser().parseFromString(xml);
   const elem = xpath.select1(xpathArg, doc);
   const can = new c14nWithComments();
-  const result = can.process(elem, { inclusiveNamespacesPrefixList }).toString();
-
-  expect(result).to.equal(expected);
+  if (xpath.isElement(elem)) {
+    const result = can.process(elem, { inclusiveNamespacesPrefixList }).toString();
+    expect(result).to.equal(expected);
+  } else {
+    throw new Error("Element not found.");
+  }
 };
 
 describe("Exclusive canonicalization with comments", function () {

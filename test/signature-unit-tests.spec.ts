@@ -877,6 +877,10 @@ describe("Signature unit tests", function () {
     passValidSignature("./test/static/valid_signature_with_unused_prefixes.xml");
   });
 
+  it("verifies valid signature without transforms element", function () {
+    passValidSignature("./test/static/valid_signature_without_transforms_element.xml");
+  });
+
   it("fails invalid signature - signature value", function () {
     failInvalidSignature("./test/static/invalid_signature - signature value.xml");
   });
@@ -916,6 +920,10 @@ describe("Signature unit tests", function () {
       "./test/static/invalid_signature - wsu - changed content.xml",
       "wssecurity",
     );
+  });
+
+  it("fails invalid signature without transforms element", function () {
+    failInvalidSignature("./test/static/invalid_signature_without_transforms_element.xml");
   });
 
   it("allow empty reference uri when signing", function () {
