@@ -396,8 +396,9 @@ describe("Canonicalization unit tests", function () {
     });
 
   it("Multiple Canonicalization with namespace definition outside of signed element", function () {
-    //var doc = new Dom().parseFromString("<x xmlns:p=\"myns\"><p:y><ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"></ds:Signature></p:y></x>")
-    const doc = new xmldom.DOMParser().parseFromString('<x xmlns:p="myns"><p:y></p:y></x>');
+    const doc = new xmldom.DOMParser().parseFromString(
+      '<x xmlns:p="myns"><p:y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y></x>',
+    );
     const node = xpath.select1("//*[local-name(.)='y']", doc);
     if (xpath.isNodeLike(node)) {
       const sig = new SignedXml();
@@ -414,7 +415,34 @@ describe("Canonicalization unit tests", function () {
     }
   });
 
-  it("Enveloped-signature canonicalization respects currentnode", function () {
+  it("Shouldn't continue processing transforms if we end up with a string as a result of a transform", function () {
+    const doc = new xmldom.DOMParser().parseFromString(
+      '<x xmlns:p="myns"><p:y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y></x>',
+    );
+    const node1 = xpath.select1("//*[local-name(.)='y']", doc);
+    const node2 = xpath.select1("//*[local-name(.)='y']", doc);
+    if (xpath.isNodeLike(node1) && xpath.isNodeLike(node2)) {
+      const sig = new SignedXml();
+      const res1 = sig.getCanonXml(
+        [
+          "http://www.w3.org/2001/10/xml-exc-c14n#",
+          "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        ],
+        node1,
+      );
+      const res2 = sig.getCanonXml(["http://www.w3.org/2001/10/xml-exc-c14n#"], node2);
+      expect(res1)
+        .to.equal(res2)
+        .to.equal(
+          '<p:y xmlns:p="myns"><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y>',
+        );
+    } else {
+      expect(xpath.isNodeLike(node1)).to.be.true;
+      expect(xpath.isNodeLike(node2)).to.be.true;
+    }
+  });
+
+  it("Enveloped-signature canonicalization respects current node", function () {
     // older versions of enveloped-signature removed the first signature in the whole doc, but should
     //   be the signature inside the current node if we want to be able to verify multiple signatures
     //   in a document.
