@@ -53,7 +53,7 @@
     "chai": "^4.3.7",
     "choma": "^1.2.1",
     "ejs": "^3.1.9",
-    "eslint": "^8.45.0",
+    "eslint": "^8.48.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-deprecation": "^1.4.1",
     "lcov": "^1.16.0",
