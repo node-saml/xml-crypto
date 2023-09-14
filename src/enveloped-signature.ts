@@ -8,7 +8,7 @@ import type {
 
 export class EnvelopedSignature implements CanonicalizationOrTransformationAlgorithm {
   includeComments = false;
-  process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions) {
+  process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions): Node {
     if (null == options.signatureNode) {
       const signature = xpath.select1(
         "./*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",

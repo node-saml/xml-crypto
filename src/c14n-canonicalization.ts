@@ -167,11 +167,14 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     return { rendered: res.join(""), newDefaultNs };
   }
 
-  processInner(node: Node, prefixesInScope, defaultNs, defaultNsForPrefix, ancestorNamespaces) {
+  /**
+   * @param node Node
+   */
+  processInner(node, prefixesInScope, defaultNs, defaultNsForPrefix, ancestorNamespaces) {
     if (xpath.isComment(node)) {
       return this.renderComment(node);
     }
-    if (xpath.isComment(node)) {
+    if (node.data) {
       return utils.encodeSpecialCharactersInText(node.data);
     }
 
@@ -198,7 +201,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       return res.join("");
     }
 
-    return "";
+    throw new Error(`Unable to canonicalize node type: ${node.nodeType}`);
   }
 
   // Thanks to deoxxa/xml-c14n for comment renderer
@@ -247,7 +250,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
    * @param node
    * @api public
    */
-  process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions) {
+  process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions): string {
     options = options || {};
     const defaultNs = options.defaultNs || "";
     const defaultNsForPrefix = options.defaultNsForPrefix || {};
