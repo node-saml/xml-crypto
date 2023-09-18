@@ -4,7 +4,7 @@ import type {
   NamespacePrefix,
 } from "./types";
 import * as utils from "./utils";
-import * as xpath from "xpath";
+import * as isDomNode from "is-dom-node";
 
 function isPrefixInScope(prefixesInScope, prefix, namespaceURI) {
   let ret = false;
@@ -55,7 +55,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     const res: string[] = [];
     const attrListToRender: Attr[] = [];
 
-    if (xpath.isComment(node)) {
+    if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }
 
@@ -177,14 +177,14 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     defaultNsForPrefix,
     inclusiveNamespacesPrefixList: string[],
   ) {
-    if (xpath.isComment(node)) {
+    if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }
     if (node.data) {
       return utils.encodeSpecialCharactersInText(node.data);
     }
 
-    if (xpath.isElement(node)) {
+    if (isDomNode.isElementNode(node)) {
       let i;
       let pfxCopy;
       const ns = this.renderNs(

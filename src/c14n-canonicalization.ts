@@ -5,7 +5,7 @@ import type {
   RenderedNamespace,
 } from "./types";
 import * as utils from "./utils";
-import * as xpath from "xpath";
+import * as isDomNode from "is-dom-node";
 
 export class C14nCanonicalization implements CanonicalizationOrTransformationAlgorithm {
   includeComments = false;
@@ -44,7 +44,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     let attr;
     const attrListToRender: Attr[] = [];
 
-    if (xpath.isComment(node)) {
+    if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }
 
@@ -171,14 +171,14 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
    * @param node Node
    */
   processInner(node, prefixesInScope, defaultNs, defaultNsForPrefix, ancestorNamespaces) {
-    if (xpath.isComment(node)) {
+    if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }
     if (node.data) {
       return utils.encodeSpecialCharactersInText(node.data);
     }
 
-    if (xpath.isElement(node)) {
+    if (isDomNode.isElementNode(node)) {
       let i;
       let pfxCopy;
       const ns = this.renderNs(

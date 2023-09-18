@@ -4,20 +4,19 @@ import { C14nCanonicalization } from "../src/c14n-canonicalization";
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import * as utils from "../src/utils";
+import * as isDomNode from "is-dom-node";
 
 const test_C14nCanonicalization = function (xml, xpathArg, expected) {
   const doc = new xmldom.DOMParser().parseFromString(xml);
   const node = xpath.select1(xpathArg, doc);
   const can = new C14nCanonicalization();
-  let result = "";
 
-  if (xpath.isNodeLike(node)) {
-    result = can
-      .process(node, {
-        ancestorNamespaces: utils.findAncestorNs(doc, xpathArg),
-      })
-      .toString();
-  }
+  isDomNode.assertIsNodeLike(node);
+  const result = can
+    .process(node, {
+      ancestorNamespaces: utils.findAncestorNs(doc, xpathArg),
+    })
+    .toString();
 
   expect(result).to.equal(expected);
 };

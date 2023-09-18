@@ -3,6 +3,7 @@ import * as xmldom from "@xmldom/xmldom";
 import { SignedXml } from "../src/index";
 import * as fs from "fs";
 import { expect } from "chai";
+import * as isDomNode from "is-dom-node";
 
 describe("Signature integration tests", function () {
   function verifySignature(xml, expected, xpath) {
@@ -92,16 +93,13 @@ describe("Signature integration tests", function () {
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    if (xpath.isNodeLike(signature)) {
-      const sig = new SignedXml();
-      sig.publicCert = fs.readFileSync("./test/static/windows_store_certificate.pem");
-      sig.loadSignature(signature);
-      const result = sig.checkSignature(childXml ?? "");
+    isDomNode.assertIsNodeLike(signature);
+    const sig = new SignedXml();
+    sig.publicCert = fs.readFileSync("./test/static/windows_store_certificate.pem");
+    sig.loadSignature(signature);
+    const result = sig.checkSignature(childXml ?? "");
 
-      expect(result).to.be.true;
-    } else {
-      expect(xpath.isNodeLike(signature)).to.be.true;
-    }
+    expect(result).to.be.true;
   });
 
   it("signature with inclusive namespaces", function () {
@@ -113,16 +111,13 @@ describe("Signature integration tests", function () {
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    if (xpath.isNodeLike(signature)) {
-      const sig = new SignedXml();
-      sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
-      sig.loadSignature(signature);
-      const result = sig.checkSignature(childXml ?? "");
+    isDomNode.assertIsNodeLike(signature);
+    const sig = new SignedXml();
+    sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
+    sig.loadSignature(signature);
+    const result = sig.checkSignature(childXml ?? "");
 
-      expect(result).to.be.true;
-    } else {
-      expect(xpath.isNodeLike(signature)).to.be.true;
-    }
+    expect(result).to.be.true;
   });
 
   it("signature with inclusive namespaces with unix line separators", function () {
@@ -137,16 +132,13 @@ describe("Signature integration tests", function () {
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    if (xpath.isNodeLike(signature)) {
-      const sig = new SignedXml();
-      sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
-      sig.loadSignature(signature);
-      const result = sig.checkSignature(childXml ?? "");
+    isDomNode.assertIsNodeLike(signature);
+    const sig = new SignedXml();
+    sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
+    sig.loadSignature(signature);
+    const result = sig.checkSignature(childXml ?? "");
 
-      expect(result).to.be.true;
-    } else {
-      expect(xpath.isNodeLike(signature)).to.be.true;
-    }
+    expect(result).to.be.true;
   });
 
   it("signature with inclusive namespaces with windows line separators", function () {
@@ -161,16 +153,13 @@ describe("Signature integration tests", function () {
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    if (xpath.isNodeLike(signature)) {
-      const sig = new SignedXml();
-      sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
-      sig.loadSignature(signature);
-      const result = sig.checkSignature(childXml ?? "");
+    isDomNode.assertIsNodeLike(signature);
+    const sig = new SignedXml();
+    sig.publicCert = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.pem");
+    sig.loadSignature(signature);
+    const result = sig.checkSignature(childXml ?? "");
 
-      expect(result).to.be.true;
-    } else {
-      expect(xpath.isNodeLike(signature)).to.be.true;
-    }
+    expect(result).to.be.true;
   });
 
   it("should create single root xml document when signing inner node", function () {

@@ -23,6 +23,7 @@ import * as envelopedSignatures from "./enveloped-signature";
 import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
 import * as crypto from "crypto";
+import * as isDomNode from "is-dom-node";
 
 export class SignedXml {
   idMode?: "wssecurity";
@@ -215,7 +216,7 @@ export class SignedXml {
   static getCertFromKeyInfo(keyInfo?: Node | null): string | null {
     if (keyInfo != null) {
       const certs = xpath.select1(".//*[local-name(.)='X509Certificate']", keyInfo);
-      if (xpath.isNodeLike(certs)) {
+      if (isDomNode.isNodeLike(certs)) {
         return utils.derToPem(certs.textContent || "", "CERTIFICATE");
       }
     }
@@ -398,7 +399,7 @@ export class SignedXml {
       }
 
       // @ts-expect-error FIXME: xpath types are wrong
-      if (!xpath.isNodeLike(targetElem)) {
+      if (!isDomNode.isNodeLike(targetElem)) {
         continue;
       }
 
@@ -446,7 +447,7 @@ export class SignedXml {
     }
 
     // @ts-expect-error FIXME: xpath types are wrong
-    if (!xpath.isNodeLike(elem)) {
+    if (!isDomNode.isNodeLike(elem)) {
       const validationError = new Error(
         `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
       );
@@ -500,7 +501,7 @@ export class SignedXml {
       throw new Error("could not find CanonicalizationMethod/@Algorithm element");
     }
 
-    if (xpath.isAttribute(nodes[0])) {
+    if (isDomNode.isAttributeNode(nodes[0])) {
       this.canonicalizationAlgorithm = nodes[0].value as CanonicalizationAlgorithmType;
     }
 
@@ -509,7 +510,7 @@ export class SignedXml {
       signatureNode,
     );
 
-    if (xpath.isAttribute(signatureAlgorithm)) {
+    if (isDomNode.isAttributeNode(signatureAlgorithm)) {
       this.signatureAlgorithm = signatureAlgorithm.value as SignatureAlgorithmType;
     }
 
@@ -531,13 +532,13 @@ export class SignedXml {
       signatureNode,
     );
 
-    if (xpath.isTextNode(signatureValue)) {
+    if (isDomNode.isTextNode(signatureValue)) {
       this.signatureValue = signatureValue.data.replace(/\r?\n/g, "");
     }
 
     const keyInfo = xpath.select1(".//*[local-name(.)='KeyInfo']", signatureNode);
 
-    if (xpath.isNodeLike(keyInfo)) {
+    if (isDomNode.isNodeLike(keyInfo)) {
       this.keyInfo = keyInfo;
     }
   }
@@ -621,7 +622,7 @@ export class SignedXml {
     this.addReference({
       transforms,
       digestAlgorithm: digestAlgo,
-      uri: xpath.isElement(refNode) ? utils.findAttr(refNode, "URI")?.value : undefined,
+      uri: isDomNode.isElementNode(refNode) ? utils.findAttr(refNode, "URI")?.value : undefined,
       digestValue,
       inclusiveNamespacesPrefixList,
       isEmptyUri: false,
@@ -796,7 +797,7 @@ export class SignedXml {
 
     const referenceNode = xpath.select1(location.reference, doc);
 
-    if (!xpath.isNodeLike(referenceNode)) {
+    if (!isDomNode.isNodeLike(referenceNode)) {
       const err2 = new Error(
         `the following xpath cannot be used because it was not found: ${location.reference}`,
       );
@@ -949,7 +950,7 @@ export class SignedXml {
     let transformedXml: Node | string = canonXml;
 
     transforms.forEach((transformName) => {
-      if (xpath.isNodeLike(transformedXml)) {
+      if (isDomNode.isNodeLike(transformedXml)) {
         // If, after processing, `transformedNode` is a string, we can't do anymore transforms on it
         const transform = this.findCanonicalizationAlgorithm(transformName);
         transformedXml = transform.process(transformedXml, options);
