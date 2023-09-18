@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as xpath from "xpath";
 import { SignedXml } from "../src/index";
 import { expect } from "chai";
+import * as isDomNode from "is-dom-node";
 
 describe("KeyInfo tests", function () {
   it("adds X509Certificate element during signature", function () {
@@ -14,12 +15,9 @@ describe("KeyInfo tests", function () {
     const signedXml = sig.getSignedXml();
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const x509 = xpath.select("//*[local-name(.)='X509Certificate']", doc.documentElement);
-    // @ts-expect-error FIXME
-    if (xpath.isArrayOfNodes(x509)) {
-      expect(x509.length, "X509Certificate element should exist").to.equal(1);
-    } else {
-      expect(xpath.isArrayOfNodes(x509)).to.be.true;
-    }
+    isDomNode.assertIsArrayOfNodes(x509);
+
+    expect(x509.length, "X509Certificate element should exist").to.equal(1);
   });
 
   it("make sure private hmac key is not leaked due to key confusion", function () {
@@ -33,7 +31,6 @@ describe("KeyInfo tests", function () {
     sig.computeSignature(xml);
 
     const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
-
     const keyInfo = xpath.select1("//*[local-name(.)='KeyInfo']", doc);
 
     expect(keyInfo).to.be.undefined;

@@ -1,5 +1,6 @@
 import * as xpath from "xpath";
 import type { NamespacePrefix } from "./types";
+import * as isDomNode from "is-dom-node";
 
 export function isArrayHasLength(array: unknown): array is unknown[] {
   return Array.isArray(array) && array.length > 0;
@@ -36,7 +37,7 @@ export function findChildren(node: Node | Document, localName: string, namespace
   for (let i = 0; i < element.childNodes.length; i++) {
     const child = element.childNodes[i];
     if (
-      xpath.isElement(child) &&
+      isDomNode.isElementNode(child) &&
       child.localName === localName &&
       (child.namespaceURI === namespace || namespace == null)
     ) {
@@ -192,7 +193,7 @@ function collectAncestorNamespaces(
   node: Element,
   nsArray: NamespacePrefix[] = [],
 ): NamespacePrefix[] {
-  if (!xpath.isElement(node.parentNode)) {
+  if (!isDomNode.isElementNode(node.parentNode)) {
     return nsArray;
   }
 
@@ -229,7 +230,7 @@ function findNSPrefix(subset) {
 }
 
 function isElementSubset(docSubset: Node[]): docSubset is Element[] {
-  return docSubset.every((node) => xpath.isElement(node));
+  return docSubset.every((node) => isDomNode.isElementNode(node));
 }
 
 /**

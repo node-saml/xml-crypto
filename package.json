@@ -39,7 +39,8 @@
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.8.10",
-    "xpath": "0.0.33"
+    "is-dom-node": "github:xmldom/is-dom-node#v1.0.0",
+    "xpath": "^0.0.33"
   },
   "devDependencies": {
     "@cjbarth/github-release-notes": "^4.1.0",

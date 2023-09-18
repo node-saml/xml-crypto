@@ -3,6 +3,7 @@ import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
 import * as fs from "fs";
 import { expect } from "chai";
+import * as isDomNode from "is-dom-node";
 
 describe("WS-Fed Metadata tests", function () {
   it("test validating WS-Fed Metadata", function () {
@@ -12,15 +13,12 @@ describe("WS-Fed Metadata tests", function () {
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    if (xpath.isNodeLike(signature)) {
-      const sig = new SignedXml();
-      sig.publicCert = fs.readFileSync("./test/static/wsfederation_metadata.pem");
-      sig.loadSignature(signature);
-      const result = sig.checkSignature(xml);
+    isDomNode.assertIsNodeLike(signature);
+    const sig = new SignedXml();
+    sig.publicCert = fs.readFileSync("./test/static/wsfederation_metadata.pem");
+    sig.loadSignature(signature);
+    const result = sig.checkSignature(xml);
 
-      expect(result).to.be.true;
-    } else {
-      expect(xpath.isNodeLike(signature)).to.be.true;
-    }
+    expect(result).to.be.true;
   });
 });
