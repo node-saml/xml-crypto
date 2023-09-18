@@ -9,7 +9,8 @@
   "parser": "@typescript-eslint/parser",
   "plugins": ["@typescript-eslint", "deprecation"],
   "parserOptions": {
-    "project": "./tsconfig.eslint.json"
+    "project": "./tsconfig.eslint.json",
+    "ext": ".ts"
   },
   "extends": [
     "eslint:recommended",
