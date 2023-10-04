@@ -73,11 +73,6 @@ export class SignedXml {
   private references: Reference[] = [];
 
   /**
-   * Contains validation errors (if any) after {@link checkSignature} method is called
-   */
-  validationErrors: string[] = [];
-
-  /**
    *  To add a new transformation algorithm create a new class that implements the {@link TransformationAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
    */
   CanonicalizationAlgorithms: Record<
@@ -248,7 +243,6 @@ export class SignedXml {
       throw new Error("Last parameter must be a callback function");
     }
 
-    this.validationErrors = [];
     this.signedXml = xml;
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
@@ -272,11 +266,6 @@ export class SignedXml {
       signer.verifySignature(signedInfoCanon, key, this.signatureValue, callback);
     } else {
       const res = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
-      if (res === false) {
-        this.validationErrors.push(
-          `invalid signature: the signature value ${this.signatureValue} is incorrect`,
-        );
-      }
 
       return res;
     }
@@ -438,7 +427,7 @@ export class SignedXml {
       const validationError = new Error(
         `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
       );
-      this.validationErrors.push(validationError.message);
+      ref.validationError = validationError;
       return false;
     }
 
@@ -450,7 +439,7 @@ export class SignedXml {
       const validationError = new Error(
         `invalid signature: for uri ${ref.uri} calculated digest is ${digest} but the xml to validate supplies digest ${ref.digestValue}`,
       );
-      this.validationErrors.push(validationError.message);
+      ref.validationError = validationError;
 
       return false;
     }

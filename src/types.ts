@@ -129,6 +129,8 @@ export interface Reference {
 
   // Optional. The type of the reference node.
   ancestorNamespaces?: NamespacePrefix[];
+
+  validationError?: Error;
 }
 
 /** Implement this to create a new CanonicalizationOrTransformationAlgorithm */
@@ -204,7 +206,6 @@ export interface TransformAlgorithm {
  * #### Api
  *  - {@link SignedXml#loadSignature}
  *  - {@link SignedXml#checkSignature}
- *  - {@link SignedXml#validationErrors}
  */
 
 function isErrorFirstCallback<T>(
