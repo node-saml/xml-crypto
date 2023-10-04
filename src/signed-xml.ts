@@ -430,7 +430,6 @@ export class SignedXml {
       }
     }
 
-    // @ts-expect-error FIXME: xpath types are wrong
     if (!isDomNode.isNodeLike(elem)) {
       const validationError = new Error(
         `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
