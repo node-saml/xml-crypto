@@ -143,11 +143,12 @@ var signature = select(
 )[0];
 var sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
 sig.loadSignature(signature);
-var res = sig.checkSignature(xml);
-if (!res) console.log(sig.validationErrors);
+try {
+  var res = sig.checkSignature(xml);
+} catch (ex) {
+  console.log(ex);
+}
 ```
-
-If the verification process fails `sig.validationErrors` will contain the errors.
 
 In order to protect from some attacks we must check the content we want to use is the one that has been signed:
 
@@ -266,8 +267,7 @@ To verify xml documents:
 
 - `loadSignature(signatureXml)` - loads the signature where:
   - `signatureXml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the signature
-- `checkSignature(xml)` - validates the given xml document and returns true if the validation was successful, `sig.validationErrors` will have the validation errors if any, where:
-  - `xml` - a string containing a xml document
+- `checkSignature(xml)` - validates the given xml document and returns `true` if the validation was successful
 
 ## Customizing Algorithms
 
