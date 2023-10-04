@@ -143,8 +143,11 @@ var signature = select(
 )[0];
 var sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
 sig.loadSignature(signature);
-var res = sig.checkSignature(xml);
-if (!res) console.log("signature validation failed");
+try {
+  var res = sig.checkSignature(xml);
+} catch (ex) {
+  console.log(ex);
+}
 ```
 
 In order to protect from some attacks we must check the content we want to use is the one that has been signed:

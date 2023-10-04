@@ -265,9 +265,15 @@ export class SignedXml {
     if (callback) {
       signer.verifySignature(signedInfoCanon, key, this.signatureValue, callback);
     } else {
-      const res = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
+      const verified = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
 
-      return res;
+      if (verified === false) {
+        throw new Error(
+          "invalid signature: the signature value ${this.signatureValue} is incorrect",
+        );
+      }
+
+      return true;
     }
   }
 
