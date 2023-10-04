@@ -86,7 +86,7 @@ export interface ComputeSignatureOptionsLocation {
 /**
  * Options for the computeSignature method.
  *
- *   - `prefix` {String} Adds a prefix for the generated signature tags
+ * - `prefix` {String} Adds a prefix for the generated signature tags
  * - `attrs` {Object} A hash of attributes and values `attrName: value` to add to the signature root node
  * - `location` {{ reference: String, action: String }}
  * - `existingPrefixes` {Object} A hash of prefixes and namespaces `prefix: namespace` already in the xml

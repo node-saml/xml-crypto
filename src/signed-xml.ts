@@ -282,7 +282,7 @@ export class SignedXml {
     }
   }
 
-  getCanonSignedInfoXml(doc: Document) {
+  private getCanonSignedInfoXml(doc: Document) {
     if (this.signatureNode == null) {
       throw new Error("No signature found.");
     }
@@ -315,7 +315,7 @@ export class SignedXml {
     return this.getCanonXml([this.canonicalizationAlgorithm], signedInfo[0], c14nOptions);
   }
 
-  getCanonReferenceXml(doc: Document, ref: Reference, node: Node) {
+  private getCanonReferenceXml(doc: Document, ref: Reference, node: Node) {
     /**
      * Search for ancestor namespaces before canonicalization.
      */
@@ -331,20 +331,7 @@ export class SignedXml {
     return this.getCanonXml(ref.transforms, node, c14nOptions);
   }
 
-  /** @deprecated */
-  validateSignatureValue(doc: Document): boolean;
-  /** @deprecated */
-  validateSignatureValue(doc: Document, callback: ErrorFirstCallback<boolean>): void;
-  /** @deprecated */
-  validateSignatureValue(doc: Document, callback?: ErrorFirstCallback<boolean>): boolean | void {
-    if (callback) {
-      this.checkSignature(doc.toString(), callback);
-    } else {
-      return this.checkSignature(doc.toString());
-    }
-  }
-
-  calculateSignatureValue(doc: Document, callback?: ErrorFirstCallback<string>) {
+  private calculateSignatureValue(doc: Document, callback?: ErrorFirstCallback<string>) {
     const signedInfoCanon = this.getCanonSignedInfoXml(doc);
     const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
     if (this.privateKey == null) {
@@ -357,7 +344,7 @@ export class SignedXml {
     }
   }
 
-  findSignatureAlgorithm(name: SignatureAlgorithmType) {
+  private findSignatureAlgorithm(name: SignatureAlgorithmType) {
     const algo = this.SignatureAlgorithms[name];
     if (algo) {
       return new algo();
@@ -366,7 +353,7 @@ export class SignedXml {
     }
   }
 
-  findCanonicalizationAlgorithm(name: CanonicalizationOrTransformAlgorithmType) {
+  private findCanonicalizationAlgorithm(name: CanonicalizationOrTransformAlgorithmType) {
     const algo = this.CanonicalizationAlgorithms[name];
     if (algo) {
       return new algo();
@@ -375,7 +362,7 @@ export class SignedXml {
     }
   }
 
-  findHashAlgorithm(name: HashAlgorithmType) {
+  private findHashAlgorithm(name: HashAlgorithmType) {
     const algo = this.HashAlgorithms[name];
     if (algo) {
       return new algo();
@@ -415,7 +402,7 @@ export class SignedXml {
     throw new Error("No references passed validation");
   }
 
-  validateReference(ref: Reference, doc: Document) {
+  private validateReference(ref: Reference, doc: Document) {
     const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
     let elem: xpath.SelectSingleReturnType;
 
@@ -547,7 +534,7 @@ export class SignedXml {
    * Load the reference xml node to a model
    *
    */
-  loadReference(refNode: Node) {
+  private loadReference(refNode: Node) {
     let nodes = utils.findChildren(refNode, "DigestMethod");
     if (nodes.length === 0) {
       throw new Error(`could not find DigestMethod in reference ${refNode.toString()}`);
@@ -886,7 +873,7 @@ export class SignedXml {
    * Generate the Reference nodes (as part of the signature process)
    *
    */
-  createReferences(doc, prefix) {
+  private createReferences(doc, prefix) {
     let res = "";
 
     prefix = prefix || "";
@@ -971,7 +958,7 @@ export class SignedXml {
    * Ensure an element has Id attribute. If not create it with unique value.
    * Work with both normal and wssecurity Id flavour
    */
-  ensureHasId(node) {
+  private ensureHasId(node) {
     let attr;
 
     if (this.idMode === "wssecurity") {
@@ -1016,7 +1003,7 @@ export class SignedXml {
    * Create the SignedInfo element
    *
    */
-  createSignedInfo(doc, prefix) {
+  private createSignedInfo(doc, prefix) {
     const transform = this.findCanonicalizationAlgorithm(this.canonicalizationAlgorithm);
     const algo = this.findSignatureAlgorithm(this.signatureAlgorithm);
     let currentPrefix;
@@ -1046,7 +1033,7 @@ export class SignedXml {
    * Create the Signature element
    *
    */
-  createSignature(prefix?: string) {
+  private createSignature(prefix?: string) {
     let xmlNsAttr = "xmlns";
 
     if (prefix) {
