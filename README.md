@@ -154,7 +154,7 @@ In order to protect from some attacks we must check the content we want to use i
 ```javascript
 // Roll your own
 const elem = xpath.select("/xpath_to_interesting_element", doc);
-const uri = sig.references[0].uri; // might not be 0; it depends on the document
+const uri = sig.getReferences()[0].uri; // might not be 0; it depends on the document
 const id = uri[0] === "#" ? uri.substring(1) : uri;
 if (
   elem.getAttribute("ID") != id &&
