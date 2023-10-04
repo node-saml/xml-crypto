@@ -70,12 +70,7 @@ export class SignedXml {
    * Contains the references that were signed.
    * @see {@link Reference}
    */
-  references: Reference[] = [];
-
-  /**
-   * Contains validation errors (if any) after {@link checkSignature} method is called
-   */
-  validationErrors: string[] = [];
+  private references: Reference[] = [];
 
   /**
    *  To add a new transformation algorithm create a new class that implements the {@link TransformationAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
@@ -248,14 +243,13 @@ export class SignedXml {
       throw new Error("Last parameter must be a callback function");
     }
 
-    this.validationErrors = [];
     this.signedXml = xml;
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
 
-    if (!this.validateReferences(doc)) {
+    if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
       if (callback) {
-        callback(new Error("Could not validate references"));
+        callback(new Error("Could not validate all references"));
         return;
       }
 
@@ -272,17 +266,12 @@ export class SignedXml {
       signer.verifySignature(signedInfoCanon, key, this.signatureValue, callback);
     } else {
       const res = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
-      if (res === false) {
-        this.validationErrors.push(
-          `invalid signature: the signature value ${this.signatureValue} is incorrect`,
-        );
-      }
 
       return res;
     }
   }
 
-  getCanonSignedInfoXml(doc: Document) {
+  private getCanonSignedInfoXml(doc: Document) {
     if (this.signatureNode == null) {
       throw new Error("No signature found.");
     }
@@ -315,7 +304,7 @@ export class SignedXml {
     return this.getCanonXml([this.canonicalizationAlgorithm], signedInfo[0], c14nOptions);
   }
 
-  getCanonReferenceXml(doc: Document, ref: Reference, node: Node) {
+  private getCanonReferenceXml(doc: Document, ref: Reference, node: Node) {
     /**
      * Search for ancestor namespaces before canonicalization.
      */
@@ -331,20 +320,7 @@ export class SignedXml {
     return this.getCanonXml(ref.transforms, node, c14nOptions);
   }
 
-  /** @deprecated */
-  validateSignatureValue(doc: Document): boolean;
-  /** @deprecated */
-  validateSignatureValue(doc: Document, callback: ErrorFirstCallback<boolean>): void;
-  /** @deprecated */
-  validateSignatureValue(doc: Document, callback?: ErrorFirstCallback<boolean>): boolean | void {
-    if (callback) {
-      this.checkSignature(doc.toString(), callback);
-    } else {
-      return this.checkSignature(doc.toString());
-    }
-  }
-
-  calculateSignatureValue(doc: Document, callback?: ErrorFirstCallback<string>) {
+  private calculateSignatureValue(doc: Document, callback?: ErrorFirstCallback<string>) {
     const signedInfoCanon = this.getCanonSignedInfoXml(doc);
     const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
     if (this.privateKey == null) {
@@ -357,7 +333,7 @@ export class SignedXml {
     }
   }
 
-  findSignatureAlgorithm(name: SignatureAlgorithmType) {
+  private findSignatureAlgorithm(name: SignatureAlgorithmType) {
     const algo = this.SignatureAlgorithms[name];
     if (algo) {
       return new algo();
@@ -366,7 +342,7 @@ export class SignedXml {
     }
   }
 
-  findCanonicalizationAlgorithm(name: CanonicalizationOrTransformAlgorithmType) {
+  private findCanonicalizationAlgorithm(name: CanonicalizationOrTransformAlgorithmType) {
     const algo = this.CanonicalizationAlgorithms[name];
     if (algo) {
       return new algo();
@@ -375,7 +351,7 @@ export class SignedXml {
     }
   }
 
-  findHashAlgorithm(name: HashAlgorithmType) {
+  private findHashAlgorithm(name: HashAlgorithmType) {
     const algo = this.HashAlgorithms[name];
     if (algo) {
       return new algo();
@@ -384,26 +360,28 @@ export class SignedXml {
     }
   }
 
-  validateElementAgainstReferences(elem: Element, doc: Document): Reference {
-    for (const ref of this.references) {
+  validateElementAgainstReferences(elemOrXpath: Element | string, doc: Document): Reference {
+    let elem: Element;
+    if (typeof elemOrXpath === "string") {
+      const firstElem = xpath.select1(elemOrXpath, doc);
+      isDomNode.assertIsElementNode(firstElem);
+      elem = firstElem;
+    } else {
+      elem = elemOrXpath;
+    }
+
+    for (const ref of this.getReferences()) {
       const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
-      let targetElem: xpath.SelectSingleReturnType;
 
       for (const attr of this.idAttributes) {
         const elemId = elem.getAttribute(attr);
         if (uri === elemId) {
-          targetElem = elem;
           ref.xpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
           break; // found the correct element, no need to check further
         }
       }
 
-      // @ts-expect-error FIXME: xpath types are wrong
-      if (!isDomNode.isNodeLike(targetElem)) {
-        continue;
-      }
-
-      const canonXml = this.getCanonReferenceXml(doc, ref, targetElem);
+      const canonXml = this.getCanonReferenceXml(doc, ref, elem);
       const hash = this.findHashAlgorithm(ref.digestAlgorithm);
       const digest = hash.getHash(canonXml);
 
@@ -415,9 +393,9 @@ export class SignedXml {
     throw new Error("No references passed validation");
   }
 
-  validateReference(ref: Reference, doc: Document) {
+  private validateReference(ref: Reference, doc: Document) {
     const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
-    let elem: xpath.SelectSingleReturnType;
+    let elem: xpath.SelectSingleReturnType = null;
 
     if (uri === "") {
       elem = xpath.select1("//*", doc);
@@ -446,12 +424,20 @@ export class SignedXml {
       }
     }
 
-    // @ts-expect-error FIXME: xpath types are wrong
+    ref.getValidatedNode = (xpathSelector?: string) => {
+      xpathSelector = xpathSelector || ref.xpath;
+      if (typeof xpathSelector !== "string" || ref.validationError != null) {
+        return null;
+      }
+      const selectedValue = xpath.select1(xpathSelector, doc);
+      return isDomNode.isNodeLike(selectedValue) ? selectedValue : null;
+    };
+
     if (!isDomNode.isNodeLike(elem)) {
       const validationError = new Error(
         `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
       );
-      this.validationErrors.push(validationError.message);
+      ref.validationError = validationError;
       return false;
     }
 
@@ -463,7 +449,7 @@ export class SignedXml {
       const validationError = new Error(
         `invalid signature: for uri ${ref.uri} calculated digest is ${digest} but the xml to validate supplies digest ${ref.digestValue}`,
       );
-      this.validationErrors.push(validationError.message);
+      ref.validationError = validationError;
 
       return false;
     }
@@ -471,12 +457,13 @@ export class SignedXml {
     return true;
   }
 
-  validateReferences(doc: Document) {
-    return (
-      Array.isArray(this.references) &&
-      this.references.length > 0 &&
-      this.references.every((ref) => this.validateReference(ref, doc))
+  findSignatures(doc: Node): Node[] {
+    const nodes = xpath.select(
+      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc,
     );
+
+    return isDomNode.isArrayOfNodes(nodes) ? nodes : [];
   }
 
   /**
@@ -493,16 +480,16 @@ export class SignedXml {
 
     this.signatureXml = signatureNode.toString();
 
-    const nodes = xpath.select(
+    const node = xpath.select1(
       ".//*[local-name(.)='CanonicalizationMethod']/@Algorithm",
       signatureNode,
     );
-    if (!utils.isArrayHasLength(nodes)) {
+    if (!isDomNode.isNodeLike(node)) {
       throw new Error("could not find CanonicalizationMethod/@Algorithm element");
     }
 
-    if (isDomNode.isAttributeNode(nodes[0])) {
-      this.canonicalizationAlgorithm = nodes[0].value as CanonicalizationAlgorithmType;
+    if (isDomNode.isAttributeNode(node)) {
+      this.canonicalizationAlgorithm = node.value as CanonicalizationAlgorithmType;
     }
 
     const signatureAlgorithm = xpath.select1(
@@ -547,7 +534,7 @@ export class SignedXml {
    * Load the reference xml node to a model
    *
    */
-  loadReference(refNode: Node) {
+  private loadReference(refNode: Node) {
     let nodes = utils.findChildren(refNode, "DigestMethod");
     if (nodes.length === 0) {
       throw new Error(`could not find DigestMethod in reference ${refNode.toString()}`);
@@ -657,7 +644,16 @@ export class SignedXml {
       digestValue,
       inclusiveNamespacesPrefixList,
       isEmptyUri,
+      getValidatedNode: () => {
+        throw new Error(
+          "Reference has not been validated yet; Did you call `sig.checkSignature()`?",
+        );
+      },
     });
+  }
+
+  getReferences(): Reference[] {
+    return this.references;
   }
 
   /**
@@ -886,13 +882,13 @@ export class SignedXml {
    * Generate the Reference nodes (as part of the signature process)
    *
    */
-  createReferences(doc, prefix) {
+  private createReferences(doc, prefix) {
     let res = "";
 
     prefix = prefix || "";
     prefix = prefix ? `${prefix}:` : prefix;
 
-    for (const ref of this.references) {
+    for (const ref of this.getReferences()) {
       const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
 
       if (!utils.isArrayHasLength(nodes)) {
@@ -971,7 +967,7 @@ export class SignedXml {
    * Ensure an element has Id attribute. If not create it with unique value.
    * Work with both normal and wssecurity Id flavour
    */
-  ensureHasId(node) {
+  private ensureHasId(node) {
     let attr;
 
     if (this.idMode === "wssecurity") {
@@ -1016,7 +1012,7 @@ export class SignedXml {
    * Create the SignedInfo element
    *
    */
-  createSignedInfo(doc, prefix) {
+  private createSignedInfo(doc, prefix) {
     const transform = this.findCanonicalizationAlgorithm(this.canonicalizationAlgorithm);
     const algo = this.findSignatureAlgorithm(this.signatureAlgorithm);
     let currentPrefix;
@@ -1046,7 +1042,7 @@ export class SignedXml {
    * Create the Signature element
    *
    */
-  createSignature(prefix?: string) {
+  private createSignature(prefix?: string) {
     let xmlNsAttr = "xmlns";
 
     if (prefix) {

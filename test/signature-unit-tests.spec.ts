@@ -68,7 +68,7 @@ describe("Signature unit tests", function () {
     const checkedSignature = sig.checkSignature(xml);
     expect(checkedSignature).to.be.true;
 
-    expect(sig.references.length).to.equal(3);
+    expect(sig.getReferences().length).to.equal(3);
 
     const digests = [
       "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
@@ -81,8 +81,8 @@ describe("Signature unit tests", function () {
     const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
     expect(matchedReference).to.not.be.false;
 
-    for (let i = 0; i < sig.references.length; i++) {
-      const ref = sig.references[i];
+    for (let i = 0; i < sig.getReferences().length; i++) {
+      const ref = sig.getReferences()[i];
       const expectedUri = `#_${i}`;
       expect(
         ref.uri,
