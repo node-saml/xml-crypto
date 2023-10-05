@@ -194,7 +194,12 @@ export class SignedXml {
 
     if (publicCertMatches.length > 0) {
       x509Certs = publicCertMatches
-        .map((c) => `<${prefix}X509Certificate>${utils.pemToDer(c).toString("base64")}</${prefix}X509Certificate>`)
+        .map(
+          (c) =>
+            `<${prefix}X509Certificate>${utils
+              .pemToDer(c)
+              .toString("base64")}</${prefix}X509Certificate>`,
+        )
         .join("");
     }
 
