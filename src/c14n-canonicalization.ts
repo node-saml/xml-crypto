@@ -5,7 +5,7 @@ import type {
   RenderedNamespace,
 } from "./types";
 import * as utils from "./utils";
-import * as xpath from "xpath";
+import * as isDomNode from "is-dom-node";
 
 export class C14nCanonicalization implements CanonicalizationOrTransformationAlgorithm {
   includeComments = false;
@@ -44,7 +44,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     let attr;
     const attrListToRender: Attr[] = [];
 
-    if (xpath.isComment(node)) {
+    if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }
 
@@ -167,15 +167,18 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     return { rendered: res.join(""), newDefaultNs };
   }
 
-  processInner(node: Node, prefixesInScope, defaultNs, defaultNsForPrefix, ancestorNamespaces) {
-    if (xpath.isComment(node)) {
+  /**
+   * @param node Node
+   */
+  processInner(node, prefixesInScope, defaultNs, defaultNsForPrefix, ancestorNamespaces) {
+    if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }
-    if (xpath.isComment(node)) {
+    if (node.data) {
       return utils.encodeSpecialCharactersInText(node.data);
     }
 
-    if (xpath.isElement(node)) {
+    if (isDomNode.isElementNode(node)) {
       let i;
       let pfxCopy;
       const ns = this.renderNs(
@@ -198,7 +201,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       return res.join("");
     }
 
-    return "";
+    throw new Error(`Unable to canonicalize node type: ${node.nodeType}`);
   }
 
   // Thanks to deoxxa/xml-c14n for comment renderer
@@ -247,7 +250,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
    * @param node
    * @api public
    */
-  process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions) {
+  process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions): string {
     options = options || {};
     const defaultNs = options.defaultNs || "";
     const defaultNsForPrefix = options.defaultNsForPrefix || {};

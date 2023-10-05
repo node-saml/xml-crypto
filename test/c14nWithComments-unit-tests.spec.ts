@@ -4,13 +4,14 @@ import { ExclusiveCanonicalizationWithComments as c14nWithComments } from "../sr
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import { SignedXml } from "../src/index";
+import * as isDomNode from "is-dom-node";
 
 const compare = function (xml, xpathArg, expected, inclusiveNamespacesPrefixList?: string[]) {
   const doc = new xmldom.DOMParser().parseFromString(xml);
   const elem = xpath.select1(xpathArg, doc);
   const can = new c14nWithComments();
+  isDomNode.assertIsElementNode(elem);
   const result = can.process(elem, { inclusiveNamespacesPrefixList }).toString();
-
   expect(result).to.equal(expected);
 };
 
@@ -347,25 +348,23 @@ describe("Exclusive canonicalization with comments", function () {
   });
 
   it("Multiple Canonicalization with namespace definition outside of signed element", function () {
-    //var doc = new Dom().parseFromString("<x xmlns:p=\"myns\"><p:y><ds:Signature xmlns:ds=\"http://www.w3.org/2000/09/xmldsig#\"></ds:Signature></p:y></x>")
-    const doc = new xmldom.DOMParser().parseFromString('<x xmlns:p="myns"><p:y></p:y></x>');
+    const doc = new xmldom.DOMParser().parseFromString(
+      '<x xmlns:p="myns"><p:y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y></x>',
+    );
     const node = xpath.select1("//*[local-name(.)='y']", doc);
-    if (xpath.isNodeLike(node)) {
-      const sig = new SignedXml();
-      const res = sig.getCanonXml(
-        [
-          "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
-          "http://www.w3.org/2001/10/xml-exc-c14n#",
-        ],
-        node,
-      );
-      expect(res).to.equal('<p:y xmlns:p="myns"></p:y>');
-    } else {
-      expect(xpath.isNodeLike(node)).to.be.true;
-    }
+    isDomNode.assertIsNodeLike(node);
+    const sig = new SignedXml();
+    const res = sig.getCanonXml(
+      [
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        "http://www.w3.org/2001/10/xml-exc-c14n#",
+      ],
+      node,
+    );
+    expect(res).to.equal('<p:y xmlns:p="myns"></p:y>');
   });
 
-  it("Enveloped-signature canonicalization respects currentnode", function () {
+  it("Enveloped-signature canonicalization respects current node", function () {
     // older versions of enveloped-signature removed the first signature in the whole doc, but should
     //   be the signature inside the current node if we want to be able to verify multiple signatures
     //   in a document.
@@ -375,12 +374,9 @@ describe("Exclusive canonicalization with comments", function () {
     const node = xpath.select1("//*[local-name(.)='y']", doc);
     const sig = new SignedXml();
     const transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
-    if (xpath.isNodeLike(node)) {
-      const res = sig.getCanonXml(transforms, node);
-      expect(res).to.equal("<y/>");
-    } else {
-      expect(xpath.isNodeLike(node)).to.be.true;
-    }
+    isDomNode.assertIsNodeLike(node);
+    const res = sig.getCanonXml(transforms, node);
+    expect(res).to.equal("<y/>");
   });
 
   it("The XML canonicalization method processes a node-set by imposing the following additional document order rules on the namespace and attribute nodes of each element: \

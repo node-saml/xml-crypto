@@ -28,8 +28,8 @@
   "scripts": {
     "build": "npx tsc",
     "changelog": "gren changelog --override --generate",
-    "lint": "eslint --ext .ts \"{src,test}/*.ts\" --cache && npm run prettier-check",
-    "lint:fix": "eslint --ext .ts --fix \"{src,test}/*.ts\" && npm run prettier-format",
+    "lint": "eslint \"{src,test}/*.ts\" --cache && npm run prettier-check",
+    "lint:fix": "eslint --fix \"{src,test}/*.ts\" && npm run prettier-format",
     "prepare": "tsc",
     "prettier-check": "prettier --config .prettierrc.json --check .",
     "prettier-format": "prettier --config .prettierrc.json --write .",
@@ -39,7 +39,8 @@
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.8.10",
-    "xpath": "0.0.33"
+    "is-dom-node": "github:xmldom/is-dom-node#v1.0.0",
+    "xpath": "^0.0.33"
   },
   "devDependencies": {
     "@cjbarth/github-release-notes": "^4.1.0",
@@ -47,7 +48,7 @@
     "@prettier/plugin-xml": "^3.1.1",
     "@types/chai": "^4.3.5",
     "@types/mocha": "^10.0.1",
-    "@types/node": "^20.3.2",
+    "@types/node": "^16.18.52",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "chai": "^4.3.7",
@@ -67,6 +68,6 @@
     "typescript": "^5.1.6"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=16"
   }
 }

@@ -4,7 +4,7 @@ import { SignedXml, createOptionalCallbackFunction } from "../src/index";
 import * as fs from "fs";
 import * as crypto from "crypto";
 import { expect } from "chai";
-import * as utils from "../src/utils";
+import * as isDomNode from "is-dom-node";
 
 describe("Signature unit tests", function () {
   function verifySignature(xml: string, idMode?: "wssecurity") {
@@ -13,19 +13,16 @@ describe("Signature unit tests", function () {
       "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    if (xpath.isNodeLike(node)) {
-      const sig = new SignedXml({ idMode });
-      sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
-      sig.loadSignature(node);
-      try {
-        const res = sig.checkSignature(xml);
+    isDomNode.assertIsNodeLike(node);
+    const sig = new SignedXml({ idMode });
+    sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    sig.loadSignature(node);
+    try {
+      const res = sig.checkSignature(xml);
 
-        return res;
-      } catch (e) {
-        return false;
-      }
-    } else {
-      expect(xpath.isNodeLike(node)).to.be.true;
+      return res;
+    } catch (e) {
+      return false;
     }
   }
 
@@ -42,78 +39,59 @@ describe("Signature unit tests", function () {
       "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    if (xpath.isElement(signature)) {
-      const sig = new SignedXml();
-      sig.loadSignature(toString ? signature.toString() : signature);
+    isDomNode.assertIsElementNode(signature);
+    const sig = new SignedXml();
+    sig.loadSignature(toString ? signature.toString() : signature);
 
-      expect(sig.canonicalizationAlgorithm, "wrong canonicalization method").to.equal(
-        "http://www.w3.org/2001/10/xml-exc-c14n#",
+    expect(sig.canonicalizationAlgorithm, "wrong canonicalization method").to.equal(
+      "http://www.w3.org/2001/10/xml-exc-c14n#",
+    );
+
+    expect(sig.signatureAlgorithm, "wrong signature method").to.equal(
+      "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+    );
+
+    sig.getCertFromKeyInfo = (keyInfo) => {
+      isDomNode.assertIsNodeLike(keyInfo);
+      const keyInfoContents = xpath.select1(
+        "//*[local-name(.)='KeyInfo']/*[local-name(.)='dummyKey']",
+        keyInfo,
       );
+      isDomNode.assertIsNodeLike(keyInfoContents);
+      const firstChild = keyInfoContents.firstChild;
+      isDomNode.assertIsTextNode(firstChild);
+      expect(firstChild.data, "keyInfo clause not correctly loaded").to.equal("1234");
 
-      expect(sig.signatureAlgorithm, "wrong signature method").to.equal(
-        "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
-      );
+      return fs.readFileSync("./test/static/client.pem", "latin1");
+    };
 
-      sig.getCertFromKeyInfo = (keyInfo) => {
-        // @ts-expect-error FIXME
-        if (xpath.isNodeLike(keyInfo)) {
-          const keyInfoContents = xpath.select1(
-            "//*[local-name(.)='KeyInfo']/*[local-name(.)='dummyKey']",
-            keyInfo,
-          );
-          if (xpath.isNodeLike(keyInfoContents)) {
-            const firstChild = keyInfoContents.firstChild;
-            if (xpath.isTextNode(firstChild)) {
-              expect(firstChild.data, "keyInfo clause not correctly loaded").to.equal("1234");
-            } else {
-              expect(xpath.isTextNode(firstChild), "keyInfo has improper format").to.be.true;
-            }
-          } else {
-            expect(xpath.isNodeLike(keyInfoContents), "KeyInfo contents not found").to.be.true;
-          }
-        } else {
-          // @ts-expect-error FIXME
-          expect(xpath.isNodeLike(keyInfo), "KeyInfo not found").to.be.true;
-        }
+    const checkedSignature = sig.checkSignature(xml);
+    expect(checkedSignature).to.be.true;
 
-        return fs.readFileSync("./test/static/client.pem", "latin1");
-      };
+    expect(sig.getReferences().length).to.equal(3);
 
-      const checkedSignature = sig.checkSignature(xml);
-      expect(checkedSignature).to.be.true;
+    const digests = [
+      "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
+      "K4dI497ZCxzweDIrbndUSmtoezY=",
+      "sH1gxKve8wlU8LlFVa2l6w3HMJ0=",
+    ];
 
-      expect(sig.references.length).to.equal(3);
+    const firstGrandchild = doc.firstChild?.firstChild;
+    isDomNode.assertIsElementNode(firstGrandchild);
+    const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
+    expect(matchedReference).to.not.be.false;
 
-      const digests = [
-        "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
-        "K4dI497ZCxzweDIrbndUSmtoezY=",
-        "sH1gxKve8wlU8LlFVa2l6w3HMJ0=",
-      ];
-
-      const firstGrandchild = doc.firstChild?.firstChild;
-
-      // @ts-expect-error FIXME
-      if (xpath.isElement(firstGrandchild)) {
-        expect(() => sig.validateElementAgainstReferences(firstGrandchild, doc)).to.not.throw;
-      } else {
-        // @ts-expect-error FIXME
-        expect(xpath.isElement(firstGrandchild)).to.be.true;
-      }
-
-      for (let i = 0; i < sig.references.length; i++) {
-        const ref = sig.references[i];
-        const expectedUri = `#_${i}`;
-        expect(
-          ref.uri,
-          `wrong uri for index ${i}. expected: ${expectedUri} actual: ${ref.uri}`,
-        ).to.equal(expectedUri);
-        expect(ref.transforms.length).to.equal(1);
-        expect(ref.transforms[0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
-        expect(ref.digestValue).to.equal(digests[i]);
-        expect(ref.digestAlgorithm).to.equal("http://www.w3.org/2000/09/xmldsig#sha1");
-      }
-    } else {
-      expect(xpath.isNodeLike(signature)).to.be.true;
+    for (let i = 0; i < sig.getReferences().length; i++) {
+      const ref = sig.getReferences()[i];
+      const expectedUri = `#_${i}`;
+      expect(
+        ref.uri,
+        `wrong uri for index ${i}. expected: ${expectedUri} actual: ${ref.uri}`,
+      ).to.equal(expectedUri);
+      expect(ref.transforms.length).to.equal(1);
+      expect(ref.transforms[0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
+      expect(ref.digestValue).to.equal(digests[i]);
+      expect(ref.digestAlgorithm).to.equal("http://www.w3.org/2000/09/xmldsig#sha1");
     }
   }
 
@@ -132,12 +110,8 @@ describe("Signature unit tests", function () {
     const signedXml = sig.getOriginalXmlWithIds();
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const attrs = xpath.select("//@*", doc);
-    // @ts-expect-error FIXME
-    if (xpath.isArrayOfNodes(attrs)) {
-      expect(attrs.length, "wrong number of attributes").to.equal(2);
-    } else {
-      expect(xpath.isArrayOfNodes(attrs)).to.be.true;
-    }
+    isDomNode.assertIsArrayOfNodes(attrs);
+    expect(attrs.length, "wrong number of attributes").to.equal(2);
   }
 
   function nodeExists(doc, xpathArg) {
@@ -145,7 +119,7 @@ describe("Signature unit tests", function () {
       return;
     }
     const node = xpath.select(xpathArg, doc);
-    // @ts-expect-error FIXME
+    isDomNode.assertIsArrayOfNodes(node);
     expect(node.length, `xpath ${xpathArg} not found`).to.equal(1);
   }
 
@@ -227,12 +201,8 @@ describe("Signature unit tests", function () {
     const signedXml = sig.getSignatureXml();
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const references = xpath.select("//*[local-name(.)='Reference']", doc);
-    // @ts-expect-error FIXME
-    if (xpath.isArrayOfNodes(references)) {
-      expect(references.length).to.equal(2);
-    } else {
-      expect(xpath.isArrayOfNodes(references)).to.be.true;
-    }
+    isDomNode.assertIsArrayOfNodes(references);
+    expect(references.length).to.equal(2);
   }
 
   it("signer adds increasing id attributes to elements", function () {
@@ -264,14 +234,11 @@ describe("Signature unit tests", function () {
     const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
 
     const lastChild = doc.documentElement.lastChild;
-    if (xpath.isElement(lastChild)) {
-      expect(
-        lastChild.localName,
-        "the signature must be appended to the root node by default",
-      ).to.equal("Signature");
-    } else {
-      expect(xpath.isElement(lastChild)).to.be.true;
-    }
+    isDomNode.assertIsElementNode(lastChild);
+    expect(
+      lastChild.localName,
+      "the signature must be appended to the root node by default",
+    ).to.equal("Signature");
   });
 
   it("signer appends signature to a reference node", function () {
@@ -291,19 +258,13 @@ describe("Signature unit tests", function () {
     const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
     const referenceNode = xpath.select1("/root/name", doc);
 
-    if (xpath.isNodeLike(referenceNode)) {
-      const lastChild = referenceNode.lastChild;
+    isDomNode.assertIsNodeLike(referenceNode);
+    const lastChild = referenceNode.lastChild;
 
-      if (xpath.isElement(lastChild)) {
-        expect(lastChild.localName, "the signature should be appended to root/name").to.equal(
-          "Signature",
-        );
-      } else {
-        expect(xpath.isElement(lastChild)).to.be.true;
-      }
-    } else {
-      expect(xpath.isNodeLike(referenceNode)).to.be.true;
-    }
+    isDomNode.assertIsElementNode(lastChild);
+    expect(lastChild.localName, "the signature should be appended to root/name").to.equal(
+      "Signature",
+    );
   });
 
   it("signer prepends signature to a reference node", function () {
@@ -322,19 +283,13 @@ describe("Signature unit tests", function () {
 
     const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
     const referenceNode = xpath.select1("/root/name", doc);
-    if (xpath.isNodeLike(referenceNode)) {
-      const firstChild = referenceNode.firstChild;
+    isDomNode.assertIsNodeLike(referenceNode);
+    const firstChild = referenceNode.firstChild;
 
-      if (xpath.isElement(firstChild)) {
-        expect(firstChild.localName, "the signature should be prepended to root/name").to.equal(
-          "Signature",
-        );
-      } else {
-        expect(xpath.isElement(firstChild)).to.be.true;
-      }
-    } else {
-      expect(xpath.isNodeLike(referenceNode)).to.be.true;
-    }
+    isDomNode.assertIsElementNode(firstChild);
+    expect(firstChild.localName, "the signature should be prepended to root/name").to.equal(
+      "Signature",
+    );
   });
 
   it("signer inserts signature before a reference node", function () {
@@ -353,20 +308,14 @@ describe("Signature unit tests", function () {
 
     const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
     const referenceNode = xpath.select1("/root/name", doc);
-    if (xpath.isNodeLike(referenceNode)) {
-      const previousSibling = referenceNode.previousSibling;
+    isDomNode.assertIsNodeLike(referenceNode);
+    const previousSibling = referenceNode.previousSibling;
 
-      if (xpath.isElement(previousSibling)) {
-        expect(
-          previousSibling.localName,
-          "the signature should be inserted before to root/name",
-        ).to.equal("Signature");
-      } else {
-        expect(xpath.isElement(previousSibling)).to.be.true;
-      }
-    } else {
-      expect(xpath.isNodeLike(referenceNode)).to.be.true;
-    }
+    isDomNode.assertIsElementNode(previousSibling);
+    expect(
+      previousSibling.localName,
+      "the signature should be inserted before to root/name",
+    ).to.equal("Signature");
   });
 
   it("signer inserts signature after a reference node", function () {
@@ -386,20 +335,13 @@ describe("Signature unit tests", function () {
     const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
     const referenceNode = xpath.select1("/root/name", doc);
 
-    if (xpath.isNodeLike(referenceNode)) {
-      const nextSibling = referenceNode.nextSibling;
+    isDomNode.assertIsNodeLike(referenceNode);
+    const nextSibling = referenceNode.nextSibling;
 
-      if (xpath.isElement(nextSibling)) {
-        expect(
-          nextSibling.localName,
-          "the signature should be inserted after to root/name",
-        ).to.equal("Signature");
-      } else {
-        expect(xpath.isElement(nextSibling)).to.be.true;
-      }
-    } else {
-      expect(xpath.isNodeLike(referenceNode)).to.be.true;
-    }
+    isDomNode.assertIsElementNode(nextSibling);
+    expect(nextSibling.localName, "the signature should be inserted after to root/name").to.equal(
+      "Signature",
+    );
   });
 
   it("signer creates signature with correct structure", function () {
@@ -879,6 +821,10 @@ describe("Signature unit tests", function () {
     passValidSignature("./test/static/valid_signature_with_unused_prefixes.xml");
   });
 
+  it("verifies valid signature without transforms element", function () {
+    passValidSignature("./test/static/valid_signature_without_transforms_element.xml");
+  });
+
   it("fails invalid signature - signature value", function () {
     failInvalidSignature("./test/static/invalid_signature - signature value.xml");
   });
@@ -920,6 +866,10 @@ describe("Signature unit tests", function () {
     );
   });
 
+  it("fails invalid signature without transforms element", function () {
+    failInvalidSignature("./test/static/invalid_signature_without_transforms_element.xml");
+  });
+
   it("allow empty reference uri when signing", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
@@ -939,11 +889,8 @@ describe("Signature unit tests", function () {
     const signedXml = sig.getSignedXml();
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const URI = xpath.select1("//*[local-name(.)='Reference']/@URI", doc);
-    if (xpath.isAttribute(URI)) {
-      expect(URI.value, `uri should be empty but instead was ${URI.value}`).to.equal("");
-    } else {
-      expect(xpath.isAttribute(URI)).to.be.true;
-    }
+    isDomNode.assertIsAttributeNode(URI);
+    expect(URI.value, `uri should be empty but instead was ${URI.value}`).to.equal("");
   });
 
   it("signer appends signature to a non-existing reference node", function () {
@@ -1030,13 +977,13 @@ describe("Signature unit tests", function () {
       "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
       doc.documentElement,
     );
-    expect(
-      utils.isArrayHasLength(inclusiveNamespaces) && inclusiveNamespaces.length,
-      "InclusiveNamespaces element should exist",
-    ).to.equal(1);
+    isDomNode.assertIsArrayOfNodes(inclusiveNamespaces);
+    expect(inclusiveNamespaces.length, "InclusiveNamespaces element should exist").to.equal(1);
 
-    // @ts-expect-error FIXME
-    const prefixListAttribute = inclusiveNamespaces[0].getAttribute("PrefixList");
+    const firstNamespace = inclusiveNamespaces[0];
+    isDomNode.assertIsElementNode(firstNamespace);
+
+    const prefixListAttribute = firstNamespace.getAttribute("PrefixList");
     expect(
       prefixListAttribute,
       "InclusiveNamespaces element should have the correct PrefixList attribute value",
@@ -1089,13 +1036,17 @@ describe("Signature unit tests", function () {
       doc.documentElement,
     );
 
+    isDomNode.assertIsArrayOfNodes(inclusiveNamespaces);
+
     expect(
-      utils.isArrayHasLength(inclusiveNamespaces) && inclusiveNamespaces.length,
+      inclusiveNamespaces.length,
       "InclusiveNamespaces element should exist inside CanonicalizationMethod",
     ).to.equal(1);
 
-    // @ts-expect-error FIXME
-    const prefixListAttribute = inclusiveNamespaces[0].getAttribute("PrefixList");
+    const firstNamespace = inclusiveNamespaces[0];
+    isDomNode.assertIsElementNode(firstNamespace);
+
+    const prefixListAttribute = firstNamespace.getAttribute("PrefixList");
     expect(
       prefixListAttribute,
       "InclusiveNamespaces element inside CanonicalizationMethod should have the correct PrefixList attribute value",
@@ -1144,31 +1095,22 @@ describe("Signature unit tests", function () {
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const keyInfoElements = xpath.select("//*[local-name(.)='KeyInfo']", doc.documentElement);
 
-    // @ts-expect-error FIXME
-    if (xpath.isArrayOfNodes(keyInfoElements)) {
-      expect(keyInfoElements.length, "KeyInfo element should exist").to.equal(1);
-      const keyInfoElement = keyInfoElements[0];
+    isDomNode.assertIsArrayOfNodes(keyInfoElements);
+    expect(keyInfoElements.length, "KeyInfo element should exist").to.equal(1);
+    const keyInfoElement = keyInfoElements[0];
 
-      if (xpath.isElement(keyInfoElement)) {
-        const algorithmAttribute = keyInfoElement.getAttribute("CustomUri");
-        expect(
-          algorithmAttribute,
-          "KeyInfo element should have the correct CustomUri attribute value",
-        ).to.equal("http://www.example.com/keyinfo");
+    isDomNode.assertIsElementNode(keyInfoElement);
+    const algorithmAttribute = keyInfoElement.getAttribute("CustomUri");
+    expect(
+      algorithmAttribute,
+      "KeyInfo element should have the correct CustomUri attribute value",
+    ).to.equal("http://www.example.com/keyinfo");
 
-        const customAttribute = keyInfoElement.getAttribute("CustomAttribute");
-        expect(
-          customAttribute,
-          "KeyInfo element should have the correct CustomAttribute attribute value",
-        ).to.equal("custom-value");
-      } else {
-        expect(xpath.isElement(keyInfoElement), "KeyInfo element should be an element node").to.be
-          .true;
-      }
-    } else {
-      expect(xpath.isArrayOfNodes(keyInfoElements), "KeyInfo should be an array of nodes").to.be
-        .true;
-    }
+    const customAttribute = keyInfoElement.getAttribute("CustomAttribute");
+    expect(
+      customAttribute,
+      "KeyInfo element should have the correct CustomAttribute attribute value",
+    ).to.equal("custom-value");
   });
 
   it("adds all certificates and does not add private keys to KeyInfo element", function () {
@@ -1186,31 +1128,24 @@ describe("Signature unit tests", function () {
       "//*[local-name(.)='X509Certificate']",
       doc.documentElement,
     );
-    // @ts-expect-error FIXME
-    if (xpath.isArrayOfNodes(x509certificates)) {
-      expect(x509certificates.length, "There should be exactly two certificates").to.equal(2);
+    isDomNode.assertIsArrayOfNodes(x509certificates);
+    expect(x509certificates.length, "There should be exactly two certificates").to.equal(2);
 
-      const cert1 = x509certificates[0];
-      const cert2 = x509certificates[1];
-      expect(cert1.textContent, "X509Certificate[0] TextContent does not exist").to.exist;
-      expect(cert2.textContent, "X509Certificate[1] TextContent does not exist").to.exist;
+    const cert1 = x509certificates[0];
+    const cert2 = x509certificates[1];
+    expect(cert1.textContent, "X509Certificate[0] TextContent does not exist").to.exist;
+    expect(cert2.textContent, "X509Certificate[1] TextContent does not exist").to.exist;
 
-      const trimmedTextContent1 = cert1.textContent?.trim();
-      const trimmedTextContent2 = cert2.textContent?.trim();
-      expect(trimmedTextContent1, "Empty certificate added [0]").to.not.be.empty;
-      expect(trimmedTextContent2, "Empty certificate added [1]").to.not.be.empty;
+    const trimmedTextContent1 = cert1.textContent?.trim();
+    const trimmedTextContent2 = cert2.textContent?.trim();
+    expect(trimmedTextContent1, "Empty certificate added [0]").to.not.be.empty;
+    expect(trimmedTextContent2, "Empty certificate added [1]").to.not.be.empty;
 
-      expect(
-        trimmedTextContent1?.substring(0, 5),
-        "Incorrect value for X509Certificate[0]",
-      ).to.equal("MIIDC");
-      expect(
-        trimmedTextContent2?.substring(0, 5),
-        "Incorrect value for X509Certificate[1]",
-      ).to.equal("MIIDZ");
-    } else {
-      expect(xpath.isArrayOfNodes(x509certificates), "X509Certificate should be an array of nodes")
-        .to.be.true;
-    }
+    expect(trimmedTextContent1?.substring(0, 5), "Incorrect value for X509Certificate[0]").to.equal(
+      "MIIDC",
+    );
+    expect(trimmedTextContent2?.substring(0, 5), "Incorrect value for X509Certificate[1]").to.equal(
+      "MIIDZ",
+    );
   });
 });

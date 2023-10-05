@@ -21,27 +21,27 @@ A pre requisite it to have [openssl](http://www.openssl.org/) installed and its 
 
 ### Canonicalization and Transformation Algorithms
 
-- Canonicalization http://www.w3.org/TR/2001/REC-xml-c14n-20010315
-- Canonicalization with comments http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments
-- Exclusive Canonicalization http://www.w3.org/2001/10/xml-exc-c14n#
-- Exclusive Canonicalization with comments http://www.w3.org/2001/10/xml-exc-c14n#WithComments
-- Enveloped Signature transform http://www.w3.org/2000/09/xmldsig#enveloped-signature
+- Canonicalization <http://www.w3.org/TR/2001/REC-xml-c14n-20010315>
+- Canonicalization with comments <http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments>
+- Exclusive Canonicalization <http://www.w3.org/2001/10/xml-exc-c14n#>
+- Exclusive Canonicalization with comments <http://www.w3.org/2001/10/xml-exc-c14n#WithComments>
+- Enveloped Signature transform <http://www.w3.org/2000/09/xmldsig#enveloped-signature>
 
 ### Hashing Algorithms
 
-- SHA1 digests http://www.w3.org/2000/09/xmldsig#sha1
-- SHA256 digests http://www.w3.org/2001/04/xmlenc#sha256
-- SHA512 digests http://www.w3.org/2001/04/xmlenc#sha512
+- SHA1 digests <http://www.w3.org/2000/09/xmldsig#sha1>
+- SHA256 digests <http://www.w3.org/2001/04/xmlenc#sha256>
+- SHA512 digests <http://www.w3.org/2001/04/xmlenc#sha512>
 
 ### Signature Algorithms
 
-- RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
-- RSA-SHA256 http://www.w3.org/2001/04/xmldsig-more#rsa-sha256
-- RSA-SHA512 http://www.w3.org/2001/04/xmldsig-more#rsa-sha512
+- RSA-SHA1 <http://www.w3.org/2000/09/xmldsig#rsa-sha1>
+- RSA-SHA256 <http://www.w3.org/2001/04/xmldsig-more#rsa-sha256>
+- RSA-SHA512 <http://www.w3.org/2001/04/xmldsig-more#rsa-sha512>
 
 HMAC-SHA1 is also available but it is disabled by default
 
-- HMAC-SHA1 http://www.w3.org/2000/09/xmldsig#hmac-sha1
+- HMAC-SHA1 <http://www.w3.org/2000/09/xmldsig#hmac-sha1>
 
 to enable HMAC-SHA1, call `enableHMAC()` on your instance of `SignedXml`.
 
@@ -51,11 +51,11 @@ signature algorithms enabled at same time.
 
 by default the following algorithms are used:
 
-_Canonicalization/Transformation Algorithm:_ Exclusive Canonicalization http://www.w3.org/2001/10/xml-exc-c14n#
+_Canonicalization/Transformation Algorithm:_ Exclusive Canonicalization <http://www.w3.org/2001/10/xml-exc-c14n#>
 
-_Hashing Algorithm:_ SHA1 digest http://www.w3.org/2000/09/xmldsig#sha1
+_Hashing Algorithm:_ SHA1 digest <http://www.w3.org/2000/09/xmldsig#sha1>
 
-_Signature Algorithm:_ RSA-SHA1 http://www.w3.org/2000/09/xmldsig#rsa-sha1
+_Signature Algorithm:_ RSA-SHA1 <http://www.w3.org/2000/09/xmldsig#rsa-sha1>
 
 [You are able to extend xml-crypto with custom algorithms.](#customizing-algorithms)
 
@@ -143,28 +143,48 @@ var signature = select(
 )[0];
 var sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
 sig.loadSignature(signature);
-var res = sig.checkSignature(xml);
-if (!res) console.log(sig.validationErrors);
+try {
+  var res = sig.checkSignature(xml);
+} catch (ex) {
+  console.log(ex);
+}
 ```
-
-If the verification process fails `sig.validationErrors` will contain the errors.
 
 In order to protect from some attacks we must check the content we want to use is the one that has been signed:
 
 ```javascript
 // Roll your own
-var elem = xpath.select("/xpath_to_interesting_element", doc);
-var uri = sig.references[0].uri; // might not be 0 - depending on the document you verify
-var id = uri[0] === "#" ? uri.substring(1) : uri;
-if (elem.getAttribute("ID") != id && elem.getAttribute("Id") != id && elem.getAttribute("id") != id)
-  throw new Error("the interesting element was not the one verified by the signature");
+const elem = xpath.select("/xpath_to_interesting_element", doc);
+const uri = sig.getReferences()[0].uri; // might not be 0; it depends on the document
+const id = uri[0] === "#" ? uri.substring(1) : uri;
+if (
+  elem.getAttribute("ID") != id &&
+  elem.getAttribute("Id") != id &&
+  elem.getAttribute("id") != id
+) {
+  throw new Error("The interesting element was not the one verified by the signature");
+}
+
+// Get the validated element directly from a reference
+const elem = sig.references[0].getValidatedElement(); // might not be 0; it depends on the document
+const matchingReference = xpath.select1("/xpath_to_interesting_element", elem);
+if (!isDomNode.isNodeLike(matchingReference)) {
+  throw new Error("The interesting element was not the one verified by the signature");
+}
 
 // Use the built-in method
-let elem = xpath.select("/xpath_to_interesting_element", doc);
+const elem = xpath.select1("/xpath_to_interesting_element", doc);
 try {
   const matchingReference = sig.validateElementAgainstReferences(elem, doc);
 } catch {
-  throw new Error("the interesting element was not the one verified by the signature");
+  throw new Error("The interesting element was not the one verified by the signature");
+}
+
+// Use the built-in method with a an xpath expression
+try {
+  const matchingReference = sig.validateReferenceWithXPath("/xpath_to_interesting_element", doc);
+} catch {
+  throw new Error("The interesting element was not the one verified by the signature");
 }
 ```
 
@@ -194,10 +214,10 @@ var res = sig.checkSignature(xml);
 
 You might find it difficult to guess such transforms, but there are typical transforms you can try.
 
-- http://www.w3.org/TR/2001/REC-xml-c14n-20010315
-- http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments
-- http://www.w3.org/2001/10/xml-exc-c14n#
-- http://www.w3.org/2001/10/xml-exc-c14n#WithComments
+- <http://www.w3.org/TR/2001/REC-xml-c14n-20010315>
+- <http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments>
+- <http://www.w3.org/2001/10/xml-exc-c14n#>
+- <http://www.w3.org/2001/10/xml-exc-c14n#WithComments>
 
 ## API
 
@@ -247,8 +267,7 @@ To verify xml documents:
 
 - `loadSignature(signatureXml)` - loads the signature where:
   - `signatureXml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the signature
-- `checkSignature(xml)` - validates the given xml document and returns true if the validation was successful, `sig.validationErrors` will have the validation errors if any, where:
-  - `xml` - a string containing a xml document
+- `checkSignature(xml)` - validates the given xml document and returns `true` if the validation was successful
 
 ## Customizing Algorithms
 

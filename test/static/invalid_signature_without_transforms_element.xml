@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<library><book ID="bookid"><name>some tampered text</name></book><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/><Reference URI="#bookid"><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/><DigestValue>LsMoqo1d6Sqh8DKLp00MK0fSBDA=</DigestValue></Reference></SignedInfo><SignatureValue>OR1SYcyU18qELj+3DX/bW/r5DqueuyPAnNFEh3hNKFaj8ZKLB/mdsR9w8GDBCmZ2
+lsCTEvJqWC37oF8rm2eBSonNbdBnA+TM6Y22C8rffVzaoM3zpNoeWMH2LwFmpdKB
+UXOMWVExEaz/s4fOcyv1ajVuk42I3nl0xcD95+i7PjY=</SignatureValue></Signature></library>

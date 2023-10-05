@@ -4,7 +4,7 @@ import type {
   NamespacePrefix,
 } from "./types";
 import * as utils from "./utils";
-import * as xpath from "xpath";
+import * as isDomNode from "is-dom-node";
 
 function isPrefixInScope(prefixesInScope, prefix, namespaceURI) {
   let ret = false;
@@ -55,7 +55,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     const res: string[] = [];
     const attrListToRender: Attr[] = [];
 
-    if (xpath.isComment(node)) {
+    if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }
 
@@ -167,6 +167,9 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     return { rendered: res.join(""), newDefaultNs: newDefaultNs };
   }
 
+  /**
+   * @param node Node
+   */
   processInner(
     node,
     prefixesInScope,
@@ -174,39 +177,43 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     defaultNsForPrefix,
     inclusiveNamespacesPrefixList: string[],
   ) {
-    if (xpath.isComment(node)) {
+    if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }
     if (node.data) {
       return utils.encodeSpecialCharactersInText(node.data);
     }
 
-    let i;
-    let pfxCopy;
-    const ns = this.renderNs(
-      node,
-      prefixesInScope,
-      defaultNs,
-      defaultNsForPrefix,
-      inclusiveNamespacesPrefixList,
-    );
-    const res = ["<", node.tagName, ns.rendered, this.renderAttrs(node), ">"];
-
-    for (i = 0; i < node.childNodes.length; ++i) {
-      pfxCopy = prefixesInScope.slice(0);
-      res.push(
-        this.processInner(
-          node.childNodes[i],
-          pfxCopy,
-          ns.newDefaultNs,
-          defaultNsForPrefix,
-          inclusiveNamespacesPrefixList,
-        ),
+    if (isDomNode.isElementNode(node)) {
+      let i;
+      let pfxCopy;
+      const ns = this.renderNs(
+        node,
+        prefixesInScope,
+        defaultNs,
+        defaultNsForPrefix,
+        inclusiveNamespacesPrefixList,
       );
+      const res = ["<", node.tagName, ns.rendered, this.renderAttrs(node), ">"];
+
+      for (i = 0; i < node.childNodes.length; ++i) {
+        pfxCopy = prefixesInScope.slice(0);
+        res.push(
+          this.processInner(
+            node.childNodes[i],
+            pfxCopy,
+            ns.newDefaultNs,
+            defaultNsForPrefix,
+            inclusiveNamespacesPrefixList,
+          ),
+        );
+      }
+
+      res.push("</", node.tagName, ">");
+      return res.join("");
     }
 
-    res.push("</", node.tagName, ">");
-    return res.join("");
+    throw new Error(`Unable to exclusive canonicalize node type: ${node.nodeType}`);
   }
 
   // Thanks to deoxxa/xml-c14n for comment renderer
@@ -250,13 +257,11 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
   }
 
   /**
-   * Perform canonicalization of the given node
+   * Perform canonicalization of the given element node
    *
-   * @param {Node} node
-   * @return {String}
    * @api public
    */
-  process(node, options: CanonicalizationOrTransformationAlgorithmProcessOptions) {
+  process(elem: Element, options: CanonicalizationOrTransformationAlgorithmProcessOptions): string {
     options = options || {};
     let inclusiveNamespacesPrefixList = options.inclusiveNamespacesPrefixList || [];
     const defaultNs = options.defaultNs || "";
@@ -267,7 +272,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
      * If the inclusiveNamespacesPrefixList has not been explicitly provided then look it up in CanonicalizationMethod/InclusiveNamespaces
      */
     if (!utils.isArrayHasLength(inclusiveNamespacesPrefixList)) {
-      const CanonicalizationMethod = utils.findChildren(node, "CanonicalizationMethod");
+      const CanonicalizationMethod = utils.findChildren(elem, "CanonicalizationMethod");
       if (CanonicalizationMethod.length !== 0) {
         const inclusiveNamespaces = utils.findChildren(
           CanonicalizationMethod[0],
@@ -289,7 +294,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
         if (ancestorNamespaces) {
           ancestorNamespaces.forEach(function (ancestorNamespace) {
             if (prefix === ancestorNamespace.prefix) {
-              node.setAttributeNS(
+              elem.setAttributeNS(
                 "http://www.w3.org/2000/xmlns/",
                 `xmlns:${prefix}`,
                 ancestorNamespace.namespaceURI,
@@ -301,7 +306,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     }
 
     const res = this.processInner(
-      node,
+      elem,
       [],
       defaultNs,
       defaultNsForPrefix,

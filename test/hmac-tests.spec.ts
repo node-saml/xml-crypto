@@ -3,6 +3,7 @@ import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
 import * as fs from "fs";
 import { expect } from "chai";
+import * as isDomNode from "is-dom-node";
 
 describe("HMAC tests", function () {
   it("test validating HMAC signature", function () {
@@ -12,17 +13,15 @@ describe("HMAC tests", function () {
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    if (xpath.isNodeLike(signature)) {
-      const sig = new SignedXml();
-      sig.enableHMAC();
-      sig.publicCert = fs.readFileSync("./test/static/hmac.key");
-      sig.loadSignature(signature);
-      const result = sig.checkSignature(xml);
+    isDomNode.assertIsNodeLike(signature);
 
-      expect(result).to.be.true;
-    } else {
-      expect(xpath.isNodeLike(signature)).to.be.true;
-    }
+    const sig = new SignedXml();
+    sig.enableHMAC();
+    sig.publicCert = fs.readFileSync("./test/static/hmac.key");
+    sig.loadSignature(signature);
+    const result = sig.checkSignature(xml);
+
+    expect(result).to.be.true;
   });
 
   it("test HMAC signature with incorrect key", function () {
@@ -32,17 +31,14 @@ describe("HMAC tests", function () {
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    if (xpath.isNodeLike(signature)) {
-      const sig = new SignedXml();
-      sig.enableHMAC();
-      sig.publicCert = fs.readFileSync("./test/static/hmac-foobar.key");
-      sig.loadSignature(signature);
-      const result = sig.checkSignature(xml);
+    isDomNode.assertIsNodeLike(signature);
 
-      expect(result).to.be.false;
-    } else {
-      expect(xpath.isNodeLike(signature)).to.be.true;
-    }
+    const sig = new SignedXml();
+    sig.enableHMAC();
+    sig.publicCert = fs.readFileSync("./test/static/hmac-foobar.key");
+    sig.loadSignature(signature);
+
+    expect(() => sig.checkSignature(xml)).to.throw(/^invalid signature/);
   });
 
   it("test create and validate HMAC signature", function () {
@@ -59,16 +55,14 @@ describe("HMAC tests", function () {
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
     );
-    if (xpath.isNodeLike(signature)) {
-      const verify = new SignedXml();
-      verify.enableHMAC();
-      verify.publicCert = fs.readFileSync("./test/static/hmac.key");
-      verify.loadSignature(signature);
-      const result = verify.checkSignature(sig.getSignedXml());
+    isDomNode.assertIsNodeLike(signature);
 
-      expect(result).to.be.true;
-    } else {
-      expect(xpath.isNodeLike(signature)).to.be.true;
-    }
+    const verify = new SignedXml();
+    verify.enableHMAC();
+    verify.publicCert = fs.readFileSync("./test/static/hmac.key");
+    verify.loadSignature(signature);
+    const result = verify.checkSignature(sig.getSignedXml());
+
+    expect(result).to.be.true;
   });
 });
