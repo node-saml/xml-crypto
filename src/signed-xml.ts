@@ -70,7 +70,7 @@ export class SignedXml {
    * Contains the references that were signed.
    * @see {@link Reference}
    */
-  references: Reference[] = [];
+  private references: Reference[] = [];
 
   /**
    * Contains validation errors (if any) after {@link checkSignature} method is called
@@ -253,9 +253,9 @@ export class SignedXml {
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
 
-    if (!this.validateReferences(doc)) {
+    if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
       if (callback) {
-        callback(new Error("Could not validate references"));
+        callback(new Error("Could not validate all references"));
         return;
       }
 
@@ -372,7 +372,7 @@ export class SignedXml {
   }
 
   validateElementAgainstReferences(elem: Element, doc: Document): Reference {
-    for (const ref of this.references) {
+    for (const ref of this.getReferences()) {
       const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
       let targetElem: xpath.SelectSingleReturnType;
 
@@ -647,6 +647,10 @@ export class SignedXml {
     });
   }
 
+  getReferences(): Reference[] {
+    return this.references;
+  }
+
   /**
    * Compute the signature of the given XML (using the already defined settings).
    *
@@ -879,7 +883,7 @@ export class SignedXml {
     prefix = prefix || "";
     prefix = prefix ? `${prefix}:` : prefix;
 
-    for (const ref of this.references) {
+    for (const ref of this.getReferences()) {
       const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
 
       if (!utils.isArrayHasLength(nodes)) {
