@@ -89,8 +89,7 @@ describe("SAML response tests", function () {
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/feide_public.pem");
     sig.loadSignature(signature);
-    const result = sig.checkSignature(xml);
     // This doesn't matter, just want to make sure that we don't fail due to unknown algorithm
-    expect(result).to.be.false;
+    expect(() => sig.checkSignature(xml)).to.throw(/^invalid signature/);
   });
 });

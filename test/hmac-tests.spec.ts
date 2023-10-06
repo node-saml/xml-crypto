@@ -37,9 +37,8 @@ describe("HMAC tests", function () {
     sig.enableHMAC();
     sig.publicCert = fs.readFileSync("./test/static/hmac-foobar.key");
     sig.loadSignature(signature);
-    const result = sig.checkSignature(xml);
 
-    expect(result).to.be.false;
+    expect(() => sig.checkSignature(xml)).to.throw(/^invalid signature/);
   });
 
   it("test create and validate HMAC signature", function () {
