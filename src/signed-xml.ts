@@ -366,26 +366,28 @@ export class SignedXml {
     }
   }
 
-  validateElementAgainstReferences(elem: Element, doc: Document): Reference {
+  validateElementAgainstReferences(elemOrXpath: Element | string, doc: Document): Reference {
+    let elem: Element;
+    if (typeof elemOrXpath === "string") {
+      const firstElem = xpath.select1(elemOrXpath, doc);
+      isDomNode.assertIsElementNode(firstElem);
+      elem = firstElem;
+    } else {
+      elem = elemOrXpath;
+    }
+
     for (const ref of this.getReferences()) {
       const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
-      let targetElem: xpath.SelectSingleReturnType;
 
       for (const attr of this.idAttributes) {
         const elemId = elem.getAttribute(attr);
         if (uri === elemId) {
-          targetElem = elem;
           ref.xpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
           break; // found the correct element, no need to check further
         }
       }
 
-      // @ts-expect-error FIXME: xpath types are wrong
-      if (!isDomNode.isNodeLike(targetElem)) {
-        continue;
-      }
-
-      const canonXml = this.getCanonReferenceXml(doc, ref, targetElem);
+      const canonXml = this.getCanonReferenceXml(doc, ref, elem);
       const hash = this.findHashAlgorithm(ref.digestAlgorithm);
       const digest = hash.getHash(canonXml);
 
@@ -399,7 +401,7 @@ export class SignedXml {
 
   private validateReference(ref: Reference, doc: Document) {
     const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
-    let elem: xpath.SelectSingleReturnType;
+    let elem: xpath.SelectSingleReturnType = null;
 
     if (uri === "") {
       elem = xpath.select1("//*", doc);
@@ -428,7 +430,6 @@ export class SignedXml {
       }
     }
 
-    // @ts-expect-error FIXME: xpath types are wrong
     if (!isDomNode.isNodeLike(elem)) {
       const validationError = new Error(
         `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
@@ -453,12 +454,13 @@ export class SignedXml {
     return true;
   }
 
-  validateReferences(doc: Document) {
-    return (
-      Array.isArray(this.references) &&
-      this.references.length > 0 &&
-      this.references.every((ref) => this.validateReference(ref, doc))
+  findSignatures(doc: Node): Node[] {
+    const nodes = xpath.select(
+      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc,
     );
+
+    return isDomNode.isArrayOfNodes(nodes) ? nodes : [];
   }
 
   /**
@@ -475,16 +477,16 @@ export class SignedXml {
 
     this.signatureXml = signatureNode.toString();
 
-    const nodes = xpath.select(
+    const node = xpath.select1(
       ".//*[local-name(.)='CanonicalizationMethod']/@Algorithm",
       signatureNode,
     );
-    if (!utils.isArrayHasLength(nodes)) {
+    if (!isDomNode.isNodeLike(node)) {
       throw new Error("could not find CanonicalizationMethod/@Algorithm element");
     }
 
-    if (isDomNode.isAttributeNode(nodes[0])) {
-      this.canonicalizationAlgorithm = nodes[0].value as CanonicalizationAlgorithmType;
+    if (isDomNode.isAttributeNode(node)) {
+      this.canonicalizationAlgorithm = node.value as CanonicalizationAlgorithmType;
     }
 
     const signatureAlgorithm = xpath.select1(

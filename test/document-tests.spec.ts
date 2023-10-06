@@ -15,10 +15,9 @@ describe("Document tests", function () {
     );
 
     isDomNode.assertIsNodeLike(node);
-    const signature = new xmldom.DOMParser().parseFromString(node.toString());
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/feide_public.pem");
-    sig.loadSignature(signature);
+    sig.loadSignature(node);
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
@@ -33,11 +32,10 @@ describe("Document tests", function () {
     );
 
     isDomNode.assertIsNodeLike(node);
-    const signature = new xmldom.DOMParser().parseFromString(node.toString());
     const sig = new SignedXml();
     const feidePublicCert = fs.readFileSync("./test/static/feide_public.pem");
     sig.publicCert = feidePublicCert;
-    sig.loadSignature(signature);
+    sig.loadSignature(node);
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
