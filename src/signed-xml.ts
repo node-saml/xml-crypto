@@ -430,6 +430,15 @@ export class SignedXml {
       }
     }
 
+    ref.getValidatedNode = (xpathSelector?: string) => {
+      xpathSelector = xpathSelector || ref.xpath;
+      if (typeof xpathSelector !== "string" || ref.validationError != null) {
+        return null;
+      }
+      const selectedValue = xpath.select1(xpathSelector, doc);
+      return isDomNode.isNodeLike(selectedValue) ? selectedValue : null;
+    };
+
     if (!isDomNode.isNodeLike(elem)) {
       const validationError = new Error(
         `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
@@ -641,6 +650,11 @@ export class SignedXml {
       digestValue,
       inclusiveNamespacesPrefixList,
       isEmptyUri,
+      getValidatedNode: () => {
+        throw new Error(
+          "Reference has not been validated yet; Did you call `sig.checkSignature()`?",
+        );
+      },
     });
   }
 

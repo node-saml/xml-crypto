@@ -131,6 +131,8 @@ export interface Reference {
   ancestorNamespaces?: NamespacePrefix[];
 
   validationError?: Error;
+
+  getValidatedNode(xpathSelector?: string): Node | null;
 }
 
 /** Implement this to create a new CanonicalizationOrTransformationAlgorithm */
