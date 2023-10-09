@@ -123,12 +123,10 @@ The certificate that will be used to check the signature will first be determine
 Example:
 
 ```javascript
-new SignedXml(
-  {
-    publicCert: client_public_pem,
-    getCertFromKeyInfo: () => null
-  }
-);
+new SignedXml({
+  publicCert: client_public_pem,
+  getCertFromKeyInfo: () => null,
+});
 ```
 
 You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/xmldom/xmldom), so you should install it first:
