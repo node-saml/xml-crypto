@@ -118,7 +118,18 @@ When verifying a xml document you can pass the following options to the `SignedX
 - `publicCert` - **[optional]** your certificate as a string, a string of multiple certs in PEM format, or a Buffer
 - `privateKey` - **[optional]** your private key as a string or a Buffer - used for verifying symmetrical signatures (HMAC)
 
-The certificate that will be used to check the signature will first be determined by calling `.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `publicCert` is used. If that is `null`, then `privateKey` is used (for symmetrical signing applications).
+The certificate that will be used to check the signature will first be determined by calling `.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `publicCert` is used. If that is `null`, then `privateKey` is used (for symmetrical signing applications). If you do not want to trust any embedded `<KeyInfo />` node, preferring to validate the signature using a provided `publicCert`, you can set `getCertFromKeyInfo` to return `null`.
+
+Example:
+
+```javascript
+new SignedXml(
+  {
+    publicCert: client_public_pem,
+    getCertFromKeyInfo: () => null
+  }
+);
+```
 
 You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/xmldom/xmldom), so you should install it first:
 
@@ -240,7 +251,7 @@ The `SignedXml` constructor provides an abstraction for sign and verify xml docu
 - `implicitTransforms` - string[] - default `[]` - a list of implicit transforms to use during verification
 - `keyInfoAttributes` - object - default `{}` - a hash of attributes and values `attrName: value` to add to the KeyInfo node
 - `getKeyInfoContent` - function - default `SignedXml.geTKeyInfoContent` - a function that returns the content of the KeyInfo node
-- `getCertFromKeyInfo` - function - default `SignedXml.getCertFromKeyInfo` - a function that returns the certificate from the KeyInfo node
+- `getCertFromKeyInfo` - function - default `SignedXml.getCertFromKeyInfo` - a function that returns the certificate from the `<KeyInfo />` node
 
 #### API
 
