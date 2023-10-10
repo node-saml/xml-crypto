@@ -1,6 +1,6 @@
 import * as xpath from "xpath";
 import type { NamespacePrefix } from "./types";
-import * as isDomNode from "is-dom-node";
+import * as isDomNode from "@xmldom/is-dom-node";
 
 export function isArrayHasLength(array: unknown): array is unknown[] {
   return Array.isArray(array) && array.length > 0;

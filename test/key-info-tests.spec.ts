@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as xpath from "xpath";
 import { SignedXml } from "../src/index";
 import { expect } from "chai";
-import * as isDomNode from "is-dom-node";
+import * as isDomNode from "@xmldom/is-dom-node";
 
 describe("KeyInfo tests", function () {
   it("adds X509Certificate element during signature", function () {

@@ -23,7 +23,7 @@ import * as envelopedSignatures from "./enveloped-signature";
 import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
 import * as crypto from "crypto";
-import * as isDomNode from "is-dom-node";
+import * as isDomNode from "@xmldom/is-dom-node";
 
 export class SignedXml {
   idMode?: "wssecurity";

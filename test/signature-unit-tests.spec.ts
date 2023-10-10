@@ -4,7 +4,7 @@ import { SignedXml, createOptionalCallbackFunction } from "../src/index";
 import * as fs from "fs";
 import * as crypto from "crypto";
 import { expect } from "chai";
-import * as isDomNode from "is-dom-node";
+import * as isDomNode from "@xmldom/is-dom-node";
 
 describe("Signature unit tests", function () {
   function verifySignature(xml: string, idMode?: "wssecurity") {

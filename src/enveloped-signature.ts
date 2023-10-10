@@ -1,5 +1,5 @@
 import * as xpath from "xpath";
-import * as isDomNode from "is-dom-node";
+import * as isDomNode from "@xmldom/is-dom-node";
 
 import type {
   CanonicalizationOrTransformationAlgorithm,

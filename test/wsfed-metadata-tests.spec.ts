@@ -3,7 +3,7 @@ import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
 import * as fs from "fs";
 import { expect } from "chai";
-import * as isDomNode from "is-dom-node";
+import * as isDomNode from "@xmldom/is-dom-node";
 
 describe("WS-Fed Metadata tests", function () {
   it("test validating WS-Fed Metadata", function () {
