@@ -4,7 +4,7 @@ import { ExclusiveCanonicalization } from "../src/exclusive-canonicalization";
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import { SignedXml } from "../src/index";
-import * as isDomNode from "is-dom-node";
+import * as isDomNode from "@xmldom/is-dom-node";
 
 const compare = function (
   xml: string,

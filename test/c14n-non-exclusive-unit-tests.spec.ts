@@ -4,7 +4,7 @@ import { C14nCanonicalization } from "../src/c14n-canonicalization";
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import * as utils from "../src/utils";
-import * as isDomNode from "is-dom-node";
+import * as isDomNode from "@xmldom/is-dom-node";
 
 const test_C14nCanonicalization = function (xml, xpathArg, expected) {
   const doc = new xmldom.DOMParser().parseFromString(xml);

@@ -4,7 +4,7 @@ import type {
   NamespacePrefix,
 } from "./types";
 import * as utils from "./utils";
-import * as isDomNode from "is-dom-node";
+import * as isDomNode from "@xmldom/is-dom-node";
 
 function isPrefixInScope(prefixesInScope, prefix, namespaceURI) {
   let ret = false;

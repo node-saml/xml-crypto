@@ -3,7 +3,7 @@ import * as xmldom from "@xmldom/xmldom";
 import { SignedXml } from "../src/index";
 import * as fs from "fs";
 import { expect } from "chai";
-import * as isDomNode from "is-dom-node";
+import * as isDomNode from "@xmldom/is-dom-node";
 
 describe("Signature integration tests", function () {
   function verifySignature(xml, expected, xpath) {

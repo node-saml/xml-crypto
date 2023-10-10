@@ -4,7 +4,7 @@ import { ExclusiveCanonicalizationWithComments as c14nWithComments } from "../sr
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import { SignedXml } from "../src/index";
-import * as isDomNode from "is-dom-node";
+import * as isDomNode from "@xmldom/is-dom-node";
 
 const compare = function (xml, xpathArg, expected, inclusiveNamespacesPrefixList?: string[]) {
   const doc = new xmldom.DOMParser().parseFromString(xml);
