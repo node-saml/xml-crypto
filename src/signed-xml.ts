@@ -139,7 +139,7 @@ export class SignedXml {
     this.privateKey = privateKey;
     this.publicCert = publicCert;
     this.signatureAlgorithm = signatureAlgorithm ?? this.signatureAlgorithm;
-    this.canonicalizationAlgorithm = canonicalizationAlgorithm ;
+    this.canonicalizationAlgorithm = canonicalizationAlgorithm;
     if (typeof inclusiveNamespacesPrefixList === "string") {
       this.inclusiveNamespacesPrefixList = inclusiveNamespacesPrefixList.split(" ");
     } else if (utils.isArrayHasLength(inclusiveNamespacesPrefixList)) {
@@ -314,7 +314,7 @@ export class SignedXml {
     const c14nOptions = {
       ancestorNamespaces: ancestorNamespaces,
     };
-   
+
     return this.getCanonXml([this.canonicalizationAlgorithm], signedInfo[0], c14nOptions);
   }
 
@@ -1030,7 +1030,9 @@ export class SignedXml {
    */
   private createSignedInfo(doc, prefix) {
     if (typeof this.canonicalizationAlgorithm !== "string") {
-      throw new Error("Missing canonicalizationAlgorithm when trying to create signed info for XML");
+      throw new Error(
+        "Missing canonicalizationAlgorithm when trying to create signed info for XML",
+      );
     }
     const transform = this.findCanonicalizationAlgorithm(this.canonicalizationAlgorithm);
     const algo = this.findSignatureAlgorithm(this.signatureAlgorithm);
