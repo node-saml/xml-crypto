@@ -143,8 +143,6 @@ export interface CanonicalizationOrTransformationAlgorithm {
   ): Node | string;
 
   getAlgorithmName(): CanonicalizationOrTransformAlgorithmType;
-
-  includeComments: boolean;
 }
 
 /** Implement this to create a new HashAlgorithm */

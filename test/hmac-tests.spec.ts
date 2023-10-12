@@ -48,6 +48,7 @@ describe("HMAC tests", function () {
     sig.privateKey = fs.readFileSync("./test/static/hmac.key");
     sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#hmac-sha1";
     sig.addReference({ xpath: "//*[local-name(.)='book']" });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
 
     const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());

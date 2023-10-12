@@ -53,7 +53,7 @@ by default the following algorithms are used:
 
 _Canonicalization/Transformation Algorithm:_ Exclusive Canonicalization <http://www.w3.org/2001/10/xml-exc-c14n#>
 
-_Hashing Algorithm:_ SHA1 digest <http://www.w3.org/2000/09/xmldsig#sha1>
+_Hashing/Digest Algorithm:_ SHA1 digest <http://www.w3.org/2000/09/xmldsig#sha1>
 
 _Signature Algorithm:_ RSA-SHA1 <http://www.w3.org/2000/09/xmldsig#rsa-sha1>
 
@@ -244,7 +244,7 @@ The `SignedXml` constructor provides an abstraction for sign and verify xml docu
 - `privateKey` - string or Buffer - default `null` - the private key to use for signing
 - `publicCert` - string or Buffer - default `null` - the public certificate to use for verifying
 - `signatureAlgorithm` - string - default `http://www.w3.org/2000/09/xmldsig#rsa-sha1` - the signature algorithm to use
-- `canonicalizationAlgorithm` - string - default `http://www.w3.org/TR/2001/REC-xml-c14n-20010315` - the canonicalization algorithm to use
+- `canonicalizationAlgorithm` - string - default `undefined` - the canonicalization algorithm to use
 - `inclusiveNamespacesPrefixList` - string - default `null` - a list of namespace prefixes to include during canonicalization
 - `implicitTransforms` - string[] - default `[]` - a list of implicit transforms to use during verification
 - `keyInfoAttributes` - object - default `{}` - a hash of attributes and values `attrName: value` to add to the KeyInfo node
@@ -313,7 +313,7 @@ function MyDigest() {
 }
 ```
 
-A custom signing algorithm. The default is RSA-SHA1.
+A custom signing algorithm.
 
 ```javascript
 function MySignatureAlgorithm() {
@@ -328,7 +328,7 @@ function MySignatureAlgorithm() {
 }
 ```
 
-Custom transformation algorithm. The default is exclusive canonicalization.
+Custom transformation algorithm.
 
 ```javascript
 function MyTransformation() {

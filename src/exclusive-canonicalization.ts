@@ -18,7 +18,11 @@ function isPrefixInScope(prefixesInScope, prefix, namespaceURI) {
 }
 
 export class ExclusiveCanonicalization implements CanonicalizationOrTransformationAlgorithm {
-  includeComments = false;
+  protected includeComments = false;
+
+  constructor() {
+    this.includeComments = false;
+  }
 
   attrCompare(a, b) {
     if (!a.namespaceURI && b.namespaceURI) {

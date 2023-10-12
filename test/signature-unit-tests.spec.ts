@@ -7,146 +7,97 @@ import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 describe("Signature unit tests", function () {
-  function verifySignature(xml: string, idMode?: "wssecurity") {
-    const doc = new xmldom.DOMParser().parseFromString(xml);
-    const node = xpath.select1(
-      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc,
-    );
-    isDomNode.assertIsNodeLike(node);
-    const sig = new SignedXml({ idMode });
-    sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
-    sig.loadSignature(node);
-    try {
-      const res = sig.checkSignature(xml);
-
-      return res;
-    } catch (e) {
-      return false;
+  describe("verify adds ID", function () {
+    function nodeExists(doc, xpathArg) {
+      if (!doc && !xpathArg) {
+        return;
+      }
+      const node = xpath.select(xpathArg, doc);
+      isDomNode.assertIsArrayOfNodes(node);
+      expect(node.length, `xpath ${xpathArg} not found`).to.equal(1);
     }
-  }
 
-  function passValidSignature(file: string, mode?: "wssecurity") {
-    const xml = fs.readFileSync(file, "utf8");
-    const res = verifySignature(xml, mode);
-    expect(res, "expected signature to be valid, but it was reported invalid").to.equal(true);
-  }
+    function verifyAddsId(mode, nsMode) {
+      const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
+      const sig = new SignedXml({ idMode: mode });
+      sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
-  function passLoadSignature(file: string, toString?: boolean) {
-    const xml = fs.readFileSync(file, "utf8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
-    const signature = xpath.select1(
-      "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc,
-    );
-    isDomNode.assertIsElementNode(signature);
-    const sig = new SignedXml();
-    sig.loadSignature(toString ? signature.toString() : signature);
+      sig.addReference({ xpath: "//*[local-name(.)='x']" });
+      sig.addReference({ xpath: "//*[local-name(.)='y']" });
+      sig.addReference({ xpath: "//*[local-name(.)='w']" });
 
-    expect(sig.canonicalizationAlgorithm, "wrong canonicalization method").to.equal(
-      "http://www.w3.org/2001/10/xml-exc-c14n#",
-    );
+      sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+      sig.computeSignature(xml);
+      const signedXml = sig.getOriginalXmlWithIds();
+      const doc = new xmldom.DOMParser().parseFromString(signedXml);
 
-    expect(sig.signatureAlgorithm, "wrong signature method").to.equal(
-      "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
-    );
+      const op = nsMode === "equal" ? "=" : "!=";
 
-    sig.getCertFromKeyInfo = (keyInfo) => {
-      isDomNode.assertIsNodeLike(keyInfo);
-      const keyInfoContents = xpath.select1(
-        "//*[local-name(.)='KeyInfo']/*[local-name(.)='dummyKey']",
-        keyInfo,
-      );
-      isDomNode.assertIsNodeLike(keyInfoContents);
-      const firstChild = keyInfoContents.firstChild;
-      isDomNode.assertIsTextNode(firstChild);
-      expect(firstChild.data, "keyInfo clause not correctly loaded").to.equal("1234");
+      const xpathArg = `//*[local-name(.)='{elem}' and '_{id}' = @*[local-name(.)='Id' and namespace-uri(.)${op}'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd']]`;
 
-      return fs.readFileSync("./test/static/client.pem", "latin1");
-    };
-
-    const checkedSignature = sig.checkSignature(xml);
-    expect(checkedSignature).to.be.true;
-
-    expect(sig.getReferences().length).to.equal(3);
-
-    const digests = [
-      "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
-      "K4dI497ZCxzweDIrbndUSmtoezY=",
-      "sH1gxKve8wlU8LlFVa2l6w3HMJ0=",
-    ];
-
-    const firstGrandchild = doc.firstChild?.firstChild;
-    isDomNode.assertIsElementNode(firstGrandchild);
-    const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
-    expect(matchedReference).to.not.be.false;
-
-    for (let i = 0; i < sig.getReferences().length; i++) {
-      const ref = sig.getReferences()[i];
-      const expectedUri = `#_${i}`;
-      expect(
-        ref.uri,
-        `wrong uri for index ${i}. expected: ${expectedUri} actual: ${ref.uri}`,
-      ).to.equal(expectedUri);
-      expect(ref.transforms.length).to.equal(1);
-      expect(ref.transforms[0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
-      expect(ref.digestValue).to.equal(digests[i]);
-      expect(ref.digestAlgorithm).to.equal("http://www.w3.org/2000/09/xmldsig#sha1");
+      //verify each of the signed nodes now has an "Id" attribute with the right value
+      nodeExists(doc, xpathArg.replace("{id}", "0").replace("{elem}", "x"));
+      nodeExists(doc, xpathArg.replace("{id}", "1").replace("{elem}", "y"));
+      nodeExists(doc, xpathArg.replace("{id}", "2").replace("{elem}", "w"));
     }
-  }
 
-  function failInvalidSignature(file: string, idMode?: "wssecurity") {
-    const xml = fs.readFileSync(file).toString();
-    const res = verifySignature(xml, idMode);
-    expect(res, "expected signature to be invalid, but it was reported valid").to.equal(false);
-  }
+    it("signer adds increasing different id attributes to elements", function () {
+      verifyAddsId(null, "different");
+    });
 
-  function verifyDoesNotDuplicateIdAttributes(prefix: string, idMode?: "wssecurity") {
-    const xml = `<x xmlns:wsu='http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd' ${prefix}Id='_1'></x>`;
-    const sig = new SignedXml({ idMode });
-    sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.addReference({ xpath: "//*[local-name(.)='x']" });
-    sig.computeSignature(xml);
-    const signedXml = sig.getOriginalXmlWithIds();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
-    const attrs = xpath.select("//@*", doc);
-    isDomNode.assertIsArrayOfNodes(attrs);
-    expect(attrs.length, "wrong number of attributes").to.equal(2);
-  }
+    it("signer adds increasing equal id attributes to elements", function () {
+      verifyAddsId("wssecurity", "equal");
+    });
+  });
 
-  function nodeExists(doc, xpathArg) {
-    if (!doc && !xpathArg) {
-      return;
-    }
-    const node = xpath.select(xpathArg, doc);
-    isDomNode.assertIsArrayOfNodes(node);
-    expect(node.length, `xpath ${xpathArg} not found`).to.equal(1);
-  }
+  it("signer adds references with namespaces", function () {
+    const xml =
+      '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><name wsu:Id="_1">xml-crypto</name><repository wsu:Id="_2">github</repository></root>';
+    const sig = new SignedXml({ idMode: "wssecurity" });
 
-  function verifyAddsId(mode, nsMode) {
-    const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
-    const sig = new SignedXml({ idMode: mode });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
-    sig.addReference({ xpath: "//*[local-name(.)='x']" });
-    sig.addReference({ xpath: "//*[local-name(.)='y']" });
-    sig.addReference({ xpath: "//*[local-name(.)='w']" });
+    sig.addReference({ xpath: "//*[@wsu:Id]" });
 
-    sig.computeSignature(xml);
-    const signedXml = sig.getOriginalXmlWithIds();
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.computeSignature(xml, {
+      existingPrefixes: {
+        wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
+      },
+    });
+
+    const signedXml = sig.getSignatureXml();
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const references = xpath.select("//*[local-name(.)='Reference']", doc);
+    isDomNode.assertIsArrayOfNodes(references);
+    expect(references.length).to.equal(2);
+  });
 
-    const op = nsMode === "equal" ? "=" : "!=";
+  describe("signer does not duplicate id attributes", function () {
+    function verifyDoesNotDuplicateIdAttributes(prefix: string, idMode?: "wssecurity") {
+      const xml = `<x xmlns:wsu='http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd' ${prefix}Id='_1'></x>`;
+      const sig = new SignedXml({ idMode });
+      sig.privateKey = fs.readFileSync("./test/static/client.pem");
+      sig.addReference({ xpath: "//*[local-name(.)='x']" });
+      sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+      sig.computeSignature(xml);
+      const signedXml = sig.getOriginalXmlWithIds();
+      const doc = new xmldom.DOMParser().parseFromString(signedXml);
+      const attrs = xpath.select("//@*", doc);
+      isDomNode.assertIsArrayOfNodes(attrs);
+      expect(attrs.length, "wrong number of attributes").to.equal(2);
+    }
 
-    const xpathArg = `//*[local-name(.)='{elem}' and '_{id}' = @*[local-name(.)='Id' and namespace-uri(.)${op}'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd']]`;
+    it("signer does not implicitly duplicate existing id attributes", function () {
+      verifyDoesNotDuplicateIdAttributes("");
+    });
 
-    //verify each of the signed nodes now has an "Id" attribute with the right value
-    nodeExists(doc, xpathArg.replace("{id}", "0").replace("{elem}", "x"));
-    nodeExists(doc, xpathArg.replace("{id}", "1").replace("{elem}", "y"));
-    nodeExists(doc, xpathArg.replace("{id}", "2").replace("{elem}", "w"));
-  }
+    it("signer does not explicitly duplicate existing id attributes", function () {
+      verifyDoesNotDuplicateIdAttributes("wsu:", "wssecurity");
+    });
+  });
 
-  function verifyAddsAttrs() {
+  it("signer adds custom attributes to the signature root node", function () {
     const xml = '<root xmlns="ns"><name>xml-crypto</name><repository>github</repository></root>';
     const sig = new SignedXml();
     const attrs = {
@@ -159,6 +110,7 @@ describe("Signature unit tests", function () {
 
     sig.addReference({ xpath: "//*[local-name(.)='name']" });
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, {
       attrs: attrs,
     });
@@ -181,46 +133,6 @@ describe("Signature unit tests", function () {
       signatureNode.getAttribute("xmlns"),
       'xmlns attribute is not equal to the expected value: "http://www.w3.org/2000/09/xmldsig#"',
     ).to.equal("http://www.w3.org/2000/09/xmldsig#");
-  }
-
-  function verifyReferenceNS() {
-    const xml =
-      '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><name wsu:Id="_1">xml-crypto</name><repository wsu:Id="_2">github</repository></root>';
-    const sig = new SignedXml({ idMode: "wssecurity" });
-
-    sig.privateKey = fs.readFileSync("./test/static/client.pem");
-
-    sig.addReference({ xpath: "//*[@wsu:Id]" });
-
-    sig.computeSignature(xml, {
-      existingPrefixes: {
-        wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
-      },
-    });
-
-    const signedXml = sig.getSignatureXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
-    const references = xpath.select("//*[local-name(.)='Reference']", doc);
-    isDomNode.assertIsArrayOfNodes(references);
-    expect(references.length).to.equal(2);
-  }
-
-  it("signer adds increasing id attributes to elements", function () {
-    verifyAddsId("wssecurity", "equal");
-    verifyAddsId(null, "different");
-  });
-
-  it("signer adds references with namespaces", function () {
-    verifyReferenceNS();
-  });
-
-  it("signer does not duplicate existing id attributes", function () {
-    verifyDoesNotDuplicateIdAttributes("");
-    verifyDoesNotDuplicateIdAttributes("wsu:", "wssecurity");
-  });
-
-  it("signer adds custom attributes to the signature root node", function () {
-    verifyAddsAttrs();
   });
 
   it("signer appends signature to the root node by default", function () {
@@ -229,6 +141,7 @@ describe("Signature unit tests", function () {
 
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference({ xpath: "//*[local-name(.)='name']" });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
 
     const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
@@ -248,6 +161,7 @@ describe("Signature unit tests", function () {
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference({ xpath: "//*[local-name(.)='repository']" });
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, {
       location: {
         reference: "/root/name",
@@ -274,6 +188,7 @@ describe("Signature unit tests", function () {
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference({ xpath: "//*[local-name(.)='repository']" });
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, {
       location: {
         reference: "/root/name",
@@ -299,6 +214,7 @@ describe("Signature unit tests", function () {
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference({ xpath: "//*[local-name(.)='repository']" });
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, {
       location: {
         reference: "/root/name",
@@ -325,6 +241,7 @@ describe("Signature unit tests", function () {
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference({ xpath: "//*[local-name(.)='repository']" });
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, {
       location: {
         reference: "/root/name",
@@ -677,6 +594,7 @@ describe("Signature unit tests", function () {
     sig.addReference({ xpath: "//*[local-name(.)='y']" });
     sig.addReference({ xpath: "//*[local-name(.)='w']" });
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
     const expected =
@@ -744,6 +662,7 @@ describe("Signature unit tests", function () {
     sig.addReference({ xpath: "//*[local-name(.)='y']" });
     sig.addReference({ xpath: "//*[local-name(.)='w']" });
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, function () {
       const signedXml = sig.getSignedXml();
       const expected =
@@ -781,93 +700,193 @@ describe("Signature unit tests", function () {
     });
   });
 
-  it("correctly loads signature", function () {
-    passLoadSignature("./test/static/valid_signature.xml");
-  });
+  describe("verify existing signature", function () {
+    describe("pass loading signatures", function () {
+      function passLoadSignature(file: string, toString?: boolean) {
+        const xml = fs.readFileSync(file, "utf8");
+        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const signature = xpath.select1(
+          "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+          doc,
+        );
+        isDomNode.assertIsElementNode(signature);
+        const sig = new SignedXml();
+        sig.loadSignature(toString ? signature.toString() : signature);
 
-  it("correctly loads signature with validation", function () {
-    passLoadSignature("./test/static/valid_signature.xml", true);
-  });
+        expect(sig.canonicalizationAlgorithm, "wrong canonicalization method").to.equal(
+          "http://www.w3.org/2001/10/xml-exc-c14n#",
+        );
 
-  it("correctly loads signature with root level sig namespace", function () {
-    passLoadSignature("./test/static/valid_signature_with_root_level_sig_namespace.xml");
-  });
+        expect(sig.signatureAlgorithm, "wrong signature method").to.equal(
+          "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+        );
 
-  it("verifies valid signature", function () {
-    passValidSignature("./test/static/valid_signature.xml");
-  });
+        sig.getCertFromKeyInfo = (keyInfo) => {
+          isDomNode.assertIsNodeLike(keyInfo);
+          const keyInfoContents = xpath.select1(
+            "//*[local-name(.)='KeyInfo']/*[local-name(.)='dummyKey']",
+            keyInfo,
+          );
+          isDomNode.assertIsNodeLike(keyInfoContents);
+          const firstChild = keyInfoContents.firstChild;
+          isDomNode.assertIsTextNode(firstChild);
+          expect(firstChild.data, "keyInfo clause not correctly loaded").to.equal("1234");
 
-  it("verifies valid signature with lowercase id attribute", function () {
-    passValidSignature("./test/static/valid_signature_with_lowercase_id_attribute.xml");
-  });
+          return fs.readFileSync("./test/static/client.pem", "latin1");
+        };
 
-  it("verifies valid signature with wsu", function () {
-    passValidSignature("./test/static/valid_signature wsu.xml", "wssecurity");
-  });
+        const checkedSignature = sig.checkSignature(xml);
+        expect(checkedSignature).to.be.true;
 
-  it("verifies valid signature with reference keyInfo", function () {
-    passValidSignature("./test/static/valid_signature_with_reference_keyInfo.xml");
-  });
+        expect(sig.getReferences().length).to.equal(3);
 
-  it("verifies valid signature with whitespace in digestvalue", function () {
-    passValidSignature("./test/static/valid_signature_with_whitespace_in_digestvalue.xml");
-  });
+        const digests = [
+          "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
+          "K4dI497ZCxzweDIrbndUSmtoezY=",
+          "sH1gxKve8wlU8LlFVa2l6w3HMJ0=",
+        ];
 
-  it("verifies valid utf8 signature", function () {
-    passValidSignature("./test/static/valid_signature_utf8.xml");
-  });
+        const firstGrandchild = doc.firstChild?.firstChild;
+        isDomNode.assertIsElementNode(firstGrandchild);
+        const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
+        expect(matchedReference).to.not.be.false;
 
-  it("verifies valid signature with unused prefixes", function () {
-    passValidSignature("./test/static/valid_signature_with_unused_prefixes.xml");
-  });
+        for (let i = 0; i < sig.getReferences().length; i++) {
+          const ref = sig.getReferences()[i];
+          const expectedUri = `#_${i}`;
+          expect(
+            ref.uri,
+            `wrong uri for index ${i}. expected: ${expectedUri} actual: ${ref.uri}`,
+          ).to.equal(expectedUri);
+          expect(ref.transforms.length).to.equal(1);
+          expect(ref.transforms[0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
+          expect(ref.digestValue).to.equal(digests[i]);
+          expect(ref.digestAlgorithm).to.equal("http://www.w3.org/2000/09/xmldsig#sha1");
+        }
+      }
 
-  it("verifies valid signature without transforms element", function () {
-    passValidSignature("./test/static/valid_signature_without_transforms_element.xml");
-  });
+      it("correctly loads signature", function () {
+        passLoadSignature("./test/static/valid_signature.xml");
+      });
 
-  it("fails invalid signature - signature value", function () {
-    failInvalidSignature("./test/static/invalid_signature - signature value.xml");
-  });
+      it("correctly loads signature with validation", function () {
+        passLoadSignature("./test/static/valid_signature.xml", true);
+      });
 
-  it("fails invalid signature - hash", function () {
-    failInvalidSignature("./test/static/invalid_signature - hash.xml");
-  });
+      it("correctly loads signature with root level sig namespace", function () {
+        passLoadSignature("./test/static/valid_signature_with_root_level_sig_namespace.xml");
+      });
+    });
 
-  it("fails invalid signature - non existing reference", function () {
-    failInvalidSignature("./test/static/invalid_signature - non existing reference.xml");
-  });
+    describe("pass verify signature", function () {
+      function verifySignature(xml: string, idMode?: "wssecurity") {
+        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const node = xpath.select1(
+          "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+          doc,
+        );
+        isDomNode.assertIsNodeLike(node);
+        const sig = new SignedXml({ idMode });
+        sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+        sig.loadSignature(node);
+        try {
+          const res = sig.checkSignature(xml);
 
-  it("fails invalid signature - changed content", function () {
-    failInvalidSignature("./test/static/invalid_signature - changed content.xml");
-  });
+          return res;
+        } catch (e) {
+          return false;
+        }
+      }
 
-  it("fails invalid signature - wsu - invalid signature value", function () {
-    failInvalidSignature(
-      "./test/static/invalid_signature - wsu - invalid signature value.xml",
-      "wssecurity",
-    );
-  });
+      function passValidSignature(file: string, mode?: "wssecurity") {
+        const xml = fs.readFileSync(file, "utf8");
+        const res = verifySignature(xml, mode);
+        expect(res, "expected signature to be valid, but it was reported invalid").to.equal(true);
+      }
 
-  it("fails invalid signature - wsu - hash", function () {
-    failInvalidSignature("./test/static/invalid_signature - wsu - hash.xml", "wssecurity");
-  });
+      function failInvalidSignature(file: string, idMode?: "wssecurity") {
+        const xml = fs.readFileSync(file).toString();
+        const res = verifySignature(xml, idMode);
+        expect(res, "expected signature to be invalid, but it was reported valid").to.equal(false);
+      }
 
-  it("fails invalid signature - wsu - non existing reference", function () {
-    failInvalidSignature(
-      "./test/static/invalid_signature - wsu - non existing reference.xml",
-      "wssecurity",
-    );
-  });
+      it("verifies valid signature", function () {
+        passValidSignature("./test/static/valid_signature.xml");
+      });
 
-  it("fails invalid signature - wsu - changed content", function () {
-    failInvalidSignature(
-      "./test/static/invalid_signature - wsu - changed content.xml",
-      "wssecurity",
-    );
-  });
+      it("verifies valid signature with lowercase id attribute", function () {
+        passValidSignature("./test/static/valid_signature_with_lowercase_id_attribute.xml");
+      });
 
-  it("fails invalid signature without transforms element", function () {
-    failInvalidSignature("./test/static/invalid_signature_without_transforms_element.xml");
+      it("verifies valid signature with wsu", function () {
+        passValidSignature("./test/static/valid_signature wsu.xml", "wssecurity");
+      });
+
+      it("verifies valid signature with reference keyInfo", function () {
+        passValidSignature("./test/static/valid_signature_with_reference_keyInfo.xml");
+      });
+
+      it("verifies valid signature with whitespace in digestvalue", function () {
+        passValidSignature("./test/static/valid_signature_with_whitespace_in_digestvalue.xml");
+      });
+
+      it("verifies valid utf8 signature", function () {
+        passValidSignature("./test/static/valid_signature_utf8.xml");
+      });
+
+      it("verifies valid signature with unused prefixes", function () {
+        passValidSignature("./test/static/valid_signature_with_unused_prefixes.xml");
+      });
+
+      it("verifies valid signature without transforms element", function () {
+        passValidSignature("./test/static/valid_signature_without_transforms_element.xml");
+      });
+
+      it("fails invalid signature - signature value", function () {
+        failInvalidSignature("./test/static/invalid_signature - signature value.xml");
+      });
+
+      it("fails invalid signature - hash", function () {
+        failInvalidSignature("./test/static/invalid_signature - hash.xml");
+      });
+
+      it("fails invalid signature - non existing reference", function () {
+        failInvalidSignature("./test/static/invalid_signature - non existing reference.xml");
+      });
+
+      it("fails invalid signature - changed content", function () {
+        failInvalidSignature("./test/static/invalid_signature - changed content.xml");
+      });
+
+      it("fails invalid signature - wsu - invalid signature value", function () {
+        failInvalidSignature(
+          "./test/static/invalid_signature - wsu - invalid signature value.xml",
+          "wssecurity",
+        );
+      });
+
+      it("fails invalid signature - wsu - hash", function () {
+        failInvalidSignature("./test/static/invalid_signature - wsu - hash.xml", "wssecurity");
+      });
+
+      it("fails invalid signature - wsu - non existing reference", function () {
+        failInvalidSignature(
+          "./test/static/invalid_signature - wsu - non existing reference.xml",
+          "wssecurity",
+        );
+      });
+
+      it("fails invalid signature - wsu - changed content", function () {
+        failInvalidSignature(
+          "./test/static/invalid_signature - wsu - changed content.xml",
+          "wssecurity",
+        );
+      });
+
+      it("fails invalid signature without transforms element", function () {
+        failInvalidSignature("./test/static/invalid_signature_without_transforms_element.xml");
+      });
+    });
   });
 
   it("allow empty reference uri when signing", function () {
@@ -885,6 +904,7 @@ describe("Signature unit tests", function () {
       isEmptyUri: true,
     });
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
@@ -938,6 +958,7 @@ describe("Signature unit tests", function () {
     const assertionId = "_81d5fba5c807be9e9cf60c58566349b1";
     sig.getKeyInfoContent = getKeyInfoContentWithAssertionId.bind(this, { assertionId });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, {
       prefix: "ds",
       location: {
@@ -969,6 +990,7 @@ describe("Signature unit tests", function () {
       inclusiveNamespacesPrefixList: ["prefix1", "prefix2"],
     });
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
@@ -1004,6 +1026,7 @@ describe("Signature unit tests", function () {
       inclusiveNamespacesPrefixList: [],
     });
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
@@ -1027,6 +1050,7 @@ describe("Signature unit tests", function () {
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
     });
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
@@ -1064,6 +1088,7 @@ describe("Signature unit tests", function () {
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
     });
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
@@ -1089,6 +1114,7 @@ describe("Signature unit tests", function () {
     };
     sig.getKeyInfoContent = () => "<dummy/>";
 
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
@@ -1119,6 +1145,7 @@ describe("Signature unit tests", function () {
     const pemBuffer = fs.readFileSync("./test/static/client_bundle.pem");
     sig.privateKey = pemBuffer;
     sig.publicCert = pemBuffer;
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
