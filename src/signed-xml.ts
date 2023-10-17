@@ -37,7 +37,7 @@ export class SignedXml {
    * One of the supported signature algorithms.
    * @see {@link SignatureAlgorithmType}
    */
-  signatureAlgorithm: SignatureAlgorithmType = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+  signatureAlgorithm?: SignatureAlgorithmType = undefined;
   /**
    * Rules used to convert an XML document into its canonical form.
    */
@@ -347,7 +347,10 @@ export class SignedXml {
     }
   }
 
-  private findSignatureAlgorithm(name: SignatureAlgorithmType) {
+  private findSignatureAlgorithm(name?: SignatureAlgorithmType) {
+    if (name == null) {
+      throw new Error("signatureAlgorithm is required");
+    }
     const algo = this.SignatureAlgorithms[name];
     if (algo) {
       return new algo();

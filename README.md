@@ -55,7 +55,7 @@ _Canonicalization/Transformation Algorithm:_ Exclusive Canonicalization <http://
 
 _Hashing/Digest Algorithm:_ Must be specified by the user
 
-_Signature Algorithm:_ RSA-SHA1 <http://www.w3.org/2000/09/xmldsig#rsa-sha1>
+_Signature Algorithm:_ Must be specified by the user
 
 [You are able to extend xml-crypto with custom algorithms.](#customizing-algorithms)
 
