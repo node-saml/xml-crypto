@@ -8,7 +8,11 @@ import * as utils from "./utils";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 export class C14nCanonicalization implements CanonicalizationOrTransformationAlgorithm {
-  includeComments = false;
+  protected includeComments = false;
+
+  constructor() {
+    this.includeComments = false;
+  }
 
   attrCompare(a, b) {
     if (!a.namespaceURI && b.namespaceURI) {

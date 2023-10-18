@@ -41,8 +41,7 @@ export class SignedXml {
   /**
    * Rules used to convert an XML document into its canonical form.
    */
-  canonicalizationAlgorithm: CanonicalizationAlgorithmType =
-    "http://www.w3.org/2001/10/xml-exc-c14n#";
+  canonicalizationAlgorithm?: CanonicalizationAlgorithmType = undefined;
   /**
    * It specifies a list of namespace prefixes that should be considered "inclusive" during the canonicalization process.
    */
@@ -140,7 +139,7 @@ export class SignedXml {
     this.privateKey = privateKey;
     this.publicCert = publicCert;
     this.signatureAlgorithm = signatureAlgorithm ?? this.signatureAlgorithm;
-    this.canonicalizationAlgorithm = canonicalizationAlgorithm ?? this.canonicalizationAlgorithm;
+    this.canonicalizationAlgorithm = canonicalizationAlgorithm;
     if (typeof inclusiveNamespacesPrefixList === "string") {
       this.inclusiveNamespacesPrefixList = inclusiveNamespacesPrefixList.split(" ");
     } else if (utils.isArrayHasLength(inclusiveNamespacesPrefixList)) {
@@ -286,6 +285,9 @@ export class SignedXml {
     if (this.signatureNode == null) {
       throw new Error("No signature found.");
     }
+    if (typeof this.canonicalizationAlgorithm !== "string") {
+      throw new Error("Missing canonicalizationAlgorithm when trying to get signed info for XML");
+    }
 
     const signedInfo = utils.findChildren(this.signatureNode, "SignedInfo");
     if (signedInfo.length === 0) {
@@ -312,6 +314,7 @@ export class SignedXml {
     const c14nOptions = {
       ancestorNamespaces: ancestorNamespaces,
     };
+
     return this.getCanonXml([this.canonicalizationAlgorithm], signedInfo[0], c14nOptions);
   }
 
@@ -354,12 +357,14 @@ export class SignedXml {
   }
 
   private findCanonicalizationAlgorithm(name: CanonicalizationOrTransformAlgorithmType) {
-    const algo = this.CanonicalizationAlgorithms[name];
-    if (algo) {
-      return new algo();
-    } else {
-      throw new Error(`canonicalization algorithm '${name}' is not supported`);
+    if (name != null) {
+      const algo = this.CanonicalizationAlgorithms[name];
+      if (algo) {
+        return new algo();
+      }
     }
+
+    throw new Error(`canonicalization algorithm '${name}' is not supported`);
   }
 
   private findHashAlgorithm(name: HashAlgorithmType) {
@@ -1024,6 +1029,11 @@ export class SignedXml {
    *
    */
   private createSignedInfo(doc, prefix) {
+    if (typeof this.canonicalizationAlgorithm !== "string") {
+      throw new Error(
+        "Missing canonicalizationAlgorithm when trying to create signed info for XML",
+      );
+    }
     const transform = this.findCanonicalizationAlgorithm(this.canonicalizationAlgorithm);
     const algo = this.findSignatureAlgorithm(this.signatureAlgorithm);
     let currentPrefix;

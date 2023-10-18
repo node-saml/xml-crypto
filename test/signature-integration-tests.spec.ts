@@ -6,7 +6,7 @@ import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 describe("Signature integration tests", function () {
-  function verifySignature(xml, expected, xpath) {
+  function verifySignature(xml, expected, xpath, canonicalizationAlgorithm) {
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
@@ -14,6 +14,7 @@ describe("Signature integration tests", function () {
       sig.addReference({ xpath: n });
     });
 
+    sig.canonicalizationAlgorithm = canonicalizationAlgorithm;
     sig.computeSignature(xml);
     const signed = sig.getSignedXml();
 
@@ -24,11 +25,12 @@ describe("Signature integration tests", function () {
   it("verify signature", function () {
     const xml =
       '<root><x xmlns="ns"></x><y z_attr="value" a_attr1="foo"></y><z><ns:w ns:attr="value" xmlns:ns="myns"></ns:w></z></root>';
-    verifySignature(xml, "./test/static/integration/expectedVerify.xml", [
-      "//*[local-name(.)='x']",
-      "//*[local-name(.)='y']",
-      "//*[local-name(.)='w']",
-    ]);
+    verifySignature(
+      xml,
+      "./test/static/integration/expectedVerify.xml",
+      ["//*[local-name(.)='x']", "//*[local-name(.)='y']", "//*[local-name(.)='w']"],
+      "http://www.w3.org/2001/10/xml-exc-c14n#",
+    );
   });
 
   it("verify signature of complex element", function () {
@@ -43,9 +45,12 @@ describe("Signature integration tests", function () {
       "</book>" +
       "</library>";
 
-    verifySignature(xml, "./test/static/integration/expectedVerifyComplex.xml", [
-      "//*[local-name(.)='book']",
-    ]);
+    verifySignature(
+      xml,
+      "./test/static/integration/expectedVerifyComplex.xml",
+      ["//*[local-name(.)='book']"],
+      "http://www.w3.org/2001/10/xml-exc-c14n#",
+    );
   });
 
   it("empty URI reference should consider the whole document", function () {
@@ -168,6 +173,7 @@ describe("Signature integration tests", function () {
     const sig = new SignedXml();
     sig.addReference({ xpath: "//*[local-name(.)='book']" });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
 
     const signed = sig.getSignedXml();
