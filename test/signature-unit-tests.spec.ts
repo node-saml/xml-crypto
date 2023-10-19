@@ -22,9 +22,18 @@ describe("Signature unit tests", function () {
       const sig = new SignedXml({ idMode: mode });
       sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
-      sig.addReference({ xpath: "//*[local-name(.)='x']" });
-      sig.addReference({ xpath: "//*[local-name(.)='y']" });
-      sig.addReference({ xpath: "//*[local-name(.)='w']" });
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      });
+      sig.addReference({
+        xpath: "//*[local-name(.)='y']",
+        digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      });
+      sig.addReference({
+        xpath: "//*[local-name(.)='w']",
+        digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      });
 
       sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
       sig.computeSignature(xml);
@@ -57,7 +66,10 @@ describe("Signature unit tests", function () {
 
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
-    sig.addReference({ xpath: "//*[@wsu:Id]" });
+    sig.addReference({
+      xpath: "//*[@wsu:Id]",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, {
@@ -78,7 +90,10 @@ describe("Signature unit tests", function () {
       const xml = `<x xmlns:wsu='http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd' ${prefix}Id='_1'></x>`;
       const sig = new SignedXml({ idMode });
       sig.privateKey = fs.readFileSync("./test/static/client.pem");
-      sig.addReference({ xpath: "//*[local-name(.)='x']" });
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      });
       sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
       sig.computeSignature(xml);
       const signedXml = sig.getOriginalXmlWithIds();
@@ -108,7 +123,10 @@ describe("Signature unit tests", function () {
 
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
-    sig.addReference({ xpath: "//*[local-name(.)='name']" });
+    sig.addReference({
+      xpath: "//*[local-name(.)='name']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, {
@@ -140,7 +158,10 @@ describe("Signature unit tests", function () {
     const sig = new SignedXml();
 
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.addReference({ xpath: "//*[local-name(.)='name']" });
+    sig.addReference({
+      xpath: "//*[local-name(.)='name']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
 
@@ -159,7 +180,10 @@ describe("Signature unit tests", function () {
     const sig = new SignedXml();
 
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.addReference({ xpath: "//*[local-name(.)='repository']" });
+    sig.addReference({
+      xpath: "//*[local-name(.)='repository']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, {
@@ -186,7 +210,10 @@ describe("Signature unit tests", function () {
     const sig = new SignedXml();
 
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.addReference({ xpath: "//*[local-name(.)='repository']" });
+    sig.addReference({
+      xpath: "//*[local-name(.)='repository']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, {
@@ -212,7 +239,10 @@ describe("Signature unit tests", function () {
     const sig = new SignedXml();
 
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.addReference({ xpath: "//*[local-name(.)='repository']" });
+    sig.addReference({
+      xpath: "//*[local-name(.)='repository']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, {
@@ -239,7 +269,10 @@ describe("Signature unit tests", function () {
     const sig = new SignedXml();
 
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.addReference({ xpath: "//*[local-name(.)='repository']" });
+    sig.addReference({
+      xpath: "//*[local-name(.)='repository']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, {
@@ -590,9 +623,18 @@ describe("Signature unit tests", function () {
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
-    sig.addReference({ xpath: "//*[local-name(.)='x']" });
-    sig.addReference({ xpath: "//*[local-name(.)='y']" });
-    sig.addReference({ xpath: "//*[local-name(.)='w']" });
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='y']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='w']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
@@ -658,9 +700,18 @@ describe("Signature unit tests", function () {
     sig.signatureAlgorithm = "http://dummySignatureAlgorithmAsync";
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
-    sig.addReference({ xpath: "//*[local-name(.)='x']" });
-    sig.addReference({ xpath: "//*[local-name(.)='y']" });
-    sig.addReference({ xpath: "//*[local-name(.)='w']" });
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='y']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='w']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml, function () {
@@ -918,7 +969,10 @@ describe("Signature unit tests", function () {
     const sig = new SignedXml();
 
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.addReference({ xpath: "//*[local-name(.)='repository']" });
+    sig.addReference({
+      xpath: "//*[local-name(.)='repository']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
 
     try {
       sig.computeSignature(xml, {

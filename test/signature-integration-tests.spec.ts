@@ -11,7 +11,7 @@ describe("Signature integration tests", function () {
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
     xpath.map(function (n) {
-      sig.addReference({ xpath: n });
+      sig.addReference({ xpath: n, digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1" });
     });
 
     sig.canonicalizationAlgorithm = canonicalizationAlgorithm;
@@ -171,7 +171,10 @@ describe("Signature integration tests", function () {
     const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
     const sig = new SignedXml();
-    sig.addReference({ xpath: "//*[local-name(.)='book']" });
+    sig.addReference({
+      xpath: "//*[local-name(.)='book']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+    });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
