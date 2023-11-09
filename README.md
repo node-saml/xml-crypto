@@ -49,14 +49,6 @@ This will enable HMAC and disable digital signature algorithms. Due to key
 confusion issues, it is risky to have both HMAC-based and public key digital
 signature algorithms enabled at same time.
 
-By default the following algorithms are used:
-
-_Canonicalization/Transformation Algorithm:_ Exclusive Canonicalization <http://www.w3.org/2001/10/xml-exc-c14n#>
-
-_Hashing/Digest Algorithm:_ Must be specified by the user
-
-_Signature Algorithm:_ Must be specified by the user
-
 [You are able to extend xml-crypto with custom algorithms.](#customizing-algorithms)
 
 ## Signing Xml documents
@@ -77,7 +69,13 @@ var SignedXml = require("xml-crypto").SignedXml,
 var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
 var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
-sig.addReference({ xpath: "//*[local-name(.)='book']" });
+sig.addReference({
+  xpath: "//*[local-name(.)='book']",
+  digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+  transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+});
+sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml);
 fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
@@ -243,7 +241,7 @@ The `SignedXml` constructor provides an abstraction for sign and verify xml docu
 - `idAttribute` - string - default `Id` or `ID` or `id` - the name of the attribute that contains the id of the element
 - `privateKey` - string or Buffer - default `null` - the private key to use for signing
 - `publicCert` - string or Buffer - default `null` - the public certificate to use for verifying
-- `signatureAlgorithm` - string - default `http://www.w3.org/2000/09/xmldsig#rsa-sha1` - the signature algorithm to use
+- `signatureAlgorithm` - string - the signature algorithm to use
 - `canonicalizationAlgorithm` - string - default `undefined` - the canonicalization algorithm to use
 - `inclusiveNamespacesPrefixList` - string - default `null` - a list of namespace prefixes to include during canonicalization
 - `implicitTransforms` - string[] - default `[]` - a list of implicit transforms to use during verification
@@ -257,7 +255,7 @@ A `SignedXml` object provides the following methods:
 
 To sign xml documents:
 
-- `addReference(xpath, [transforms], [digestAlgorithm])` - adds a reference to a xml element where:
+- `addReference(xpath, transforms, digestAlgorithm)` - adds a reference to a xml element where:
   - `xpath` - a string containing a XPath expression referencing a xml element
   - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array
   - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing-algorithms)
@@ -391,7 +389,13 @@ function signXml(xml, xpath, key, dest) {
     digestAlgorithm: "http://myDigestAlgorithm",
   });
 
-  sig.addReference({ xpath });
+  sig.addReference({
+    xpath,
+    transforms: ["http://MyTransformation"],
+    digestAlgorithm: "http://myDigestAlgorithm",
+  });
+  sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+  sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
   sig.computeSignature(xml);
   fs.writeFileSync(dest, sig.getSignedXml());
 }
@@ -424,6 +428,8 @@ function AsyncSignatureAlgorithm() {
 
 var sig = new SignedXml({ signatureAlgorithm: "http://asyncSignatureAlgorithm" });
 sig.SignatureAlgorithms["http://asyncSignatureAlgorithm"] = AsyncSignatureAlgorithm;
+sig.signatureAlgorithm = "http://asyncSignatureAlgorithm";
+sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
 sig.computeSignature(xml, opts, function (err) {
   var signedResponse = sig.getSignedXml();
 });
@@ -474,7 +480,13 @@ var SignedXml = require("xml-crypto").SignedXml,
 var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
 var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
-sig.addReference({ xpath: "//*[local-name(.)='book']" });
+sig.addReference({
+  xpath: "//*[local-name(.)='book']",
+  digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+  transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+});
+sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml, {
   prefix: "ds",
 });
@@ -497,7 +509,13 @@ var SignedXml = require("xml-crypto").SignedXml,
 var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
 var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
-sig.addReference({ xpath: "//*[local-name(.)='book']" });
+sig.addReference({
+  xpath: "//*[local-name(.)='book']",
+  digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+  transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+});
+sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml, {
   location: { reference: "//*[local-name(.)='book']", action: "after" }, //This will place the signature after the book element
 });

@@ -639,7 +639,7 @@ export class SignedXml {
    * Adds a reference to the signature.
    *
    * @param xpath The XPath expression to select the XML nodes to be referenced.
-   * @param transforms An array of transform algorithms to be applied to the selected nodes. Defaults to ["http://www.w3.org/2001/10/xml-exc-c14n#"].
+   * @param transforms An array of transform algorithms to be applied to the selected nodes.
    * @param digestAlgorithm The digest algorithm to use for computing the digest value.
    * @param uri The URI identifier for the reference. If empty, an empty URI will be used.
    * @param digestValue The expected digest value for the reference.
@@ -648,7 +648,7 @@ export class SignedXml {
    */
   addReference({
     xpath,
-    transforms = ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    transforms,
     digestAlgorithm,
     uri = "",
     digestValue,
@@ -657,6 +657,10 @@ export class SignedXml {
   }: Partial<Reference> & Pick<Reference, "xpath">): void {
     if (digestAlgorithm == null) {
       throw new Error("digestAlgorithm is required");
+    }
+
+    if (!utils.isArrayHasLength(transforms)) {
+      throw new Error("transforms must contain at least one transform algorithm");
     }
 
     this.references.push({

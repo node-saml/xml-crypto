@@ -25,14 +25,17 @@ describe("Signature unit tests", function () {
       sig.addReference({
         xpath: "//*[local-name(.)='x']",
         digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
       });
       sig.addReference({
         xpath: "//*[local-name(.)='y']",
         digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
       });
       sig.addReference({
         xpath: "//*[local-name(.)='w']",
         digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
       });
 
       sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
@@ -70,6 +73,7 @@ describe("Signature unit tests", function () {
     sig.addReference({
       xpath: "//*[@wsu:Id]",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
@@ -95,6 +99,7 @@ describe("Signature unit tests", function () {
       sig.addReference({
         xpath: "//*[local-name(.)='x']",
         digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
       });
       sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
       sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
@@ -129,6 +134,7 @@ describe("Signature unit tests", function () {
     sig.addReference({
       xpath: "//*[local-name(.)='name']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
@@ -165,6 +171,7 @@ describe("Signature unit tests", function () {
     sig.addReference({
       xpath: "//*[local-name(.)='name']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
@@ -188,6 +195,7 @@ describe("Signature unit tests", function () {
     sig.addReference({
       xpath: "//*[local-name(.)='repository']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
@@ -219,6 +227,7 @@ describe("Signature unit tests", function () {
     sig.addReference({
       xpath: "//*[local-name(.)='repository']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
@@ -249,6 +258,7 @@ describe("Signature unit tests", function () {
     sig.addReference({
       xpath: "//*[local-name(.)='repository']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
@@ -280,6 +290,7 @@ describe("Signature unit tests", function () {
     sig.addReference({
       xpath: "//*[local-name(.)='repository']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
@@ -635,14 +646,17 @@ describe("Signature unit tests", function () {
     sig.addReference({
       xpath: "//*[local-name(.)='x']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
     sig.addReference({
       xpath: "//*[local-name(.)='y']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
     sig.addReference({
       xpath: "//*[local-name(.)='w']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
@@ -713,14 +727,17 @@ describe("Signature unit tests", function () {
     sig.addReference({
       xpath: "//*[local-name(.)='x']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
     sig.addReference({
       xpath: "//*[local-name(.)='y']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
     sig.addReference({
       xpath: "//*[local-name(.)='w']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
@@ -983,6 +1000,7 @@ describe("Signature unit tests", function () {
     sig.addReference({
       xpath: "//*[local-name(.)='repository']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
 
     try {
