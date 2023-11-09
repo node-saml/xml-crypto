@@ -426,6 +426,8 @@ export class SignedXml {
       throw new Error("Cannot validate a uri with quotes inside it");
     } else {
       let num_elements_for_id = 0;
+
+      // Trying to resolve node by referenceResolver first
       if (this.referenceResolver) {
         const resolvedElemXpath = this.referenceResolver(ref);
 
@@ -449,6 +451,7 @@ export class SignedXml {
         }
       }
 
+      // If referenceResolver does not resolve the element, an attempt will be made to locate the node using the Id attribute.
       if(!elem) {
         for (const attr of this.idAttributes) {
           const tmp_elemXpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
