@@ -56,6 +56,7 @@ export interface SignedXmlOptions {
   inclusiveNamespacesPrefixList?: string | string[];
   implicitTransforms?: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>;
   keyInfoAttributes?: Record<string, string>;
+  referenceResolver?(ref: Reference): string | null;
   getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
   getCertFromKeyInfo?(keyInfo?: Node | null): string | null;
 }
@@ -116,7 +117,7 @@ export interface Reference {
   digestAlgorithm: HashAlgorithmType;
 
   // The URI that identifies the data to be signed.
-  uri: string;
+  uri?: string;
 
   // Optional. The digest value of the referenced data.
   digestValue?: unknown;
