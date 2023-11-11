@@ -36,6 +36,7 @@ describe("Signature unit tests", function () {
       });
 
       sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+      sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
       sig.computeSignature(xml);
       const signedXml = sig.getOriginalXmlWithIds();
       const doc = new xmldom.DOMParser().parseFromString(signedXml);
@@ -72,6 +73,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml, {
       existingPrefixes: {
         wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
@@ -95,6 +97,7 @@ describe("Signature unit tests", function () {
         digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
       });
       sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+      sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
       sig.computeSignature(xml);
       const signedXml = sig.getOriginalXmlWithIds();
       const doc = new xmldom.DOMParser().parseFromString(signedXml);
@@ -129,6 +132,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml, {
       attrs: attrs,
     });
@@ -163,6 +167,7 @@ describe("Signature unit tests", function () {
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
     });
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
 
     const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
@@ -186,6 +191,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml, {
       location: {
         reference: "/root/name",
@@ -216,6 +222,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml, {
       location: {
         reference: "/root/name",
@@ -245,6 +252,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml, {
       location: {
         reference: "/root/name",
@@ -275,6 +283,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml, {
       location: {
         reference: "/root/name",
@@ -637,6 +646,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
     const expected =
@@ -956,6 +966,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
@@ -1013,6 +1024,7 @@ describe("Signature unit tests", function () {
     sig.getKeyInfoContent = getKeyInfoContentWithAssertionId.bind(this, { assertionId });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml, {
       prefix: "ds",
       location: {
@@ -1045,6 +1057,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
@@ -1081,6 +1094,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
@@ -1105,6 +1119,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
@@ -1143,6 +1158,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
@@ -1169,6 +1185,7 @@ describe("Signature unit tests", function () {
     sig.getKeyInfoContent = () => "<dummy/>";
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
@@ -1200,6 +1217,7 @@ describe("Signature unit tests", function () {
     sig.privateKey = pemBuffer;
     sig.publicCert = pemBuffer;
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 

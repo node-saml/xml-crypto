@@ -15,6 +15,7 @@ describe("Signature integration tests", function () {
     });
 
     sig.canonicalizationAlgorithm = canonicalizationAlgorithm;
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
     const signed = sig.getSignedXml();
 
@@ -177,6 +178,7 @@ describe("Signature integration tests", function () {
     });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
 
     const signed = sig.getSignedXml();
