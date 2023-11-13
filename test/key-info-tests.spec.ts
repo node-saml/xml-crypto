@@ -32,6 +32,7 @@ describe("KeyInfo tests", function () {
     sig.addReference({
       xpath: "//*[local-name(.)='book']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
