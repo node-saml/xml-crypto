@@ -887,7 +887,7 @@ export class SignedXml {
     }
   }
 
-  getKeyInfo(prefix) {
+  private getKeyInfo(prefix) {
     const currentPrefix = prefix ? `${prefix}:` : "";
 
     let keyInfoAttrs = "";
