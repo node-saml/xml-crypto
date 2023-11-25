@@ -116,7 +116,7 @@ When verifying a xml document you can pass the following options to the `SignedX
 - `publicCert` - **[optional]** your certificate as a string, a string of multiple certs in PEM format, or a Buffer
 - `privateKey` - **[optional]** your private key as a string or a Buffer - used for verifying symmetrical signatures (HMAC)
 
-The certificate that will be used to check the signature will first be determined by calling `.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `publicCert` is used. If that is `null`, then `privateKey` is used (for symmetrical signing applications). If you do not want to trust any embedded `<KeyInfo />` node, preferring to validate the signature using a provided `publicCert`, you can set `getCertFromKeyInfo` to return `null`.
+The certificate that will be used to check the signature will first be determined by calling `this.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `publicCert` is used. If that is `null`, then `privateKey` is used (for symmetrical signing applications).
 
 Example:
 
@@ -246,7 +246,7 @@ The `SignedXml` constructor provides an abstraction for sign and verify xml docu
 - `inclusiveNamespacesPrefixList` - string - default `null` - a list of namespace prefixes to include during canonicalization
 - `implicitTransforms` - string[] - default `[]` - a list of implicit transforms to use during verification
 - `keyInfoAttributes` - object - default `{}` - a hash of attributes and values `attrName: value` to add to the KeyInfo node
-- `getKeyInfoContent` - function - default `SignedXml.geTKeyInfoContent` - a function that returns the content of the KeyInfo node
+- `getKeyInfoContent` - function - default `noop` - a function that returns the content of the KeyInfo node
 - `getCertFromKeyInfo` - function - default `SignedXml.getCertFromKeyInfo` - a function that returns the certificate from the `<KeyInfo />` node
 
 #### API
@@ -290,8 +290,8 @@ var SignedXml = require("xml-crypto").SignedXml,
 Now define the extension point you want to implement. You can choose one or more.
 
 To determine the inclusion and contents of a `<KeyInfo />` element, the function
-`getKeyInfoContent()` is called. There is a default implementation of this. If you wish to change
-this implementation, provide your own function assigned to the property `.getKeyInfoContent`. If
+`this.getKeyInfoContent()` is called. There is a default implementation of this. If you wish to change
+this implementation, provide your own function assigned to the property `this.getKeyInfoContent`. If you prefer to use the default implementation, assign `SignedXml.getKeyInfoContent` to `this.getKeyInfoContent` If
 there are no attributes and no contents to the `<KeyInfo />` element, it won't be included in the
 generated XML.
 
