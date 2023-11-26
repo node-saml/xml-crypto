@@ -111,6 +111,8 @@ export class SignedXml {
     ds: "http://www.w3.org/2000/09/xmldsig#",
   };
 
+  static noop = () => null;
+
   /**
    * The SignedXml constructor provides an abstraction for sign and verify xml documents. The object is constructed using
    * @param options {@link SignedXmlOptions}
@@ -147,7 +149,7 @@ export class SignedXml {
     }
     this.implicitTransforms = implicitTransforms ?? this.implicitTransforms;
     this.keyInfoAttributes = keyInfoAttributes ?? this.keyInfoAttributes;
-    this.getKeyInfoContent = getKeyInfoContent ?? this.getKeyInfoContent;
+    this.getKeyInfoContent = getKeyInfoContent ?? SignedXml.noop;
     this.getCertFromKeyInfo = getCertFromKeyInfo ?? this.getCertFromKeyInfo;
     this.CanonicalizationAlgorithms;
     this.HashAlgorithms;
@@ -163,7 +165,7 @@ export class SignedXml {
     this.SignatureAlgorithms = {
       "http://www.w3.org/2000/09/xmldsig#hmac-sha1": signatureAlgorithms.HmacSha1,
     };
-    this.getKeyInfoContent = () => null;
+    this.getKeyInfoContent = SignedXml.noop;
   }
 
   /**
