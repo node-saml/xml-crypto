@@ -46,7 +46,7 @@
     "@cjbarth/github-release-notes": "^4.2.0",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@prettier/plugin-xml": "^3.2.1",
-    "@types/chai": "^4.3.6",
+    "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.2",
     "@types/node": "^16.18.58",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
