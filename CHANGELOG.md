@@ -1,5 +1,61 @@
 # Changelog
 
+## 5.0.0 (2023-11-27)
+
+### 💣 Major Changes
+
+- [**breaking-change**] Mark `getKeyInfo()` private as it has no public consumers [#412](https://github.com/node-saml/xml-crypto/pull/412)
+- [**breaking-change**] Remove the default for `getKeyInfoContent` forcing a consumer to choose [#411](https://github.com/node-saml/xml-crypto/pull/411)
+- [**documentation**] [**breaking-change**] Remove default for transformation algorithm [#410](https://github.com/node-saml/xml-crypto/pull/410)
+- [**breaking-change**] Remove default for signature algorithm [#408](https://github.com/node-saml/xml-crypto/pull/408)
+- [**breaking-change**] Remove default for digest algorithm [#406](https://github.com/node-saml/xml-crypto/pull/406)
+- [**breaking-change**] Remove default canonicalization algorithm [#405](https://github.com/node-saml/xml-crypto/pull/405)
+- [**chore**] [**breaking-change**] Improve code clarity; remove unused functions [#397](https://github.com/node-saml/xml-crypto/pull/397)
+- [**breaking-change**] Move validation messages to each reference [#396](https://github.com/node-saml/xml-crypto/pull/396)
+- [**breaking-change**] Make references accessible only via get/set [#395](https://github.com/node-saml/xml-crypto/pull/395)
+- [**chore**] [**breaking-change**] Reduce public interface by making some methods private [#394](https://github.com/node-saml/xml-crypto/pull/394)
+- [**chore**] [**breaking-change**] Update build to support Node@16 [#385](https://github.com/node-saml/xml-crypto/pull/385)
+
+### 🚀 Minor Changes
+
+- [**enhancement**] Add support for directly querying a node to see if it has passed validation [#389](https://github.com/node-saml/xml-crypto/pull/389)
+- [**enhancement**] Add method for checking if element is signed [#368](https://github.com/node-saml/xml-crypto/pull/368)
+
+### 🔗 Dependencies
+
+- [**dependencies**] [**javascript**] Bump @typescript-eslint/eslint-plugin from 5.62.0 to 6.13.0 [#422](https://github.com/node-saml/xml-crypto/pull/422)
+- [**dependencies**] [**javascript**] Bump @prettier/plugin-xml from 3.2.1 to 3.2.2 [#423](https://github.com/node-saml/xml-crypto/pull/423)
+- [**dependencies**] [**javascript**] Bump @types/mocha from 10.0.2 to 10.0.6 [#421](https://github.com/node-saml/xml-crypto/pull/421)
+- [**dependencies**] [**javascript**] Bump @types/chai from 4.3.6 to 4.3.11 [#419](https://github.com/node-saml/xml-crypto/pull/419)
+- [**dependencies**] [**javascript**] Bump prettier from 3.0.3 to 3.1.0 [#418](https://github.com/node-saml/xml-crypto/pull/418)
+- [**dependencies**] [**javascript**] Bump typescript from 5.2.2 to 5.3.2 [#415](https://github.com/node-saml/xml-crypto/pull/415)
+- [**dependencies**] [**javascript**] Bump eslint from 8.51.0 to 8.54.0 [#414](https://github.com/node-saml/xml-crypto/pull/414)
+- [**dependencies**] [**github_actions**] Bump actions/setup-node from 3 to 4 [#413](https://github.com/node-saml/xml-crypto/pull/413)
+- [**dependencies**] [**javascript**] Bump @babel/traverse from 7.22.4 to 7.23.2 [#407](https://github.com/node-saml/xml-crypto/pull/407)
+- [**dependencies**] [**github_actions**] Bump actions/checkout from 3 to 4 [#392](https://github.com/node-saml/xml-crypto/pull/392)
+- [**dependencies**] [**javascript**] Bump eslint-plugin-deprecation from 1.4.1 to 2.0.0 [#390](https://github.com/node-saml/xml-crypto/pull/390)
+- [**dependencies**] [**javascript**] Bump typescript from 5.1.6 to 5.2.2 [#383](https://github.com/node-saml/xml-crypto/pull/383)
+- [**dependencies**] [**javascript**] Bump eslint-config-prettier from 8.8.0 to 9.0.0 [#381](https://github.com/node-saml/xml-crypto/pull/381)
+- [**dependencies**] Update dependencies; move to @xmldom-scoped is-dom-node package [#402](https://github.com/node-saml/xml-crypto/pull/402)
+
+### 🐛 Bug Fixes
+
+- [**bug**] Ensure the X509Certificate tag is properly prefixed [#377](https://github.com/node-saml/xml-crypto/pull/377)
+- [**bug**] Fix transform processing regression [#379](https://github.com/node-saml/xml-crypto/pull/379)
+- [**bug**] Enforce consistent transform processing [#380](https://github.com/node-saml/xml-crypto/pull/380)
+
+### 📚 Documentation
+
+- [**documentation**] Clarify use of <KeyInfo /> in signature validation [#401](https://github.com/node-saml/xml-crypto/pull/401)
+
+### ⚙️ Technical Tasks
+
+- [**chore**] Use is-dom-node for DOM node checking and narrowing [#388](https://github.com/node-saml/xml-crypto/pull/388)
+- [**chore**] Improve and simplify validation logic [#373](https://github.com/node-saml/xml-crypto/pull/373)
+- [**chore**] Add additional type checking [#369](https://github.com/node-saml/xml-crypto/pull/369)
+
+---
+
 ## v4.1.0 (2023-07-28)
 
 ### 💣 Major Changes
