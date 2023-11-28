@@ -30,7 +30,6 @@
     "changelog": "gren changelog --override --generate",
     "lint": "eslint \"{src,test}/*.ts\" --cache && npm run prettier-check",
     "lint:fix": "eslint --fix \"{src,test}/*.ts\" && npm run prettier-format",
-    "prepare": "tsc",
     "prettier-check": "prettier --config .prettierrc.json --check .",
     "prettier-format": "prettier --config .prettierrc.json --write .",
     "prerelease": "git clean -xfd && npm ci && npm test",
