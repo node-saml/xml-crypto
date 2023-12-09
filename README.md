@@ -57,8 +57,8 @@ When signing a xml document you can pass the following options to the `SignedXml
 
 - `privateKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
 - `publicCert` - **[optional]** a `Buffer` or pem encoded `String` containing your public key
-- `signatureAlgorithm` - **[optional]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
-- `canonicalizationAlgorithm` - **[optional]** one of the supported [canonicalization algorithms](#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
+- `signatureAlgorithm` - **[required]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
+- `canonicalizationAlgorithm` - **[required]** one of the supported [canonicalization algorithms] (#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
 
 Use this code:
 
@@ -106,7 +106,24 @@ The result will be:
 
 Note:
 
-If you set the `publicCert` property, a `<X509Data></X509Data>` element with the public certificate will be generated in the signature.
+If you set the `publicCert` and the `getKeyInfoContent` properties, a `<KeyInfo></KeyInfo>` element with the public certificate will be generated in the signature:
+
+```xml
+<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+  <SignedInfo>
+    ...[signature info removed]...
+  </SignedInfo>
+  <SignatureValue>vhWzpQyIYuncHUZV9W...[long base64 removed]...</SignatureValue>
+  <KeyInfo>
+    <X509Data>
+      <X509Certificate>MIIGYjCCBJagACCBN...[long base64 removed]...</X509Certificate>
+    </X509Data>
+  </KeyInfo>
+</Signature>
+```
+
+For `getKeyInfoContent`, a default implementation `SignedXml.getKeyInfoContent` is available. 
+
 To customize this see [customizing algorithms](#customizing-algorithms) for an example.
 
 ## Verifying Xml documents
