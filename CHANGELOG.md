@@ -1,6 +1,23 @@
 # Changelog
 
-## 5.0.0 (2023-11-27)
+## 5.1.0 (2024-01-07)
+
+### 🚀 Minor Changes
+
+- [**enhancement**] Enhance derToPem to support XML pretty-print [#439](https://github.com/node-saml/xml-crypto/pull/439)
+
+### 🔗 Dependencies
+
+- [**dependencies**] [**javascript**] Bump @typescript-eslint/parser from 6.13.0 to 6.18.1 [#442](https://github.com/node-saml/xml-crypto/pull/442)
+- [**dependencies**] [**javascript**] Bump @typescript-eslint/eslint-plugin from 6.13.0 to 6.18.1 [#441](https://github.com/node-saml/xml-crypto/pull/441)
+- [**dependencies**] [**javascript**] Bump follow-redirects from 1.15.3 to 1.15.4 [#440](https://github.com/node-saml/xml-crypto/pull/440)
+- [**dependencies**] [**javascript**] Bump eslint from 8.54.0 to 8.56.0 [#436](https://github.com/node-saml/xml-crypto/pull/436)
+- [**dependencies**] [**javascript**] Bump @types/node from 16.18.65 to 16.18.69 [#435](https://github.com/node-saml/xml-crypto/pull/435)
+- [**dependencies**] [**javascript**] Bump release-it from 16.2.1 to 16.3.0 [#428](https://github.com/node-saml/xml-crypto/pull/428)
+
+---
+
+## v5.0.0 (2023-11-27)
 
 ### 💣 Major Changes
 
@@ -434,5 +451,11 @@ _No changelog for this release._
 ---
 
 ## v0.8.0 (2015-10-03)
+
+_No changelog for this release._
+
+---
+
+## V1 (2013-07-20)
 
 _No changelog for this release._
