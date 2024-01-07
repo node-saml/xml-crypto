@@ -181,7 +181,10 @@ export function derToPem(
     if (pemLabel == null) {
       throw new Error("PEM label is required when DER is given.");
     }
-    const pem = `-----BEGIN ${pemLabel}-----\n${base64Der.replace(/ /g, "")}\n-----END ${pemLabel}-----`;
+    const pem = `-----BEGIN ${pemLabel}-----\n${base64Der.replace(
+      / /g,
+      "",
+    )}\n-----END ${pemLabel}-----`;
 
     return normalizePem(pem);
   }
