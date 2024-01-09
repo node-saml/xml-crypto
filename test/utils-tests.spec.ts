@@ -1,6 +1,9 @@
 import * as fs from "fs";
 import * as utils from "../src/utils";
 import { expect } from "chai";
+import * as xmldom from "@xmldom/xmldom";
+import * as xpath from "xpath";
+import * as isDomNode from "@xmldom/is-dom-node";
 
 describe("Utils tests", function () {
   describe("derToPem", function () {
@@ -39,6 +42,18 @@ describe("Utils tests", function () {
       const base64String = fs.readFileSync("./test/static/client_public.der", "base64");
 
       expect(utils.derToPem(base64String, "CERTIFICATE")).to.equal(normalizedPem);
+    });
+
+    it("will return a normalized PEM format when given a base64 string with line breaks and spaces at the line breaks", function () {
+      const xml = new xmldom.DOMParser().parseFromString(
+        fs.readFileSync("./test/static/keyinfo - pretty-printed.xml", "latin1"),
+      );
+      const cert = xpath.select1(".//*[local-name(.)='X509Certificate']", xml);
+      isDomNode.assertIsNodeLike(cert);
+
+      const normalizedPem = fs.readFileSync("./test/static/keyinfo.pem", "latin1");
+
+      expect(utils.derToPem(cert.textContent ?? "", "CERTIFICATE")).to.equal(normalizedPem);
     });
 
     it("will throw if the DER string is not base64 encoded", function () {

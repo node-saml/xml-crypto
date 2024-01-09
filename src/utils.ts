@@ -177,11 +177,14 @@ export function derToPem(
     return normalizePem(base64Der);
   }
 
-  if (BASE64_REGEX.test(base64Der)) {
+  if (BASE64_REGEX.test(base64Der.replace(/ /g, ""))) {
     if (pemLabel == null) {
       throw new Error("PEM label is required when DER is given.");
     }
-    const pem = `-----BEGIN ${pemLabel}-----\n${base64Der}\n-----END ${pemLabel}-----`;
+    const pem = `-----BEGIN ${pemLabel}-----\n${base64Der.replace(
+      / /g,
+      "",
+    )}\n-----END ${pemLabel}-----`;
 
     return normalizePem(pem);
   }
