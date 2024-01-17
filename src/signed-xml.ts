@@ -275,7 +275,7 @@ export class SignedXml {
 
       if (verified === false) {
         throw new Error(
-          "invalid signature: the signature value ${this.signatureValue} is incorrect",
+          `invalid signature: the signature value ${this.signatureValue} is incorrect`,
         );
       }
 
