@@ -1,6 +1,14 @@
 # Changelog
 
-## 5.1.0 (2024-01-07)
+## 5.1.1 (2024-01-17)
+
+### 🐛 Bug Fixes
+
+- [**bug**] fix: template literal [#443](https://github.com/node-saml/xml-crypto/pull/443)
+
+---
+
+## v5.1.0 (2024-01-07)
 
 ### 🚀 Minor Changes
 
