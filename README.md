@@ -122,7 +122,7 @@ If you set the `publicCert` and the `getKeyInfoContent` properties, a `<KeyInfo>
 </Signature>
 ```
 
-For `getKeyInfoContent`, a default implementation `SignedXml.getKeyInfoContent` is available. 
+For `getKeyInfoContent`, a default implementation `SignedXml.getKeyInfoContent` is available.
 
 To customize this see [customizing algorithms](#customizing-algorithms) for an example.
 
