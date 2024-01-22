@@ -58,7 +58,7 @@ When signing a xml document you can pass the following options to the `SignedXml
 - `privateKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
 - `publicCert` - **[optional]** a `Buffer` or pem encoded `String` containing your public key
 - `signatureAlgorithm` - **[required]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
-- `canonicalizationAlgorithm` - **[required]** one of the supported [canonicalization algorithms] (#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
+- `canonicalizationAlgorithm` - **[required]** one of the supported [canonicalization algorithms](#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
 
 Use this code:
 
