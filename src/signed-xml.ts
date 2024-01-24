@@ -149,8 +149,8 @@ export class SignedXml {
     }
     this.implicitTransforms = implicitTransforms ?? this.implicitTransforms;
     this.keyInfoAttributes = keyInfoAttributes ?? this.keyInfoAttributes;
-    this.getKeyInfoContent = getKeyInfoContent ?? SignedXml.noop;
-    this.getCertFromKeyInfo = getCertFromKeyInfo ?? this.getCertFromKeyInfo;
+    this.getKeyInfoContent = getKeyInfoContent ?? this.getKeyInfoContent;
+    this.getCertFromKeyInfo = getCertFromKeyInfo ?? SignedXml.noop;
     this.CanonicalizationAlgorithms;
     this.HashAlgorithms;
     this.SignatureAlgorithms;
