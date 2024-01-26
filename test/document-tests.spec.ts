@@ -47,6 +47,7 @@ describe("Validated node references tests", function () {
     const xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const sig = new SignedXml();
+    sig.getCertFromKeyInfo = SignedXml.getCertFromKeyInfo;
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.true;
@@ -73,6 +74,7 @@ describe("Validated node references tests", function () {
     const xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const sig = new SignedXml();
+    sig.getCertFromKeyInfo = SignedXml.getCertFromKeyInfo;
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.true;
@@ -86,6 +88,7 @@ describe("Validated node references tests", function () {
     const xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const sig = new SignedXml();
+    sig.getCertFromKeyInfo = SignedXml.getCertFromKeyInfo;
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.true;
