@@ -1,6 +1,22 @@
 # Changelog
 
-## 5.1.1 (2024-01-17)
+## 6.0.0 (2024-01-26)
+
+### 💣 Major Changes
+
+- [**breaking-change**] Set `getCertFromKeyInfo` to `noop` [#445](https://github.com/node-saml/xml-crypto/pull/445)
+
+### 🔗 Dependencies
+
+- [**dependencies**] [**github_actions**] Bump github/codeql-action from 2 to 3 [#434](https://github.com/node-saml/xml-crypto/pull/434)
+
+### 📚 Documentation
+
+- [**documentation**] Chore: Update README.md [#432](https://github.com/node-saml/xml-crypto/pull/432)
+
+---
+
+## v5.1.1 (2024-01-17)
 
 ### 🐛 Bug Fixes
 
