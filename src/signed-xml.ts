@@ -637,6 +637,32 @@ export class SignedXml {
     });
   }
 
+  addReferenceToAllRootChildren(
+    doc: Document,
+    transforms: CanonicalizationOrTransformAlgorithmType[],
+  ) {
+    const root = doc.documentElement;
+    if (root == null) {
+      throw new Error("Document has no root element");
+    }
+
+    const children = root.childNodes;
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      if (isDomNode.isElementNode(child)) {
+        this.addReference({
+          xpath: `./*/*[local-name(.)='${child.localName}']`,
+          transforms,
+          digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+          // uri: "",
+          // digestValue: "",
+          // inclusiveNamespacesPrefixList: [],
+          // isEmptyUri: true,
+        });
+      }
+    }
+  }
+
   /**
    * Adds a reference to the signature.
    *
@@ -798,10 +824,19 @@ export class SignedXml {
     // add the xml namespace attribute
     signatureAttrs.push(`${xmlNsAttr}="http://www.w3.org/2000/09/xmldsig#"`);
 
+    const keyInfo = this.getKeyInfo(prefix);
+    if (keyInfo != null && keyInfo.length > 0) {
+      this.addReference({
+        xpath: "./*/*[local-name(.)='Signature']/*[local-name(.)='KeyInfo']",
+        transforms: ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+        digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      });
+    }
+
     let signatureXml = `<${currentPrefix}Signature ${signatureAttrs.join(" ")}>`;
 
     signatureXml += this.createSignedInfo(doc, prefix);
-    signatureXml += this.getKeyInfo(prefix);
+    signatureXml += keyInfo;
     signatureXml += `</${currentPrefix}Signature>`;
 
     this.originalXmlWithIds = doc.toString();

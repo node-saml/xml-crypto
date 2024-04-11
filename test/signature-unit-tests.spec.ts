@@ -187,6 +187,43 @@ describe("Signature unit tests", function () {
     ).to.equal("Signature");
   });
 
+  it("signer appends signature to all root node children when helper function is used", function () {
+    const xml = "<root><name>xml-crypto</name><repository><name>github</name></repository></root>";
+    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const sig = new SignedXml();
+
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    sig.addReferenceToAllRootChildren(doc, ["http://www.w3.org/2001/10/xml-exc-c14n#"]);
+
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    sig.computeSignature(xml);
+
+    expect(sig.getSignedXml()).to.equal("<root><name Id=\"_0\">xml-crypto</name><repository Id=\"_1\"><name>github</name></repository><Signature xmlns=\"http://www.w3.org/2000/09/xmldsig#\"><SignedInfo><CanonicalizationMethod Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/><SignatureMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#rsa-sha1\"/><Reference URI=\"#_0\"><Transforms><Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/></Transforms><DigestMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#sha1\"/><DigestValue>q2ONs+Sgbm1r4eFxQPyMGHWGay8=</DigestValue></Reference><Reference URI=\"#_1\"><Transforms><Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/></Transforms><DigestMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#sha1\"/><DigestValue>SoATUdmNo4CzkYtBMqktRZYdw/0=</DigestValue></Reference></SignedInfo><SignatureValue>L2ghNuRUydddUrpL6OynnGW9JpNxmGANDXL90w4jXGiVPukTM6kn5dzQoTVlKokm5bzEtxibWRLJpeqLYoBlH7g2foIEoKpAIqa3I1an78BRrR/VjRzqT/QKrGtivgHgRID9FWCuZdMmP4h+RMA4t753iH/gsxts4OhrymxJayI=</SignatureValue><KeyInfo><X509Data><X509Certificate>MIIBxDCCAW6gAwIBAgIQxUSXFzWJYYtOZnmmuOMKkjANBgkqhkiG9w0BAQQFADAWMRQwEgYDVQQDEwtSb290IEFnZW5jeTAeFw0wMzA3MDgxODQ3NTlaFw0zOTEyMzEyMzU5NTlaMB8xHTAbBgNVBAMTFFdTRTJRdWlja1N0YXJ0Q2xpZW50MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC+L6aB9x928noY4+0QBsXnxkQE4quJl7c3PUPdVu7k9A02hRG481XIfWhrDY5i7OEB7KGW7qFJotLLeMec/UkKUwCgv3VvJrs2nE9xO3SSWIdNzADukYh+Cxt+FUU6tUkDeqg7dqwivOXhuOTRyOI3HqbWTbumaLdc8jufz2LhaQIDAQABo0swSTBHBgNVHQEEQDA+gBAS5AktBh0dTwCNYSHcFmRjoRgwFjEUMBIGA1UEAxMLUm9vdCBBZ2VuY3mCEAY3bACqAGSKEc+41KpcNfQwDQYJKoZIhvcNAQEEBQADQQAfIbnMPVYkNNfX1tG1F+qfLhHwJdfDUZuPyRPucWF5qkh6sSdWVBY5sT/txBnVJGziyO8DPYdu2fPMER8ajJfl</X509Certificate></X509Data></KeyInfo></Signature></root>");
+    expect(sig.getSignedXml()).to.not.equal("<root><name Id=\"_0\">xml-crypto</name><repository Id=\"_2\"><name Id=\"_1\">github</name></repository><Signature xmlns=\"http://www.w3.org/2000/09/xmldsig#\"><SignedInfo><CanonicalizationMethod Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/><SignatureMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#rsa-sha1\"/><Reference URI=\"#_0\"><Transforms><Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/></Transforms><DigestMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#sha1\"/><DigestValue>q2ONs+Sgbm1r4eFxQPyMGHWGay8=</DigestValue></Reference><Reference URI=\"#_1\"><Transforms><Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/></Transforms><DigestMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#sha1\"/><DigestValue>1vawhQI+FPhqoGY3rXSh1pwtuyI=</DigestValue></Reference><Reference URI=\"#_2\"><Transforms><Transform Algorithm=\"http://www.w3.org/2001/10/xml-exc-c14n#\"/></Transforms><DigestMethod Algorithm=\"http://www.w3.org/2000/09/xmldsig#sha1\"/><DigestValue>GlYi55Sr0zYtef64F6Wy2MKsCYw=</DigestValue></Reference></SignedInfo><SignatureValue>n3yP4E3+0qyW/siPxzKU0RTetibusDU5n4OZ1Y0kV+N+qEh57Bj4Jk87RlvHFH0CNq0IJ8fJ+yyfW0d//WNSwHU1DIZkHFdl41M3S1pZWOsPPPCV+4ByCvJBn20enE/zY4okIyeU84PP081oSZMT5RtFsIbjJ6WtXEYZZq31dGs=</SignatureValue><KeyInfo><X509Data><X509Certificate>MIIBxDCCAW6gAwIBAgIQxUSXFzWJYYtOZnmmuOMKkjANBgkqhkiG9w0BAQQFADAWMRQwEgYDVQQDEwtSb290IEFnZW5jeTAeFw0wMzA3MDgxODQ3NTlaFw0zOTEyMzEyMzU5NTlaMB8xHTAbBgNVBAMTFFdTRTJRdWlja1N0YXJ0Q2xpZW50MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC+L6aB9x928noY4+0QBsXnxkQE4quJl7c3PUPdVu7k9A02hRG481XIfWhrDY5i7OEB7KGW7qFJotLLeMec/UkKUwCgv3VvJrs2nE9xO3SSWIdNzADukYh+Cxt+FUU6tUkDeqg7dqwivOXhuOTRyOI3HqbWTbumaLdc8jufz2LhaQIDAQABo0swSTBHBgNVHQEEQDA+gBAS5AktBh0dTwCNYSHcFmRjoRgwFjEUMBIGA1UEAxMLUm9vdCBBZ2VuY3mCEAY3bACqAGSKEc+41KpcNfQwDQYJKoZIhvcNAQEEBQADQQAfIbnMPVYkNNfX1tG1F+qfLhHwJdfDUZuPyRPucWF5qkh6sSdWVBY5sT/txBnVJGziyO8DPYdu2fPMER8ajJfl</X509Certificate></X509Data></KeyInfo></Signature></root>");
+  });
+
+  it("signer adds a reference to KeyInfo when it is included", function () {
+    const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
+    const sig = new SignedXml();
+
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    sig.computeSignature(xml);
+
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const keyInfoNode = xpath.select1("//KeyInfo", doc);
+
+    isDomNode.assertIsNodeLike(keyInfoNode);
+    const x509DataNode = xpath.select1("//X509Data", keyInfoNode);
+
+    isDomNode.assertIsNodeLike(x509DataNode);
+  })
+
   it("signer appends signature to a reference node", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
     const sig = new SignedXml();
