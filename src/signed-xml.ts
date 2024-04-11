@@ -654,10 +654,6 @@ export class SignedXml {
           xpath: `./*/*[local-name(.)='${child.localName}']`,
           transforms,
           digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-          // uri: "",
-          // digestValue: "",
-          // inclusiveNamespacesPrefixList: [],
-          // isEmptyUri: true,
         });
       }
     }
@@ -826,16 +822,16 @@ export class SignedXml {
 
     const keyInfo = this.getKeyInfo(prefix);
     if (keyInfo != null && keyInfo.length > 0) {
-      this.addReference({
-        xpath: "./*/*[local-name(.)='Signature']/*[local-name(.)='KeyInfo']",
-        transforms: ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
-        digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      });
+      // this.addReference({
+      //   xpath: ".//*[local-name(.)='KeyInfo']",
+      //   transforms: ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+      //   digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      // });
     }
 
     let signatureXml = `<${currentPrefix}Signature ${signatureAttrs.join(" ")}>`;
 
-    signatureXml += this.createSignedInfo(doc, prefix);
+    // signatureXml += this.createSignedInfo(doc, prefix);
     signatureXml += keyInfo;
     signatureXml += `</${currentPrefix}Signature>`;
 
@@ -889,6 +885,12 @@ export class SignedXml {
       referenceNode.parentNode.insertBefore(signatureDoc, referenceNode.nextSibling);
     }
 
+    // Now that we've inserted the Signature node into the document
+    // we need to calculate the SignedInfo and insert it into the Signature element
+    const signedInfoXml = this.createSignedInfo(doc, prefix);
+    const signedInfoElement = new xmldom.DOMParser().parseFromString(signedInfoXml).documentElement;
+    signatureDoc.insertBefore(signedInfoElement, signatureDoc.firstChild);
+
     this.signatureNode = signatureDoc;
     const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
     if (signedInfoNodes.length === 0) {
@@ -900,7 +902,6 @@ export class SignedXml {
         return;
       }
     }
-    const signedInfoNode = signedInfoNodes[0];
 
     if (typeof callback === "function") {
       // Asynchronous flow
@@ -909,7 +910,7 @@ export class SignedXml {
           callback(err);
         } else {
           this.signatureValue = signature || "";
-          signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
+          signatureDoc.insertBefore(this.createSignature(prefix), signedInfoElement.nextSibling);
           this.signatureXml = signatureDoc.toString();
           this.signedXml = doc.toString();
           callback(null, this);
@@ -918,7 +919,7 @@ export class SignedXml {
     } else {
       // Synchronous flow
       this.calculateSignatureValue(doc);
-      signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
+      signatureDoc.insertBefore(this.createSignature(prefix), signedInfoElement.nextSibling);
       this.signatureXml = signatureDoc.toString();
       this.signedXml = doc.toString();
     }
@@ -936,7 +937,14 @@ export class SignedXml {
 
     const keyInfoContent = this.getKeyInfoContent({ publicCert: this.publicCert, prefix });
     if (keyInfoAttrs || keyInfoContent) {
-      return `<${currentPrefix}KeyInfo${keyInfoAttrs}>${keyInfoContent}</${currentPrefix}KeyInfo>`;
+      const keyInfoXml = `<${currentPrefix}KeyInfo${keyInfoAttrs}>${keyInfoContent}<fake>2</fake></${currentPrefix}KeyInfo>`;
+
+      // The following is if we want to always include an `Id` attribute in the `KeyInfo` element
+      // const keyInfoDoc = new xmldom.DOMParser().parseFromString(keyInfoXml);
+      // this.ensureHasId(keyInfoDoc.documentElement);
+      // return keyInfoDoc.toString();
+
+      return keyInfoXml;
     }
 
     return "";
@@ -955,7 +963,7 @@ export class SignedXml {
     for (const ref of this.getReferences()) {
       const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
 
-      if (!utils.isArrayHasLength(nodes)) {
+      if (!utils.isArrayHasLength(nodes) || nodes.some((node) => !isDomNode.isElementNode(node))) {
         throw new Error(
           `the following xpath cannot be signed because it was not found: ${ref.xpath}`,
         );
@@ -965,6 +973,7 @@ export class SignedXml {
         if (ref.isEmptyUri) {
           res += `<${prefix}Reference URI="">`;
         } else {
+          isDomNode.assertIsElementNode(node)
           const id = this.ensureHasId(node);
           ref.uri = id;
           res += `<${prefix}Reference URI="#${id}">`;
@@ -1031,18 +1040,18 @@ export class SignedXml {
    * Ensure an element has Id attribute. If not create it with unique value.
    * Work with both normal and wssecurity Id flavour
    */
-  private ensureHasId(node) {
+  private ensureHasId(elem: Element) {
     let attr;
 
     if (this.idMode === "wssecurity") {
       attr = utils.findAttr(
-        node,
+        elem,
         "Id",
         "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
       );
     } else {
       this.idAttributes.some((idAttribute) => {
-        attr = utils.findAttr(node, idAttribute);
+        attr = utils.findAttr(elem, idAttribute);
         return !!attr; // This will break the loop as soon as a truthy attr is found.
       });
     }
@@ -1055,18 +1064,18 @@ export class SignedXml {
     const id = `_${this.id++}`;
 
     if (this.idMode === "wssecurity") {
-      node.setAttributeNS(
+      elem.setAttributeNS(
         "http://www.w3.org/2000/xmlns/",
         "xmlns:wsu",
         "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
       );
-      node.setAttributeNS(
+      elem.setAttributeNS(
         "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
         "wsu:Id",
         id,
       );
     } else {
-      node.setAttribute("Id", id);
+      elem.setAttribute("Id", id);
     }
 
     return id;
