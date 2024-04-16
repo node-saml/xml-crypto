@@ -341,7 +341,7 @@ export class SignedXml {
     const signedInfoCanon = this.getCanonSignedInfoXml(doc);
     const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
     const privateKey = this.getPrivateKey();
-    if (privateKey == null) {
+    if (privateKey === undefined) {
       throw new Error("Private key is required to compute signature");
     }
     if (typeof callback === "function") {
