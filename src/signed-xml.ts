@@ -1128,7 +1128,10 @@ export class SignedXml {
   }
 
   getPrivateKey(): crypto.KeyLike | undefined {
-    if (this.privateKeyPass && (this.privateKey instanceof Buffer || typeof this.privateKey === "string")) {
+    if (
+      this.privateKeyPass &&
+      (this.privateKey instanceof Buffer || typeof this.privateKey === "string")
+    ) {
       return crypto.createPrivateKey({
         key: this.privateKey,
         passphrase: this.privateKeyPass,
