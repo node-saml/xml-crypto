@@ -32,7 +32,7 @@ export class SignedXml {
    * A {@link Buffer} or pem encoded {@link String} containing your private key
    */
   privateKey?: crypto.KeyLike;
-  privateKeyPass?: string;
+  privateKeyPassword?: string;
   publicCert?: crypto.KeyLike;
   /**
    * One of the supported signature algorithms.
@@ -1129,12 +1129,12 @@ export class SignedXml {
 
   getPrivateKey(): crypto.KeyLike | undefined {
     if (
-      this.privateKeyPass &&
+      this.privateKeyPassword &&
       (this.privateKey instanceof Buffer || typeof this.privateKey === "string")
     ) {
       return crypto.createPrivateKey({
         key: this.privateKey,
-        passphrase: this.privateKeyPass,
+        passphrase: this.privateKeyPassword,
       });
     }
     return this.privateKey;
