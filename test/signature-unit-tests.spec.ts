@@ -1266,27 +1266,27 @@ describe("Signature unit tests", function () {
     );
   });
 
-  it("can decrypt the private key when privateKeyPassword is set", function () {
+  it("can decrypt the private key when privateKeyPassphrase is set", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client_encrypted.pem");
-    sig.privateKeyPassword = "password";
+    sig.privateKeyPassphrase = "password";
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     expect(() => sig.computeSignature(xml)).to.not.throw();
   });
 
-  it("throws when privateKeyPassword is wrong", function () {
+  it("throws when privateKeyPassphrase is wrong", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client_encrypted.pem");
-    sig.privateKeyPassword = "wrong password";
+    sig.privateKeyPassphrase = "wrong password";
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     expect(() => sig.computeSignature(xml)).to.throw();
   });
 
-  it("throws when privateKeyPassword is not set and private key is encrypted", function () {
+  it("throws when privateKeyPassphrase is not set and private key is encrypted", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client_encrypted.pem");
