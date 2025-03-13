@@ -257,10 +257,9 @@ export class SignedXml {
     this.signedXml = xml;
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
-    // mutate the this.references to our new list after we have the document
-    // Ideally we should have been able to load the Signature and it's references in one go
-    // However, in the .loadSignature() method we don't necessarily have the underlying document
-    // It is only provided here. And we need the underlying document if we want to keep the inclusive namespaces
+    // reset the references. Previous references loaded cannot be trusted
+    // only references from our new re-parsed signedInfo node
+    this.references = [];
 
     // signedInfoCanon is unsigned here, we will show that it is signed in later step (B)
     const signedInfoCanon = this.getCanonSignedInfoXml(doc)
@@ -271,9 +270,7 @@ export class SignedXml {
       throw new Error(`Canonical signed info not be empty, ${signedInfoCanon}`);
     }
 
-
-    // now we know that only the "signedInfoCanon" is signed by key
-    // parse it into a signedInfo node
+    // unsigned, verify later to keep with consistent callback behavior
     const parsedSignedInfo = new xmldom.DOMParser().parseFromString(signedInfoCanon, "text/xml");
 
     const signedInfoDoc = parsedSignedInfo.documentElement;
@@ -281,9 +278,6 @@ export class SignedXml {
       throw new Error('Could not parse signedInfoCanon into a document')
     }
 
-    // reset the references. Previous references loaded cannot be trusted
-    // only references from our new re-parsed signedInfo node
-    this.references = [];
 
     const references = xpath.select(
       "/*[local-name()='SignedInfo']/*[local-name()='Reference']",
@@ -292,6 +286,12 @@ export class SignedXml {
     if (!utils.isArrayHasLength(references)) {
       throw new Error("could not find any Reference elements");
     }
+
+    // mutate the this.references to our new list after we have the document
+    // Ideally we should have been able to load the Signature and it's references in one go
+    // However, in the .loadSignature() method we don't necessarily have the underlying document
+    // It is only provided here. And we need the underlying document if we want to keep the inclusive namespaces
+
 
     for (const reference of references) {
       this.loadReference(reference);
