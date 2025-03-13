@@ -25,6 +25,7 @@ import * as signatureAlgorithms from "./signature-algorithms";
 import * as crypto from "crypto";
 import * as isDomNode from "@xmldom/is-dom-node";
 
+
 export class SignedXml {
   idMode?: "wssecurity";
   idAttributes: string[];
@@ -87,6 +88,8 @@ export class SignedXml {
     "http://www.w3.org/2000/09/xmldsig#enveloped-signature": envelopedSignatures.EnvelopedSignature,
   };
 
+  // TODO: In V7.x we may consider deprecating sha1
+
   /**
    * To add a new hash algorithm create a new class that implements the {@link HashAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
    */
@@ -95,6 +98,8 @@ export class SignedXml {
     "http://www.w3.org/2001/04/xmlenc#sha256": hashAlgorithms.Sha256,
     "http://www.w3.org/2001/04/xmlenc#sha512": hashAlgorithms.Sha512,
   };
+
+  // TODO: In V7.x we may consider deprecating sha1
 
   /**
    * To add a new signature algorithm create a new class that implements the {@link SignatureAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
@@ -252,6 +257,45 @@ export class SignedXml {
     this.signedXml = xml;
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
+    // mutate the this.references to our new list after we have the document
+    // Ideally we should have been able to load the Signature and it's references in one go
+    // However, in the .loadSignature() method we don't necessarily have the underlying document
+    // It is only provided here. And we need the underlying document if we want to keep the inclusive namespaces
+
+    // signedInfoCanon is unsigned here, we will show that it is signed in later step (B)
+    const signedInfoCanon = this.getCanonSignedInfoXml(doc)
+
+    // type checking
+    // ensure that it is not empty
+    if (!(signedInfoCanon)) {
+      throw new Error(`Canonical signed info not be empty, ${signedInfoCanon}`);
+    }
+
+
+    // now we know that only the "signedInfoCanon" is signed by key
+    // parse it into a signedInfo node
+    const parsedSignedInfo = new xmldom.DOMParser().parseFromString(signedInfoCanon, "text/xml");
+
+    const signedInfoDoc = parsedSignedInfo.documentElement;
+    if (!signedInfoDoc) {
+      throw new Error('Could not parse signedInfoCanon into a document')
+    }
+
+    // reset the references. Previous references loaded cannot be trusted
+    // only references from our new re-parsed signedInfo node
+    this.references = [];
+
+    const references = xpath.select(
+      "/*[local-name()='SignedInfo']/*[local-name()='Reference']",
+      signedInfoDoc
+    );
+    if (!utils.isArrayHasLength(references)) {
+      throw new Error("could not find any Reference elements");
+    }
+
+    for (const reference of references) {
+      this.loadReference(reference);
+    }
 
     if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
       if (callback) {
@@ -262,12 +306,15 @@ export class SignedXml {
       return false;
     }
 
-    const signedInfoCanon = this.getCanonSignedInfoXml(doc);
+    // (Stage B authentication step, show that the signedInfoCanon is signed)
+
+    // first find the key & signature algorithm, this should match
     const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
     const key = this.getCertFromKeyInfo(this.keyInfo) || this.publicCert || this.privateKey;
     if (key == null) {
       throw new Error("KeyInfo or publicCert or privateKey is required to validate signature");
     }
+
     if (callback) {
       signer.verifySignature(signedInfoCanon, key, this.signatureValue, callback);
     } else {
@@ -522,11 +569,23 @@ export class SignedXml {
       this.signatureAlgorithm = signatureAlgorithm.value as SignatureAlgorithmType;
     }
 
+    const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
+    if (!utils.isArrayHasLength(signedInfoNodes)) {
+      throw new Error('no signed info node found')
+    }
+
+    // try to operate over the c14n version of signedInfo (however still not the safe as previously)
+    // this forces the initial .getReferences() API call to always return references that are loaded under the canonical signede info
+    // in the case that the client access the .references **before** signature verification
+
+    const tempCanon = this.getCanonXml(["http://www.w3.org/2001/10/xml-exc-c14n#"], signedInfoNodes[0]);
+    const s = new xmldom.DOMParser().parseFromString(tempCanon, "text/xml");
+    const signedInfoDoc = s.documentElement;
+
+
     this.references = [];
-    const references = xpath.select(
-      ".//*[local-name(.)='SignedInfo']/*[local-name(.)='Reference']",
-      signatureNode,
-    );
+    const references = utils.findChildren(signedInfoDoc, "Reference")
+
     if (!utils.isArrayHasLength(references)) {
       throw new Error("could not find any Reference elements");
     }
