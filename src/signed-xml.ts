@@ -117,6 +117,7 @@ export class SignedXml {
   };
 
   static noop = () => null;
+  public signedReferences: string[] = [];
 
   /**
    * The SignedXml constructor provides an abstraction for sign and verify xml documents. The object is constructed using
@@ -159,6 +160,9 @@ export class SignedXml {
     this.CanonicalizationAlgorithms;
     this.HashAlgorithms;
     this.SignatureAlgorithms;
+    // this populates only after verifying the signature
+    // array of bytes that are cryptographically authenticated
+    this.signedReferences = []; // TODO: should we rename this to something better.
   }
 
   /**
@@ -270,7 +274,8 @@ export class SignedXml {
       throw new Error(`Canonical signed info not be empty, ${signedInfoCanon}`);
     }
 
-    // unsigned, verify later to keep with consistent callback behavior
+    // unfortunately I've decided to keep using the unverified signedInfoCanon first for now.
+    // I don't want to modify callback behavior too much
     const parsedSignedInfo = new xmldom.DOMParser().parseFromString(signedInfoCanon, "text/xml");
 
     const signedInfoDoc = parsedSignedInfo.documentElement;
@@ -315,18 +320,35 @@ export class SignedXml {
       throw new Error("KeyInfo or publicCert or privateKey is required to validate signature");
     }
 
-    if (callback) {
-      signer.verifySignature(signedInfoCanon, key, this.signatureValue, callback);
-    } else {
-      const verified = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
 
-      if (verified === false) {
+    // let's clear the callback up a little bit, so we can access it's results,
+    // and decide whether to reset signature value or not
+    const sigRes = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
+    // true case
+    if (sigRes === true) {
+      if (callback) {
+        callback(null, true);
+      } else {
+        return true;
+      }
+
+    } else {
+      // false case
+      // reset the signedReferences back to empty array
+      // I would have preferred to start by verifying the signedInfoCanon first, if that's OK
+      // but that may cause some breaking changes?
+      this.signedReferences = [];
+
+      if (callback) {
+        callback(new Error(
+          `invalid signature: the signature value ${this.signatureValue} is incorrect`,
+        ));
+        return; // return early
+      } else {
         throw new Error(
           `invalid signature: the signature value ${this.signatureValue} is incorrect`,
         );
       }
-
-      return true;
     }
   }
 
@@ -521,6 +543,11 @@ export class SignedXml {
 
       return false;
     }
+    // This step can only be done after we have verified the signedInfo
+    // we verified that they have same hash
+    // so, the canonXml and only the canonXml can be trusted
+    // append this to signedReferences
+    this.signedReferences.push(canonXml);
 
     return true;
   }
