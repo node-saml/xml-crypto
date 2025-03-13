@@ -1,5 +1,18 @@
 # xml-crypto
 
+
+# Upgrading
+
+The `.getReferences() AND the .references` API is deprecated.
+Please do not attempt to access it. The content in there should be treated as unsigned.
+
+Instead, we strongly encourage users to migrate to the .signedReferences API. See the `Verifying XML document` section
+We understand that this may take a lot of efforts to migrate, feel free to ask for help.
+This will help prevent future XML signature wrapping attacks in the future.
+
+``
+
+
 ![Build](https://github.com/node-saml/xml-crypto/actions/workflows/ci.yml/badge.svg)
 [![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-Ready--to--Code-blue?logo=gitpod)](https://gitpod.io/from-referrer/)
 
@@ -159,7 +172,12 @@ var select = require("xml-crypto").xpath,
   fs = require("fs");
 
 var xml = fs.readFileSync("signed.xml").toString();
+
 var doc = new dom().parseFromString(xml);
+
+// DO NOT attempt to parse whatever data object you have here
+// i.e. BAD: parseAssertion(doc),
+// good: see below
 
 var signature = select(
   doc,
@@ -172,44 +190,29 @@ try {
 } catch (ex) {
   console.log(ex);
 }
+
+
 ```
 
 In order to protect from some attacks we must check the content we want to use is the one that has been signed:
 
 ```javascript
-// Roll your own
-const elem = xpath.select("/xpath_to_interesting_element", doc);
-const uri = sig.getReferences()[0].uri; // might not be 0; it depends on the document
-const id = uri[0] === "#" ? uri.substring(1) : uri;
-if (
-  elem.getAttribute("ID") != id &&
-  elem.getAttribute("Id") != id &&
-  elem.getAttribute("id") != id
-) {
-  throw new Error("The interesting element was not the one verified by the signature");
+if (!res) {
+  throw "Invalid Signature"
 }
+// good: The XML Signature has been verified, meaning some subset of XML is verified.
+var signedBytes = sig.signedReferences;
 
-// Get the validated element directly from a reference
-const elem = sig.references[0].getValidatedElement(); // might not be 0; it depends on the document
-const matchingReference = xpath.select1("/xpath_to_interesting_element", elem);
-if (!isDomNode.isNodeLike(matchingReference)) {
-  throw new Error("The interesting element was not the one verified by the signature");
-}
+var authenticatedDoc = new dom().parseFromString(signedBytes[0]); // take the first of the signed references
+// load SAML or whatever from now
+// obtain the assertion XML from here
+// use only authenticated data
+let signedAssertionNode = extractAssertion(authenticatedDoc);
+let parsedAssertion = parseAssertion(signedAssertionNode)
+return parsedAssertion; // now return the client, the signed Assertion
 
-// Use the built-in method
-const elem = xpath.select1("/xpath_to_interesting_element", doc);
-try {
-  const matchingReference = sig.validateElementAgainstReferences(elem, doc);
-} catch {
-  throw new Error("The interesting element was not the one verified by the signature");
-}
 
-// Use the built-in method with a an xpath expression
-try {
-  const matchingReference = sig.validateReferenceWithXPath("/xpath_to_interesting_element", doc);
-} catch {
-  throw new Error("The interesting element was not the one verified by the signature");
-}
+// BAD example: DO not use the .getReferences() API.
 ```
 
 Note:
