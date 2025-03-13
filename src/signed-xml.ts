@@ -631,11 +631,11 @@ export class SignedXml {
     if (nodes.length === 0) {
       throw new Error(`could not find DigestValue node in reference ${refNode.toString()}`);
     }
-    const firstChild = nodes[0].firstChild;
-    if (!firstChild || !("data" in firstChild)) {
+    const firstChild = nodes[0];
+    if (!firstChild) {
       throw new Error(`could not find the value of DigestValue in ${nodes[0].toString()}`);
     }
-    const digestValue = firstChild.data;
+    const digestValue = firstChild.textContent; // use textContent which SHOULD be part of signing input
 
     const transforms: string[] = [];
     let inclusiveNamespacesPrefixList: string[] = [];
@@ -685,11 +685,12 @@ export class SignedXml {
     ) {
       transforms.push("http://www.w3.org/TR/2001/REC-xml-c14n-20010315");
     }
+    const refUri = isDomNode.isElementNode(refNode) ? (refNode.getAttribute("URI") || undefined) : undefined;
 
     this.addReference({
       transforms,
       digestAlgorithm: digestAlgo,
-      uri: isDomNode.isElementNode(refNode) ? utils.findAttr(refNode, "URI")?.value : undefined,
+      uri: refUri,
       digestValue,
       inclusiveNamespacesPrefixList,
       isEmptyUri: false,
