@@ -733,7 +733,7 @@ function verifyDoesNotDuplicateIdAttributes(test, mode, prefix) {
 }
 
 function verifyAddsId(test, mode, nsMode) {
-  var xml = "<x xmlns=\"ns\"></x><y attr=\"value\"></y><z><w></w></z>"
+  var xml = "<x xmlns=\"ns\"><y attr=\"value\"></y><z><w></w></z></x>"
   var sig = new SignedXml(mode)
   sig.signingKey = fs.readFileSync("./test/static/client.pem")
 
