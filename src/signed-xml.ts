@@ -261,50 +261,56 @@ export class SignedXml {
     this.signedXml = xml;
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
-    // reset the references. Previous references loaded cannot be trusted
-    // only references from our new re-parsed signedInfo node
+
+    // Reset the references as only references from our re-parsed signedInfo node can be trusted
     this.references = [];
 
-    // signedInfoCanon is unsigned here, we will show that it is signed in later step (B)
-    const signedInfoCanon = this.getCanonSignedInfoXml(doc)
+    const unverifiedSignedInfoCanon = this.getCanonSignedInfoXml(doc);
+    if (!unverifiedSignedInfoCanon) {
+      if (callback) {
+        callback(new Error("Canonical signed info cannot be empty"), false);
+        return;
+      }
 
-    // type checking
-    // ensure that it is not empty
-    if (!(signedInfoCanon)) {
-      throw new Error(`Canonical signed info not be empty, ${signedInfoCanon}`);
+      throw new Error("Canonical signed info cannot be empty");
     }
 
-    // unfortunately I've decided to keep using the unverified signedInfoCanon first for now.
-    // I don't want to modify callback behavior too much
-    const parsedSignedInfo = new xmldom.DOMParser().parseFromString(signedInfoCanon, "text/xml");
-
-    const signedInfoDoc = parsedSignedInfo.documentElement;
-    if (!signedInfoDoc) {
-      throw new Error('Could not parse signedInfoCanon into a document')
-    }
-
-
-    const references = xpath.select(
-      "/*[local-name()='SignedInfo']/*[local-name()='Reference']",
-      signedInfoDoc
+    // unsigned, verify later to keep with consistent callback behavior
+    const parsedUnverifiedSignedInfo = new xmldom.DOMParser().parseFromString(
+      unverifiedSignedInfoCanon,
+      "text/xml",
     );
+
+    const unverifiedSignedInfoDoc = parsedUnverifiedSignedInfo.documentElement;
+    if (!unverifiedSignedInfoDoc) {
+      if (callback) {
+        callback(new Error("Could not parse unverifiedSignedInfoCanon into a document"), false);
+        return;
+      }
+
+      throw new Error("Could not parse unverifiedSignedInfoCanon into a document");
+    }
+
+    const references = utils.findChildren(unverifiedSignedInfoDoc, "Reference");
     if (!utils.isArrayHasLength(references)) {
+      if (callback) {
+        callback(new Error("could not find any Reference elements"), false);
+        return;
+      }
+
       throw new Error("could not find any Reference elements");
     }
 
-    // mutate the this.references to our new list after we have the document
-    // Ideally we should have been able to load the Signature and it's references in one go
-    // However, in the .loadSignature() method we don't necessarily have the underlying document
-    // It is only provided here. And we need the underlying document if we want to keep the inclusive namespaces
-
-
+    // TODO: In a future release we'd like to load the Signature and its References at the same time,
+    // however, in the `.loadSignature()` method we don't have the entire document,
+    // which we need to to keep the inclusive namespaces
     for (const reference of references) {
       this.loadReference(reference);
     }
 
     if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
       if (callback) {
-        callback(new Error("Could not validate all references"));
+        callback(new Error("Could not validate all references"), false);
         return;
       }
 
@@ -314,6 +320,7 @@ export class SignedXml {
     // (Stage B authentication step, show that the signedInfoCanon is signed)
 
     // first find the key & signature algorithm, this should match
+    // Stage B: Take the signature algorithm and key and verify the SignatureValue against the canonicalized SignedInfo
     const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
     const key = this.getCertFromKeyInfo(this.keyInfo) || this.publicCert || this.privateKey;
     if (key == null) {
@@ -323,7 +330,7 @@ export class SignedXml {
 
     // let's clear the callback up a little bit, so we can access it's results,
     // and decide whether to reset signature value or not
-    const sigRes = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
+    const sigRes = signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
     // true case
     if (sigRes === true) {
       if (callback) {
@@ -331,13 +338,13 @@ export class SignedXml {
       } else {
         return true;
       }
-
     } else {
       // false case
       // reset the signedReferences back to empty array
       // I would have preferred to start by verifying the signedInfoCanon first, if that's OK
       // but that may cause some breaking changes?
       this.signedReferences = [];
+
 
       if (callback) {
         callback(new Error(
@@ -363,6 +370,11 @@ export class SignedXml {
     const signedInfo = utils.findChildren(this.signatureNode, "SignedInfo");
     if (signedInfo.length === 0) {
       throw new Error("could not find SignedInfo element in the message");
+    }
+    if (signedInfo.length > 1) {
+      throw new Error(
+        "could not get canonicalized signed info for a signature that contains multiple SignedInfo nodes",
+      );
     }
 
     if (
@@ -598,20 +610,41 @@ export class SignedXml {
 
     const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
     if (!utils.isArrayHasLength(signedInfoNodes)) {
-      throw new Error('no signed info node found')
+
+      throw new Error("no signed info node found");
+    }
+    if (signedInfoNodes.length > 1) {
+      throw new Error("could not load signature that contains multiple SignedInfo nodes");
     }
 
-    // try to operate over the c14n version of signedInfo (however still not the safe as previously)
-    // this forces the initial .getReferences() API call to always return references that are loaded under the canonical signede info
-    // in the case that the client access the .references **before** signature verification
+    // Try to operate on the c14n version of `signedInfo`. This forces the initial `getReferences()`
+    // API call to always return references that are loaded under the canonical `SignedInfo`
+    // in the case that the client access the `.references` **before** signature verification.
 
-    const tempCanon = this.getCanonXml(["http://www.w3.org/2001/10/xml-exc-c14n#"], signedInfoNodes[0]);
-    const s = new xmldom.DOMParser().parseFromString(tempCanon, "text/xml");
-    const signedInfoDoc = s.documentElement;
+    // Ensure canonicalization algorithm is exclusive, otherwise we'd need the entire document
+    let canonicalizationAlgorithmForSignedInfo = this.canonicalizationAlgorithm;
+    if (
+      !canonicalizationAlgorithmForSignedInfo ||
+      canonicalizationAlgorithmForSignedInfo ===
+        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315" ||
+      canonicalizationAlgorithmForSignedInfo ===
+        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
+    ) {
+      canonicalizationAlgorithmForSignedInfo = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    }
 
+    const temporaryCanonSignedInfo = this.getCanonXml(
+      [canonicalizationAlgorithmForSignedInfo],
+      signedInfoNodes[0],
+    );
+    const temporaryCanonSignedInfoXml = new xmldom.DOMParser().parseFromString(
+      temporaryCanonSignedInfo,
+      "text/xml",
+    );
+    const signedInfoDoc = temporaryCanonSignedInfoXml.documentElement;
 
     this.references = [];
-    const references = utils.findChildren(signedInfoDoc, "Reference")
+    const references = utils.findChildren(signedInfoDoc, "Reference");
 
     if (!utils.isArrayHasLength(references)) {
       throw new Error("could not find any Reference elements");
@@ -658,11 +691,16 @@ export class SignedXml {
     if (nodes.length === 0) {
       throw new Error(`could not find DigestValue node in reference ${refNode.toString()}`);
     }
-    const firstChild = nodes[0];
-    if (!firstChild) {
-      throw new Error(`could not find the value of DigestValue in ${nodes[0].toString()}`);
+
+    if (nodes.length > 1) {
+      throw new Error(
+        `could not load reference for a node that contains multiple DigestValue nodes: ${refNode.toString()}`,
+      );
     }
-    const digestValue = firstChild.textContent; // use textContent which SHOULD be part of signing input
+    const digestValue = nodes[0].textContent;
+    if (!digestValue) {
+      throw new Error(`could not find the value of DigestValue in ${refNode.toString()}`);
+    }
 
     const transforms: string[] = [];
     let inclusiveNamespacesPrefixList: string[] = [];
@@ -712,7 +750,9 @@ export class SignedXml {
     ) {
       transforms.push("http://www.w3.org/TR/2001/REC-xml-c14n-20010315");
     }
-    const refUri = isDomNode.isElementNode(refNode) ? (refNode.getAttribute("URI") || undefined) : undefined;
+   const refUri = isDomNode.isElementNode(refNode)
+      ? refNode.getAttribute("URI") || undefined
+      : undefined;
 
     this.addReference({
       transforms,
