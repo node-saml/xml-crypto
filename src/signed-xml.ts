@@ -252,26 +252,72 @@ export class SignedXml {
     this.signedXml = xml;
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
+    // Reset the references as only references from our re-parsed signedInfo node can be trusted
+    this.references = [];
+
+    const unverifiedSignedInfoCanon = this.getCanonSignedInfoXml(doc);
+    if (!unverifiedSignedInfoCanon) {
+      if (callback) {
+        callback(new Error("Canonical signed info cannot be empty"), false);
+        return;
+      }
+
+      throw new Error("Canonical signed info cannot be empty");
+    }
+
+    // unsigned, verify later to keep with consistent callback behavior
+    const parsedUnverifiedSignedInfo = new xmldom.DOMParser().parseFromString(
+      unverifiedSignedInfoCanon,
+      "text/xml",
+    );
+
+    const unverifiedSignedInfoDoc = parsedUnverifiedSignedInfo.documentElement;
+    if (!unverifiedSignedInfoDoc) {
+      if (callback) {
+        callback(new Error("Could not parse unverifiedSignedInfoCanon into a document"), false);
+        return;
+      }
+
+      throw new Error("Could not parse unverifiedSignedInfoCanon into a document");
+    }
+
+    const references = utils.findChildren(unverifiedSignedInfoDoc, "Reference");
+    if (!utils.isArrayHasLength(references)) {
+      if (callback) {
+        callback(new Error("could not find any Reference elements"), false);
+        return;
+      }
+
+      throw new Error("could not find any Reference elements");
+    }
+
+    // TODO: In a future release we'd like to load the Signature and its References at the same time,
+    // however, in the `.loadSignature()` method we don't have the entire document,
+    // which we need to to keep the inclusive namespaces
+    for (const reference of references) {
+      this.loadReference(reference);
+    }
 
     if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
       if (callback) {
-        callback(new Error("Could not validate all references"));
+        callback(new Error("Could not validate all references"), false);
         return;
       }
 
       return false;
     }
 
-    const signedInfoCanon = this.getCanonSignedInfoXml(doc);
+    // Stage B: Take the signature algorithm and key and verify the SignatureValue against the canonicalized SignedInfo
     const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
     const key = this.getCertFromKeyInfo(this.keyInfo) || this.publicCert || this.privateKey;
     if (key == null) {
       throw new Error("KeyInfo or publicCert or privateKey is required to validate signature");
     }
+
     if (callback) {
-      signer.verifySignature(signedInfoCanon, key, this.signatureValue, callback);
+      signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue, callback);
     } else {
-      const verified = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
+      const verified = signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
 
       if (verified === false) {
         throw new Error(
@@ -294,6 +340,11 @@ export class SignedXml {
     const signedInfo = utils.findChildren(this.signatureNode, "SignedInfo");
     if (signedInfo.length === 0) {
       throw new Error("could not find SignedInfo element in the message");
+    }
+    if (signedInfo.length > 1) {
+      throw new Error(
+        "could not get canonicalized signed info for a signature that contains multiple SignedInfo nodes",
+      );
     }
 
     if (
@@ -522,11 +573,43 @@ export class SignedXml {
       this.signatureAlgorithm = signatureAlgorithm.value as SignatureAlgorithmType;
     }
 
-    this.references = [];
-    const references = xpath.select(
-      ".//*[local-name(.)='SignedInfo']/*[local-name(.)='Reference']",
-      signatureNode,
+    const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
+    if (!utils.isArrayHasLength(signedInfoNodes)) {
+      throw new Error("no signed info node found");
+    }
+    if (signedInfoNodes.length > 1) {
+      throw new Error("could not load signature that contains multiple SignedInfo nodes");
+    }
+
+    // Try to operate on the c14n version of `signedInfo`. This forces the initial `getReferences()`
+    // API call to always return references that are loaded under the canonical `SignedInfo`
+    // in the case that the client access the `.references` **before** signature verification.
+
+    // Ensure canonicalization algorithm is exclusive, otherwise we'd need the entire document
+    let canonicalizationAlgorithmForSignedInfo = this.canonicalizationAlgorithm;
+    if (
+      !canonicalizationAlgorithmForSignedInfo ||
+      canonicalizationAlgorithmForSignedInfo ===
+        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315" ||
+      canonicalizationAlgorithmForSignedInfo ===
+        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
+    ) {
+      canonicalizationAlgorithmForSignedInfo = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    }
+
+    const temporaryCanonSignedInfo = this.getCanonXml(
+      [canonicalizationAlgorithmForSignedInfo],
+      signedInfoNodes[0],
     );
+    const temporaryCanonSignedInfoXml = new xmldom.DOMParser().parseFromString(
+      temporaryCanonSignedInfo,
+      "text/xml",
+    );
+    const signedInfoDoc = temporaryCanonSignedInfoXml.documentElement;
+
+    this.references = [];
+    const references = utils.findChildren(signedInfoDoc, "Reference");
+
     if (!utils.isArrayHasLength(references)) {
       throw new Error("could not find any Reference elements");
     }
@@ -572,11 +655,15 @@ export class SignedXml {
     if (nodes.length === 0) {
       throw new Error(`could not find DigestValue node in reference ${refNode.toString()}`);
     }
-    const firstChild = nodes[0].firstChild;
-    if (!firstChild || !("data" in firstChild)) {
-      throw new Error(`could not find the value of DigestValue in ${nodes[0].toString()}`);
+    if (nodes.length > 1) {
+      throw new Error(
+        `could not load reference for a node that contains multiple DigestValue nodes: ${refNode.toString()}`,
+      );
     }
-    const digestValue = firstChild.data;
+    const digestValue = nodes[0].textContent;
+    if (!digestValue) {
+      throw new Error(`could not find the value of DigestValue in ${refNode.toString()}`);
+    }
 
     const transforms: string[] = [];
     let inclusiveNamespacesPrefixList: string[] = [];
@@ -626,11 +713,14 @@ export class SignedXml {
     ) {
       transforms.push("http://www.w3.org/TR/2001/REC-xml-c14n-20010315");
     }
+    const refUri = isDomNode.isElementNode(refNode)
+      ? refNode.getAttribute("URI") || undefined
+      : undefined;
 
     this.addReference({
       transforms,
       digestAlgorithm: digestAlgo,
-      uri: isDomNode.isElementNode(refNode) ? utils.findAttr(refNode, "URI")?.value : undefined,
+      uri: refUri,
       digestValue,
       inclusiveNamespacesPrefixList,
       isEmptyUri: false,
