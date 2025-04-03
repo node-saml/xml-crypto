@@ -1,24 +1,20 @@
 # xml-crypto
 
-
-# Upgrading
-
-The `.getReferences() AND the .references` API is deprecated.
-Please do not attempt to access it. The content in there should be treated as unsigned.
-
-Instead, we strongly encourage users to migrate to the .signedReferences API. See the `Verifying XML document` section
-We understand that this may take a lot of efforts to migrate, feel free to ask for help.
-This will help prevent future XML signature wrapping attacks in the future.
-
-``
-
-
 ![Build](https://github.com/node-saml/xml-crypto/actions/workflows/ci.yml/badge.svg)
 [![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-Ready--to--Code-blue?logo=gitpod)](https://gitpod.io/from-referrer/)
 
-An xml digital signature library for node. Xml encryption is coming soon. Written in pure javascript!
+---
 
-For more information visit [my blog](http://webservices20.blogspot.com/) or [my twitter](https://twitter.com/YaronNaveh).
+# Upgrading
+
+The `.getReferences()` AND the `.references` APIs are deprecated.
+Please do not attempt to access them. The content in them should be treated as unsigned.
+
+Instead, we strongly encourage users to migrate to the `.signedReferences` API. See the [Verifying XML document](#verifying-xml-documents) section
+We understand that this may take a lot of efforts to migrate, feel free to ask for help.
+This will help prevent future XML signature wrapping attacks.
+
+---
 
 ## Install
 
@@ -172,16 +168,16 @@ var select = require("xml-crypto").xpath,
   fs = require("fs");
 
 var xml = fs.readFileSync("signed.xml").toString();
-
 var doc = new dom().parseFromString(xml);
 
-// DO NOT attempt to parse whatever data object you have here
+// DO NOT attempt to parse whatever data object you have here in `doc`
+// and then use it to verify the signature. This can lead to security issues.
 // i.e. BAD: parseAssertion(doc),
 // good: see below
 
 var signature = select(
   doc,
-  "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+  "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']"
 )[0];
 var sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
 sig.loadSignature(signature);
@@ -190,27 +186,24 @@ try {
 } catch (ex) {
   console.log(ex);
 }
-
-
 ```
 
 In order to protect from some attacks we must check the content we want to use is the one that has been signed:
 
 ```javascript
 if (!res) {
-  throw "Invalid Signature"
+  throw "Invalid Signature";
 }
 // good: The XML Signature has been verified, meaning some subset of XML is verified.
 var signedBytes = sig.signedReferences;
 
-var authenticatedDoc = new dom().parseFromString(signedBytes[0]); // take the first of the signed references
-// load SAML or whatever from now
-// obtain the assertion XML from here
-// use only authenticated data
+var authenticatedDoc = new dom().parseFromString(signedBytes[0]); // Take the first signed reference
+// It is now safe to load SAML, obtain the assertion XML, or do whatever else is needed.
+// Be sure to only use authenticated data.
 let signedAssertionNode = extractAssertion(authenticatedDoc);
-let parsedAssertion = parseAssertion(signedAssertionNode)
-return parsedAssertion; // now return the client, the signed Assertion
+let parsedAssertion = parseAssertion(signedAssertionNode);
 
+return parsedAssertion; // This the correctly verified signed Assertion
 
 // BAD example: DO not use the .getReferences() API.
 ```
