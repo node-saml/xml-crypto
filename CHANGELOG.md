@@ -7,13 +7,13 @@
 - Introduced new .signedReferences property of signature to help prevent signature wrapping attacks.
 - After calling .checkSignature() with your public certificate, obtain .signedReferences to use. Array of signed strings by the certificate
 
-
 ## 6.0.0 (2024-01-26)
+
 =======
 
 ## 6.0.1 (2025-03-14)
 
- - Address CVEs: CVE-2025-29774 and CVE-2025-29775
+- Address CVEs: CVE-2025-29774 and CVE-2025-29775
 
 ---
 
