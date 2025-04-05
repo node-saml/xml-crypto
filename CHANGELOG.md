@@ -2,7 +2,7 @@
 
 ## 6.0.1 (2025-03-14)
 
- - Address CVEs: CVE-2025-29774 and CVE-2025-29775
+- Address CVEs: CVE-2025-29774 and CVE-2025-29775
 
 ---
 
