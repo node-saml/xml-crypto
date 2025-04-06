@@ -25,7 +25,6 @@ import * as signatureAlgorithms from "./signature-algorithms";
 import * as crypto from "crypto";
 import * as isDomNode from "@xmldom/is-dom-node";
 
-
 export class SignedXml {
   idMode?: "wssecurity";
   idAttributes: string[];
@@ -88,7 +87,7 @@ export class SignedXml {
     "http://www.w3.org/2000/09/xmldsig#enveloped-signature": envelopedSignatures.EnvelopedSignature,
   };
 
-  // TODO: In V7.x we may consider deprecating sha1
+  // TODO: In v7.x we may consider deprecating sha1
 
   /**
    * To add a new hash algorithm create a new class that implements the {@link HashAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
@@ -99,7 +98,7 @@ export class SignedXml {
     "http://www.w3.org/2001/04/xmlenc#sha512": hashAlgorithms.Sha512,
   };
 
-  // TODO: In V7.x we may consider deprecating sha1
+  // TODO: In v7.x we may consider deprecating sha1
 
   /**
    * To add a new signature algorithm create a new class that implements the {@link SignatureAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
@@ -160,8 +159,8 @@ export class SignedXml {
     this.CanonicalizationAlgorithms;
     this.HashAlgorithms;
     this.SignatureAlgorithms;
-    // this populates only after verifying the signature
-    // array of bytes that are cryptographically authenticated
+    // This populates only after verifying the signature
+    //  as an array of bytes that are cryptographically authenticated.
     this.signedReferences = []; // TODO: should we rename this to something better.
   }
 
@@ -317,21 +316,18 @@ export class SignedXml {
       return false;
     }
 
-    // (Stage B authentication step, show that the signedInfoCanon is signed)
+    // (Stage B authentication step, show that the `signedInfoCanon` is signed)
 
-    // first find the key & signature algorithm, this should match
-    // Stage B: Take the signature algorithm and key and verify the SignatureValue against the canonicalized SignedInfo
+    // First find the key & signature algorithm, these should match
+    // Stage B: Take the signature algorithm and key and verify the `SignatureValue` against the canonicalized `SignedInfo`
     const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
     const key = this.getCertFromKeyInfo(this.keyInfo) || this.publicCert || this.privateKey;
     if (key == null) {
       throw new Error("KeyInfo or publicCert or privateKey is required to validate signature");
     }
 
-
-    // let's clear the callback up a little bit, so we can access it's results,
-    // and decide whether to reset signature value or not
+    // Check the signature verification to know whether to reset signature value or not.
     const sigRes = signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
-    // true case
     if (sigRes === true) {
       if (callback) {
         callback(null, true);
@@ -339,17 +335,15 @@ export class SignedXml {
         return true;
       }
     } else {
-      // false case
-      // reset the signedReferences back to empty array
-      // I would have preferred to start by verifying the signedInfoCanon first, if that's OK
-      // but that may cause some breaking changes?
+      // Reset the signedReferences back to empty array.
+      // Ideally we would start by verifying the signedInfoCanon first,
+      // but that may cause some breaking changes, so we'll handle that in v7.x
       this.signedReferences = [];
 
-
       if (callback) {
-        callback(new Error(
-          `invalid signature: the signature value ${this.signatureValue} is incorrect`,
-        ));
+        callback(
+          new Error(`invalid signature: the signature value ${this.signatureValue} is incorrect`),
+        );
         return; // return early
       } else {
         throw new Error(
@@ -555,10 +549,10 @@ export class SignedXml {
 
       return false;
     }
-    // This step can only be done after we have verified the signedInfo
-    // we verified that they have same hash
-    // so, the canonXml and only the canonXml can be trusted
-    // append this to signedReferences
+    // This step can only be done after we have verified the `signedInfo`.
+    // We verified that they have same hash,
+    // thus the `canonXml` and _only_ the `canonXml` can be trusted.
+    // Append this to `signedReferences`.
     this.signedReferences.push(canonXml);
 
     return true;
@@ -610,7 +604,6 @@ export class SignedXml {
 
     const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
     if (!utils.isArrayHasLength(signedInfoNodes)) {
-
       throw new Error("no signed info node found");
     }
     if (signedInfoNodes.length > 1) {
@@ -750,7 +743,7 @@ export class SignedXml {
     ) {
       transforms.push("http://www.w3.org/TR/2001/REC-xml-c14n-20010315");
     }
-   const refUri = isDomNode.isElementNode(refNode)
+    const refUri = isDomNode.isElementNode(refNode)
       ? refNode.getAttribute("URI") || undefined
       : undefined;
 
