@@ -20,6 +20,7 @@ describe("SAML response tests", function () {
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("test validating wrapped assertion signature", function () {
@@ -43,6 +44,8 @@ describe("SAML response tests", function () {
         "same value for the ID / Id / Id attributes, in order to prevent " +
         "signature wrapping attack.",
     ).to.throw();
+    expect(sig.signedReferences.length).to.equal(0);
+
   });
 
   it("test validating SAML response where a namespace is defined outside the signed element", function () {
@@ -58,6 +61,7 @@ describe("SAML response tests", function () {
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("test reference id does not contain quotes", function () {

@@ -21,6 +21,7 @@ describe("Document tests", function () {
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("test with a document (using StringKeyInfo)", function () {
@@ -55,6 +56,8 @@ describe("Validated node references tests", function () {
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode();
     expect(result?.toString()).to.equal(doc.toString());
+    expect(sig.signedReferences.length).to.equal(1);
+
   });
 
   it("should not return references if the document is not validly signed", function () {
@@ -68,6 +71,7 @@ describe("Validated node references tests", function () {
     const ref = sig.getReferences()[1];
     const result = ref.getValidatedNode();
     expect(result).to.be.null;
+    expect(sig.signedReferences.length).to.equal(0); // reset signedReferences
   });
 
   it("should return `null` if the selected node isn't found", function () {
@@ -98,6 +102,8 @@ describe("Validated node references tests", function () {
       "//*[local-name()='Attribute' and @Name='mail']/*[local-name()='AttributeValue']/text()",
     );
     expect(result?.nodeValue).to.equal("henri.bergius@nemein.com");
+    expect(sig.signedReferences.length).to.equal(1);
+
   });
 
   it("should return `null` if the selected node isn't validly signed", function () {
@@ -113,5 +119,8 @@ describe("Validated node references tests", function () {
       "//*[local-name()='Attribute' and @Name='mail']/*[local-name()='AttributeValue']/text()",
     );
     expect(result).to.be.null;
+    // need all references to verify. Reset back to zero now
+    expect(sig.signedReferences.length).to.equal(0);
+
   });
 });
