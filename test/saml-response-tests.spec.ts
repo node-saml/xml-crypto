@@ -44,6 +44,8 @@ describe("SAML response tests", function () {
         "same value for the ID / Id / Id attributes, in order to prevent " +
         "signature wrapping attack.",
     ).to.throw();
+    expect(sig.signedReferences.length).to.equal(0);
+
   });
 
   it("test validating SAML response where a namespace is defined outside the signed element", function () {

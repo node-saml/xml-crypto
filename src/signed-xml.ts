@@ -308,6 +308,7 @@ export class SignedXml {
     }
 
     if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
+      this.signedReferences = []; // reset again
       if (callback) {
         callback(null, false);
         return;
