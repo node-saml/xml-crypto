@@ -21,6 +21,7 @@ describe("Document tests", function () {
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("test with a document (using StringKeyInfo)", function () {
@@ -39,6 +40,7 @@ describe("Document tests", function () {
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 });
 
@@ -51,6 +53,7 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
 
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode();
@@ -64,6 +67,7 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.false;
+    expect(sig.signedReferences.length).to.equal(0);
 
     const ref = sig.getReferences()[1];
     const result = ref.getValidatedNode();
@@ -78,6 +82,7 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
 
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode("/non-existent-node");
@@ -92,6 +97,7 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
 
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode(
@@ -107,6 +113,7 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.false;
+    expect(sig.signedReferences.length).to.equal(0);
 
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode(

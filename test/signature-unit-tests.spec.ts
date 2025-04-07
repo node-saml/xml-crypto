@@ -817,6 +817,7 @@ describe("Signature unit tests", function () {
         expect(checkedSignature).to.be.true;
 
         expect(sig.getReferences().length).to.equal(3);
+        expect(sig.signedReferences.length).to.equal(3);
 
         const digests = [
           "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
@@ -857,7 +858,7 @@ describe("Signature unit tests", function () {
     });
 
     describe("pass verify signature", function () {
-      function verifySignature(xml: string, idMode?: "wssecurity") {
+      function loadSignature(xml: string, idMode?: "wssecurity") {
         const doc = new xmldom.DOMParser().parseFromString(xml);
         const node = xpath.select1(
           "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
@@ -867,25 +868,34 @@ describe("Signature unit tests", function () {
         const sig = new SignedXml({ idMode });
         sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
         sig.loadSignature(node);
-        try {
-          const res = sig.checkSignature(xml);
 
-          return res;
-        } catch (e) {
-          return false;
-        }
+        return sig;
       }
 
       function passValidSignature(file: string, mode?: "wssecurity") {
         const xml = fs.readFileSync(file, "utf8");
-        const res = verifySignature(xml, mode);
-        expect(res, "expected signature to be valid, but it was reported invalid").to.equal(true);
+        const sig = loadSignature(xml, mode);
+        const res = sig.checkSignature(xml);
+        expect(res, "expected all signatures to be valid, but some reported invalid").to.be.true;
+        expect(sig.signedReferences.length).to.equal(sig.getReferences().length);
       }
 
       function failInvalidSignature(file: string, idMode?: "wssecurity") {
         const xml = fs.readFileSync(file).toString();
-        const res = verifySignature(xml, idMode);
-        expect(res, "expected signature to be invalid, but it was reported valid").to.equal(false);
+        const sig = loadSignature(xml, idMode);
+        const res = sig.checkSignature(xml);
+        expect(res, "expected a signature to be invalid, but all were reported valid").to.be.false;
+        expect(sig.signedReferences.length).to.be.lessThan(sig.getReferences().length);
+      }
+
+      function throwsValidatingSignature(file: string, idMode?: "wssecurity") {
+        const xml = fs.readFileSync(file).toString();
+        const sig = loadSignature(xml, idMode);
+        expect(
+          () => sig.checkSignature(xml),
+          "expected an error to be thrown because signatures couldn't be checked for validity",
+        ).to.throw();
+        expect(sig.signedReferences.length).to.equal(0);
       }
 
       it("verifies valid signature", function () {
@@ -920,8 +930,8 @@ describe("Signature unit tests", function () {
         passValidSignature("./test/static/valid_signature_without_transforms_element.xml");
       });
 
-      it("fails invalid signature - signature value", function () {
-        failInvalidSignature("./test/static/invalid_signature - signature value.xml");
+      it("throws validating signature - signature value", function () {
+        throwsValidatingSignature("./test/static/invalid_signature - signature value.xml");
       });
 
       it("fails invalid signature - hash", function () {

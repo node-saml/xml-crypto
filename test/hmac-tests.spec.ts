@@ -22,6 +22,7 @@ describe("HMAC tests", function () {
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("test HMAC signature with incorrect key", function () {
@@ -39,6 +40,7 @@ describe("HMAC tests", function () {
     sig.loadSignature(signature);
 
     expect(() => sig.checkSignature(xml)).to.throw(/^invalid signature/);
+    expect(sig.signedReferences.length).to.equal(0);
   });
 
   it("test create and validate HMAC signature", function () {
@@ -69,5 +71,6 @@ describe("HMAC tests", function () {
     const result = verify.checkSignature(sig.getSignedXml());
 
     expect(result).to.be.true;
+    expect(verify.signedReferences.length).to.equal(1);
   });
 });

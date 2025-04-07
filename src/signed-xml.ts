@@ -160,8 +160,8 @@ export class SignedXml {
     this.HashAlgorithms;
     this.SignatureAlgorithms;
     // This populates only after verifying the signature
-    //  as an array of bytes that are cryptographically authenticated.
-    this.signedReferences = []; // TODO: should we rename this to something better.
+    // as an array of bytes that are cryptographically authenticated.
+    this.signedReferences = [];
   }
 
   /**
@@ -309,10 +309,11 @@ export class SignedXml {
 
     if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
       if (callback) {
-        callback(new Error("Could not validate all references"), false);
+        callback(null, false);
         return;
       }
 
+      // We return false because some references validated, but not all
       return false;
     }
 
@@ -335,9 +336,9 @@ export class SignedXml {
         return true;
       }
     } else {
-      // Reset the signedReferences back to empty array.
-      // Ideally we would start by verifying the signedInfoCanon first,
-      // but that may cause some breaking changes, so we'll handle that in v7.x
+      // Ideally, we would start by verifying the `signedInfoCanon` first,
+      // but that may cause some breaking changes, so we'll handle that in v7.x.
+      // If we were validating `signedInfoCanon` first, we wouldn't have to reset this array.
       this.signedReferences = [];
 
       if (callback) {

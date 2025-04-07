@@ -83,6 +83,7 @@ describe("Signature integration tests", function () {
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("add canonicalization if output of transforms will be a node-set rather than an octet stream", function () {
@@ -110,6 +111,7 @@ describe("Signature integration tests", function () {
     const result = sig.checkSignature(childXml ?? "");
 
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("signature with inclusive namespaces", function () {
@@ -128,6 +130,7 @@ describe("Signature integration tests", function () {
     const result = sig.checkSignature(childXml ?? "");
 
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("signature with inclusive namespaces with unix line separators", function () {
@@ -149,6 +152,7 @@ describe("Signature integration tests", function () {
     const result = sig.checkSignature(childXml ?? "");
 
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("signature with inclusive namespaces with windows line separators", function () {
@@ -170,6 +174,7 @@ describe("Signature integration tests", function () {
     const result = sig.checkSignature(childXml ?? "");
 
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("should create single root xml document when signing inner node", function () {

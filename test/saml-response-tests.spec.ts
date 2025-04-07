@@ -20,6 +20,7 @@ describe("SAML response tests", function () {
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("test validating wrapped assertion signature", function () {
@@ -58,6 +59,7 @@ describe("SAML response tests", function () {
     sig.loadSignature(signature);
     const result = sig.checkSignature(xml);
     expect(result).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("test reference id does not contain quotes", function () {
@@ -91,6 +93,7 @@ describe("SAML response tests", function () {
     sig.loadSignature(signature);
     // This doesn't matter, just want to make sure that we don't fail due to unknown algorithm
     expect(() => sig.checkSignature(xml)).to.throw(/^invalid signature/);
+    expect(sig.signedReferences.length).to.equal(0);
   });
 
   it("throws an error for a document with no `SignedInfo` node", function () {
@@ -126,6 +129,7 @@ describe("SAML response tests", function () {
     expect(sig.getReferences().length).to.equal(1);
     const checkSignatureResult = sig.checkSignature(xml);
     expect(checkSignatureResult).to.be.true;
+    expect(sig.signedReferences.length).to.equal(1);
   });
 
   it("test signature throws if multiple `SignedInfo` nodes are found", function () {
@@ -164,6 +168,7 @@ describe("SAML response tests", function () {
 
       expect(sig.getReferences()[0].digestValue).to.equal("RnNjoyUguwze5w2R+cboyTHlkQk=");
       expect(sig.checkSignature(xml)).to.be.false;
+      expect(sig.signedReferences.length).to.equal(0);
     });
   });
 });
