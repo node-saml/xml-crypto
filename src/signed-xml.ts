@@ -845,11 +845,10 @@ export class SignedXml {
    * Compute the signature of the given XML (using the already defined settings).
    *
    * @param xml The XML to compute the signature for.
-   * @param callback A callback function to handle the signature computation asynchronously.
    * @returns void
    * @throws TypeError If the xml can not be parsed.
    */
-  computeSignature(xml: string): void;
+  computeSignature(xml: Document | string): void;
 
   /**
    * Compute the signature of the given XML (using the already defined settings).
@@ -859,35 +858,35 @@ export class SignedXml {
    * @returns void
    * @throws TypeError If the xml can not be parsed.
    */
-  computeSignature(xml: string, callback: ErrorFirstCallback<SignedXml>): void;
+  computeSignature(xml: Document | string, callback: ErrorFirstCallback<SignedXml>): void;
 
   /**
    * Compute the signature of the given XML (using the already defined settings).
    *
    * @param xml The XML to compute the signature for.
-   * @param opts An object containing options for the signature computation.
+   * @param options An object containing options for the signature computation.
    * @returns If no callback is provided, returns `this` (the instance of SignedXml).
    * @throws TypeError If the xml can not be parsed, or Error if there were invalid options passed.
    */
-  computeSignature(xml: string, options: ComputeSignatureOptions): void;
+  computeSignature(xml: Document | string, options: ComputeSignatureOptions): void;
 
   /**
    * Compute the signature of the given XML (using the already defined settings).
    *
    * @param xml The XML to compute the signature for.
-   * @param opts An object containing options for the signature computation.
+   * @param options An object containing options for the signature computation.
    * @param callback A callback function to handle the signature computation asynchronously.
    * @returns void
    * @throws TypeError If the xml can not be parsed, or Error if there were invalid options passed.
    */
   computeSignature(
-    xml: string,
+    xml: Document | string,
     options: ComputeSignatureOptions,
     callback: ErrorFirstCallback<SignedXml>,
   ): void;
 
   computeSignature(
-    xml: string,
+    xml: Document | string,
     options?: ComputeSignatureOptions | ErrorFirstCallback<SignedXml>,
     callbackParam?: ErrorFirstCallback<SignedXml>,
   ): void {
@@ -899,8 +898,8 @@ export class SignedXml {
       callback = callbackParam as ErrorFirstCallback<SignedXml>;
       options = (options ?? {}) as ComputeSignatureOptions;
     }
+    const doc = typeof xml === "string" ? new xmldom.DOMParser().parseFromString(xml) : xml;
 
-    const doc = new xmldom.DOMParser().parseFromString(xml);
     let xmlNsAttr = "xmlns";
     const signatureAttrs: string[] = [];
     let currentPrefix: string;
