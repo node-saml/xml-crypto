@@ -59,7 +59,6 @@ describe("Validated node references tests", function () {
     const result = ref.getValidatedNode();
     expect(result?.toString()).to.equal(doc.toString());
     expect(sig.signedReferences.length).to.equal(1);
-
   });
 
   it("should not return references if the document is not validly signed", function () {
@@ -108,7 +107,6 @@ describe("Validated node references tests", function () {
     );
     expect(result?.nodeValue).to.equal("henri.bergius@nemein.com");
     expect(sig.signedReferences.length).to.equal(1);
-
   });
 
   it("should return `null` if the selected node isn't validly signed", function () {
@@ -127,6 +125,5 @@ describe("Validated node references tests", function () {
     expect(result).to.be.null;
     // need all references to verify. Reset back to zero now
     expect(sig.signedReferences.length).to.equal(0);
-
   });
 });

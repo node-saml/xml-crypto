@@ -45,7 +45,6 @@ describe("SAML response tests", function () {
         "signature wrapping attack.",
     ).to.throw();
     expect(sig.signedReferences.length).to.equal(0);
-
   });
 
   it("test validating SAML response where a namespace is defined outside the signed element", function () {
