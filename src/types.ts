@@ -104,6 +104,8 @@ export interface ComputeSignatureOptions {
 
 /**
  * Represents a reference node for XML digital signature.
+ *
+ * Should be internal only
  */
 export interface Reference {
   // The XPath expression that selects the data to be signed.

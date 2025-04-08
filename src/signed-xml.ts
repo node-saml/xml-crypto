@@ -25,6 +25,9 @@ import * as signatureAlgorithms from "./signature-algorithms";
 import * as crypto from "crypto";
 import * as isDomNode from "@xmldom/is-dom-node";
 
+// configuration class for Signing/Verifying XML.
+// We extract relevant logic into a new XMLVerifier class
+
 export class SignedXml {
   idMode?: "wssecurity";
   idAttributes: string[];
@@ -87,6 +90,8 @@ export class SignedXml {
     "http://www.w3.org/2000/09/xmldsig#enveloped-signature": envelopedSignatures.EnvelopedSignature,
   };
 
+  // TODO: In V7.x we may consider deprecating sha1
+
   /**
    * To add a new hash algorithm create a new class that implements the {@link HashAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
    */
@@ -95,6 +100,8 @@ export class SignedXml {
     "http://www.w3.org/2001/04/xmlenc#sha256": hashAlgorithms.Sha256,
     "http://www.w3.org/2001/04/xmlenc#sha512": hashAlgorithms.Sha512,
   };
+
+  // TODO: In V7.x we may consider deprecating sha1
 
   /**
    * To add a new signature algorithm create a new class that implements the {@link SignatureAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
@@ -112,6 +119,7 @@ export class SignedXml {
   };
 
   static noop = () => null;
+  public signedReferences: string[] = [];
 
   /**
    * The SignedXml constructor provides an abstraction for sign and verify xml documents. The object is constructed using
@@ -154,6 +162,9 @@ export class SignedXml {
     this.CanonicalizationAlgorithms;
     this.HashAlgorithms;
     this.SignatureAlgorithms;
+    // this populates only after verifying the signature
+    // array of bytes that are cryptographically authenticated
+    this.signedReferences = []; // TODO: should we rename this to something better.
   }
 
   /**
@@ -229,10 +240,9 @@ export class SignedXml {
    * Validates the signature of the provided XML document synchronously using the configured key info provider.
    *
    * @param xml The XML document containing the signature to be validated.
-   * @returns `true` if the signature is valid
    * @throws Error if no key info resolver is provided.
    */
-  checkSignature(xml: string): boolean;
+  _checkSignature(xml: string): string[];
   /**
    * Validates the signature of the provided XML document synchronously using the configured key info provider.
    *
@@ -240,8 +250,8 @@ export class SignedXml {
    * @param callback Callback function to handle the validation result asynchronously.
    * @throws Error if the last parameter is provided and is not a function, or if no key info resolver is provided.
    */
-  checkSignature(xml: string, callback: (error: Error | null, isValid?: boolean) => void): void;
-  checkSignature(
+  _checkSignature(xml: string, callback: (error: Error | null, isValid?: boolean) => void): void;
+  _checkSignature(
     xml: string,
     callback?: (error: Error | null, isValid?: boolean) => void,
   ): unknown {
@@ -252,6 +262,7 @@ export class SignedXml {
     this.signedXml = xml;
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
+
     // Reset the references as only references from our re-parsed signedInfo node can be trusted
     this.references = [];
 
@@ -307,6 +318,9 @@ export class SignedXml {
       return false;
     }
 
+    // (Stage B authentication step, show that the signedInfoCanon is signed)
+
+    // first find the key & signature algorithm, this should match
     // Stage B: Take the signature algorithm and key and verify the SignatureValue against the canonicalized SignedInfo
     const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
     const key = this.getCertFromKeyInfo(this.keyInfo) || this.publicCert || this.privateKey;
@@ -314,18 +328,35 @@ export class SignedXml {
       throw new Error("KeyInfo or publicCert or privateKey is required to validate signature");
     }
 
-    if (callback) {
-      signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue, callback);
-    } else {
-      const verified = signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
 
-      if (verified === false) {
+    // let's clear the callback up a little bit, so we can access it's results,
+    // and decide whether to reset signature value or not
+    const sigRes = signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
+    // true case
+    if (sigRes === true) {
+      if (callback) {
+        callback(null, true);
+      } else {
+        return true;
+      }
+    } else {
+      // false case
+      // reset the signedReferences back to empty array
+      // I would have preferred to start by verifying the signedInfoCanon first, if that's OK
+      // but that may cause some breaking changes?
+      this.signedReferences = [];
+
+
+      if (callback) {
+        callback(new Error(
+          `invalid signature: the signature value ${this.signatureValue} is incorrect`,
+        ));
+        return; // return early
+      } else {
         throw new Error(
           `invalid signature: the signature value ${this.signatureValue} is incorrect`,
         );
       }
-
-      return true;
     }
   }
 
@@ -465,70 +496,6 @@ export class SignedXml {
     throw new Error("No references passed validation");
   }
 
-  private validateReference(ref: Reference, doc: Document) {
-    const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
-    let elem: xpath.SelectSingleReturnType = null;
-
-    if (uri === "") {
-      elem = xpath.select1("//*", doc);
-    } else if (uri?.indexOf("'") !== -1) {
-      // xpath injection
-      throw new Error("Cannot validate a uri with quotes inside it");
-    } else {
-      let num_elements_for_id = 0;
-      for (const attr of this.idAttributes) {
-        const tmp_elemXpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
-        const tmp_elem = xpath.select(tmp_elemXpath, doc);
-        if (utils.isArrayHasLength(tmp_elem)) {
-          num_elements_for_id += tmp_elem.length;
-
-          if (num_elements_for_id > 1) {
-            throw new Error(
-              "Cannot validate a document which contains multiple elements with the " +
-                "same value for the ID / Id / Id attributes, in order to prevent " +
-                "signature wrapping attack.",
-            );
-          }
-
-          elem = tmp_elem[0];
-          ref.xpath = tmp_elemXpath;
-        }
-      }
-    }
-
-    ref.getValidatedNode = (xpathSelector?: string) => {
-      xpathSelector = xpathSelector || ref.xpath;
-      if (typeof xpathSelector !== "string" || ref.validationError != null) {
-        return null;
-      }
-      const selectedValue = xpath.select1(xpathSelector, doc);
-      return isDomNode.isNodeLike(selectedValue) ? selectedValue : null;
-    };
-
-    if (!isDomNode.isNodeLike(elem)) {
-      const validationError = new Error(
-        `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
-      );
-      ref.validationError = validationError;
-      return false;
-    }
-
-    const canonXml = this.getCanonReferenceXml(doc, ref, elem);
-    const hash = this.findHashAlgorithm(ref.digestAlgorithm);
-    const digest = hash.getHash(canonXml);
-
-    if (!utils.validateDigestValue(digest, ref.digestValue)) {
-      const validationError = new Error(
-        `invalid signature: for uri ${ref.uri} calculated digest is ${digest} but the xml to validate supplies digest ${ref.digestValue}`,
-      );
-      ref.validationError = validationError;
-
-      return false;
-    }
-
-    return true;
-  }
-
   findSignatures(doc: Node): Node[] {
     const nodes = xpath.select(
       "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
@@ -575,6 +542,7 @@ export class SignedXml {
 
     const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
     if (!utils.isArrayHasLength(signedInfoNodes)) {
+
       throw new Error("no signed info node found");
     }
     if (signedInfoNodes.length > 1) {
@@ -655,6 +623,7 @@ export class SignedXml {
     if (nodes.length === 0) {
       throw new Error(`could not find DigestValue node in reference ${refNode.toString()}`);
     }
+
     if (nodes.length > 1) {
       throw new Error(
         `could not load reference for a node that contains multiple DigestValue nodes: ${refNode.toString()}`,
@@ -713,7 +682,7 @@ export class SignedXml {
     ) {
       transforms.push("http://www.w3.org/TR/2001/REC-xml-c14n-20010315");
     }
-    const refUri = isDomNode.isElementNode(refNode)
+   const refUri = isDomNode.isElementNode(refNode)
       ? refNode.getAttribute("URI") || undefined
       : undefined;
 
