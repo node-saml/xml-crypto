@@ -25,6 +25,8 @@ import * as signatureAlgorithms from "./signature-algorithms";
 import * as crypto from "crypto";
 import * as isDomNode from "@xmldom/is-dom-node";
 
+// configuration class for Signing/Verifying XML.
+// We extract relevant logic into a new XMLVerifier class
 
 export class SignedXml {
   idMode?: "wssecurity";
@@ -238,10 +240,9 @@ export class SignedXml {
    * Validates the signature of the provided XML document synchronously using the configured key info provider.
    *
    * @param xml The XML document containing the signature to be validated.
-   * @returns `true` if the signature is valid
    * @throws Error if no key info resolver is provided.
    */
-  checkSignature(xml: string): boolean;
+  _checkSignature(xml: string): string[];
   /**
    * Validates the signature of the provided XML document synchronously using the configured key info provider.
    *
@@ -249,8 +250,8 @@ export class SignedXml {
    * @param callback Callback function to handle the validation result asynchronously.
    * @throws Error if the last parameter is provided and is not a function, or if no key info resolver is provided.
    */
-  checkSignature(xml: string, callback: (error: Error | null, isValid?: boolean) => void): void;
-  checkSignature(
+  _checkSignature(xml: string, callback: (error: Error | null, isValid?: boolean) => void): void;
+  _checkSignature(
     xml: string,
     callback?: (error: Error | null, isValid?: boolean) => void,
   ): unknown {
@@ -493,75 +494,6 @@ export class SignedXml {
     }
 
     throw new Error("No references passed validation");
-  }
-
-  private validateReference(ref: Reference, doc: Document) {
-    const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
-    let elem: xpath.SelectSingleReturnType = null;
-
-    if (uri === "") {
-      elem = xpath.select1("//*", doc);
-    } else if (uri?.indexOf("'") !== -1) {
-      // xpath injection
-      throw new Error("Cannot validate a uri with quotes inside it");
-    } else {
-      let num_elements_for_id = 0;
-      for (const attr of this.idAttributes) {
-        const tmp_elemXpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
-        const tmp_elem = xpath.select(tmp_elemXpath, doc);
-        if (utils.isArrayHasLength(tmp_elem)) {
-          num_elements_for_id += tmp_elem.length;
-
-          if (num_elements_for_id > 1) {
-            throw new Error(
-              "Cannot validate a document which contains multiple elements with the " +
-                "same value for the ID / Id / Id attributes, in order to prevent " +
-                "signature wrapping attack.",
-            );
-          }
-
-          elem = tmp_elem[0];
-          ref.xpath = tmp_elemXpath;
-        }
-      }
-    }
-
-    ref.getValidatedNode = (xpathSelector?: string) => {
-      xpathSelector = xpathSelector || ref.xpath;
-      if (typeof xpathSelector !== "string" || ref.validationError != null) {
-        return null;
-      }
-      const selectedValue = xpath.select1(xpathSelector, doc);
-      return isDomNode.isNodeLike(selectedValue) ? selectedValue : null;
-    };
-
-    if (!isDomNode.isNodeLike(elem)) {
-      const validationError = new Error(
-        `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
-      );
-      ref.validationError = validationError;
-      return false;
-    }
-
-    const canonXml = this.getCanonReferenceXml(doc, ref, elem);
-    const hash = this.findHashAlgorithm(ref.digestAlgorithm);
-    const digest = hash.getHash(canonXml);
-
-    if (!utils.validateDigestValue(digest, ref.digestValue)) {
-      const validationError = new Error(
-        `invalid signature: for uri ${ref.uri} calculated digest is ${digest} but the xml to validate supplies digest ${ref.digestValue}`,
-      );
-      ref.validationError = validationError;
-
-      return false;
-    }
-    // This step can only be done after we have verified the signedInfo
-    // we verified that they have same hash
-    // so, the canonXml and only the canonXml can be trusted
-    // append this to signedReferences
-    this.signedReferences.push(canonXml);
-
-    return true;
   }
 
   findSignatures(doc: Node): Node[] {
