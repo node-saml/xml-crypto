@@ -20,6 +20,6 @@ describe("WS-Fed Metadata tests", function () {
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
-    expect(sig.signedReferences.length).to.equal(1);
+    expect(sig.getSignedReferences().length).to.equal(1);
   });
 });

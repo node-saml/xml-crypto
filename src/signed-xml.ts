@@ -73,6 +73,14 @@ export class SignedXml {
   private references: Reference[] = [];
 
   /**
+   * Contains the canonicalized XML of the references that were validly signed.
+   *
+   * This populates with the canonical XML of the reference only after
+   * verifying the signature is cryptographically authentic.
+   */
+  private signedReferences: string[] = [];
+
+  /**
    *  To add a new transformation algorithm create a new class that implements the {@link TransformationAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
    */
   CanonicalizationAlgorithms: Record<
@@ -117,7 +125,6 @@ export class SignedXml {
   };
 
   static noop = () => null;
-  public signedReferences: string[] = [];
 
   /**
    * The SignedXml constructor provides an abstraction for sign and verify xml documents. The object is constructed using
@@ -160,9 +167,6 @@ export class SignedXml {
     this.CanonicalizationAlgorithms;
     this.HashAlgorithms;
     this.SignatureAlgorithms;
-    // This populates with the canonical XML of the reference only after
-    // verifying the signature is cryptographically authentic.
-    this.signedReferences = [];
   }
 
   /**
@@ -817,13 +821,17 @@ export class SignedXml {
   }
 
   /**
-   * @deprecated Use `.signedReferences` instead.
+   * @deprecated Use `.getSignedReferences()` instead.
    * Returns the list of references.
    */
   getReferences = deprecate(
     () => this.references,
-    "getReferences() is deprecated. Use `.signedReferences` instead.",
+    "getReferences() is deprecated. Use `.getSignedReferences()` instead.",
   );
+
+  getSignedReferences() {
+    return [...this.signedReferences];
+  }
 
   /**
    * Compute the signature of the given XML (using the already defined settings).

@@ -21,7 +21,7 @@ describe("Document tests", function () {
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
-    expect(sig.signedReferences.length).to.equal(1);
+    expect(sig.getSignedReferences().length).to.equal(1);
   });
 
   it("test with a document (using StringKeyInfo)", function () {
@@ -40,7 +40,7 @@ describe("Document tests", function () {
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
-    expect(sig.signedReferences.length).to.equal(1);
+    expect(sig.getSignedReferences().length).to.equal(1);
   });
 });
 
@@ -53,13 +53,13 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.true;
-    expect(sig.signedReferences.length).to.equal(1);
+    expect(sig.getSignedReferences().length).to.equal(1);
 
     /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode();
     expect(result?.toString()).to.equal(doc.toString());
-    expect(sig.signedReferences.length).to.equal(1);
+    expect(sig.getSignedReferences().length).to.equal(1);
   });
 
   it("should not return references if the document is not validly signed", function () {
@@ -69,13 +69,13 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.false;
-    expect(sig.signedReferences.length).to.equal(0);
+    expect(sig.getSignedReferences().length).to.equal(0);
 
     /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[1];
     const result = ref.getValidatedNode();
     expect(result).to.be.null;
-    expect(sig.signedReferences.length).to.equal(0); // reset signedReferences
+    expect(sig.getSignedReferences().length).to.equal(0);
   });
 
   it("should return `null` if the selected node isn't found", function () {
@@ -86,7 +86,7 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.true;
-    expect(sig.signedReferences.length).to.equal(1);
+    expect(sig.getSignedReferences().length).to.equal(1);
 
     /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[0];
@@ -102,7 +102,7 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.true;
-    expect(sig.signedReferences.length).to.equal(1);
+    expect(sig.getSignedReferences().length).to.equal(1);
 
     /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[0];
@@ -110,7 +110,7 @@ describe("Validated node references tests", function () {
       "//*[local-name()='Attribute' and @Name='mail']/*[local-name()='AttributeValue']/text()",
     );
     expect(result?.nodeValue).to.equal("henri.bergius@nemein.com");
-    expect(sig.signedReferences.length).to.equal(1);
+    expect(sig.getSignedReferences().length).to.equal(1);
   });
 
   it("should return `null` if the selected node isn't validly signed", function () {
@@ -120,7 +120,7 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.false;
-    expect(sig.signedReferences.length).to.equal(0);
+    expect(sig.getSignedReferences().length).to.equal(0);
 
     /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[0];
@@ -128,7 +128,7 @@ describe("Validated node references tests", function () {
       "//*[local-name()='Attribute' and @Name='mail']/*[local-name()='AttributeValue']/text()",
     );
     expect(result).to.be.null;
-    // Not all references verified, so no references should be in `.signedReferences`.
-    expect(sig.signedReferences.length).to.equal(0);
+    // Not all references verified, so no references should be in `.getSignedReferences()`.
+    expect(sig.getSignedReferences().length).to.equal(0);
   });
 });

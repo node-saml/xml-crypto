@@ -818,7 +818,7 @@ describe("Signature unit tests", function () {
 
         /* eslint-disable-next-line deprecation/deprecation */
         expect(sig.getReferences().length).to.equal(3);
-        expect(sig.signedReferences.length).to.equal(3);
+        expect(sig.getSignedReferences().length).to.equal(3);
 
         const digests = [
           "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
@@ -881,7 +881,7 @@ describe("Signature unit tests", function () {
         const res = sig.checkSignature(xml);
         expect(res, "expected all signatures to be valid, but some reported invalid").to.be.true;
         /* eslint-disable-next-line deprecation/deprecation */
-        expect(sig.signedReferences.length).to.equal(sig.getReferences().length);
+        expect(sig.getSignedReferences().length).to.equal(sig.getReferences().length);
       }
 
       function failInvalidSignature(file: string, idMode?: "wssecurity") {
@@ -889,7 +889,7 @@ describe("Signature unit tests", function () {
         const sig = loadSignature(xml, idMode);
         const res = sig.checkSignature(xml);
         expect(res, "expected a signature to be invalid, but all were reported valid").to.be.false;
-        expect(sig.signedReferences.length).to.equal(0);
+        expect(sig.getSignedReferences().length).to.equal(0);
       }
 
       function throwsValidatingSignature(file: string, idMode?: "wssecurity") {
@@ -899,7 +899,7 @@ describe("Signature unit tests", function () {
           () => sig.checkSignature(xml),
           "expected an error to be thrown because signatures couldn't be checked for validity",
         ).to.throw();
-        expect(sig.signedReferences.length).to.equal(0);
+        expect(sig.getSignedReferences().length).to.equal(0);
       }
 
       it("verifies valid signature", function () {

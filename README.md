@@ -10,7 +10,7 @@
 The `.getReferences()` AND the `.references` APIs are deprecated.
 Please do not attempt to access them. The content in them should be treated as unsigned.
 
-Instead, we strongly encourage users to migrate to the `.signedReferences` API. See the [Verifying XML document](#verifying-xml-documents) section
+Instead, we strongly encourage users to migrate to the `.getSignedReferences()` API. See the [Verifying XML document](#verifying-xml-documents) section
 We understand that this may take a lot of efforts to migrate, feel free to ask for help.
 This will help prevent future XML signature wrapping attacks.
 
@@ -195,7 +195,7 @@ if (!res) {
   throw "Invalid Signature";
 }
 // good: The XML Signature has been verified, meaning some subset of XML is verified.
-var signedBytes = sig.signedReferences;
+var signedBytes = sig.getSignedReferences();
 
 var authenticatedDoc = new dom().parseFromString(signedBytes[0]); // Take the first signed reference
 // It is now safe to load SAML, obtain the assertion XML, or do whatever else is needed.
