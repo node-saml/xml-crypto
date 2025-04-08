@@ -816,6 +816,7 @@ describe("Signature unit tests", function () {
         const checkedSignature = sig.checkSignature(xml);
         expect(checkedSignature).to.be.true;
 
+        /* eslint-disable-next-line deprecation/deprecation */
         expect(sig.getReferences().length).to.equal(3);
         expect(sig.signedReferences.length).to.equal(3);
 
@@ -830,7 +831,9 @@ describe("Signature unit tests", function () {
         const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
         expect(matchedReference).to.not.be.false;
 
+        /* eslint-disable-next-line deprecation/deprecation */
         for (let i = 0; i < sig.getReferences().length; i++) {
+          /* eslint-disable-next-line deprecation/deprecation */
           const ref = sig.getReferences()[i];
           const expectedUri = `#_${i}`;
           expect(
@@ -877,6 +880,7 @@ describe("Signature unit tests", function () {
         const sig = loadSignature(xml, mode);
         const res = sig.checkSignature(xml);
         expect(res, "expected all signatures to be valid, but some reported invalid").to.be.true;
+        /* eslint-disable-next-line deprecation/deprecation */
         expect(sig.signedReferences.length).to.equal(sig.getReferences().length);
       }
 

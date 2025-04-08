@@ -1,7 +1,10 @@
 import type {
   CanonicalizationAlgorithmType,
+  CanonicalizationOrTransformAlgorithmType,
   CanonicalizationOrTransformationAlgorithm,
+  CanonicalizationOrTransformationAlgorithmProcessOptions,
   ComputeSignatureOptions,
+  ErrorFirstCallback,
   GetKeyInfoContentArgs,
   HashAlgorithm,
   HashAlgorithmType,
@@ -9,21 +12,19 @@ import type {
   SignatureAlgorithm,
   SignatureAlgorithmType,
   SignedXmlOptions,
-  CanonicalizationOrTransformAlgorithmType,
-  ErrorFirstCallback,
-  CanonicalizationOrTransformationAlgorithmProcessOptions,
 } from "./types";
 
-import * as xpath from "xpath";
+import * as isDomNode from "@xmldom/is-dom-node";
 import * as xmldom from "@xmldom/xmldom";
-import * as utils from "./utils";
+import * as crypto from "crypto";
+import { deprecate } from "util";
+import * as xpath from "xpath";
 import * as c14n from "./c14n-canonicalization";
-import * as execC14n from "./exclusive-canonicalization";
 import * as envelopedSignatures from "./enveloped-signature";
+import * as execC14n from "./exclusive-canonicalization";
 import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
-import * as crypto from "crypto";
-import * as isDomNode from "@xmldom/is-dom-node";
+import * as utils from "./utils";
 
 export class SignedXml {
   idMode?: "wssecurity";
@@ -307,10 +308,19 @@ export class SignedXml {
       this.loadReference(reference);
     }
 
+    /* eslint-disable-next-line deprecation/deprecation */
     if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
-      this.signedReferences = []; // If one fails, they are all not trustworthy
+      /* Trustworthiness can only be determined if SignedInfo's (which holds References' DigestValue(s)
+         which were validated at this stage) signature is valid. Execution does not proceed to validate
+         signature phase thus each References' DigestValue must be considered to be untrusted (attacker
+         might have injected any data with new new references and/or recalculated new DigestValue for
+         altered Reference(s)). Returning any content via `signedReferences` would give false sense of
+         trustworthiness if/when SignedInfo's (which holds references' DigestValues) signature is not
+         valid(ated). Put simply: if one fails, they are all not trustworthy.
+      */
+      this.signedReferences = [];
       if (callback) {
-        callback(null, false);
+        callback(new Error("Could not validate all references"), false);
         return;
       }
 
@@ -470,6 +480,7 @@ export class SignedXml {
       elem = elemOrXpath;
     }
 
+    /* eslint-disable-next-line deprecation/deprecation */
     for (const ref of this.getReferences()) {
       const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
 
@@ -805,9 +816,14 @@ export class SignedXml {
     });
   }
 
-  getReferences(): Reference[] {
-    return this.references;
-  }
+  /**
+   * @deprecated Use `.signedReferences` instead.
+   * Returns the list of references.
+   */
+  getReferences = deprecate(
+    () => this.references,
+    "getReferences() is deprecated. Use `.signedReferences` instead.",
+  );
 
   /**
    * Compute the signature of the given XML (using the already defined settings).
@@ -1041,6 +1057,7 @@ export class SignedXml {
     prefix = prefix || "";
     prefix = prefix ? `${prefix}:` : prefix;
 
+    /* eslint-disable-next-line deprecation/deprecation */
     for (const ref of this.getReferences()) {
       const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
 

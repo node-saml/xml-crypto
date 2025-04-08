@@ -55,6 +55,7 @@ describe("Validated node references tests", function () {
     expect(validSignature).to.be.true;
     expect(sig.signedReferences.length).to.equal(1);
 
+    /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode();
     expect(result?.toString()).to.equal(doc.toString());
@@ -70,6 +71,7 @@ describe("Validated node references tests", function () {
     expect(validSignature).to.be.false;
     expect(sig.signedReferences.length).to.equal(0);
 
+    /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[1];
     const result = ref.getValidatedNode();
     expect(result).to.be.null;
@@ -86,6 +88,7 @@ describe("Validated node references tests", function () {
     expect(validSignature).to.be.true;
     expect(sig.signedReferences.length).to.equal(1);
 
+    /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode("/non-existent-node");
     expect(result).to.be.null;
@@ -101,6 +104,7 @@ describe("Validated node references tests", function () {
     expect(validSignature).to.be.true;
     expect(sig.signedReferences.length).to.equal(1);
 
+    /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode(
       "//*[local-name()='Attribute' and @Name='mail']/*[local-name()='AttributeValue']/text()",
@@ -118,12 +122,13 @@ describe("Validated node references tests", function () {
     expect(validSignature).to.be.false;
     expect(sig.signedReferences.length).to.equal(0);
 
+    /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode(
       "//*[local-name()='Attribute' and @Name='mail']/*[local-name()='AttributeValue']/text()",
     );
     expect(result).to.be.null;
-    // need all references to verify. Reset back to zero now
+    // Not all references verified, so no references should be in `.signedReferences`.
     expect(sig.signedReferences.length).to.equal(0);
   });
 });
