@@ -159,8 +159,8 @@ export class SignedXml {
     this.CanonicalizationAlgorithms;
     this.HashAlgorithms;
     this.SignatureAlgorithms;
-    // This populates only after verifying the signature
-    // as an array of bytes that are cryptographically authenticated.
+    // This populates with the canonical XML of the reference only after
+    // verifying the signature is cryptographically authentic.
     this.signedReferences = [];
   }
 
@@ -308,13 +308,15 @@ export class SignedXml {
     }
 
     if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
-      this.signedReferences = []; // reset again
+      this.signedReferences = []; // If one fails, they are all not trustworthy
       if (callback) {
         callback(null, false);
         return;
       }
 
       // We return false because some references validated, but not all
+      // We should actually be throwing an error here, but that would be a breaking change
+      // See https://www.w3.org/TR/xmldsig-core/#sec-CoreValidation
       return false;
     }
 

@@ -885,7 +885,7 @@ describe("Signature unit tests", function () {
         const sig = loadSignature(xml, idMode);
         const res = sig.checkSignature(xml);
         expect(res, "expected a signature to be invalid, but all were reported valid").to.be.false;
-        expect(sig.signedReferences.length).to.be.lessThan(sig.getReferences().length);
+        expect(sig.signedReferences.length).to.equal(0);
       }
 
       function throwsValidatingSignature(file: string, idMode?: "wssecurity") {
