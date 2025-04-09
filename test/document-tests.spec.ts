@@ -21,6 +21,7 @@ describe("Document tests", function () {
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
+    expect(sig.getSignedReferences().length).to.equal(1);
   });
 
   it("test with a document (using StringKeyInfo)", function () {
@@ -39,6 +40,7 @@ describe("Document tests", function () {
     const result = sig.checkSignature(xml);
 
     expect(result).to.be.true;
+    expect(sig.getSignedReferences().length).to.equal(1);
   });
 });
 
@@ -51,10 +53,13 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.true;
+    expect(sig.getSignedReferences().length).to.equal(1);
 
+    /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode();
     expect(result?.toString()).to.equal(doc.toString());
+    expect(sig.getSignedReferences().length).to.equal(1);
   });
 
   it("should not return references if the document is not validly signed", function () {
@@ -64,10 +69,13 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.false;
+    expect(sig.getSignedReferences().length).to.equal(0);
 
+    /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[1];
     const result = ref.getValidatedNode();
     expect(result).to.be.null;
+    expect(sig.getSignedReferences().length).to.equal(0);
   });
 
   it("should return `null` if the selected node isn't found", function () {
@@ -78,7 +86,9 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.true;
+    expect(sig.getSignedReferences().length).to.equal(1);
 
+    /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode("/non-existent-node");
     expect(result).to.be.null;
@@ -92,12 +102,15 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.true;
+    expect(sig.getSignedReferences().length).to.equal(1);
 
+    /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode(
       "//*[local-name()='Attribute' and @Name='mail']/*[local-name()='AttributeValue']/text()",
     );
     expect(result?.nodeValue).to.equal("henri.bergius@nemein.com");
+    expect(sig.getSignedReferences().length).to.equal(1);
   });
 
   it("should return `null` if the selected node isn't validly signed", function () {
@@ -107,11 +120,15 @@ describe("Validated node references tests", function () {
     sig.loadSignature(sig.findSignatures(doc)[0]);
     const validSignature = sig.checkSignature(xml);
     expect(validSignature).to.be.false;
+    expect(sig.getSignedReferences().length).to.equal(0);
 
+    /* eslint-disable-next-line deprecation/deprecation */
     const ref = sig.getReferences()[0];
     const result = ref.getValidatedNode(
       "//*[local-name()='Attribute' and @Name='mail']/*[local-name()='AttributeValue']/text()",
     );
     expect(result).to.be.null;
+    // Not all references verified, so no references should be in `.getSignedReferences()`.
+    expect(sig.getSignedReferences().length).to.equal(0);
   });
 });
