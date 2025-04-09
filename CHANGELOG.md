@@ -1,6 +1,14 @@
 # Changelog
 
-## 6.0.1 (2025-03-14)
+## 6.1.0 (2025-04-09)
+
+### 🙈 Other
+
+- [**closed**] Introduce new .getSignedReferences() function of signature to help prevent signature wrapping attacks [#489](https://github.com/node-saml/xml-crypto/pull/489)
+
+---
+
+## v6.0.1 (2025-03-14)
 
 - Address CVEs: CVE-2025-29774 and CVE-2025-29775
 
