@@ -53,6 +53,53 @@ export class RsaSha256 implements SignatureAlgorithm {
   };
 }
 
+export class RsaSha256Mgf1 implements SignatureAlgorithm {
+  getSignature = createOptionalCallbackFunction(
+    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+      if (!(typeof privateKey === "string" || Buffer.isBuffer(privateKey))) {
+        throw new Error("keys must be strings or buffers");
+      }
+      const signer = crypto.createSign("RSA-SHA256");
+      signer.update(signedInfo);
+      const res = signer.sign(
+        {
+          key: privateKey,
+          padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
+        },
+        "base64",
+      );
+
+      return res;
+    },
+  );
+
+  verifySignature = createOptionalCallbackFunction(
+    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+      if (!(typeof key === "string" || Buffer.isBuffer(key))) {
+        throw new Error("keys must be strings or buffers");
+      }
+      const verifier = crypto.createVerify("RSA-SHA256");
+      verifier.update(material);
+      const res = verifier.verify(
+        {
+          key: key,
+          padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+          saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
+        },
+        signatureValue,
+        "base64",
+      );
+
+      return res;
+    },
+  );
+
+  getAlgorithmName = () => {
+    return "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1";
+  };
+}
+
 export class RsaSha512 implements SignatureAlgorithm {
   getSignature = createOptionalCallbackFunction(
     (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
