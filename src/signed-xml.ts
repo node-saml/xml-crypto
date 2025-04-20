@@ -546,7 +546,7 @@ export class SignedXml {
       }
       const selectedValue = xpath.select1(xpathSelector, doc);
       return isDomNode.isNodeLike(selectedValue) ? selectedValue : null;
-    }, "`getValidatedNode()` is deprecated and insecure. Use `getSignedReferences()` instead.");
+    }, "`ref.getValidatedNode()` is deprecated and insecure. Use `ref.signedReference` or `this.getSignedReferences()` instead.");
 
     if (!isDomNode.isNodeLike(elem)) {
       const validationError = new Error(
@@ -573,6 +573,7 @@ export class SignedXml {
     // thus the `canonXml` and _only_ the `canonXml` can be trusted.
     // Append this to `signedReferences`.
     this.signedReferences.push(canonXml);
+    ref.signedReference = canonXml;
 
     return true;
   }
@@ -824,6 +825,13 @@ export class SignedXml {
    * Returns the list of references.
    */
   getReferences() {
+    // TODO: Refactor once `getValidatedNode` is removed
+    /* Once we completely remove the deprecated `getValidatedNode` method,
+    we can change this to return a clone to prevent accidental mutations,
+    like this:
+    return [...this.references];
+    */
+
     return this.references;
   }
 
