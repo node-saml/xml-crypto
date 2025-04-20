@@ -323,6 +323,7 @@ export class SignedXml {
          valid(ated). Put simply: if one fails, they are all not trustworthy.
       */
       this.signedReferences = [];
+      // TODO: add this break change here later on for even more security: `this.references = [];`
       if (callback) {
         callback(new Error("Could not validate all references"), false);
         return;
@@ -357,6 +358,7 @@ export class SignedXml {
       // but that may cause some breaking changes, so we'll handle that in v7.x.
       // If we were validating `signedInfoCanon` first, we wouldn't have to reset this array.
       this.signedReferences = [];
+      // TODO: add this break change here later on for even more security: `this.references = [];`
 
       if (callback) {
         callback(
@@ -826,9 +828,9 @@ export class SignedXml {
    */
   getReferences() {
     // TODO: Refactor once `getValidatedNode` is removed
-    /* Once we completely remove the deprecated `getValidatedNode` method,
+    /* Once we completely remove the deprecated `getValidatedNode()` method,
     we can change this to return a clone to prevent accidental mutations,
-    like this:
+    e.g.:
     return [...this.references];
     */
 
