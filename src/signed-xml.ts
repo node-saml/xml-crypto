@@ -313,7 +313,7 @@ export class SignedXml {
     }
 
     /* eslint-disable-next-line deprecation/deprecation */
-    if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
+    if (!this._getReferences().every((ref) => this.validateReference(ref, doc))) {
       /* Trustworthiness can only be determined if SignedInfo's (which holds References' DigestValue(s)
          which were validated at this stage) signature is valid. Execution does not proceed to validate
          signature phase thus each References' DigestValue must be considered to be untrusted (attacker
@@ -828,6 +828,8 @@ export class SignedXml {
     () => this.references,
     "getReferences() is deprecated. Use `.getSignedReferences()` instead.",
   );
+
+  private _getReferences = () => this.references;
 
   getSignedReferences() {
     return [...this.signedReferences];
