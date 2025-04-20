@@ -313,7 +313,7 @@ export class SignedXml {
     }
 
     /* eslint-disable-next-line deprecation/deprecation */
-    if (!this._getReferences().every((ref) => this.validateReference(ref, doc))) {
+    if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
       /* Trustworthiness can only be determined if SignedInfo's (which holds References' DigestValue(s)
          which were validated at this stage) signature is valid. Execution does not proceed to validate
          signature phase thus each References' DigestValue must be considered to be untrusted (attacker
@@ -539,14 +539,14 @@ export class SignedXml {
       }
     }
 
-    ref.getValidatedNode = (xpathSelector?: string) => {
+    ref.getValidatedNode = deprecate((xpathSelector?: string) => {
       xpathSelector = xpathSelector || ref.xpath;
       if (typeof xpathSelector !== "string" || ref.validationError != null) {
         return null;
       }
       const selectedValue = xpath.select1(xpathSelector, doc);
       return isDomNode.isNodeLike(selectedValue) ? selectedValue : null;
-    };
+    }, "`getValidatedNode()` is deprecated and insecure. Use `getSignedReferences()` instead.");
 
     if (!isDomNode.isNodeLike(elem)) {
       const validationError = new Error(
@@ -821,15 +821,11 @@ export class SignedXml {
   }
 
   /**
-   * @deprecated Use `.getSignedReferences()` instead.
    * Returns the list of references.
    */
-  getReferences = deprecate(
-    () => this.references,
-    "getReferences() is deprecated. Use `.getSignedReferences()` instead.",
-  );
-
-  private _getReferences = () => this.references;
+  getReferences() {
+    return this.references;
+  }
 
   getSignedReferences() {
     return [...this.signedReferences];
