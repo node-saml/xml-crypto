@@ -1,6 +1,14 @@
 # Changelog
 
-## 6.1.0 (2025-04-09)
+## 6.1.1 (2025-04-21)
+
+### 🚀 Minor Changes
+
+- [**enhancement**] Adjust deprecation to better reflect real-world usage [#499](https://github.com/node-saml/xml-crypto/pull/499)
+
+---
+
+## v6.1.0 (2025-04-09)
 
 ### 🙈 Other
 
