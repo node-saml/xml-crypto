@@ -323,6 +323,7 @@ export class SignedXml {
          valid(ated). Put simply: if one fails, they are all not trustworthy.
       */
       this.signedReferences = [];
+      // TODO: add this breaking change here later on for even more security: `this.references = [];`
       if (callback) {
         callback(new Error("Could not validate all references"), false);
         return;
@@ -357,6 +358,7 @@ export class SignedXml {
       // but that may cause some breaking changes, so we'll handle that in v7.x.
       // If we were validating `signedInfoCanon` first, we wouldn't have to reset this array.
       this.signedReferences = [];
+      // TODO: add this breaking change here later on for even more security: `this.references = [];`
 
       if (callback) {
         callback(
@@ -539,14 +541,14 @@ export class SignedXml {
       }
     }
 
-    ref.getValidatedNode = (xpathSelector?: string) => {
+    ref.getValidatedNode = deprecate((xpathSelector?: string) => {
       xpathSelector = xpathSelector || ref.xpath;
       if (typeof xpathSelector !== "string" || ref.validationError != null) {
         return null;
       }
       const selectedValue = xpath.select1(xpathSelector, doc);
       return isDomNode.isNodeLike(selectedValue) ? selectedValue : null;
-    };
+    }, "`ref.getValidatedNode()` is deprecated and insecure. Use `ref.signedReference` or `this.getSignedReferences()` instead.");
 
     if (!isDomNode.isNodeLike(elem)) {
       const validationError = new Error(
@@ -573,6 +575,7 @@ export class SignedXml {
     // thus the `canonXml` and _only_ the `canonXml` can be trusted.
     // Append this to `signedReferences`.
     this.signedReferences.push(canonXml);
+    ref.signedReference = canonXml;
 
     return true;
   }
@@ -821,13 +824,18 @@ export class SignedXml {
   }
 
   /**
-   * @deprecated Use `.getSignedReferences()` instead.
    * Returns the list of references.
    */
-  getReferences = deprecate(
-    () => this.references,
-    "getReferences() is deprecated. Use `.getSignedReferences()` instead.",
-  );
+  getReferences() {
+    // TODO: Refactor once `getValidatedNode` is removed
+    /* Once we completely remove the deprecated `getValidatedNode()` method,
+    we can change this to return a clone to prevent accidental mutations,
+    e.g.:
+    return [...this.references];
+    */
+
+    return this.references;
+  }
 
   getSignedReferences() {
     return [...this.signedReferences];

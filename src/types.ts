@@ -133,6 +133,8 @@ export interface Reference {
   validationError?: Error;
 
   getValidatedNode(xpathSelector?: string): Node | null;
+
+  signedReference?: string;
 }
 
 /** Implement this to create a new CanonicalizationOrTransformationAlgorithm */
