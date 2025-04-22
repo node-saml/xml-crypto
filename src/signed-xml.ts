@@ -253,7 +253,10 @@ export class SignedXml {
    * @param callback Callback function to handle the validation result asynchronously.
    * @throws Error if the last parameter is provided and is not a function, or if no key info resolver is provided.
    */
-  checkSignature(xml: Document | string, callback: (error: Error | null, isValid?: boolean) => void): void;
+  checkSignature(
+    xml: Document | string,
+    callback: (error: Error | null, isValid?: boolean) => void,
+  ): void;
   checkSignature(
     xml: Document | string,
     callback?: (error: Error | null, isValid?: boolean) => void,

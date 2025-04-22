@@ -698,7 +698,9 @@ describe("Signature unit tests", function () {
   });
 
   it("signer creates correct signature values when receiving a DOM", function () {
-    const xml = new xmldom.DOMParser().parseFromString('<root><x xmlns="ns" Id="_0"></x><y attr="value" Id="_1"></y><z><w Id="_2"></w></z></root>');
+    const xml = new xmldom.DOMParser().parseFromString(
+      '<root><x xmlns="ns" Id="_0"></x><y attr="value" Id="_1"></y><z><w Id="_2"></w></z></root>',
+    );
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
@@ -723,39 +725,38 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
     const expected =
-        '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z>' +
-        '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">' +
-        "<SignedInfo>" +
-        '<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
-        '<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>' +
-        '<Reference URI="#_0">' +
-        "<Transforms>" +
-        '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></Transforms>' +
-        '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
-        "<DigestValue>b5GCZ2xpP5T7tbLWBTkOl4CYupQ=</DigestValue>" +
-        "</Reference>" +
-        '<Reference URI="#_1">' +
-        "<Transforms>" +
-        '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
-        "</Transforms>" +
-        '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
-        "<DigestValue>4Pq/sBri+AyOtxtSFsPSOyylyzk=</DigestValue>" +
-        "</Reference>" +
-        '<Reference URI="#_2">' +
-        "<Transforms>" +
-        '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
-        "</Transforms>" +
-        '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
-        "<DigestValue>6I7SDu1iV2YOajTlf+iMLIBfLnE=</DigestValue>" +
-        "</Reference>" +
-        "</SignedInfo>" +
-        "<SignatureValue>NejzGB9MDUddKCt3GL2vJhEd5q6NBuhLdQc3W4bJI5q34hk7Hk6zBRoW3OliX+/f7Hpi9y0INYoqMSUfrsAVm3IuPzUETKlI6xiNZo07ULRj1DwxRo6cU66ar1EKUQLRuCZas795FjB8jvUI2lyhcax/00uMJ+Cjf4bwAQ+9gOQ=</SignatureValue>" +
-        "</Signature>" +
-        "</root>";
+      '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z>' +
+      '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">' +
+      "<SignedInfo>" +
+      '<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
+      '<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>' +
+      '<Reference URI="#_0">' +
+      "<Transforms>" +
+      '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></Transforms>' +
+      '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
+      "<DigestValue>b5GCZ2xpP5T7tbLWBTkOl4CYupQ=</DigestValue>" +
+      "</Reference>" +
+      '<Reference URI="#_1">' +
+      "<Transforms>" +
+      '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
+      "</Transforms>" +
+      '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
+      "<DigestValue>4Pq/sBri+AyOtxtSFsPSOyylyzk=</DigestValue>" +
+      "</Reference>" +
+      '<Reference URI="#_2">' +
+      "<Transforms>" +
+      '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
+      "</Transforms>" +
+      '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
+      "<DigestValue>6I7SDu1iV2YOajTlf+iMLIBfLnE=</DigestValue>" +
+      "</Reference>" +
+      "</SignedInfo>" +
+      "<SignatureValue>NejzGB9MDUddKCt3GL2vJhEd5q6NBuhLdQc3W4bJI5q34hk7Hk6zBRoW3OliX+/f7Hpi9y0INYoqMSUfrsAVm3IuPzUETKlI6xiNZo07ULRj1DwxRo6cU66ar1EKUQLRuCZas795FjB8jvUI2lyhcax/00uMJ+Cjf4bwAQ+9gOQ=</SignatureValue>" +
+      "</Signature>" +
+      "</root>";
 
     expect(expected, "wrong signature format").to.equal(signedXml);
   });
-
 
   it("signer creates correct signature values using async callback", function () {
     class DummySignatureAlgorithm {
@@ -873,7 +874,7 @@ describe("Signature unit tests", function () {
           return fs.readFileSync("./test/static/client.pem", "latin1");
         };
 
-        const checkedSignature = sig.checkSignature(toString ? doc.toString() : doc );
+        const checkedSignature = sig.checkSignature(toString ? doc.toString() : doc);
         expect(checkedSignature).to.be.true;
 
         /* eslint-disable-next-line deprecation/deprecation */
