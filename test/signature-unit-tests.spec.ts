@@ -42,7 +42,7 @@ describe("Signature unit tests", function () {
       sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
       sig.computeSignature(xml);
       const signedXml = sig.getOriginalXmlWithIds();
-      const doc = new xmldom.DOMParser().parseFromString(signedXml);
+      const doc = new xmldom.DOMParser().parseFromString(signedXml, 'text/xml');
 
       const op = nsMode === "equal" ? "=" : "!=";
 
@@ -85,8 +85,8 @@ describe("Signature unit tests", function () {
     });
 
     const signedXml = sig.getSignatureXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
-    const references = xpath.select("//*[local-name(.)='Reference']", doc);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml, 'text/xml');
+    const references = xpath.select("//*[local-name(.)='Reference']", doc as unknown as Node);
     isDomNode.assertIsArrayOfNodes(references);
     expect(references.length).to.equal(2);
   });
@@ -105,8 +105,8 @@ describe("Signature unit tests", function () {
       sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
       sig.computeSignature(xml);
       const signedXml = sig.getOriginalXmlWithIds();
-      const doc = new xmldom.DOMParser().parseFromString(signedXml);
-      const attrs = xpath.select("//@*", doc);
+      const doc = new xmldom.DOMParser().parseFromString(signedXml, 'text/xml');
+      const attrs = xpath.select("//@*", doc as unknown as Node);
       isDomNode.assertIsArrayOfNodes(attrs);
       expect(attrs.length, "wrong number of attributes").to.equal(2);
     }
@@ -144,8 +144,12 @@ describe("Signature unit tests", function () {
     });
 
     const signedXml = sig.getSignatureXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml, 'text/xml');
     const signatureNode = doc.documentElement;
+
+    if (!signatureNode) {
+      throw new Error('signatureNode is not defined');
+    }
 
     expect(attrs.Id, `Id attribute is not equal to the expected value: "${attrs.Id}"`).to.equal(
       signatureNode.getAttribute("Id"),
@@ -177,8 +181,10 @@ describe("Signature unit tests", function () {
     sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml(), 'text/xml');
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     const lastChild = doc.documentElement.lastChild;
     isDomNode.assertIsElementNode(lastChild);
     expect(
@@ -207,8 +213,8 @@ describe("Signature unit tests", function () {
       },
     });
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
-    const referenceNode = xpath.select1("/root/name", doc);
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml(), 'text/xml');
+    const referenceNode = xpath.select1("/root/name", doc as unknown as Node);
 
     isDomNode.assertIsNodeLike(referenceNode);
     const lastChild = referenceNode.lastChild;
@@ -239,8 +245,8 @@ describe("Signature unit tests", function () {
       },
     });
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
-    const referenceNode = xpath.select1("/root/name", doc);
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml(), 'text/xml');
+    const referenceNode = xpath.select1("/root/name", doc as unknown as Node);
     isDomNode.assertIsNodeLike(referenceNode);
     const firstChild = referenceNode.firstChild;
 
@@ -270,8 +276,8 @@ describe("Signature unit tests", function () {
       },
     });
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
-    const referenceNode = xpath.select1("/root/name", doc);
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml(), 'text/xml');
+    const referenceNode = xpath.select1("/root/name", doc as unknown as Node);
     isDomNode.assertIsNodeLike(referenceNode);
     const previousSibling = referenceNode.previousSibling;
 
@@ -302,8 +308,8 @@ describe("Signature unit tests", function () {
       },
     });
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
-    const referenceNode = xpath.select1("/root/name", doc);
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml(), 'text/xml');
+    const referenceNode = xpath.select1("/root/name", doc as unknown as Node);
 
     isDomNode.assertIsNodeLike(referenceNode);
     const nextSibling = referenceNode.nextSibling;
@@ -782,10 +788,10 @@ describe("Signature unit tests", function () {
     describe("pass loading signatures", function () {
       function passLoadSignature(file: string, toString?: boolean) {
         const xml = fs.readFileSync(file, "utf8");
-        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
         const signature = xpath.select1(
           "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-          doc,
+          doc as unknown as Node,
         );
         isDomNode.assertIsElementNode(signature);
         const sig = new SignedXml();
@@ -828,7 +834,7 @@ describe("Signature unit tests", function () {
 
         const firstGrandchild = doc.firstChild?.firstChild;
         isDomNode.assertIsElementNode(firstGrandchild);
-        const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
+        const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc as unknown as Document);
         expect(matchedReference).to.not.be.false;
 
         /* eslint-disable-next-line deprecation/deprecation */
@@ -862,10 +868,10 @@ describe("Signature unit tests", function () {
 
     describe("pass verify signature", function () {
       function loadSignature(xml: string, idMode?: "wssecurity") {
-        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
         const node = xpath.select1(
           "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-          doc,
+          doc as unknown as Node,
         );
         isDomNode.assertIsNodeLike(node);
         const sig = new SignedXml({ idMode });
@@ -1000,8 +1006,8 @@ describe("Signature unit tests", function () {
     sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
-    const URI = xpath.select1("//*[local-name(.)='Reference']/@URI", doc);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml, 'text/xml');
+    const URI = xpath.select1("//*[local-name(.)='Reference']/@URI", doc as unknown as Node);
     isDomNode.assertIsAttributeNode(URI);
     expect(URI.value, `uri should be empty but instead was ${URI.value}`).to.equal("");
   });
@@ -1093,10 +1099,10 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml, 'text/xml');
     const inclusiveNamespaces = xpath.select(
       "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
-      doc.documentElement,
+      doc.documentElement as unknown as Node,
     );
     isDomNode.assertIsArrayOfNodes(inclusiveNamespaces);
     expect(inclusiveNamespaces.length, "InclusiveNamespaces element should exist").to.equal(1);
@@ -1130,10 +1136,10 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml, 'text/xml');
     const inclusiveNamespaces = xpath.select1(
       "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
-      doc.documentElement,
+      doc.documentElement as unknown as Node,
     );
 
     expect(inclusiveNamespaces, "InclusiveNamespaces element should not exist").to.be.undefined;
@@ -1155,10 +1161,10 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml, 'text/xml');
     const inclusiveNamespaces = xpath.select(
       "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
-      doc.documentElement,
+      doc.documentElement as unknown as Node,
     );
 
     isDomNode.assertIsArrayOfNodes(inclusiveNamespaces);
@@ -1194,10 +1200,10 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml, 'text/xml');
     const inclusiveNamespaces = xpath.select1(
       "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
-      doc.documentElement,
+      doc.documentElement as unknown as Node,
     );
 
     expect(
@@ -1221,8 +1227,8 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
-    const keyInfoElements = xpath.select("//*[local-name(.)='KeyInfo']", doc.documentElement);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml, 'text/xml');
+    const keyInfoElements = xpath.select("//*[local-name(.)='KeyInfo']", doc.documentElement as unknown as Node);
 
     isDomNode.assertIsArrayOfNodes(keyInfoElements);
     expect(keyInfoElements.length, "KeyInfo element should exist").to.equal(1);
@@ -1253,11 +1259,11 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml, 'text/xml');
 
     const x509certificates = xpath.select(
       "//*[local-name(.)='X509Certificate']",
-      doc.documentElement,
+      doc.documentElement as unknown as Node,
     );
     isDomNode.assertIsArrayOfNodes(x509certificates);
     expect(x509certificates.length, "There should be exactly two certificates").to.equal(2);

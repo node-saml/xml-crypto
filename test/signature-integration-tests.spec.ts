@@ -97,12 +97,12 @@ describe("Signature integration tests", function () {
      */
     xml = xml.replace(/>\s*</g, "><");
 
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc,
+      doc as unknown as Node,
     );
     isDomNode.assertIsNodeLike(signature);
     const sig = new SignedXml();
@@ -116,12 +116,12 @@ describe("Signature integration tests", function () {
 
   it("signature with inclusive namespaces", function () {
     const xml = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc,
+      doc as unknown as Node,
     );
     isDomNode.assertIsNodeLike(signature);
     const sig = new SignedXml();
@@ -138,12 +138,12 @@ describe("Signature integration tests", function () {
       "./test/static/signature_with_inclusivenamespaces_lines.xml",
       "utf-8",
     );
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc,
+      doc as unknown as Node,
     );
     isDomNode.assertIsNodeLike(signature);
     const sig = new SignedXml();
@@ -160,12 +160,12 @@ describe("Signature integration tests", function () {
       "./test/static/signature_with_inclusivenamespaces_lines_windows.xml",
       "utf-8",
     );
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc,
+      doc as unknown as Node,
     );
     isDomNode.assertIsNodeLike(signature);
     const sig = new SignedXml();
@@ -193,7 +193,7 @@ describe("Signature integration tests", function () {
 
     const signed = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signed);
+    const doc = new xmldom.DOMParser().parseFromString(signed, 'text/xml');
 
     /*
         Expecting this structure:
@@ -216,9 +216,13 @@ describe("Signature integration tests", function () {
         </library>
     */
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     expect(doc.documentElement.nodeName, "root node = <library>.").to.equal("library");
     expect(doc.childNodes.length, "only one root node is expected.").to.equal(1);
     expect(
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       doc.documentElement.childNodes.length,
       "<library> should have two child nodes : <book> and <Signature>",
     ).to.equal(2);

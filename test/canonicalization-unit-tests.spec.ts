@@ -13,8 +13,8 @@ const compare = function (
   inclusiveNamespacesPrefixList?: string[],
   defaultNsForPrefix?: Record<string, string>,
 ) {
-  const doc = new xmldom.DOMParser().parseFromString(xml);
-  const elem = xpath.select1(xpathArg, doc);
+  const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
+  const elem = xpath.select1(xpathArg, doc as unknown as Node);
   const can = new ExclusiveCanonicalization();
   isDomNode.assertIsElementNode(elem);
   const result = can
@@ -54,7 +54,7 @@ describe("Canonicalization unit tests", function () {
 
   it("Exclusive canonicalization works with default namespace for prefix", function () {
     compare(
-      '<ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></ds:SignedInfo>',
+      '<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></ds:SignedInfo>',
       "//*[local-name(.)='SignedInfo']",
       '<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></ds:CanonicalizationMethod></ds:SignedInfo>',
       undefined,
@@ -399,9 +399,9 @@ describe("Canonicalization unit tests", function () {
 
   it("Multiple Canonicalization with namespace definition outside of signed element", function () {
     const doc = new xmldom.DOMParser().parseFromString(
-      '<x xmlns:p="myns"><p:y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y></x>',
+      '<x xmlns:p="myns"><p:y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y></x>', 'text/xml'
     );
-    const node = xpath.select1("//*[local-name(.)='y']", doc);
+    const node = xpath.select1("//*[local-name(.)='y']", doc as unknown as Node);
     isDomNode.assertIsNodeLike(node);
 
     const sig = new SignedXml();
@@ -417,10 +417,10 @@ describe("Canonicalization unit tests", function () {
 
   it("Shouldn't continue processing transforms if we end up with a string as a result of a transform", function () {
     const doc = new xmldom.DOMParser().parseFromString(
-      '<x xmlns:p="myns"><p:y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y></x>',
+      '<x xmlns:p="myns"><p:y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y></x>', 'text/xml'
     );
-    const node1 = xpath.select1("//*[local-name(.)='y']", doc);
-    const node2 = xpath.select1("//*[local-name(.)='y']", doc);
+    const node1 = xpath.select1("//*[local-name(.)='y']", doc as unknown as Node);
+    const node2 = xpath.select1("//*[local-name(.)='y']", doc as unknown as Node);
     isDomNode.assertIsNodeLike(node1);
     isDomNode.assertIsNodeLike(node2);
     const sig = new SignedXml();
@@ -445,8 +445,8 @@ describe("Canonicalization unit tests", function () {
     //   in a document.
     const xml =
       '<x><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /><y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /></y></x>';
-    const doc = new xmldom.DOMParser().parseFromString(xml);
-    const node = xpath.select1("//*[local-name(.)='y']", doc);
+    const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
+    const node = xpath.select1("//*[local-name(.)='y']", doc as unknown as Node);
     isDomNode.assertIsNodeLike(node);
 
     const sig = new SignedXml();

@@ -7,14 +7,14 @@ import * as utils from "../src/utils";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 const test_C14nCanonicalization = function (xml, xpathArg, expected) {
-  const doc = new xmldom.DOMParser().parseFromString(xml);
-  const node = xpath.select1(xpathArg, doc);
+  const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
+  const node = xpath.select1(xpathArg, doc as unknown as Node);
   const can = new C14nCanonicalization();
 
   isDomNode.assertIsNodeLike(node);
   const result = can
     .process(node, {
-      ancestorNamespaces: utils.findAncestorNs(doc, xpathArg),
+      ancestorNamespaces: utils.findAncestorNs(doc as unknown as Document, xpathArg),
     })
     .toString();
 
@@ -22,8 +22,8 @@ const test_C14nCanonicalization = function (xml, xpathArg, expected) {
 };
 
 const test_findAncestorNs = function (xml, xpath, expected) {
-  const doc = new xmldom.DOMParser().parseFromString(xml);
-  const result = utils.findAncestorNs(doc, xpath);
+  const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
+  const result = utils.findAncestorNs(doc as unknown as Document, xpath);
 
   expect(result).to.deep.equal(expected);
 };

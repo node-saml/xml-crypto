@@ -8,10 +8,10 @@ import * as isDomNode from "@xmldom/is-dom-node";
 describe("WS-Fed Metadata tests", function () {
   it("test validating WS-Fed Metadata", function () {
     const xml = fs.readFileSync("./test/static/wsfederation_metadata.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc,
+      doc as unknown as Node,
     );
     isDomNode.assertIsNodeLike(signature);
     const sig = new SignedXml();
