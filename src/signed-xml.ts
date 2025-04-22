@@ -264,7 +264,7 @@ export class SignedXml {
 
     this.signedXml = xml;
 
-    const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
+    const doc = new xmldom.DOMParser().parseFromString(xml, "text/xml");
 
     // Reset the references as only references from our re-parsed signedInfo node can be trusted
     this.references = [];
@@ -313,7 +313,9 @@ export class SignedXml {
     }
 
     /* eslint-disable-next-line deprecation/deprecation */
-    if (!this.getReferences().every((ref) => this.validateReference(ref, doc as unknown as Document))) {
+    if (
+      !this.getReferences().every((ref) => this.validateReference(ref, doc as unknown as Document))
+    ) {
       /* Trustworthiness can only be determined if SignedInfo's (which holds References' DigestValue(s)
          which were validated at this stage) signature is valid. Execution does not proceed to validate
          signature phase thus each References' DigestValue must be considered to be untrusted (attacker
@@ -406,7 +408,10 @@ export class SignedXml {
     /**
      * Search for ancestor namespaces before canonicalization.
      */
-    const ancestorNamespaces = utils.findAncestorNs(doc as unknown as Document, "//*[local-name()='SignedInfo']");
+    const ancestorNamespaces = utils.findAncestorNs(
+      doc as unknown as Document,
+      "//*[local-name()='SignedInfo']",
+    );
 
     const c14nOptions = {
       ancestorNamespaces: ancestorNamespaces,
@@ -596,7 +601,10 @@ export class SignedXml {
    */
   loadSignature(signatureNode: Node | string): void {
     if (typeof signatureNode === "string") {
-      this.signatureNode = signatureNode = new xmldom.DOMParser().parseFromString(signatureNode, 'text/xml') as unknown as Node;
+      this.signatureNode = signatureNode = new xmldom.DOMParser().parseFromString(
+        signatureNode,
+        "text/xml",
+      ) as unknown as Node;
     } else {
       this.signatureNode = signatureNode;
     }
@@ -678,7 +686,10 @@ export class SignedXml {
       this.signatureValue = signatureValue.data.replace(/\r?\n/g, "");
     }
 
-    const keyInfo = xpath.select1(".//*[local-name(.)='KeyInfo']", signatureNode as unknown as Node);
+    const keyInfo = xpath.select1(
+      ".//*[local-name(.)='KeyInfo']",
+      signatureNode as unknown as Node,
+    );
 
     if (isDomNode.isNodeLike(keyInfo)) {
       this.keyInfo = keyInfo;
@@ -900,7 +911,7 @@ export class SignedXml {
       options = (options ?? {}) as ComputeSignatureOptions;
     }
 
-    const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
+    const doc = new xmldom.DOMParser().parseFromString(xml, "text/xml");
     let xmlNsAttr = "xmlns";
     const signatureAttrs: string[] = [];
     let currentPrefix: string;
@@ -970,7 +981,7 @@ export class SignedXml {
     // A trick to remove the namespaces that already exist in the xml
     // This only works if the prefix and namespace match with those in the xml
     const dummySignatureWrapper = `<Dummy ${existingPrefixesString}>${signatureXml}</Dummy>`;
-    const nodeXml = new xmldom.DOMParser().parseFromString(dummySignatureWrapper, 'text/xml');
+    const nodeXml = new xmldom.DOMParser().parseFromString(dummySignatureWrapper, "text/xml");
 
     // Because we are using a dummy wrapper hack described above, we know there will be a `firstChild`
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -1009,7 +1020,10 @@ export class SignedXml {
           "`location.reference` refers to the root node (by default), so we can't insert `after`",
         );
       }
-      referenceNode.parentNode.insertBefore(signatureDoc as unknown as Node, referenceNode.nextSibling);
+      referenceNode.parentNode.insertBefore(
+        signatureDoc as unknown as Node,
+        referenceNode.nextSibling,
+      );
     }
 
     this.signatureNode = signatureDoc as unknown as Node;
@@ -1032,7 +1046,10 @@ export class SignedXml {
           callback(err);
         } else {
           this.signatureValue = signature || "";
-          signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling as unknown as xmldom.Node);
+          signatureDoc.insertBefore(
+            this.createSignature(prefix),
+            signedInfoNode.nextSibling as unknown as xmldom.Node,
+          );
           this.signatureXml = signatureDoc.toString();
           this.signedXml = doc.toString();
           callback(null, this);
@@ -1041,7 +1058,10 @@ export class SignedXml {
     } else {
       // Synchronous flow
       this.calculateSignatureValue(doc as unknown as Document);
-      signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling as unknown as xmldom.Node);
+      signatureDoc.insertBefore(
+        this.createSignature(prefix),
+        signedInfoNode.nextSibling as unknown as xmldom.Node,
+      );
       this.signatureXml = signatureDoc.toString();
       this.signedXml = doc.toString();
     }
@@ -1250,7 +1270,7 @@ export class SignedXml {
     //we need to wrap the info in a dummy signature since it contains the default namespace.
     const dummySignatureWrapper = `<${prefix}Signature ${xmlNsAttr}="http://www.w3.org/2000/09/xmldsig#">${signatureValueXml}</${prefix}Signature>`;
 
-    const doc = new xmldom.DOMParser().parseFromString(dummySignatureWrapper, 'text/xml');
+    const doc = new xmldom.DOMParser().parseFromString(dummySignatureWrapper, "text/xml");
 
     // Because we are using a dummy wrapper hack described above, we know there will be a `firstChild`
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment

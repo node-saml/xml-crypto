@@ -15,8 +15,11 @@ describe("KeyInfo tests", function () {
     sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml, 'text/xml');
-    const x509 = xpath.select("//*[local-name(.)='X509Certificate']", doc.documentElement as unknown as Node);
+    const doc = new xmldom.DOMParser().parseFromString(signedXml, "text/xml");
+    const x509 = xpath.select(
+      "//*[local-name(.)='X509Certificate']",
+      doc.documentElement as unknown as Node,
+    );
     isDomNode.assertIsArrayOfNodes(x509);
 
     expect(x509.length, "X509Certificate element should exist").to.equal(1);
@@ -37,7 +40,7 @@ describe("KeyInfo tests", function () {
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml(), 'text/xml');
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml(), "text/xml");
     const keyInfo = xpath.select1("//*[local-name(.)='KeyInfo']", doc as unknown as Node);
 
     expect(keyInfo).to.be.undefined;

@@ -97,7 +97,7 @@ describe("Signature integration tests", function () {
      */
     xml = xml.replace(/>\s*</g, "><");
 
-    const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
+    const doc = new xmldom.DOMParser().parseFromString(xml, "text/xml");
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
@@ -116,7 +116,7 @@ describe("Signature integration tests", function () {
 
   it("signature with inclusive namespaces", function () {
     const xml = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
+    const doc = new xmldom.DOMParser().parseFromString(xml, "text/xml");
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
@@ -138,7 +138,7 @@ describe("Signature integration tests", function () {
       "./test/static/signature_with_inclusivenamespaces_lines.xml",
       "utf-8",
     );
-    const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
+    const doc = new xmldom.DOMParser().parseFromString(xml, "text/xml");
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
@@ -160,7 +160,7 @@ describe("Signature integration tests", function () {
       "./test/static/signature_with_inclusivenamespaces_lines_windows.xml",
       "utf-8",
     );
-    const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
+    const doc = new xmldom.DOMParser().parseFromString(xml, "text/xml");
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
@@ -193,7 +193,7 @@ describe("Signature integration tests", function () {
 
     const signed = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signed, 'text/xml');
+    const doc = new xmldom.DOMParser().parseFromString(signed, "text/xml");
 
     /*
         Expecting this structure:

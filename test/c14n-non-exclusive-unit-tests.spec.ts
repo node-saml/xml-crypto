@@ -7,7 +7,7 @@ import * as utils from "../src/utils";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 const test_C14nCanonicalization = function (xml, xpathArg, expected) {
-  const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
+  const doc = new xmldom.DOMParser().parseFromString(xml, "text/xml");
   const node = xpath.select1(xpathArg, doc as unknown as Node);
   const can = new C14nCanonicalization();
 
@@ -22,7 +22,7 @@ const test_C14nCanonicalization = function (xml, xpathArg, expected) {
 };
 
 const test_findAncestorNs = function (xml, xpath, expected) {
-  const doc = new xmldom.DOMParser().parseFromString(xml, 'text/xml');
+  const doc = new xmldom.DOMParser().parseFromString(xml, "text/xml");
   const result = utils.findAncestorNs(doc as unknown as Document, xpath);
 
   expect(result).to.deep.equal(expected);

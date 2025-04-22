@@ -46,7 +46,8 @@ describe("Utils tests", function () {
 
     it("will return a normalized PEM format when given a base64 string with line breaks and spaces at the line breaks", function () {
       const xml = new xmldom.DOMParser().parseFromString(
-        fs.readFileSync("./test/static/keyinfo - pretty-printed.xml", "latin1"), 'text/xml'
+        fs.readFileSync("./test/static/keyinfo - pretty-printed.xml", "latin1"),
+        "text/xml",
       );
       const cert = xpath.select1(".//*[local-name(.)='X509Certificate']", xml as unknown as Node);
       isDomNode.assertIsNodeLike(cert);
