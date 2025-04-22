@@ -287,7 +287,8 @@ To verify xml documents:
 
 - `loadSignature(signatureXml)` - loads the signature where:
   - `signatureXml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the signature
-- `checkSignature(xml)` - validates the given xml document and returns `true` if the validation was successful
+- `checkSignature(xml)` - validates the given xml document and returns `true` if the validation was successful where:
+  - `xml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the document
 
 ## Customizing Algorithms
 
