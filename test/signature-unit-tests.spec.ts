@@ -873,7 +873,7 @@ describe("Signature unit tests", function () {
           return fs.readFileSync("./test/static/client.pem", "latin1");
         };
 
-        const checkedSignature = sig.checkSignature(xml);
+        const checkedSignature = sig.checkSignature(toString ? doc.toString() : doc );
         expect(checkedSignature).to.be.true;
 
         /* eslint-disable-next-line deprecation/deprecation */
@@ -931,7 +931,6 @@ describe("Signature unit tests", function () {
         const sig = new SignedXml({ idMode });
         sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
         sig.loadSignature(node);
-
         return sig;
       }
 
@@ -955,8 +954,9 @@ describe("Signature unit tests", function () {
       function throwsValidatingSignature(file: string, idMode?: "wssecurity") {
         const xml = fs.readFileSync(file).toString();
         const sig = loadSignature(xml, idMode);
+        const doc = new xmldom.DOMParser().parseFromString(xml);
         expect(
-          () => sig.checkSignature(xml),
+          () => sig.checkSignature(doc),
           "expected an error to be thrown because signatures couldn't be checked for validity",
         ).to.throw();
         expect(sig.getSignedReferences().length).to.equal(0);

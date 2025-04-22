@@ -245,7 +245,7 @@ export class SignedXml {
    * @returns `true` if the signature is valid
    * @throws Error if no key info resolver is provided.
    */
-  checkSignature(xml: string): boolean;
+  checkSignature(xml: Document | string): boolean;
   /**
    * Validates the signature of the provided XML document synchronously using the configured key info provider.
    *
@@ -253,18 +253,17 @@ export class SignedXml {
    * @param callback Callback function to handle the validation result asynchronously.
    * @throws Error if the last parameter is provided and is not a function, or if no key info resolver is provided.
    */
-  checkSignature(xml: string, callback: (error: Error | null, isValid?: boolean) => void): void;
+  checkSignature(xml: Document | string, callback: (error: Error | null, isValid?: boolean) => void): void;
   checkSignature(
-    xml: string,
+    xml: Document | string,
     callback?: (error: Error | null, isValid?: boolean) => void,
   ): unknown {
     if (callback != null && typeof callback !== "function") {
       throw new Error("Last parameter must be a callback function");
     }
 
-    this.signedXml = xml;
-
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = typeof xml === "string" ? new xmldom.DOMParser().parseFromString(xml) : xml;
+    this.signedXml = doc.toString();
 
     // Reset the references as only references from our re-parsed signedInfo node can be trusted
     this.references = [];
@@ -347,7 +346,7 @@ export class SignedXml {
 
     // Check the signature verification to know whether to reset signature value or not.
     const sigRes = signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
-    if (sigRes === true) {
+    if (sigRes) {
       if (callback) {
         callback(null, true);
       } else {
