@@ -323,7 +323,11 @@ export class SignedXml {
          valid(ated). Put simply: if one fails, they are all not trustworthy.
       */
       this.signedReferences = [];
+      this.references.forEach((ref) => {
+        ref.signedReference = undefined;
+      });
       // TODO: add this breaking change here later on for even more security: `this.references = [];`
+
       if (callback) {
         callback(new Error("Could not validate all references"), false);
         return;
@@ -358,6 +362,9 @@ export class SignedXml {
       // but that may cause some breaking changes, so we'll handle that in v7.x.
       // If we were validating `signedInfoCanon` first, we wouldn't have to reset this array.
       this.signedReferences = [];
+      this.references.forEach((ref) => {
+        ref.signedReference = undefined;
+      });
       // TODO: add this breaking change here later on for even more security: `this.references = [];`
 
       if (callback) {
