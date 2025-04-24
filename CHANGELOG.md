@@ -1,6 +1,14 @@
 # Changelog
 
-## 6.1.1 (2025-04-21)
+## 6.1.2 (2025-04-24)
+
+### 🐛 Bug Fixes
+
+- [**bug**] [**security**] Remove all reference XML data if any are corrupted [#502](https://github.com/node-saml/xml-crypto/pull/502)
+
+---
+
+## v6.1.1 (2025-04-21)
 
 ### 🚀 Minor Changes
 
@@ -10,9 +18,9 @@
 
 ## v6.1.0 (2025-04-09)
 
-### 🙈 Other
+### 🚀 Minor Changes
 
-- [**closed**] Introduce new .getSignedReferences() function of signature to help prevent signature wrapping attacks [#489](https://github.com/node-saml/xml-crypto/pull/489)
+- [**enhancement**] Introduce new .getSignedReferences() function of signature to help prevent signature wrapping attacks [#489](https://github.com/node-saml/xml-crypto/pull/489)
 
 ---
 
