@@ -273,7 +273,7 @@ To sign xml documents:
   - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array
   - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing-algorithms)
 - `computeSignature(xml, [options])` - compute the signature of the given xml where:
-  - `xml` - a string containing a xml document
+  - `xml` - a string containing an xml document or document object (like an [xmldom](https://github.com/xmldom/xmldom) document)
   - `options` - an object with the following properties:
     - `prefix` - adds this value as a prefix for the generated signature tags
     - `attrs` - a hash of attributes and values `attrName: value` to add to the signature root node
@@ -287,7 +287,8 @@ To verify xml documents:
 
 - `loadSignature(signatureXml)` - loads the signature where:
   - `signatureXml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the signature
-- `checkSignature(xml)` - validates the given xml document and returns `true` if the validation was successful
+- `checkSignature(xml)` - validates the given xml document and returns `true` if the validation was successful where:
+  - `xml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the document
 
 ## Customizing Algorithms
 
