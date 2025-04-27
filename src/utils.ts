@@ -18,7 +18,7 @@ function attrEqualsImplicitly(attr: Attr, localName: string, namespace?: string,
 }
 
 export function findAttr(element: Element, localName: string, namespace?: string) {
-  for (let i = 0; i < element.attributes.length; i++) {
+  for (let i = 0; i < element.attributes?.length; i++) {
     const attr = element.attributes[i];
 
     if (
