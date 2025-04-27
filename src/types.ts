@@ -50,6 +50,7 @@ export interface SignedXmlOptions {
   idMode?: "wssecurity";
   idAttribute?: string;
   privateKey?: crypto.KeyLike;
+  privateKeyPassphrase?: string;
   publicCert?: crypto.KeyLike;
   signatureAlgorithm?: SignatureAlgorithmType;
   canonicalizationAlgorithm?: CanonicalizationAlgorithmType;

@@ -65,6 +65,7 @@ signature algorithms enabled at same time.
 When signing a xml document you can pass the following options to the `SignedXml` constructor to customize the signature process:
 
 - `privateKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
+- `privateKeyPassphrase` - **[optional]** the passphrase to decrypt the private key
 - `publicCert` - **[optional]** a `Buffer` or pem encoded `String` containing your public key
 - `signatureAlgorithm` - **[required]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
 - `canonicalizationAlgorithm` - **[required]** one of the supported [canonicalization algorithms](#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
@@ -141,6 +142,7 @@ When verifying a xml document you can pass the following options to the `SignedX
 
 - `publicCert` - **[optional]** your certificate as a string, a string of multiple certs in PEM format, or a Buffer
 - `privateKey` - **[optional]** your private key as a string or a Buffer - used for verifying symmetrical signatures (HMAC)
+- `privateKeyPassphrase` - **[optional]** the passphrase to decrypt the private key
 
 The certificate that will be used to check the signature will first be determined by calling `this.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `publicCert` is used. If that is `null`, then `privateKey` is used (for symmetrical signing applications).
 
@@ -252,8 +254,9 @@ The `SignedXml` constructor provides an abstraction for sign and verify xml docu
 
 - `idMode` - default `null` - if the value of `wssecurity` is passed it will create/validate id's with the ws-security namespace.
 - `idAttribute` - string - default `Id` or `ID` or `id` - the name of the attribute that contains the id of the element
-- `privateKey` - string or Buffer - default `null` - the private key to use for signing
-- `publicCert` - string or Buffer - default `null` - the public certificate to use for verifying
+- `privateKey` - string or Buffer or crypto.KeyObject - the private key to use for signing
+- `privateKeyPassphrase` - string - the passphrase to decrypt the private key
+- `publicCert` - string or Buffer or crypto.KeyObject - the public certificate to use for verifying
 - `signatureAlgorithm` - string - the signature algorithm to use
 - `canonicalizationAlgorithm` - string - default `undefined` - the canonicalization algorithm to use
 - `inclusiveNamespacesPrefixList` - string - default `null` - a list of namespace prefixes to include during canonicalization

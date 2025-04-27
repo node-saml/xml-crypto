@@ -33,6 +33,7 @@ export class SignedXml {
    * A {@link Buffer} or pem encoded {@link String} containing your private key
    */
   privateKey?: crypto.KeyLike;
+  privateKeyPassphrase?: string;
   publicCert?: crypto.KeyLike;
   /**
    * One of the supported signature algorithms.
@@ -344,7 +345,7 @@ export class SignedXml {
     // First find the key & signature algorithm, these should match
     // Stage B: Take the signature algorithm and key and verify the `SignatureValue` against the canonicalized `SignedInfo`
     const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
-    const key = this.getCertFromKeyInfo(this.keyInfo) || this.publicCert || this.privateKey;
+    const key = this.getCertFromKeyInfo(this.keyInfo) || this.publicCert || this.getPrivateKey();
     if (key == null) {
       throw new Error("KeyInfo or publicCert or privateKey is required to validate signature");
     }
@@ -441,13 +442,14 @@ export class SignedXml {
   private calculateSignatureValue(doc: Document, callback?: ErrorFirstCallback<string>) {
     const signedInfoCanon = this.getCanonSignedInfoXml(doc);
     const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
-    if (this.privateKey == null) {
+    const privateKey = this.getPrivateKey();
+    if (privateKey === undefined) {
       throw new Error("Private key is required to compute signature");
     }
     if (typeof callback === "function") {
-      signer.getSignature(signedInfoCanon, this.privateKey, callback);
+      signer.getSignature(signedInfoCanon, privateKey, callback);
     } else {
-      this.signatureValue = signer.getSignature(signedInfoCanon, this.privateKey);
+      this.signatureValue = signer.getSignature(signedInfoCanon, privateKey);
     }
   }
 
@@ -1287,5 +1289,18 @@ export class SignedXml {
    */
   getSignedXml(): string {
     return this.signedXml;
+  }
+
+  getPrivateKey(): crypto.KeyLike | undefined {
+    if (
+      this.privateKeyPassphrase &&
+      (this.privateKey instanceof Buffer || typeof this.privateKey === "string")
+    ) {
+      return crypto.createPrivateKey({
+        key: this.privateKey,
+        passphrase: this.privateKeyPassphrase,
+      });
+    }
+    return this.privateKey;
   }
 }
