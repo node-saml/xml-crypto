@@ -423,10 +423,13 @@ export class SignedXml {
   }
 
   private getCanonReferenceXml(doc: Document, ref: Reference, node: Node) {
+    const transforms: string[] = [];
+    
     /**
      * Search for ancestor namespaces before canonicalization.
      */
     if (Array.isArray(ref.transforms)) {
+      transforms.push(...ref.transforms);
       ref.ancestorNamespaces = utils.findAncestorNs(doc, ref.xpath, this.namespaceResolver);
     }
 
@@ -434,8 +437,15 @@ export class SignedXml {
       inclusiveNamespacesPrefixList: ref.inclusiveNamespacesPrefixList,
       ancestorNamespaces: ref.ancestorNamespaces,
     };
+    
+    if (
+      transforms.length === 0 ||
+      transforms[transforms.length - 1] === "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
+    ) {
+      transforms.push("http://www.w3.org/TR/2001/REC-xml-c14n-20010315");
+    }
 
-    return this.getCanonXml(ref.transforms, node, c14nOptions);
+    return this.getCanonXml(transforms, node, c14nOptions);
   }
 
   private calculateSignatureValue(doc: Document, callback?: ErrorFirstCallback<string>) {
