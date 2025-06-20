@@ -44,6 +44,21 @@ export interface GetKeyInfoContentArgs {
 }
 
 /**
+ * Object attributes as defined in XMLDSig spec
+ * @see https://www.w3.org/TR/xmldsig-core/#sec-Object
+ */
+export interface ObjectAttributes {
+  /** Optional ID attribute */
+  Id?: string;
+  /** Optional MIME type attribute */
+  MimeType?: string;
+  /** Optional encoding attribute */
+  Encoding?: string;
+  /** Any additional custom attributes */
+  [key: string]: string | undefined;
+}
+
+/**
  * Options for the SignedXml constructor.
  */
 export interface SignedXmlOptions {
@@ -58,6 +73,7 @@ export interface SignedXmlOptions {
   keyInfoAttributes?: Record<string, string>;
   getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
   getCertFromKeyInfo?(keyInfo?: Node | null): string | null;
+  getObjectContent?(): Array<{ content: string; attributes?: ObjectAttributes }> | null;
 }
 
 export interface NamespacePrefix {
@@ -126,6 +142,9 @@ export interface Reference {
 
   // Optional. Indicates whether the URI is empty.
   isEmptyUri: boolean;
+
+  // Optional. Indicates if this reference points to an element within the Signature
+  isSignatureReference?: boolean;
 
   // Optional. The type of the reference node.
   ancestorNamespaces?: NamespacePrefix[];
