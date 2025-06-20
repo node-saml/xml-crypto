@@ -313,3 +313,21 @@ export function validateDigestValue(digest, expectedDigest) {
 
   return true;
 }
+
+// Check if the given node is descendant of the given parent node
+export function isDescendantOf(node: Node, parent: Node): boolean {
+  if (!node || !parent) {
+    return false;
+  }
+
+  let currentNode: Node | null = node.parentNode;
+
+  while (currentNode) {
+    if (currentNode === parent) {
+      return true;
+    }
+    currentNode = currentNode.parentNode;
+  }
+
+  return false;
+}
