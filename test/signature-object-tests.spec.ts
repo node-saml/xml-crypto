@@ -3,7 +3,8 @@ import { expect } from "chai";
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
 import * as isDomNode from "@xmldom/is-dom-node";
-import { SignedXml } from "../src/signed-xml";
+import { SignedXml } from "../src";
+import { Sha256 } from "../lib/hash-algorithms";
 
 describe("Object support in XML signatures", function () {
   it("should add custom ds:Object elements to signature", function () {
@@ -675,6 +676,85 @@ describe("Object support in XML signatures", function () {
     verifier.loadSignature(signatureNode);
 
     // Then check the signature
+    const isValid = verifier.checkSignature(signedXml);
+    expect(isValid).to.be.true;
+  });
+});
+
+describe("XAdES Object support in XML signatures", function () {
+  it("should be able to add and sign XAdES objects", function () {
+    const rootId = "root_0";
+    const signatureId = "signature_0";
+    const signedPropertiesId = "signedProperties_0";
+
+    const privateKey = fs.readFileSync("./test/static/client.pem");
+    const publicCert = fs.readFileSync("./test/static/client_public.pem");
+    const publicCertDer = fs.readFileSync("./test/static/client_public.der");
+    const publicCertDigest = new Sha256().getHash(publicCertDer);
+    const xml = `<root Id="${rootId}"><content>text</content></root>`;
+
+    const sig = new SignedXml({
+      publicCert: publicCert,
+      privateKey: privateKey,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      getObjectContent: () => [
+        {
+          content:
+            `<xades:QualifyingProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Target="#${rootId}">` +
+            `<xades:SignedProperties Id="${signedPropertiesId}">` +
+            `<xades:SignedSignatureProperties>` +
+            `<xades:SigningTime>2025-06-21T12:00:00Z</xades:SigningTime>` +
+            `<xades:SigningCertificateV2><xades:Cert><xades:CertDigest>` +
+            `<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>` +
+            `<ds:DigestValue>${publicCertDigest}</ds:DigestValue>` +
+            `</xades:CertDigest></xades:Cert></xades:SigningCertificateV2>` +
+            `</xades:SignedSignatureProperties>` +
+            `</xades:SignedProperties>` +
+            `</xades:QualifyingProperties>`,
+        },
+      ],
+    });
+
+    sig.addReference({
+      xpath: `//*[@Id='${rootId}']`,
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      transforms: [
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        "http://www.w3.org/2001/10/xml-exc-c14n#",
+      ],
+    });
+
+    sig.addReference({
+      xpath: `//*[@Id='${signedPropertiesId}']`,
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      isSignatureReference: true,
+    });
+
+    sig.computeSignature(xml, {
+      prefix: "ds",
+      location: {
+        action: "append",
+        reference: "/root",
+      },
+      attrs: {
+        Id: signatureId,
+      },
+    });
+
+    const signedXml = sig.getSignedXml();
+    const signedDoc = new xmldom.DOMParser().parseFromString(signedXml);
+    const signatureNode = xpath.select1(
+      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      signedDoc,
+    );
+    isDomNode.assertIsNodeLike(signatureNode);
+
+    const verifier = new SignedXml({
+      publicCert: publicCert,
+    });
+    verifier.loadSignature(signatureNode);
     const isValid = verifier.checkSignature(signedXml);
     expect(isValid).to.be.true;
   });
