@@ -261,6 +261,7 @@ The `SignedXml` constructor provides an abstraction for sign and verify xml docu
 - `keyInfoAttributes` - object - default `{}` - a hash of attributes and values `attrName: value` to add to the KeyInfo node
 - `getKeyInfoContent` - function - default `noop` - a function that returns the content of the KeyInfo node
 - `getCertFromKeyInfo` - function - default `SignedXml.getCertFromKeyInfo` - a function that returns the certificate from the `<KeyInfo />` node
+- `getObjectContent` - function - default `noop` - a function that returns the content of the `<Object/>` nodes
 
 #### API
 
@@ -272,6 +273,7 @@ To sign xml documents:
   - `xpath` - a string containing a XPath expression referencing a xml element
   - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array
   - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing-algorithms)
+  - `isSignatureReference` - boolean - default `false` - indicates whether the target of this reference is located inside the `<Signature>` element (e.g. an `<Object>`)
 - `computeSignature(xml, [options])` - compute the signature of the given xml where:
   - `xml` - a string containing a xml document
   - `options` - an object with the following properties:
@@ -532,6 +534,44 @@ sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml, {
   location: { reference: "//*[local-name(.)='book']", action: "after" }, //This will place the signature after the book element
 });
+```
+
+### how to add custom Objects to the signature
+
+Use the `getObjectContent` option when creating a SignedXml instance to add custom Objects to the signature. You can also reference these Objects in your signature by setting `isSignatureReference` to `true` when adding a reference.
+
+```javascript
+var SignedXml = require("xml-crypto").SignedXml,
+  fs = require("fs");
+
+var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+
+const sig = new SignedXml({
+  privateKey: fs.readFileSync("client.pem"),
+  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+  getObjectContent: () => [
+    {
+      content: "<TestObject>Test data in Object</TestObject>",
+      attributes: {
+        Id: "Object1",
+        MimeType: "text/xml",
+      },
+    },
+  ],
+});
+
+// Add a reference to the Object element
+sig.addReference({
+  xpath: "//*[@Id='Object1']",
+  digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+  transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+  // IMPORTANT: Set isSignatureReference to true to indicate this is a reference to an element inside the Signature
+  isSignatureReference: true,
+});
+
+sig.computeSignature(xml);
+fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
 
 ### more examples (_coming soon_)
