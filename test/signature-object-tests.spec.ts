@@ -683,7 +683,6 @@ describe("Object support in XML signatures", function () {
 
 describe("XAdES Object support in XML signatures", function () {
   it("should be able to add and sign XAdES objects", function () {
-    const rootId = "root_0";
     const signatureId = "signature_0";
     const signedPropertiesId = "signedProperties_0";
 
@@ -691,7 +690,7 @@ describe("XAdES Object support in XML signatures", function () {
     const publicCert = fs.readFileSync("./test/static/client_public.pem");
     const publicCertDer = fs.readFileSync("./test/static/client_public.der");
     const publicCertDigest = new Sha256().getHash(publicCertDer);
-    const xml = `<root Id="${rootId}"><content>text</content></root>`;
+    const xml = `<root><content>text</content></root>`;
 
     const sig = new SignedXml({
       publicCert: publicCert,
@@ -701,7 +700,7 @@ describe("XAdES Object support in XML signatures", function () {
       getObjectContent: () => [
         {
           content:
-            `<xades:QualifyingProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Target="#${rootId}">` +
+            `<xades:QualifyingProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Target="#${signatureId}">` +
             `<xades:SignedProperties Id="${signedPropertiesId}">` +
             `<xades:SignedSignatureProperties>` +
             `<xades:SigningTime>2025-06-21T12:00:00Z</xades:SigningTime>` +
@@ -717,7 +716,8 @@ describe("XAdES Object support in XML signatures", function () {
     });
 
     sig.addReference({
-      xpath: `//*[@Id='${rootId}']`,
+      xpath: `/*`,
+      isEmptyUri: true,
       digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
       transforms: [
         "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
@@ -727,6 +727,7 @@ describe("XAdES Object support in XML signatures", function () {
 
     sig.addReference({
       xpath: `//*[@Id='${signedPropertiesId}']`,
+      type: "http://uri.etsi.org/01903#SignedProperties",
       digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
       transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
       isSignatureReference: true,

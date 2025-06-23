@@ -146,6 +146,12 @@ export interface Reference {
   // Optional. Indicates if this reference points to an element within the Signature
   isSignatureReference?: boolean;
 
+  // Optional. The `Id` attribute of the reference node.
+  id?: string;
+
+  // Optional. The `Type` attribute of the reference node.
+  type?: string;
+
   // Optional. The type of the reference node.
   ancestorNamespaces?: NamespacePrefix[];
 

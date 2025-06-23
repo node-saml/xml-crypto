@@ -810,6 +810,8 @@ export class SignedXml {
    * @param inclusiveNamespacesPrefixList The prefix list for inclusive namespace canonicalization.
    * @param isEmptyUri Indicates whether the URI is empty. Defaults to `false`.
    * @param isSignatureReference Indicates whether this reference points to an element in the signature itself (like an Object element).
+   * @param id An optional `Id` attribute for the reference.
+   * @param type An optional `Type` attribute for the reference.
    */
   addReference({
     xpath,
@@ -820,6 +822,8 @@ export class SignedXml {
     inclusiveNamespacesPrefixList = [],
     isEmptyUri = false,
     isSignatureReference = false,
+    id = undefined,
+    type = undefined,
   }: Partial<Reference> & Pick<Reference, "xpath">): void {
     if (digestAlgorithm == null) {
       throw new Error("digestAlgorithm is required");
@@ -838,6 +842,8 @@ export class SignedXml {
       inclusiveNamespacesPrefixList,
       isEmptyUri,
       isSignatureReference,
+      id,
+      type,
       getValidatedNode: () => {
         throw new Error(
           "Reference has not been validated yet; Did you call `sig.checkSignature()`?",
@@ -1148,13 +1154,25 @@ export class SignedXml {
       }
 
       for (const node of nodes) {
+        let referenceAttrs = "";
+
         if (ref.isEmptyUri) {
-          res += `<${prefix}Reference URI="">`;
+          referenceAttrs = 'URI=""';
         } else {
           const id = this.ensureHasId(node);
           ref.uri = id;
-          res += `<${prefix}Reference URI="#${id}">`;
+          referenceAttrs = `URI="#${id}"`;
         }
+
+        if (ref.id) {
+          referenceAttrs += ` Id="${ref.id}"`;
+        }
+
+        if (ref.type) {
+          referenceAttrs += ` Type="${ref.type}"`;
+        }
+
+        res += `<${prefix}Reference ${referenceAttrs}>`;
         res += `<${prefix}Transforms>`;
         for (const trans of ref.transforms || []) {
           const transform = this.findCanonicalizationAlgorithm(trans);
@@ -1366,6 +1384,14 @@ export class SignedXml {
           const id = this.ensureHasId(node);
           ref.uri = id;
           referenceElem.setAttribute("URI", `#${id}`);
+        }
+
+        if (ref.id) {
+          referenceElem.setAttribute("Id", ref.id);
+        }
+
+        if (ref.type) {
+          referenceElem.setAttribute("Type", ref.type);
         }
 
         const transformsElem = signatureDoc.createElementNS(
