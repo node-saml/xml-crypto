@@ -538,7 +538,7 @@ sig.computeSignature(xml, {
 });
 ```
 
-### how to add custom Objects to the signature
+### How to add custom Objects to the signature
 
 Use the `getObjectContent` option when creating a SignedXml instance to add custom Objects to the signature. You can also reference these Objects in your signature by setting `isSignatureReference` to `true` when adding a reference.
 
