@@ -7,6 +7,46 @@ import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 describe("Signature unit tests", function () {
+  it("should format the signature value with line breaks and carriage returns", function () {
+    const xml = "<root><x /></root>";
+    const sig = new SignedXml({
+      signatureValueFormatting: { lineLength: 76, carriageReturn: true },
+    });
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    sig.computeSignature(xml);
+
+    // Check the internal signatureValue for \r\n
+    expect(sig.getSignatureValue()).to.include("\r\n");
+
+    // Check for the presence of any line break in the SignatureValue text content in the XML
+    const signatureXml = sig.getSignatureXml();
+    const signatureDoc = new xmldom.DOMParser().parseFromString(signatureXml);
+    const signatureValueNode = xpath.select1("//*[local-name(.)='SignatureValue']", signatureDoc);
+    expect(signatureValueNode, "SignatureValue node should be found").to.not.be.null;
+    const textContent = (signatureValueNode as Node).textContent || "";
+    expect(textContent).to.match(/\r?\n/, "SignatureValue in XML should contain a line break");
+
+    // Verify that the signature is still valid
+    const verifier = new SignedXml();
+    verifier.publicCert = fs.readFileSync("./test/static/client_public.pem");
+
+    // Load the signature from the generated XML
+    const signedXml = sig.getSignedXml();
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const signatureNode = xpath.select1("//*[local-name(.)='Signature']", doc);
+    expect(signatureNode, "Signature node should be found").to.not.be.null;
+    verifier.loadSignature(signatureNode as Node);
+
+    const isValid = verifier.checkSignature(signedXml);
+    expect(isValid, "Formatted signature should be valid").to.be.true;
+  });
   describe("verify adds ID", function () {
     function nodeExists(doc, xpathArg) {
       if (!doc && !xpathArg) {

@@ -58,6 +58,15 @@ export interface SignedXmlOptions {
   keyInfoAttributes?: Record<string, string>;
   getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
   getCertFromKeyInfo?(keyInfo?: Node | null): string | null;
+  /**
+   * Controls formatting of the SignatureValue output.
+   * - lineLength: number of characters per line (default 76)
+   * - carriageReturn: if true, use \r\n line endings (default false)
+   */
+  signatureValueFormatting?: {
+    lineLength?: number;
+    carriageReturn?: boolean;
+  };
 }
 
 export interface NamespacePrefix {

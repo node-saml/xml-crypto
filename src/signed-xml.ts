@@ -40,6 +40,15 @@ export class SignedXml {
    */
   signatureAlgorithm?: SignatureAlgorithmType = undefined;
   /**
+   * Controls formatting of the SignatureValue output.
+   * - lineLength: number of characters per line (default 76)
+   * - carriageReturn: if true, use \r\n line endings (default false)
+   */
+  signatureValueFormatting?: {
+    lineLength?: number;
+    carriageReturn?: boolean;
+  };
+  /**
    * Rules used to convert an XML document into its canonical form.
    */
   canonicalizationAlgorithm?: CanonicalizationAlgorithmType = undefined;
@@ -63,6 +72,14 @@ export class SignedXml {
   private signatureXml = "";
   private signatureNode: Node | null = null;
   private signatureValue = "";
+
+  /**
+   * Returns the computed SignatureValue as a string.
+   * Useful for testing and inspection.
+   */
+  public getSignatureValue(): string {
+    return this.signatureValue;
+  }
   private originalXmlWithIds = "";
   private keyInfo: Node | null = null;
 
@@ -164,6 +181,7 @@ export class SignedXml {
     this.keyInfoAttributes = keyInfoAttributes ?? this.keyInfoAttributes;
     this.getKeyInfoContent = getKeyInfoContent ?? this.getKeyInfoContent;
     this.getCertFromKeyInfo = getCertFromKeyInfo ?? SignedXml.noop;
+    this.signatureValueFormatting = options.signatureValueFormatting;
     this.CanonicalizationAlgorithms;
     this.HashAlgorithms;
     this.SignatureAlgorithms;
@@ -444,10 +462,26 @@ export class SignedXml {
     if (this.privateKey == null) {
       throw new Error("Private key is required to compute signature");
     }
+
+    const formatSignature = (signature: string): string => {
+      if (!this.signatureValueFormatting) {
+        return signature;
+      }
+      const { lineLength = 76, carriageReturn = false } = this.signatureValueFormatting;
+      const newline = carriageReturn ? "\r\n" : "\n";
+      return (signature.match(new RegExp(`.{1,${lineLength}}`, "g")) || []).join(newline);
+    };
     if (typeof callback === "function") {
-      signer.getSignature(signedInfoCanon, this.privateKey, callback);
+      signer.getSignature(signedInfoCanon, this.privateKey, (err, signature) => {
+        if (err) {
+          return callback(err);
+        }
+        this.signatureValue = formatSignature(signature || "");
+        callback(null, this.signatureValue);
+      });
     } else {
-      this.signatureValue = signer.getSignature(signedInfoCanon, this.privateKey);
+      const signature = signer.getSignature(signedInfoCanon, this.privateKey);
+      this.signatureValue = formatSignature(signature);
     }
   }
 
@@ -682,7 +716,7 @@ export class SignedXml {
     );
 
     if (isDomNode.isTextNode(signatureValue)) {
-      this.signatureValue = signatureValue.data.replace(/\r?\n/g, "");
+      this.signatureValue = signatureValue.data.replace(/\s/g, "");
     }
 
     const keyInfo = xpath.select1(".//*[local-name(.)='KeyInfo']", signatureNode);
