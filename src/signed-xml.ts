@@ -463,13 +463,13 @@ export class SignedXml {
       throw new Error("Private key is required to compute signature");
     }
 
-    const formatSignature = (signature: string): string => {
+    const formatSignature = (rawSignature: string): string => {
       if (!this.signatureValueFormatting) {
-        return signature;
+        return rawSignature;
       }
       const { lineLength = 76, carriageReturn = false } = this.signatureValueFormatting;
       const newline = carriageReturn ? "\r\n" : "\n";
-      return (signature.match(new RegExp(`.{1,${lineLength}}`, "g")) || []).join(newline);
+      return (rawSignature.match(new RegExp(`.{1,${lineLength}}`, "g")) || []).join(newline);
     };
     if (typeof callback === "function") {
       signer.getSignature(signedInfoCanon, this.privateKey, (err, signature) => {
@@ -716,7 +716,7 @@ export class SignedXml {
     );
 
     if (isDomNode.isTextNode(signatureValue)) {
-      this.signatureValue = signatureValue.data.replace(/\s/g, "");
+      this.signatureValue = signatureValue.data.replace(/\r?\n/g, "");
     }
 
     const keyInfo = xpath.select1(".//*[local-name(.)='KeyInfo']", signatureNode);
