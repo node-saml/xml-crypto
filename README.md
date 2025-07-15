@@ -5,6 +5,27 @@
 
 ---
 
+## Sponsors
+
+We gratefully acknowledge support from our sponsors:
+
+<div align="center">
+  <a href="https://stytch.com">
+    <picture>
+      <source width="200px" media="(prefers-color-scheme: dark)" srcset="./sponsor/stytch-light.svg">
+      <source width="200px" media="(prefers-color-scheme: light)" srcset="./sponsor/stytch-dark.svg">
+      <img width="200px" src="./sponsor/stytch-dark.svg" />
+    </picture>
+  </a>
+   <p align="center">
+      <a href="https://stytch.com/?utm_source=oss-sponsorship&utm_medium=paid_sponsorship&utm_campaign=xmlcrypto">
+        <b>The identity platform for humans & AI agents</b><br/>
+        One integration for authentication, authorization, and security
+      </a>
+   </p>
+</div>
+---
+
 # Upgrading
 
 The `.getReferences()` AND the `.references` APIs are deprecated.
