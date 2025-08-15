@@ -73,7 +73,7 @@ export interface SignedXmlOptions {
   keyInfoAttributes?: Record<string, string>;
   getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
   getCertFromKeyInfo?(keyInfo?: Node | null): string | null;
-  getObjectContent?(): Array<{ content: string; attributes?: ObjectAttributes }> | null;
+  objects?: Array<{ content: string; attributes?: ObjectAttributes }>;
 }
 
 export interface NamespacePrefix {

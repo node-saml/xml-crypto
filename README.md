@@ -261,7 +261,7 @@ The `SignedXml` constructor provides an abstraction for sign and verify xml docu
 - `keyInfoAttributes` - object - default `{}` - a hash of attributes and values `attrName: value` to add to the KeyInfo node
 - `getKeyInfoContent` - function - default `noop` - a function that returns the content of the KeyInfo node
 - `getCertFromKeyInfo` - function - default `SignedXml.getCertFromKeyInfo` - a function that returns the certificate from the `<KeyInfo />` node
-- `getObjectContent` - function - default `noop` - a function that returns the content of the `<Object/>` nodes
+- `objects` - array - default `undefined` - an array of objects defining the content of the `<Object/>` nodes
 
 #### API
 
@@ -540,7 +540,7 @@ sig.computeSignature(xml, {
 
 ### How to add custom Objects to the signature
 
-Use the `getObjectContent` option when creating a SignedXml instance to add custom Objects to the signature. You can also reference these Objects in your signature by setting `isSignatureReference` to `true` when adding a reference.
+Use the `objects` option when creating a SignedXml instance to add custom Objects to the signature. You can also reference these Objects in your signature by setting `isSignatureReference` to `true` when adding a reference.
 
 ```javascript
 var SignedXml = require("xml-crypto").SignedXml,
@@ -552,7 +552,7 @@ const sig = new SignedXml({
   privateKey: fs.readFileSync("client.pem"),
   canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
   signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
-  getObjectContent: () => [
+  objects: [
     {
       content: "<TestObject>Test data in Object</TestObject>",
       attributes: {

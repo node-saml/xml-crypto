@@ -8,6 +8,7 @@ import type {
   GetKeyInfoContentArgs,
   HashAlgorithm,
   HashAlgorithmType,
+  ObjectAttributes,
   Reference,
   SignatureAlgorithm,
   SignatureAlgorithmType,
@@ -56,7 +57,7 @@ export class SignedXml {
   keyInfoAttributes: { [attrName: string]: string } = {};
   getKeyInfoContent = SignedXml.getKeyInfoContent;
   getCertFromKeyInfo = SignedXml.getCertFromKeyInfo;
-  getObjectContent = SignedXml.getObjectContent;
+  objects?: Array<{ content: string; attributes?: ObjectAttributes }>;
 
   // Internal state
   private id = 0;
@@ -128,16 +129,6 @@ export class SignedXml {
   static noop = () => null;
 
   /**
-   * Default implementation for getObjectContent that returns null (no Objects)
-   */
-  static getObjectContent(): Array<{
-    content: string;
-    attributes?: Record<string, string | undefined>;
-  }> | null {
-    return null;
-  }
-
-  /**
    * The SignedXml constructor provides an abstraction for sign and verify xml documents. The object is constructed using
    * @param options {@link SignedXmlOptions}
    */
@@ -154,7 +145,7 @@ export class SignedXml {
       keyInfoAttributes,
       getKeyInfoContent,
       getCertFromKeyInfo,
-      getObjectContent,
+      objects,
     } = options;
 
     // Options
@@ -176,7 +167,7 @@ export class SignedXml {
     this.keyInfoAttributes = keyInfoAttributes ?? this.keyInfoAttributes;
     this.getKeyInfoContent = getKeyInfoContent ?? this.getKeyInfoContent;
     this.getCertFromKeyInfo = getCertFromKeyInfo ?? SignedXml.noop;
-    this.getObjectContent = getObjectContent ?? this.getObjectContent;
+    this.objects = objects;
     this.CanonicalizationAlgorithms;
     this.HashAlgorithms;
     this.SignatureAlgorithms;
@@ -1104,15 +1095,14 @@ export class SignedXml {
    */
   private getObjects(prefix?: string) {
     const currentPrefix = prefix ? `${prefix}:` : "";
-    const objects = this.getObjectContent?.();
 
-    if (!objects || objects.length === 0) {
+    if (!this.objects || this.objects.length === 0) {
       return "";
     }
 
     let result = "";
 
-    for (const obj of objects) {
+    for (const obj of this.objects) {
       let objectAttrs = "";
       if (obj.attributes) {
         Object.keys(obj.attributes).forEach((name) => {

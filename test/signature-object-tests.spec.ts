@@ -11,9 +11,9 @@ describe("Object support in XML signatures", function () {
     // Create a simple XML document to sign
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
 
-    // Create a SignedXml instance with custom getObjectContent
+    // Create a SignedXml instance with custom objects
     const sig = new SignedXml({
-      getObjectContent: () => [
+      objects: [
         {
           content: "<Data>Test data in Object element</Data>",
           attributes: {
@@ -95,9 +95,9 @@ describe("Object support in XML signatures", function () {
     // Create a simple XML document to sign
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
 
-    // Test with null return from getObjectContent
+    // Test with undefined objects
     const sigWithNull = new SignedXml({
-      getObjectContent: () => null,
+      objects: undefined,
     });
 
     sigWithNull.privateKey = fs.readFileSync("./test/static/client.pem");
@@ -126,9 +126,9 @@ describe("Object support in XML signatures", function () {
       expect(objectNodesWithNull).to.not.exist;
     }
 
-    // Test with empty array return from getObjectContent
+    // Test with empty array objects
     const sigWithEmpty = new SignedXml({
-      getObjectContent: () => [],
+      objects: [],
     });
 
     sigWithEmpty.privateKey = fs.readFileSync("./test/static/client.pem");
@@ -162,9 +162,9 @@ describe("Object support in XML signatures", function () {
     // Create a simple XML document to sign
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
 
-    // Create a SignedXml instance with custom getObjectContent including Encoding attribute
+    // Create a SignedXml instance with custom objects including Encoding attribute
     const sig = new SignedXml({
-      getObjectContent: () => [
+      objects: [
         {
           content: "VGhpcyBpcyBiYXNlNjQgZW5jb2RlZCBkYXRh", // "This is base64 encoded data"
           attributes: {
@@ -234,9 +234,9 @@ describe("Object support in XML signatures", function () {
     // Create a simple XML document to sign
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
 
-    // Create a SignedXml instance with custom getObjectContent
+    // Create a SignedXml instance with custom objects
     const sig = new SignedXml({
-      getObjectContent: () => [
+      objects: [
         {
           content: "<Data>Test data for SHA256 digest</Data>",
           attributes: {
@@ -327,9 +327,9 @@ describe("Object support in XML signatures", function () {
     // Create a simple XML document to sign
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
 
-    // Create a SignedXml instance with custom getObjectContent
+    // Create a SignedXml instance with custom objects
     const sig = new SignedXml({
-      getObjectContent: () => [
+      objects: [
         {
           content: "<Data>Test data for SHA512 digest</Data>",
           attributes: {
@@ -420,9 +420,9 @@ describe("Object support in XML signatures", function () {
     // Create a simple XML document to sign
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
 
-    // Create a SignedXml instance with custom getObjectContent
+    // Create a SignedXml instance with custom objects
     const sig = new SignedXml({
-      getObjectContent: () => [
+      objects: [
         {
           content: "<Data>Test data for C14N canonicalization</Data>",
           attributes: {
@@ -516,9 +516,9 @@ describe("Object support in XML signatures", function () {
     // Create a simple XML document to sign
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
 
-    // Create a SignedXml instance with custom getObjectContent
+    // Create a SignedXml instance with custom objects
     const sig = new SignedXml({
-      getObjectContent: () => [
+      objects: [
         {
           content: "<Data>Test data in Object element</Data>",
           attributes: {
@@ -604,9 +604,9 @@ describe("Object support in XML signatures", function () {
     // Create a simple XML document to sign
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
 
-    // Create a SignedXml instance with custom getObjectContent
+    // Create a SignedXml instance with custom objects
     const sig = new SignedXml({
-      getObjectContent: () => [
+      objects: [
         {
           content: "<Data>Test data in Object element</Data>",
           attributes: {
@@ -697,7 +697,7 @@ describe("XAdES Object support in XML signatures", function () {
       privateKey: privateKey,
       canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
       signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
-      getObjectContent: () => [
+      objects: [
         {
           content:
             `<xades:QualifyingProperties xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" Target="#${signatureId}">` +
