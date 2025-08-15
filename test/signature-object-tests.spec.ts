@@ -119,12 +119,7 @@ describe("Object support in XML signatures", function () {
 
     // Verify that no ds:Object elements exist
     const objectNodesWithNull = xpath.select("//*[local-name(.)='Object']", docWithNull);
-
-    if (Array.isArray(objectNodesWithNull)) {
-      expect(objectNodesWithNull.length).to.equal(0);
-    } else {
-      expect(objectNodesWithNull).to.not.exist;
-    }
+    expect(objectNodesWithNull).to.be.an("array").that.is.empty;
 
     // Test with empty array objects
     const sigWithEmpty = new SignedXml({
@@ -150,12 +145,7 @@ describe("Object support in XML signatures", function () {
 
     // Verify that no ds:Object elements exist
     const objectNodesWithEmpty = xpath.select("//*[local-name(.)='Object']", docWithEmpty);
-
-    if (Array.isArray(objectNodesWithEmpty)) {
-      expect(objectNodesWithEmpty.length).to.equal(0);
-    } else {
-      expect(objectNodesWithEmpty).to.not.exist;
-    }
+    expect(objectNodesWithEmpty).to.be.an("array").that.is.empty;
   });
 
   it("should handle Object with Encoding attribute", function () {
