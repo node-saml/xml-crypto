@@ -143,9 +143,6 @@ export interface Reference {
   // Optional. Indicates whether the URI is empty.
   isEmptyUri: boolean;
 
-  // Optional. Indicates if this reference points to an element within the Signature
-  isSignatureReference?: boolean;
-
   // Optional. The `Id` attribute of the reference node.
   id?: string;
 

@@ -269,11 +269,10 @@ A `SignedXml` object provides the following methods:
 
 To sign xml documents:
 
-- `addReference({ xpath, transforms, digestAlgorithm, isSignatureReference, id, type })` - adds a reference to a xml element where:
+- `addReference({ xpath, transforms, digestAlgorithm, id, type })` - adds a reference to a xml element where:
   - `xpath` - a string containing a XPath expression referencing a xml element
   - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array
   - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing-algorithms)
-  - `isSignatureReference` - boolean - default `false` - indicates whether the target of this reference is located inside the `<Signature>` element (e.g. an `<Object>`)
   - `id` - an optional `Id` attribute to add to the reference element
   - `type` - the optional `Type` attribute to add to the reference element (represented as a URI)
 - `computeSignature(xml, [options])` - compute the signature of the given xml where:
@@ -540,7 +539,7 @@ sig.computeSignature(xml, {
 
 ### How to add custom Objects to the signature
 
-Use the `objects` option when creating a SignedXml instance to add custom Objects to the signature. You can also reference these Objects in your signature by setting `isSignatureReference` to `true` when adding a reference.
+Use the `objects` option when creating a SignedXml instance to add custom Objects to the signature.
 
 ```javascript
 var SignedXml = require("xml-crypto").SignedXml,
@@ -568,8 +567,6 @@ sig.addReference({
   xpath: "//*[@Id='Object1']",
   digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
   transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-  // IMPORTANT: Set isSignatureReference to true to indicate this is a reference to an element inside the Signature
-  isSignatureReference: true,
 });
 
 sig.computeSignature(xml);

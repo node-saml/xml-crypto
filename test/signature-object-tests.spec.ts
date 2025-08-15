@@ -262,7 +262,6 @@ describe("Object support in XML signatures", function () {
       xpath: "//*[@Id='object1']",
       digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
       transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-      isSignatureReference: true,
     });
 
     // Set required algorithms
@@ -355,7 +354,6 @@ describe("Object support in XML signatures", function () {
       xpath: "//*[@Id='object1']",
       digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha512",
       transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-      isSignatureReference: true,
     });
 
     // Set required algorithms
@@ -448,7 +446,6 @@ describe("Object support in XML signatures", function () {
       xpath: "//*[@Id='object1']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
       transforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"],
-      isSignatureReference: true,
     });
 
     // Set required algorithms
@@ -544,7 +541,6 @@ describe("Object support in XML signatures", function () {
       xpath: "//*[@Id='object1']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
       transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-      isSignatureReference: true,
     });
 
     // Set required algorithms
@@ -627,12 +623,11 @@ describe("Object support in XML signatures", function () {
       transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
 
-    // Add a reference to the Object element by its ID only, marking it as a signature reference
+    // Add a reference to the Object element by its ID
     sig.addReference({
       xpath: "//*[@Id='object1']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
       transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-      isSignatureReference: true,
     });
 
     // Set required algorithms
@@ -730,7 +725,6 @@ describe("XAdES Object support in XML signatures", function () {
       type: "http://uri.etsi.org/01903#SignedProperties",
       digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
       transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-      isSignatureReference: true,
     });
 
     sig.computeSignature(xml, {

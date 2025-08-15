@@ -72,7 +72,7 @@ export class SignedXml {
    * Contains the references that were signed.
    * @see {@link Reference}
    */
-  private references: Reference[] = [];
+  private references: (Reference & { wasProcessed: boolean })[] = [];
 
   /**
    * Contains the canonicalized XML of the references that were validly signed.
@@ -800,7 +800,6 @@ export class SignedXml {
    * @param digestValue The expected digest value for the reference.
    * @param inclusiveNamespacesPrefixList The prefix list for inclusive namespace canonicalization.
    * @param isEmptyUri Indicates whether the URI is empty. Defaults to `false`.
-   * @param isSignatureReference Indicates whether this reference points to an element in the signature itself (like an Object element).
    * @param id An optional `Id` attribute for the reference.
    * @param type An optional `Type` attribute for the reference.
    */
@@ -812,7 +811,6 @@ export class SignedXml {
     digestValue,
     inclusiveNamespacesPrefixList = [],
     isEmptyUri = false,
-    isSignatureReference = false,
     id = undefined,
     type = undefined,
   }: Partial<Reference> & Pick<Reference, "xpath">): void {
@@ -832,9 +830,9 @@ export class SignedXml {
       digestValue,
       inclusiveNamespacesPrefixList,
       isEmptyUri,
-      isSignatureReference,
       id,
       type,
+      wasProcessed: false,
       getValidatedNode: () => {
         throw new Error(
           "Reference has not been validated yet; Did you call `sig.checkSignature()`?",
@@ -1131,16 +1129,11 @@ export class SignedXml {
 
     /* eslint-disable-next-line deprecation/deprecation */
     for (const ref of this.getReferences()) {
-      if (ref.isSignatureReference) {
-        // For signature references, we'll handle them separately after the signature is created
-        continue;
-      }
       const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
 
       if (!utils.isArrayHasLength(nodes)) {
-        throw new Error(
-          `the following xpath cannot be signed because it was not found: ${ref.xpath}`,
-        );
+        // Don't throw here - we'll handle this in processSignatureReferences
+        continue;
       }
 
       for (const node of nodes) {
@@ -1187,6 +1180,7 @@ export class SignedXml {
           `<${prefix}DigestValue>${digestAlgorithm.getHash(canonXml)}</${prefix}DigestValue>` +
           `</${prefix}Reference>`;
       }
+      ref.wasProcessed = true;
     }
 
     return res;
@@ -1328,13 +1322,13 @@ export class SignedXml {
   }
 
   /**
-   * Process references that point to elements within the Signature element
-   * This is called after the initial signature has been created
+   * Process references that weren't found in the initial document
+   * This is called after the initial signature has been created to handle references to signature elements
    */
   private processSignatureReferences(signatureDoc: Document, prefix?: string) {
-    // Get signature references
-    const signatureReferences = this.references.filter((ref) => ref.isSignatureReference);
-    if (signatureReferences.length === 0) {
+    // Get unprocessed references
+    const unprocessedReferences = this.references.filter((ref) => !ref.wasProcessed);
+    if (unprocessedReferences.length === 0) {
       return;
     }
 
@@ -1351,8 +1345,8 @@ export class SignedXml {
       throw new Error("Could not find SignedInfo element in signature");
     }
 
-    // Process each signature reference
-    for (const ref of signatureReferences) {
+    // Process each unprocessed reference
+    for (const ref of unprocessedReferences) {
       const nodes = xpath.selectWithResolver(ref.xpath ?? "", signatureDoc, this.namespaceResolver);
 
       if (!utils.isArrayHasLength(nodes)) {
@@ -1415,12 +1409,8 @@ export class SignedXml {
         // Get the canonicalized XML
         const canonXml = this.getCanonReferenceXml(signatureDoc, ref, node);
 
-        // Calculate the digest
+        // Get the digest algorithm and compute the digest value
         const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
-        const digestValue = digestAlgorithm.getHash(canonXml);
-
-        // Store the digest value for later validation
-        ref.digestValue = digestValue;
 
         const digestMethodElem = signatureDoc.createElementNS(
           signatureNamespace,
@@ -1432,7 +1422,7 @@ export class SignedXml {
           signatureNamespace,
           `${prefix}DigestValue`,
         );
-        digestValueElem.textContent = digestValue;
+        digestValueElem.textContent = digestAlgorithm.getHash(canonXml);
 
         referenceElem.appendChild(transformsElem);
         referenceElem.appendChild(digestMethodElem);
