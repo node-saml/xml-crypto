@@ -324,7 +324,7 @@ describe("Object support in XML signatures", function () {
     expect(checkSignature(signedXml, doc)).to.be.true;
   });
 
-  it("should add a reference to an Object element", function () {
+  it("should add and sign references to Object elements within the Signature", function () {
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
 
     const sig = new SignedXml({
@@ -380,59 +380,6 @@ describe("Object support in XML signatures", function () {
     );
     isDomNode.assertIsArrayOfNodes(signedInfoReference);
     expect(signedInfoReference.length).to.equal(1);
-
-    // Verify that the signature is valid
-    expect(checkSignature(signedXml, doc)).to.be.true;
-  });
-
-  it("should allow signing Object elements within the Signature", function () {
-    const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
-
-    const sig = new SignedXml({
-      privateKey,
-      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
-      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
-      objects: [
-        {
-          content: "<Data>Test data in Object element</Data>",
-          attributes: {
-            Id: "object1",
-            MimeType: "text/xml",
-          },
-        },
-      ],
-    });
-
-    sig.addReference({
-      xpath: "//*[local-name(.)='x']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-    });
-
-    sig.addReference({
-      xpath: "//*[@Id='object1']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-    });
-
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
-
-    // Verify that the ds:Object element exists
-    const objectNodes = xpath.select("//*[local-name(.)='Object']", doc);
-    isDomNode.assertIsArrayOfNodes(objectNodes);
-    expect(objectNodes.length).to.equal(1);
-
-    // Verify that there are two Reference elements
-    const referenceNodes = xpath.select("//*[local-name(.)='Reference']", doc);
-    isDomNode.assertIsArrayOfNodes(referenceNodes);
-    expect(referenceNodes.length).to.equal(2);
-
-    // Verify that one of the references points to the Object
-    const objectReference = xpath.select("//*[local-name(.)='Reference' and @URI='#object1']", doc);
-    isDomNode.assertIsArrayOfNodes(objectReference);
-    expect(objectReference.length).to.equal(1);
 
     // Verify that the signature is valid
     expect(checkSignature(signedXml, doc)).to.be.true;
@@ -545,8 +492,42 @@ describe("XAdES Object support in XML signatures", function () {
     });
 
     const signedXml = sig.getSignedXml();
+    const signedDoc = new xmldom.DOMParser().parseFromString(signedXml);
+
+    // ds:Signature has the expected Id
+    const elSig = xpath.select1("//*[local-name(.)='Signature']", signedDoc);
+    isDomNode.assertIsElementNode(elSig);
+    expect(elSig.getAttribute("Id")).to.equal(signatureId);
+
+    // xades:QualifyingProperties targets the signature Id
+    const elQP = xpath.select1("//*[local-name(.)='QualifyingProperties']", signedDoc);
+    isDomNode.assertIsElementNode(elQP);
+    expect(elQP.getAttribute("Target")).to.equal(`#${signatureId}`);
+
+    // xades:SignedProperties has the expected Id
+    const elSP = xpath.select1("//*[local-name(.)='SignedProperties']", signedDoc);
+    isDomNode.assertIsElementNode(elSP);
+    expect(elSP.getAttribute("Id")).to.equal(signedPropertiesId);
+
+    // Reference for SignedProperties exists with correct @Type and @URI
+    const elSPRef = xpath.select1(
+      "//*[local-name(.)='SignedInfo']/*[local-name(.)='Reference' and @Type='http://uri.etsi.org/01903#SignedProperties']",
+      signedDoc,
+    );
+    isDomNode.assertIsElementNode(elSPRef);
+    expect(elSPRef.getAttribute("URI")).to.equal(`#${signedPropertiesId}`);
+
+    // DigestMethod for SignedProperties is SHA-256
+    const elSPDigestMethod = xpath.select1(
+      `//*[local-name(.)='SignedInfo']/*[local-name(.)='Reference' and @URI='#${signedPropertiesId}']/*[local-name(.)='DigestMethod']`,
+      signedDoc,
+    ) as Element;
+    isDomNode.assertIsElementNode(elSPDigestMethod);
+    expect(elSPDigestMethod.getAttribute("Algorithm")).to.equal(
+      "http://www.w3.org/2001/04/xmlenc#sha256",
+    );
 
     // Verify that the signature is valid
-    expect(checkSignature(signedXml)).to.be.true;
+    expect(checkSignature(signedXml, signedDoc)).to.be.true;
   });
 });
