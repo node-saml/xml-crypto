@@ -1317,4 +1317,22 @@ describe("Signature unit tests", function () {
       "Reference element should have the correct Type attribute value",
     ).to.equal("http://www.w3.org/2000/09/xmldsig#Object");
   });
+
+  it("should throw if xpath matches no nodes", () => {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+
+    sig.addReference({
+      xpath: "//definitelyNotThere",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    expect(() => sig.computeSignature("<root></root>")).to.throw(
+      /the following xpath cannot be signed because it was not found/,
+    );
+  });
 });
