@@ -4,7 +4,7 @@ import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
 import * as isDomNode from "@xmldom/is-dom-node";
 import { SignedXml } from "../src";
-import { Sha256 } from "../lib/hash-algorithms";
+import { Sha256 } from "../src/hash-algorithms";
 
 describe("Object support in XML signatures", function () {
   it("should add custom ds:Object elements to signature", function () {
@@ -91,7 +91,7 @@ describe("Object support in XML signatures", function () {
     expect(isValid).to.be.true;
   });
 
-  it("should handle empty or null getObjectContent", function () {
+  it("should handle empty or undefined objects", function () {
     // Create a simple XML document to sign
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
 
