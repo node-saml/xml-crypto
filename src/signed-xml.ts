@@ -991,9 +991,6 @@ export class SignedXml {
     const dummySignatureWrapper = `<Dummy ${existingPrefixesString}>${signatureXml}</Dummy>`;
     const nodeXml = new xmldom.DOMParser().parseFromString(dummySignatureWrapper);
 
-    // Process any signature references after the signature has been created
-    this.processSignatureReferences(nodeXml, prefix);
-
     // Because we are using a dummy wrapper hack described above, we know there will be a `firstChild`
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const signatureDoc = nodeXml.documentElement.firstChild!;
@@ -1031,6 +1028,9 @@ export class SignedXml {
       }
       referenceNode.parentNode.insertBefore(signatureDoc, referenceNode.nextSibling);
     }
+
+    // Process any signature references after the signature has been added to the document
+    this.processSignatureReferences(doc, prefix);
 
     this.signatureNode = signatureDoc;
     const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
