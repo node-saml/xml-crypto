@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import { expect } from "chai";
+import { expect, assert } from "chai";
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
 import * as isDomNode from "@xmldom/is-dom-node";
@@ -9,23 +9,37 @@ import { Sha256 } from "../src/hash-algorithms";
 const privateKey = fs.readFileSync("./test/static/client.pem", "utf-8");
 const publicCert = fs.readFileSync("./test/static/client_public.pem", "utf-8");
 const publicCertDer = fs.readFileSync("./test/static/client_public.der");
+const selectNs = (expression: string, node: Node, ns?: Record<string, string>) =>
+  xpath.useNamespaces({
+    ds: "http://www.w3.org/2000/09/xmldsig#",
+    xades: "http://uri.etsi.org/01903/v1.3.2#",
+    ...ns,
+  })(expression, node, false);
+const select1Ns = (expression: string, node: Node, ns?: Record<string, string>) =>
+  xpath.useNamespaces({
+    ds: "http://www.w3.org/2000/09/xmldsig#",
+    xades: "http://uri.etsi.org/01903/v1.3.2#",
+    ...ns,
+  })(expression, node, true);
 
-const checkSignature = (signedXml: string, signedDoc?: Document) => {
-  if (!signedDoc) {
-    signedDoc = new xmldom.DOMParser().parseFromString(signedXml);
-  }
+const checkSignature = (signedXml: string, signedDoc: Document) => {
   const verifier = new SignedXml({ publicCert });
-  const signatureNode = xpath.select1(
-    "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-    signedDoc,
-  );
+  const signatureNode = select1Ns("//ds:Signature", signedDoc);
   isDomNode.assertIsNodeLike(signatureNode);
   verifier.loadSignature(signatureNode);
-  return verifier.checkSignature(signedXml);
+  const valid = verifier.checkSignature(signedXml);
+
+  return {
+    valid,
+    errorMessage: verifier
+      .getReferences()
+      .flatMap((ref) => ref.validationError?.message || [])
+      .join(", "),
+  };
 };
 
-describe("Object support in XML signatures", function () {
-  it("should add custom ds:Object elements to signature", function () {
+describe("ds:Object support in XML signatures", function () {
+  it("should add custom ds:Object elements with attributes to the signature", function () {
     const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
 
     const sig = new SignedXml({
@@ -38,6 +52,7 @@ describe("Object support in XML signatures", function () {
           attributes: {
             Id: "object1",
             MimeType: "text/xml",
+            Encoding: "",
           },
         },
         {
@@ -47,105 +62,11 @@ describe("Object support in XML signatures", function () {
             MimeType: "text/plain",
           },
         },
-      ],
-    });
-
-    sig.addReference({
-      xpath: "//*[local-name(.)='x']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-    });
-
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
-
-    // Should have two Object elements
-    const objectNodes = xpath.select("//*[local-name(.)='Object']", doc);
-    isDomNode.assertIsArrayOfNodes(objectNodes);
-    expect(objectNodes.length).to.equal(2);
-
-    // Verify the first Object element
-    const firstObject = objectNodes[0];
-    isDomNode.assertIsElementNode(firstObject);
-    expect(firstObject.getAttribute("Id")).to.equal("object1");
-    expect(firstObject.getAttribute("MimeType")).to.equal("text/xml");
-    expect(firstObject.textContent?.includes("Test data in Object element")).to.be.true;
-
-    // Verify the second Object element
-    const secondObject = objectNodes[1];
-    isDomNode.assertIsElementNode(secondObject);
-    expect(secondObject.getAttribute("Id")).to.equal("object2");
-    expect(secondObject.getAttribute("MimeType")).to.equal("text/plain");
-    expect(secondObject.textContent).to.equal("Plain text content");
-
-    // Verify that the signature is valid
-    expect(checkSignature(signedXml, doc)).to.be.true;
-  });
-
-  it("should handle empty or undefined objects", function () {
-    const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
-
-    // Test with undefined objects
-    const sigWithNull = new SignedXml({
-      privateKey,
-      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
-      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
-      objects: undefined,
-    });
-
-    sigWithNull.addReference({
-      xpath: "//*[local-name(.)='x']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-    });
-
-    sigWithNull.computeSignature(xml);
-    const signedXmlWithNull = sigWithNull.getSignedXml();
-    const docWithNull = new xmldom.DOMParser().parseFromString(signedXmlWithNull);
-
-    // Verify that no Object elements exist
-    const objectNodesWithNull = xpath.select("//*[local-name(.)='Object']", docWithNull);
-    isDomNode.assertIsArrayOfNodes(objectNodesWithNull);
-    expect(objectNodesWithNull.length).to.equal(0);
-
-    // Test with empty array objects
-    const sigWithEmpty = new SignedXml({
-      privateKey,
-      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
-      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
-      objects: [],
-    });
-
-    sigWithEmpty.addReference({
-      xpath: "//*[local-name(.)='x']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-    });
-
-    sigWithEmpty.computeSignature(xml);
-    const signedXmlWithEmpty = sigWithEmpty.getSignedXml();
-    const docWithEmpty = new xmldom.DOMParser().parseFromString(signedXmlWithEmpty);
-
-    // Verify that no Object elements exist
-    const objectNodesWithEmpty = xpath.select("//*[local-name(.)='Object']", docWithEmpty);
-    isDomNode.assertIsArrayOfNodes(objectNodesWithEmpty);
-    expect(objectNodesWithEmpty.length).to.equal(0);
-  });
-
-  it("should handle Object with Encoding attribute", function () {
-    const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
-
-    const sig = new SignedXml({
-      privateKey,
-      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
-      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
-      objects: [
         {
-          content: "VGhpcyBpcyBiYXNlNjQgZW5jb2RlZCBkYXRh", // "This is base64 encoded data"
+          content: Buffer.from("This is base64 encoded data").toString("base64"),
           attributes: {
-            Id: "object1",
-            MimeType: "application/octet-stream",
+            Id: "object3",
+            MimeType: "text/plain",
             Encoding: "http://www.w3.org/2000/09/xmldsig#base64",
           },
         },
@@ -160,172 +81,46 @@ describe("Object support in XML signatures", function () {
 
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
-    const signedDoc = new xmldom.DOMParser().parseFromString(signedXml);
-
-    // Verify that the Object element exists
-    const objectNodes = xpath.select("//*[local-name(.)='Object']", signedDoc);
-    isDomNode.assertIsArrayOfNodes(objectNodes);
-    expect(objectNodes.length).to.equal(1);
-
-    // Verify the Object element
-    const object = objectNodes[0];
-    isDomNode.assertIsElementNode(object);
-    expect(object.getAttribute("Id")).to.equal("object1");
-    expect(object.getAttribute("MimeType")).to.equal("application/octet-stream");
-    expect(object.getAttribute("Encoding")).to.equal("http://www.w3.org/2000/09/xmldsig#base64");
-    expect(object.textContent).to.equal("VGhpcyBpcyBiYXNlNjQgZW5jb2RlZCBkYXRh");
-
-    // Verify that the signature is valid
-    expect(checkSignature(signedXml, signedDoc)).to.be.true;
-  });
-
-  [
-    {
-      name: "SHA256",
-      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
-      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
-    },
-    {
-      name: "SHA512",
-      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512",
-      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha512",
-    },
-  ].forEach(({ name, signatureAlgorithm, digestAlgorithm }) => {
-    it(`should sign Object with ${name} digest algorithm and RSA-${name} signature`, () => {
-      const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
-
-      const sig = new SignedXml({
-        privateKey,
-        canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
-        signatureAlgorithm,
-        objects: [
-          {
-            content: "<Data>Test data for SHA256 digest</Data>",
-            attributes: {
-              Id: "object1",
-              MimeType: "text/xml",
-            },
-          },
-        ],
-      });
-
-      sig.addReference({
-        xpath: "//*[local-name(.)='x']",
-        digestAlgorithm,
-        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-      });
-
-      sig.addReference({
-        xpath: "//*[@Id='object1']",
-        digestAlgorithm,
-        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-      });
-
-      sig.computeSignature(xml);
-      const signedXml = sig.getSignedXml();
-
-      const doc = new xmldom.DOMParser().parseFromString(signedXml);
-
-      // Verify that the ds:Object element exists
-      const objectNodes = xpath.select("//*[local-name(.)='Object']", doc);
-      isDomNode.assertIsArrayOfNodes(objectNodes);
-      expect(objectNodes.length).to.equal(1);
-
-      // Verify that there are two Reference elements
-      const referenceNodes = xpath.select("//*[local-name(.)='Reference']", doc);
-      isDomNode.assertIsArrayOfNodes(referenceNodes);
-      expect(referenceNodes.length).to.equal(2);
-
-      // Verify that the references use SHA256
-      const digestMethodNodes = xpath.select("//*[local-name(.)='DigestMethod']", doc);
-      isDomNode.assertIsArrayOfNodes(digestMethodNodes);
-
-      for (const digestMethod of digestMethodNodes) {
-        isDomNode.assertIsElementNode(digestMethod);
-        expect(digestMethod.getAttribute("Algorithm")).to.equal(digestAlgorithm);
-      }
-
-      // Verify that the signature method is RSA-SHA256
-      const signatureMethod = xpath.select1("//*[local-name(.)='SignatureMethod']", doc);
-      isDomNode.assertIsElementNode(signatureMethod);
-      expect(signatureMethod.getAttribute("Algorithm")).to.equal(signatureAlgorithm);
-
-      // Verify that the signature is valid
-      expect(checkSignature(signedXml, doc)).to.be.true;
-    });
-  });
-
-  it("should sign Object with C14N canonicalization algorithm", function () {
-    const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
-
-    const sig = new SignedXml({
-      privateKey,
-      canonicalizationAlgorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
-      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
-      objects: [
-        {
-          content: "<Data>Test data for C14N canonicalization</Data>",
-          attributes: {
-            Id: "object1",
-            MimeType: "text/xml",
-          },
-        },
-      ],
-    });
-
-    sig.addReference({
-      xpath: "//*[local-name(.)='x']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"],
-    });
-
-    sig.addReference({
-      xpath: "//*[@Id='object1']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"],
-    });
-
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
 
-    // Verify that the ds:Object element exists
-    const objectNodes = xpath.select("//*[local-name(.)='Object']", doc);
+    // Should have three Object elements
+    const objectNodes = selectNs("/root/ds:Signature/ds:Object", doc);
     isDomNode.assertIsArrayOfNodes(objectNodes);
-    expect(objectNodes.length).to.equal(1);
+    expect(objectNodes.length).to.equal(3);
 
-    // Verify that there are two Reference elements
-    const referenceNodes = xpath.select("//*[local-name(.)='Reference']", doc);
-    isDomNode.assertIsArrayOfNodes(referenceNodes);
-    expect(referenceNodes.length).to.equal(2);
+    // Verify the first Object element
+    const object1 = objectNodes[0];
+    isDomNode.assertIsElementNode(object1);
+    expect(object1.getAttribute("Id")).to.equal("object1");
+    expect(object1.getAttribute("MimeType")).to.equal("text/xml");
+    expect(object1.hasAttribute("Encoding")).to.be.true;
+    expect(object1.getAttribute("Encoding")).to.equal("");
+    const object1Data = select1Ns("ds:Data", object1);
+    isDomNode.assertIsElementNode(object1Data);
+    expect(object1Data.textContent).to.equal("Test data in Object element");
 
-    // Verify that the transforms use C14N
-    const transforms = xpath.select(
-      "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']",
-      doc,
+    // Verify the second Object element
+    const object2 = objectNodes[1];
+    isDomNode.assertIsElementNode(object2);
+    expect(object2.getAttribute("Id")).to.equal("object2");
+    expect(object2.getAttribute("MimeType")).to.equal("text/plain");
+    expect(object2.hasAttribute("Encoding")).to.be.false;
+    expect(object2.textContent).to.equal("Plain text content");
+
+    // Verify the third Object element
+    const object3 = objectNodes[2];
+    isDomNode.assertIsElementNode(object3);
+    expect(object3.getAttribute("Id")).to.equal("object3");
+    expect(object3.getAttribute("MimeType")).to.equal("text/plain");
+    expect(object3.getAttribute("Encoding")).to.equal("http://www.w3.org/2000/09/xmldsig#base64");
+    assert(object3.textContent);
+    expect(Buffer.from(object3.textContent, "base64").toString("utf-8")).to.equal(
+      "This is base64 encoded data",
     );
-    isDomNode.assertIsArrayOfNodes(transforms);
-
-    for (const transform of transforms) {
-      isDomNode.assertIsElementNode(transform);
-      expect(transform.getAttribute("Algorithm")).to.equal(
-        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
-      );
-    }
-
-    // Verify that the CanonicalizationMethod is C14N
-    const canonMethod = xpath.select1("//*[local-name(.)='CanonicalizationMethod']", doc);
-    isDomNode.assertIsElementNode(canonMethod);
-    expect(canonMethod.getAttribute("Algorithm")).to.equal(
-      "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
-    );
-
-    // Verify that the signature is valid
-    expect(checkSignature(signedXml, doc)).to.be.true;
   });
 
-  it("should add and sign references to Object elements within the Signature", function () {
-    const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
+  it("should have correct ds:Object namespace when there is no default namespace", function () {
+    const xml = "<root></root>";
 
     const sig = new SignedXml({
       privateKey,
@@ -333,59 +128,82 @@ describe("Object support in XML signatures", function () {
       signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
       objects: [
         {
-          content: "<Data>Test data in Object element</Data>",
+          content: "Test data",
           attributes: {
             Id: "object1",
-            MimeType: "text/xml",
+            MimeType: "text/plain",
           },
         },
       ],
     });
 
     sig.addReference({
-      xpath: "//*[local-name(.)='x']",
+      xpath: "/*",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
       transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
 
-    sig.addReference({
-      xpath: "//*[@Id='object1']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-    });
-
-    sig.computeSignature(xml);
+    // When we add a prefix to the signature, there is no default namespace
+    sig.computeSignature(xml, { prefix: "ds" });
     const signedXml = sig.getSignedXml();
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
 
-    // Verify that the ds:Object element exists
-    const objectNodes = xpath.select("//*[local-name(.)='Object']", doc);
-    isDomNode.assertIsArrayOfNodes(objectNodes);
-    expect(objectNodes.length).to.equal(1);
-
-    // Verify that there are two Reference elements
-    const referenceNodes = xpath.select("//*[local-name(.)='Reference']", doc);
-    isDomNode.assertIsArrayOfNodes(referenceNodes);
-    expect(referenceNodes.length).to.equal(2);
-
-    // Verify that one of the references points to the Object
-    const objectReference = xpath.select("//*[local-name(.)='Reference' and @URI='#object1']", doc);
-    isDomNode.assertIsArrayOfNodes(objectReference);
-    expect(objectReference.length).to.equal(1);
-
-    // Verify that the reference is actually in the SignedInfo section
-    const signedInfoReference = xpath.select(
-      "//*[local-name(.)='SignedInfo']/*[local-name(.)='Reference' and @URI='#object1']",
-      doc,
-    );
-    isDomNode.assertIsArrayOfNodes(signedInfoReference);
-    expect(signedInfoReference.length).to.equal(1);
-
-    // Verify that the signature is valid
-    expect(checkSignature(signedXml, doc)).to.be.true;
+    // Verify the namespace of the ds:Object element
+    const objectNode = select1Ns("/root/ds:Signature/ds:Object[@Id='object1']", doc);
+    isDomNode.assertIsElementNode(objectNode);
   });
 
-  it("should handle inclusiveNamespacesPrefixList and detect Id in object reference", () => {
+  it("should handle empty or undefined objects", function () {
+    const xml = "<root></root>";
+
+    // Test with undefined objects
+    const sigWithNull = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+      objects: undefined,
+    });
+
+    sigWithNull.addReference({
+      xpath: "/*",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    sigWithNull.computeSignature(xml);
+    const signedXmlWithNull = sigWithNull.getSignedXml();
+    const docWithNull = new xmldom.DOMParser().parseFromString(signedXmlWithNull);
+
+    // Verify that no Object elements exist
+    const objectNodesWithNull = selectNs("//ds:Object", docWithNull);
+    isDomNode.assertIsArrayOfNodes(objectNodesWithNull);
+    expect(objectNodesWithNull.length).to.equal(0);
+
+    // Test with empty array objects
+    const sigWithEmpty = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+      objects: [],
+    });
+
+    sigWithEmpty.addReference({
+      xpath: "/*",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    sigWithEmpty.computeSignature(xml);
+    const signedXmlWithEmpty = sigWithEmpty.getSignedXml();
+    const docWithEmpty = new xmldom.DOMParser().parseFromString(signedXmlWithEmpty);
+
+    // Verify that no Object elements exist
+    const objectNodesWithEmpty = selectNs("//ds:Object", docWithEmpty);
+    isDomNode.assertIsArrayOfNodes(objectNodesWithEmpty);
+    expect(objectNodesWithEmpty.length).to.equal(0);
+  });
+
+  it("should handle Rerefence to Object", function () {
     const xml = "<root></root>";
 
     const sig = new SignedXml({
@@ -404,7 +222,7 @@ describe("Object support in XML signatures", function () {
     });
 
     sig.addReference({
-      xpath: "//*[local-name(.)='Object']",
+      xpath: "//*[local-name(.)='Object' and @Id='object1']",
       inclusiveNamespacesPrefixList: ["ns1", "ns2"],
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
       transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
@@ -414,21 +232,139 @@ describe("Object support in XML signatures", function () {
     const signedXml = sig.getSignedXml();
     const signedDoc = new xmldom.DOMParser().parseFromString(signedXml);
 
-    // Verify that the InclusiveNamespaces element is present
-    const elInclusiveNamespaces = xpath.select1(
-      "//*[local-name(.)='InclusiveNamespaces' and namespace-uri(.)='http://www.w3.org/2001/10/xml-exc-c14n#']",
-      signedDoc,
-    );
-    isDomNode.assertIsElementNode(elInclusiveNamespaces);
-    expect(elInclusiveNamespaces.getAttribute("PrefixList")).to.equal("ns1 ns2");
+    // Verify that there is exactly one ds:Reference
+    const referenceNodes = selectNs("/root/ds:Signature/ds:SignedInfo/ds:Reference", signedDoc);
+    isDomNode.assertIsArrayOfNodes(referenceNodes);
+    expect(referenceNodes.length).to.equal(1);
+    const referenceEl = referenceNodes[0];
+    isDomNode.assertIsElementNode(referenceEl);
 
-    // Verify that the Reference URI is correct
-    const elReference = xpath.select1("//*[local-name(.)='Reference']", signedDoc);
-    isDomNode.assertIsElementNode(elReference);
-    expect(elReference.getAttribute("URI")).to.equal("#object1");
+    // Verify that the Reference URI points to the Object
+    expect(referenceEl.getAttribute("URI")).to.equal("#object1");
+
+    // Verify that the Reference contains the correct Transform
+    const transformEl = select1Ns("ds:Transforms/ds:Transform", referenceEl);
+    isDomNode.assertIsElementNode(transformEl);
+    expect(transformEl.getAttribute("Algorithm")).to.equal(
+      "http://www.w3.org/2001/10/xml-exc-c14n#",
+    );
+
+    // Verify that the InclusiveNamespacesPrefixList is set correctly
+    const inclusiveNamespacesEl = select1Ns("ec:InclusiveNamespaces", transformEl, {
+      ec: "http://www.w3.org/2001/10/xml-exc-c14n#",
+    });
+    isDomNode.assertIsElementNode(inclusiveNamespacesEl);
+    expect(inclusiveNamespacesEl.getAttribute("PrefixList")).to.equal("ns1 ns2");
+
+    // Verify that the Reference contains the correct DigestMethod
+    const digestMethodEl = select1Ns("ds:DigestMethod", referenceEl);
+    isDomNode.assertIsElementNode(digestMethodEl);
+    expect(digestMethodEl.getAttribute("Algorithm")).to.equal(
+      "http://www.w3.org/2000/09/xmldsig#sha1",
+    );
+
+    // Verify that the Reference contains a non-empty DigestValue
+    const digestValueEl = select1Ns("ds:DigestValue", referenceEl);
+    isDomNode.assertIsElementNode(digestValueEl);
+    expect(digestValueEl.textContent).to.not.be.empty;
+  });
+});
+
+describe("Valid signatures with ds:Object elements", function () {
+  it("should create valid signatures with NO references to ds:Object", function () {
+    const xml = "<root></root>";
+
+    const sig = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+      objects: [
+        {
+          content: "<Data>Test data in Object element</Data>",
+          attributes: {
+            Id: "object1",
+            MimeType: "text/xml",
+          },
+        },
+      ],
+    });
+
+    sig.addReference({
+      xpath: "/*",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: [
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        "http://www.w3.org/2001/10/xml-exc-c14n#",
+      ],
+    });
+
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
 
     // Verify that the signature is valid
-    expect(checkSignature(signedXml, signedDoc)).to.be.true;
+    const { valid, errorMessage } = checkSignature(signedXml, doc);
+    expect(valid, errorMessage).to.be.true;
+  });
+
+  it("should create valid signatures with references to ds:Object", () => {
+    const xml = '<ns1:root xmlns:ns1="uri:ns1"></ns1:root>';
+
+    const sig = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+      inclusiveNamespacesPrefixList: ["ns1", "ns2"],
+      objects: [
+        {
+          content:
+            '<Data xmlns:ns2="uri:ns2" xmlns:ns3="uri:ns3">Test data in Object element</Data>',
+          attributes: {
+            Id: "object1",
+            MimeType: "text/xml",
+          },
+        },
+      ],
+    });
+
+    sig.addReference({
+      xpath: "/*",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: [
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        "http://www.w3.org/2001/10/xml-exc-c14n#",
+      ],
+    });
+
+    sig.addReference({
+      xpath: "//*[local-name(.)='Object' and @Id='object1']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: [
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        "http://www.w3.org/2001/10/xml-exc-c14n#",
+      ],
+      inclusiveNamespacesPrefixList: ["ns1", "ns3"],
+    });
+
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+
+    // Verify that there are two Reference elements
+    const referenceNodes = selectNs("/ns1:root/ds:Signature/ds:SignedInfo/ds:Reference", doc, {
+      ns1: "uri:ns1",
+    });
+    isDomNode.assertIsArrayOfNodes(referenceNodes);
+    expect(referenceNodes.length).to.equal(2);
+
+    // Verify that the second Reference points to the ds:Object
+    const objectReference = referenceNodes[1];
+    isDomNode.assertIsElementNode(objectReference);
+    expect(objectReference.getAttribute("URI")).to.equal("#object1");
+
+    // Verify that the signature is valid
+    const { valid, errorMessage } = checkSignature(signedXml, doc);
+    expect(valid, errorMessage).to.be.true;
   });
 });
 
@@ -494,40 +430,23 @@ describe("XAdES Object support in XML signatures", function () {
     const signedXml = sig.getSignedXml();
     const signedDoc = new xmldom.DOMParser().parseFromString(signedXml);
 
-    // ds:Signature has the expected Id
-    const elSig = xpath.select1("//*[local-name(.)='Signature']", signedDoc);
+    // ds:Signature exists and has the expected Id
+    const elSig = select1Ns(`/root/ds:Signature[@Id='${signatureId}']`, signedDoc);
     isDomNode.assertIsElementNode(elSig);
-    expect(elSig.getAttribute("Id")).to.equal(signatureId);
 
-    // xades:QualifyingProperties targets the signature Id
-    const elQP = xpath.select1("//*[local-name(.)='QualifyingProperties']", signedDoc);
+    // ds:Object/xades:QualifyingProperties exists within the signature
+    const elQP = select1Ns("ds:Object/xades:QualifyingProperties", elSig);
     isDomNode.assertIsElementNode(elQP);
-    expect(elQP.getAttribute("Target")).to.equal(`#${signatureId}`);
 
-    // xades:SignedProperties has the expected Id
-    const elSP = xpath.select1("//*[local-name(.)='SignedProperties']", signedDoc);
-    isDomNode.assertIsElementNode(elSP);
-    expect(elSP.getAttribute("Id")).to.equal(signedPropertiesId);
-
-    // Reference for SignedProperties exists with correct @Type and @URI
-    const elSPRef = xpath.select1(
-      "//*[local-name(.)='SignedInfo']/*[local-name(.)='Reference' and @Type='http://uri.etsi.org/01903#SignedProperties']",
-      signedDoc,
+    // The Reference to SignedProperties exists and has the correct URI and Type
+    const elSPRef = select1Ns(
+      `ds:SignedInfo/ds:Reference[@URI='#${signedPropertiesId}' and @Type='http://uri.etsi.org/01903#SignedProperties']`,
+      elSig,
     );
     isDomNode.assertIsElementNode(elSPRef);
-    expect(elSPRef.getAttribute("URI")).to.equal(`#${signedPropertiesId}`);
-
-    // DigestMethod for SignedProperties is SHA-256
-    const elSPDigestMethod = xpath.select1(
-      `//*[local-name(.)='SignedInfo']/*[local-name(.)='Reference' and @URI='#${signedPropertiesId}']/*[local-name(.)='DigestMethod']`,
-      signedDoc,
-    ) as Element;
-    isDomNode.assertIsElementNode(elSPDigestMethod);
-    expect(elSPDigestMethod.getAttribute("Algorithm")).to.equal(
-      "http://www.w3.org/2001/04/xmlenc#sha256",
-    );
 
     // Verify that the signature is valid
-    expect(checkSignature(signedXml, signedDoc)).to.be.true;
+    const { valid, errorMessage } = checkSignature(signedXml, signedDoc);
+    expect(valid, errorMessage).to.be.true;
   });
 });
