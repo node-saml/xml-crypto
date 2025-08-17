@@ -1447,6 +1447,7 @@ export class SignedXml {
         // Append the reference element to SignedInfo
         signedInfoNode.appendChild(referenceElem);
       }
+      ref.wasProcessed = true;
     }
   }
 
