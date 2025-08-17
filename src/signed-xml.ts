@@ -26,7 +26,6 @@ import * as execC14n from "./exclusive-canonicalization";
 import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
-import { isDescendantOf } from "./utils";
 
 export class SignedXml {
   idMode?: "wssecurity";
@@ -1347,6 +1346,10 @@ export class SignedXml {
       throw new Error("Could not find SignedInfo element in signature");
     }
 
+    // Signature document is technically the same document as the one we are signing,
+    // but we will extract it here for clarity (and also make it support detached signatures in the future)
+    const signatureDoc = signatureElem.ownerDocument;
+
     // Process each unprocessed reference
     for (const ref of unprocessedReferences) {
       const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
@@ -1363,7 +1366,7 @@ export class SignedXml {
         if (
           node === signatureElem ||
           node === signedInfoNode ||
-          isDescendantOf(node, signedInfoNode)
+          utils.isDescendantOf(node, signedInfoNode)
         ) {
           throw new Error(
             `Cannot sign a reference to the Signature or SignedInfo element itself: ${ref.xpath}`,
@@ -1371,7 +1374,7 @@ export class SignedXml {
         }
 
         // Create the reference element directly using DOM methods to avoid namespace issues
-        const referenceElem = signatureElem.ownerDocument.createElementNS(
+        const referenceElem = signatureDoc.createElementNS(
           signatureNamespace,
           `${prefix}Reference`,
         );
@@ -1391,15 +1394,21 @@ export class SignedXml {
           referenceElem.setAttribute("Type", ref.type);
         }
 
-        const transformsElem = doc.createElementNS(signatureNamespace, `${prefix}Transforms`);
+        const transformsElem = signatureDoc.createElementNS(
+          signatureNamespace,
+          `${prefix}Transforms`,
+        );
 
         for (const trans of ref.transforms || []) {
           const transform = this.findCanonicalizationAlgorithm(trans);
-          const transformElem = doc.createElementNS(signatureNamespace, `${prefix}Transform`);
+          const transformElem = signatureDoc.createElementNS(
+            signatureNamespace,
+            `${prefix}Transform`,
+          );
           transformElem.setAttribute("Algorithm", transform.getAlgorithmName());
 
           if (utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList)) {
-            const inclusiveNamespacesElem = doc.createElementNS(
+            const inclusiveNamespacesElem = signatureDoc.createElementNS(
               transform.getAlgorithmName(),
               "InclusiveNamespaces",
             );
@@ -1419,10 +1428,16 @@ export class SignedXml {
         // Get the digest algorithm and compute the digest value
         const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
 
-        const digestMethodElem = doc.createElementNS(signatureNamespace, `${prefix}DigestMethod`);
+        const digestMethodElem = signatureDoc.createElementNS(
+          signatureNamespace,
+          `${prefix}DigestMethod`,
+        );
         digestMethodElem.setAttribute("Algorithm", digestAlgorithm.getAlgorithmName());
 
-        const digestValueElem = doc.createElementNS(signatureNamespace, `${prefix}DigestValue`);
+        const digestValueElem = signatureDoc.createElementNS(
+          signatureNamespace,
+          `${prefix}DigestValue`,
+        );
         digestValueElem.textContent = digestAlgorithm.getHash(canonXml);
 
         referenceElem.appendChild(transformsElem);
