@@ -26,6 +26,7 @@ import * as execC14n from "./exclusive-canonicalization";
 import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
+import { isDescendantOf } from "./utils";
 
 export class SignedXml {
   idMode?: "wssecurity";
@@ -992,8 +993,9 @@ export class SignedXml {
     const nodeXml = new xmldom.DOMParser().parseFromString(dummySignatureWrapper);
 
     // Because we are using a dummy wrapper hack described above, we know there will be a `firstChild`
+    // and that it will be an `Element` node.
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const signatureDoc = nodeXml.documentElement.firstChild!;
+    const signatureElem = nodeXml.documentElement.firstChild! as Element;
 
     const referenceNode = xpath.select1(location.reference, doc);
 
@@ -1010,29 +1012,29 @@ export class SignedXml {
     }
 
     if (location.action === "append") {
-      referenceNode.appendChild(signatureDoc);
+      referenceNode.appendChild(signatureElem);
     } else if (location.action === "prepend") {
-      referenceNode.insertBefore(signatureDoc, referenceNode.firstChild);
+      referenceNode.insertBefore(signatureElem, referenceNode.firstChild);
     } else if (location.action === "before") {
       if (referenceNode.parentNode == null) {
         throw new Error(
           "`location.reference` refers to the root node (by default), so we can't insert `before`",
         );
       }
-      referenceNode.parentNode.insertBefore(signatureDoc, referenceNode);
+      referenceNode.parentNode.insertBefore(signatureElem, referenceNode);
     } else if (location.action === "after") {
       if (referenceNode.parentNode == null) {
         throw new Error(
           "`location.reference` refers to the root node (by default), so we can't insert `after`",
         );
       }
-      referenceNode.parentNode.insertBefore(signatureDoc, referenceNode.nextSibling);
+      referenceNode.parentNode.insertBefore(signatureElem, referenceNode.nextSibling);
     }
 
     // Process any signature references after the signature has been added to the document
-    this.processSignatureReferences(doc, prefix);
+    this.processSignatureReferences(doc, signatureElem, prefix);
 
-    this.signatureNode = signatureDoc;
+    this.signatureNode = signatureElem;
     const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
     if (signedInfoNodes.length === 0) {
       const err3 = new Error("could not find SignedInfo element in the message");
@@ -1052,8 +1054,8 @@ export class SignedXml {
           callback(err);
         } else {
           this.signatureValue = signature || "";
-          signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
-          this.signatureXml = signatureDoc.toString();
+          signatureElem.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
+          this.signatureXml = signatureElem.toString();
           this.signedXml = doc.toString();
           callback(null, this);
         }
@@ -1061,8 +1063,8 @@ export class SignedXml {
     } else {
       // Synchronous flow
       this.calculateSignatureValue(doc);
-      signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
-      this.signatureXml = signatureDoc.toString();
+      signatureElem.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
+      this.signatureXml = signatureElem.toString();
       this.signedXml = doc.toString();
     }
   }
@@ -1325,7 +1327,7 @@ export class SignedXml {
    * Process references that weren't found in the initial document
    * This is called after the initial signature has been created to handle references to signature elements
    */
-  private processSignatureReferences(signatureDoc: Document, prefix?: string) {
+  private processSignatureReferences(doc: Document, signatureElem: Element, prefix?: string) {
     // Get unprocessed references
     const unprocessedReferences = this.references.filter((ref) => !ref.wasProcessed);
     if (unprocessedReferences.length === 0) {
@@ -1338,8 +1340,8 @@ export class SignedXml {
 
     // Find the SignedInfo element to append to
     const signedInfoNode = xpath.select1(
-      `.//*[local-name(.)='SignedInfo']`,
-      signatureDoc,
+      `./*[local-name(.)='SignedInfo']`,
+      signatureElem,
     ) as Element;
     if (!signedInfoNode) {
       throw new Error("Could not find SignedInfo element in signature");
@@ -1347,7 +1349,7 @@ export class SignedXml {
 
     // Process each unprocessed reference
     for (const ref of unprocessedReferences) {
-      const nodes = xpath.selectWithResolver(ref.xpath ?? "", signatureDoc, this.namespaceResolver);
+      const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
 
       if (!utils.isArrayHasLength(nodes)) {
         throw new Error(
@@ -1357,8 +1359,19 @@ export class SignedXml {
 
       // Process the reference
       for (const node of nodes) {
+        // Must not be a reference to Signature, SignedInfo, or a child of SignedInfo
+        if (
+          node === signatureElem ||
+          node === signedInfoNode ||
+          isDescendantOf(node, signedInfoNode)
+        ) {
+          throw new Error(
+            `Cannot sign a reference to the Signature or SignedInfo element itself: ${ref.xpath}`,
+          );
+        }
+
         // Create the reference element directly using DOM methods to avoid namespace issues
-        const referenceElem = signatureDoc.createElementNS(
+        const referenceElem = signatureElem.ownerDocument.createElementNS(
           signatureNamespace,
           `${prefix}Reference`,
         );
@@ -1378,21 +1391,15 @@ export class SignedXml {
           referenceElem.setAttribute("Type", ref.type);
         }
 
-        const transformsElem = signatureDoc.createElementNS(
-          signatureNamespace,
-          `${prefix}Transforms`,
-        );
+        const transformsElem = doc.createElementNS(signatureNamespace, `${prefix}Transforms`);
 
         for (const trans of ref.transforms || []) {
           const transform = this.findCanonicalizationAlgorithm(trans);
-          const transformElem = signatureDoc.createElementNS(
-            signatureNamespace,
-            `${prefix}Transform`,
-          );
+          const transformElem = doc.createElementNS(signatureNamespace, `${prefix}Transform`);
           transformElem.setAttribute("Algorithm", transform.getAlgorithmName());
 
           if (utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList)) {
-            const inclusiveNamespacesElem = signatureDoc.createElementNS(
+            const inclusiveNamespacesElem = doc.createElementNS(
               transform.getAlgorithmName(),
               "InclusiveNamespaces",
             );
@@ -1407,21 +1414,15 @@ export class SignedXml {
         }
 
         // Get the canonicalized XML
-        const canonXml = this.getCanonReferenceXml(signatureDoc, ref, node);
+        const canonXml = this.getCanonReferenceXml(doc, ref, node);
 
         // Get the digest algorithm and compute the digest value
         const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
 
-        const digestMethodElem = signatureDoc.createElementNS(
-          signatureNamespace,
-          `${prefix}DigestMethod`,
-        );
+        const digestMethodElem = doc.createElementNS(signatureNamespace, `${prefix}DigestMethod`);
         digestMethodElem.setAttribute("Algorithm", digestAlgorithm.getAlgorithmName());
 
-        const digestValueElem = signatureDoc.createElementNS(
-          signatureNamespace,
-          `${prefix}DigestValue`,
-        );
+        const digestValueElem = doc.createElementNS(signatureNamespace, `${prefix}DigestValue`);
         digestValueElem.textContent = digestAlgorithm.getHash(canonXml);
 
         referenceElem.appendChild(transformsElem);

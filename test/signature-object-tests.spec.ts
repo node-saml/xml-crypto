@@ -450,3 +450,71 @@ describe("XAdES Object support in XML signatures", function () {
     expect(valid, errorMessage).to.be.true;
   });
 });
+
+describe("Signature self-reference prevention", function () {
+  it("should not allow self-referencing the Signature element", function () {
+    const xml = "<root></root>";
+
+    const sig = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+    });
+
+    sig.addReference({
+      xpath: ".//*[local-name(.)='Signature']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    expect(() => {
+      sig.computeSignature(xml);
+    }).to.throw(/Cannot sign a reference to the Signature or SignedInfo element itself/);
+  });
+
+  it("should not allow self-referencing the SignedInfo element", function () {
+    const xml = "<root></root>";
+
+    const sig = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+    });
+
+    sig.addReference({
+      xpath: ".//*[local-name(.)='SignedInfo']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    expect(() => {
+      sig.computeSignature(xml);
+    }).to.throw(/Cannot sign a reference to the Signature or SignedInfo element itself/);
+  });
+
+  it("should not allow signing children of the SignedInfo element", function () {
+    const xml = "<root></root>";
+
+    const sig = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+    });
+
+    sig.addReference({
+      xpath: "/*",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    sig.addReference({
+      xpath: ".//*[local-name(.)='Reference']/*",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    expect(() => {
+      sig.computeSignature(xml);
+    }).to.throw(/Cannot sign a reference to the Signature or SignedInfo element itself/);
+  });
+});
