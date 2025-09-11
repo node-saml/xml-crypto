@@ -57,13 +57,10 @@ describe("Signature unit tests", function () {
       it(`should fail verification of signed xml with ${signatureAlgorithm} after manipulation`, function () {
         const xml = signWith(signatureAlgorithm)
         const doc = new xmldom.DOMParser().parseFromString(xml);
-        const nodes = xpath.select(
+        const node = xpath.select1(
           "//*[local-name(.)='x']",
           doc,
         );
-        isDomNode.assertIsArrayOfNodes(nodes);
-        expect(nodes.length).to.equal(1)
-        const node = nodes[0];
         isDomNode.assertIsElementNode(node);
         const targetElement = node as Element;
         targetElement.setAttribute("attr", "manipulatedValue")
