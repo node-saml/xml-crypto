@@ -51,7 +51,7 @@ describe("Signature unit tests", function () {
         const xml = signWith(signatureAlgorithm)
         const sig = loadSignature(xml)
         const res = sig.checkSignature(xml);
-        expect(res, "expected all signatures to be valid, but some reported invalid").to.be.true;
+        expect(res, `expected all signatures with ${signatureAlgorithm} to be valid, but some reported invalid`).to.be.true;
       });
 
       it(`should fail verification of signed xml with ${signatureAlgorithm} after manipulation`, function () {
@@ -71,7 +71,7 @@ describe("Signature unit tests", function () {
 
         const sig = loadSignature(manipulatedXml)
         const res = sig.checkSignature(manipulatedXml);
-        expect(res, "expected all signatures to be invalid, but some reported valid").to.be.false;
+        expect(res, `expected all signatures with ${signatureAlgorithm} to be invalid, but some reported valid`).to.be.false;
       });
     });
   });
