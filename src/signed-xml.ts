@@ -8,6 +8,7 @@ import type {
   GetKeyInfoContentArgs,
   HashAlgorithm,
   HashAlgorithmType,
+  KeyLike,
   Reference,
   SignatureAlgorithm,
   SignatureAlgorithmType,
@@ -16,7 +17,6 @@ import type {
 
 import * as isDomNode from "@xmldom/is-dom-node";
 import * as xmldom from "@xmldom/xmldom";
-import * as crypto from "crypto";
 import { deprecate } from "util";
 import * as xpath from "xpath";
 import * as c14n from "./c14n-canonicalization";
@@ -26,14 +26,24 @@ import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
 
+/**
+ * Result type for signature preparation containing all DOM nodes needed for finalization
+ */
+interface SignaturePreparationResult {
+  doc: Document;
+  prefix: string | undefined;
+  signatureDoc: Node;
+  signedInfoNode: Node;
+}
+
 export class SignedXml {
   idMode?: "wssecurity";
   idAttributes: string[];
   /**
    * A {@link Buffer} or pem encoded {@link String} containing your private key
    */
-  privateKey?: crypto.KeyLike;
-  publicCert?: crypto.KeyLike;
+  privateKey?: KeyLike;
+  publicCert?: KeyLike;
   /**
    * One of the supported signature algorithms.
    * @see {@link SignatureAlgorithmType}
@@ -59,12 +69,13 @@ export class SignedXml {
 
   // Internal state
   private id = 0;
-  private signedXml = "";
+  private signedXml: string | undefined = undefined;
   private signatureXml = "";
   private signatureNode: Node | null = null;
   private signatureValue = "";
   private originalXmlWithIds = "";
   private keyInfo: Node | null = null;
+  private signatureLoadedExplicitly = false;
 
   /**
    * Contains the references that were signed.
@@ -262,9 +273,112 @@ export class SignedXml {
       throw new Error("Last parameter must be a callback function");
     }
 
-    this.signedXml = xml;
-
     const doc = new xmldom.DOMParser().parseFromString(xml);
+
+    // Security: Prevent cross-document signature reuse attacks while supporting
+    // legitimate use of loadSignature() for detached signatures and documents with
+    // multiple signatures.
+    //
+    // Strategy:
+    // 1. Always scan the current document for embedded signatures
+    // 2. If no embedded signature is found AND no signature was explicitly loaded,
+    //    reject immediately (unsigned document)
+    // 3. If signature was explicitly loaded and this is the FIRST validation,
+    //    allow using the preloaded signature (supports detached signatures)
+    // 4. If the XML has changed since last validation, reject reusing old signature
+    //    and require reloading from current document
+
+    const signatures = this.findSignatures(doc);
+    const hasValidatedBefore = this.signedXml !== undefined;
+    const xmlChanged = hasValidatedBefore && this.signedXml !== xml;
+
+    // If no signature in current document and none was preloaded, reject immediately
+    if (signatures.length === 0 && !this.signatureNode) {
+      const error = new Error("No signature found in the document");
+      if (callback) {
+        callback(error, false);
+        return;
+      }
+      throw error;
+    }
+
+    // Security: If we're validating for the first time after loadSignature() was called,
+    // and the current document has NO embedded signatures, we need to determine if this
+    // is a legitimate detached signature scenario or an attack.
+    //
+    // A detached signature is legitimate when the signature was loaded as a STANDALONE
+    // XML string (via loadSignature(string)). If loadSignature was called with a node
+    // extracted from a different document, we should reject.
+    //
+    // We detect detached signatures by checking if the signatureNode's root document
+    // contains only the signature (i.e., it's a standalone signature document).
+    if (!hasValidatedBefore && signatures.length === 0 && this.signatureNode) {
+      // Check if this is a detached signature (signature is the root element of its document)
+      // When loadSignature is called with a string, it creates a new Document where the
+      // Signature is the documentElement.
+      const signatureDoc = this.signatureNode.ownerDocument;
+      const isStandaloneSignatureDoc =
+        signatureDoc &&
+        signatureDoc.documentElement &&
+        signatureDoc.documentElement.localName === "Signature" &&
+        signatureDoc.documentElement.namespaceURI === "http://www.w3.org/2000/09/xmldsig#";
+
+      if (!isStandaloneSignatureDoc) {
+        // Signature was loaded from within another document, not as a detached signature
+        // Reject to prevent: loadSignature(sigFromDocA) -> checkSignature(unsignedDocB)
+        const error = new Error("No signature found in the document");
+        if (callback) {
+          callback(error, false);
+          return;
+        }
+        throw error;
+      }
+    }
+
+    // If XML changed from previous validation, we must reload from current document
+    // This prevents: checkSignature(docA) -> checkSignature(docB) reusing docA's signature
+    if (xmlChanged && signatures.length === 0) {
+      const error = new Error("No signature found in the document");
+      if (callback) {
+        callback(error, false);
+        return;
+      }
+      throw error;
+    }
+
+    // Determine if we should reload signature from current document
+    // Reload if: no signature loaded, XML changed, or signature was previously auto-loaded
+    // Keep preloaded signature only if it was explicitly loaded and this is first validation
+    const shouldReloadSignature =
+      !this.signatureNode ||
+      (xmlChanged && signatures.length > 0) ||
+      (!this.signatureLoadedExplicitly && hasValidatedBefore);
+
+    if (shouldReloadSignature) {
+      if (signatures.length === 0) {
+        const error = new Error("No signature found in the document");
+        if (callback) {
+          callback(error, false);
+          return;
+        }
+        throw error;
+      }
+      if (signatures.length > 1) {
+        const error = new Error(
+          "Multiple signatures found. Use loadSignature() to specify which signature to validate",
+        );
+        if (callback) {
+          callback(error, false);
+          return;
+        }
+        throw error;
+      }
+      this.loadSignature(signatures[0]);
+      // Mark that this was auto-loaded, not explicitly loaded
+      this.signatureLoadedExplicitly = false;
+    }
+
+    this.signedXml = xml;
 
     // Reset the references as only references from our re-parsed signedInfo node can be trusted
     this.references = [];
@@ -370,6 +484,7 @@ export class SignedXml {
       if (callback) {
         callback(
           new Error(`invalid signature: the signature value ${this.signatureValue} is incorrect`),
+          false,
         );
         return; // return early
       } else {
@@ -378,6 +493,216 @@ export class SignedXml {
         );
       }
     }
+  }
+
+  /**
+   * Validates the signature of the provided XML document asynchronously.
+   * This method is designed to work with async algorithms (like WebCrypto).
+   *
+   * @param xml The XML document containing the signature to be validated.
+   * @returns Promise<boolean> that resolves to true if the signature is valid
+   * @throws Error if validation fails
+   */
+  async checkSignatureAsync(xml: string): Promise<boolean> {
+    const doc = new xmldom.DOMParser().parseFromString(xml);
+
+    // Security: Prevent cross-document signature reuse attacks while supporting
+    // legitimate use of loadSignature() for detached signatures and documents with
+    // multiple signatures.
+    //
+    // Strategy:
+    // 1. Always scan the current document for embedded signatures
+    // 2. If no embedded signature is found AND no signature was explicitly loaded,
+    //    reject immediately (unsigned document)
+    // 3. If signature was explicitly loaded and this is the FIRST validation,
+    //    allow using the preloaded signature (supports detached signatures)
+    // 4. If the XML has changed since last validation, reject reusing old signature
+    //    and require reloading from current document
+
+    const signatures = this.findSignatures(doc);
+    const hasValidatedBefore = this.signedXml !== undefined;
+    const xmlChanged = hasValidatedBefore && this.signedXml !== xml;
+
+    // If no signature in current document and none was preloaded, reject immediately
+    if (signatures.length === 0 && !this.signatureNode) {
+      throw new Error("No signature found in the document");
+    }
+
+    // Security: If we're validating for the first time after loadSignature() was called,
+    // and the current document has NO embedded signatures, we need to determine if this
+    // is a legitimate detached signature scenario or an attack.
+    //
+    // A detached signature is legitimate when the signature was loaded as a STANDALONE
+    // XML string (via loadSignature(string)). If loadSignature was called with a node
+    // extracted from a different document, we should reject.
+    //
+    // We detect detached signatures by checking if the signatureNode's root document
+    // contains only the signature (i.e., it's a standalone signature document).
+    if (!hasValidatedBefore && signatures.length === 0 && this.signatureNode) {
+      // Check if this is a detached signature (signature is the root element of its document)
+      // When loadSignature is called with a string, it creates a new Document where the
+      // Signature is the documentElement.
+      const signatureDoc = this.signatureNode.ownerDocument;
+      const isStandaloneSignatureDoc =
+        signatureDoc &&
+        signatureDoc.documentElement &&
+        signatureDoc.documentElement.localName === "Signature" &&
+        signatureDoc.documentElement.namespaceURI === "http://www.w3.org/2000/09/xmldsig#";
+
+      if (!isStandaloneSignatureDoc) {
+        // Signature was loaded from within another document, not as a detached signature
+        // Reject to prevent: loadSignature(sigFromDocA) -> checkSignatureAsync(unsignedDocB)
+        throw new Error("No signature found in the document");
+      }
+    }
+
+    // If XML changed from previous validation, we must reload from current document
+    // This prevents: checkSignature(docA) -> checkSignature(docB) reusing docA's signature
+    if (xmlChanged && signatures.length === 0) {
+      throw new Error("No signature found in the document");
+    }
+
+    // Determine if we should reload signature from current document
+    // Reload if: no signature loaded, XML changed, or signature was previously auto-loaded
+    // Keep preloaded signature only if it was explicitly loaded and this is first validation
+    const shouldReloadSignature =
+      !this.signatureNode ||
+      (xmlChanged && signatures.length > 0) ||
+      (!this.signatureLoadedExplicitly && hasValidatedBefore);
+
+    if (shouldReloadSignature) {
+      if (signatures.length === 0) {
+        throw new Error("No signature found in the document");
+      }
+      if (signatures.length > 1) {
+        throw new Error(
+          "Multiple signatures found. Use loadSignature() to specify which signature to validate",
+        );
+      }
+      this.loadSignature(signatures[0]);
+      // Mark that this was auto-loaded, not explicitly loaded
+      this.signatureLoadedExplicitly = false;
+    }
+
+    this.signedXml = xml;
+
+    // Reset the references as only references from our re-parsed signedInfo node can be trusted
+    this.references = [];
+
+    const unverifiedSignedInfoCanon = this.getCanonSignedInfoXml(doc);
+    if (!unverifiedSignedInfoCanon) {
+      throw new Error("Canonical signed info cannot be empty");
+    }
+
+    const parsedUnverifiedSignedInfo = new xmldom.DOMParser().parseFromString(
+      unverifiedSignedInfoCanon,
+      "text/xml",
+    );
+
+    const unverifiedSignedInfoDoc = parsedUnverifiedSignedInfo.documentElement;
+    if (!unverifiedSignedInfoDoc) {
+      throw new Error("Could not parse unverifiedSignedInfoCanon into a document");
+    }
+
+    const references = utils.findChildren(unverifiedSignedInfoDoc, "Reference");
+    if (!utils.isArrayHasLength(references)) {
+      throw new Error("could not find any Reference elements");
+    }
+
+    for (const reference of references) {
+      this.loadReference(reference);
+    }
+
+    // Validate all references asynchronously
+    const validationResults = await Promise.all(
+      /* eslint-disable-next-line deprecation/deprecation */
+      this.getReferences().map((ref) => this.validateReferenceAsync(ref, doc)),
+    );
+
+    if (!validationResults.every((result) => result)) {
+      this.signedReferences = [];
+      this.references.forEach((ref) => {
+        ref.signedReference = undefined;
+      });
+      throw new Error("Could not validate all references");
+    }
+
+    // Verify the signature
+    const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
+    const key = this.getCertFromKeyInfo(this.keyInfo) || this.publicCert || this.privateKey;
+    if (key == null) {
+      throw new Error("KeyInfo or publicCert or privateKey is required to validate signature");
+    }
+
+    const sigRes = await Promise.resolve(
+      signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue),
+    );
+
+    if (sigRes === true) {
+      return true;
+    } else {
+      this.signedReferences = [];
+      this.references.forEach((ref) => {
+        ref.signedReference = undefined;
+      });
+      throw new Error(`invalid signature: the signature value ${this.signatureValue} is incorrect`);
+    }
+  }
+
+  private async validateReferenceAsync(ref: Reference, doc: Document): Promise<boolean> {
+    const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
+    let elem: xpath.SelectSingleReturnType = null;
+
+    if (uri === "") {
+      elem = xpath.select1("//*", doc);
+    } else if (uri?.indexOf("'") !== -1) {
+      throw new Error("Cannot validate a uri with quotes inside it");
+    } else {
+      let num_elements_for_id = 0;
+      for (const attr of this.idAttributes) {
+        const tmp_elemXpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
+        const tmp_elem = xpath.select(tmp_elemXpath, doc);
+        if (utils.isArrayHasLength(tmp_elem)) {
+          num_elements_for_id += tmp_elem.length;
+
+          if (num_elements_for_id > 1) {
+            throw new Error(
+              "Cannot validate a document which contains multiple elements with the " +
+                "same value for the ID / Id / Id attributes, in order to prevent " +
+                "signature wrapping attack.",
+            );
+          }
+
+          elem = tmp_elem[0];
+          ref.xpath = tmp_elemXpath;
+        }
+      }
+    }
+
+    if (!isDomNode.isNodeLike(elem)) {
+      const validationError = new Error(
+        `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
+      );
+      ref.validationError = validationError;
+      return false;
+    }
+
+    const canonXml = this.getCanonReferenceXml(doc, ref, elem);
+    const hash = this.findHashAlgorithm(ref.digestAlgorithm);
+    const digest = await Promise.resolve(hash.getHash(canonXml));
+
+    if (!utils.validateDigestValue(digest, ref.digestValue)) {
+      const validationError = new Error(
+        `invalid signature: for uri ${ref.uri} calculated digest is ${digest} but the xml to validate supplies digest ${ref.digestValue}`,
+      );
+      ref.validationError = validationError;
+      return false;
+    }
+
+    this.signedReferences.push(canonXml);
+    ref.signedReference = canonXml;
+
+    return true;
   }
 
   private getCanonSignedInfoXml(doc: Document) {
@@ -447,7 +772,13 @@ export class SignedXml {
     if (typeof callback === "function") {
       signer.getSignature(signedInfoCanon, this.privateKey, callback);
     } else {
-      this.signatureValue = signer.getSignature(signedInfoCanon, this.privateKey);
+      const result = signer.getSignature(signedInfoCanon, this.privateKey);
+      if (result instanceof Promise) {
+        throw new Error(
+          "Async signature algorithms cannot be used with sync methods. Use computeSignatureAsync() instead.",
+        );
+      }
+      this.signatureValue = result;
     }
   }
 
@@ -607,6 +938,9 @@ export class SignedXml {
     } else {
       this.signatureNode = signatureNode;
     }
+
+    // Mark that the signature was explicitly loaded
+    this.signatureLoadedExplicitly = true;
 
     this.signatureXml = signatureNode.toString();
 
@@ -849,6 +1183,124 @@ export class SignedXml {
   }
 
   /**
+   * Prepares the signature DOM structure that is common to both sync and async signature computation.
+   * This method extracts the duplicated logic from computeSignature and computeSignatureAsync.
+   *
+   * @param doc The parsed XML document
+   * @param options The signature computation options
+   * @param signedInfoXml The SignedInfo XML string (generated by createSignedInfo or createSignedInfoAsync)
+   * @returns An object containing the prepared DOM nodes needed for signature finalization
+   */
+  private prepareSignatureStructure(
+    doc: Document,
+    options: ComputeSignatureOptions,
+    signedInfoXml: string,
+  ): SignaturePreparationResult {
+    let xmlNsAttr = "xmlns";
+    const signatureAttrs: string[] = [];
+    let currentPrefix: string;
+
+    const validActions = ["append", "prepend", "before", "after"];
+
+    const prefix = options.prefix;
+    const attrs = options.attrs || {};
+    const location = options.location || {};
+    const existingPrefixes = options.existingPrefixes || {};
+
+    this.namespaceResolver = {
+      lookupNamespaceURI: function (prefix) {
+        return prefix ? existingPrefixes[prefix] : null;
+      },
+    };
+
+    location.reference = location.reference || "/*";
+    location.action = location.action || "append";
+
+    if (validActions.indexOf(location.action) === -1) {
+      throw new Error(
+        `location.action option has an invalid action: ${
+          location.action
+        }, must be any of the following values: ${validActions.join(", ")}`,
+      );
+    }
+
+    if (prefix) {
+      xmlNsAttr += `:${prefix}`;
+      currentPrefix = `${prefix}:`;
+    } else {
+      currentPrefix = "";
+    }
+
+    Object.keys(attrs).forEach(function (name) {
+      if (name !== "xmlns" && name !== xmlNsAttr) {
+        signatureAttrs.push(`${name}="${attrs[name]}"`);
+      }
+    });
+
+    signatureAttrs.push(`${xmlNsAttr}="http://www.w3.org/2000/09/xmldsig#"`);
+
+    let signatureXml = `<${currentPrefix}Signature ${signatureAttrs.join(" ")}>`;
+    signatureXml += signedInfoXml;
+    signatureXml += this.getKeyInfo(prefix);
+    signatureXml += `</${currentPrefix}Signature>`;
+
+    this.originalXmlWithIds = doc.toString();
+
+    let existingPrefixesString = "";
+    Object.keys(existingPrefixes).forEach(function (key) {
+      existingPrefixesString += `xmlns:${key}="${existingPrefixes[key]}" `;
+    });
+
+    const dummySignatureWrapper = `<Dummy ${existingPrefixesString}>${signatureXml}</Dummy>`;
+    const nodeXml = new xmldom.DOMParser().parseFromString(dummySignatureWrapper);
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const signatureDoc = nodeXml.documentElement.firstChild!;
+
+    const referenceNode = xpath.select1(location.reference, doc);
+
+    if (!isDomNode.isNodeLike(referenceNode)) {
+      throw new Error(
+        `the following xpath cannot be used because it was not found: ${location.reference}`,
+      );
+    }
+
+    if (location.action === "append") {
+      referenceNode.appendChild(signatureDoc);
+    } else if (location.action === "prepend") {
+      referenceNode.insertBefore(signatureDoc, referenceNode.firstChild);
+    } else if (location.action === "before") {
+      if (referenceNode.parentNode == null) {
+        throw new Error(
+          "`location.reference` refers to the root node (by default), so we can't insert `before`",
+        );
+      }
+      referenceNode.parentNode.insertBefore(signatureDoc, referenceNode);
+    } else if (location.action === "after") {
+      if (referenceNode.parentNode == null) {
+        throw new Error(
+          "`location.reference` refers to the root node (by default), so we can't insert `after`",
+        );
+      }
+      referenceNode.parentNode.insertBefore(signatureDoc, referenceNode.nextSibling);
+    }
+
+    this.signatureNode = signatureDoc;
+    const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
+    if (signedInfoNodes.length === 0) {
+      throw new Error("could not find SignedInfo element in the message");
+    }
+    const signedInfoNode = signedInfoNodes[0];
+
+    return {
+      doc,
+      prefix,
+      signatureDoc,
+      signedInfoNode,
+    };
+  }
+
+  /**
    * Compute the signature of the given XML (using the already defined settings).
    *
    * @param xml The XML to compute the signature for.
@@ -873,7 +1325,7 @@ export class SignedXml {
    *
    * @param xml The XML to compute the signature for.
    * @param opts An object containing options for the signature computation.
-   * @returns If no callback is provided, returns `this` (the instance of SignedXml).
+   * @returns void
    * @throws TypeError If the xml can not be parsed, or Error if there were invalid options passed.
    */
   computeSignature(xml: string, options: ComputeSignatureOptions): void;
@@ -907,149 +1359,172 @@ export class SignedXml {
       options = (options ?? {}) as ComputeSignatureOptions;
     }
 
-    const doc = new xmldom.DOMParser().parseFromString(xml);
-    let xmlNsAttr = "xmlns";
-    const signatureAttrs: string[] = [];
-    let currentPrefix: string;
+    try {
+      // Parse XML and create SignedInfo synchronously
+      const doc = new xmldom.DOMParser().parseFromString(xml);
+      const signedInfoXml = this.createSignedInfo(doc, options.prefix);
 
-    const validActions = ["append", "prepend", "before", "after"];
+      // Use shared preparation logic
+      const {
+        doc: preparedDoc,
+        prefix,
+        signatureDoc,
+        signedInfoNode,
+      } = this.prepareSignatureStructure(doc, options, signedInfoXml);
 
-    const prefix = options.prefix;
-    const attrs = options.attrs || {};
-    const location = options.location || {};
-    const existingPrefixes = options.existingPrefixes || {};
-
-    this.namespaceResolver = {
-      lookupNamespaceURI: function (prefix) {
-        return prefix ? existingPrefixes[prefix] : null;
-      },
-    };
-
-    // defaults to the root node
-    location.reference = location.reference || "/*";
-    // defaults to append action
-    location.action = location.action || "append";
-
-    if (validActions.indexOf(location.action) === -1) {
-      const err = new Error(
-        `location.action option has an invalid action: ${
-          location.action
-        }, must be any of the following values: ${validActions.join(", ")}`,
-      );
-      if (!callback) {
+      if (typeof callback === "function") {
+        // Asynchronous flow
+        this.calculateSignatureValue(preparedDoc, (err, signature) => {
+          if (err) {
+            callback(err);
+          } else {
+            this.signatureValue = signature || "";
+            signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
+            this.signatureXml = signatureDoc.toString();
+            this.signedXml = preparedDoc.toString();
+            callback(null, this);
+          }
+        });
+      } else {
+        // Synchronous flow
+        this.calculateSignatureValue(preparedDoc);
+        signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
+        this.signatureXml = signatureDoc.toString();
+        this.signedXml = preparedDoc.toString();
+      }
+    } catch (err) {
+      if (callback) {
+        callback(err as Error);
+      } else {
         throw err;
-      } else {
-        callback(err);
-        return;
       }
     }
+  }
 
-    // automatic insertion of `:`
-    if (prefix) {
-      xmlNsAttr += `:${prefix}`;
-      currentPrefix = `${prefix}:`;
+  /**
+   * Compute the signature of the given XML asynchronously (for use with async algorithms like WebCrypto).
+   *
+   * @param xml The XML to compute the signature for.
+   * @param options An object containing options for the signature computation.
+   * @returns Promise<SignedXml> Returns a promise that resolves to the instance of SignedXml.
+   * @throws TypeError If the xml cannot be parsed, or Error if there were invalid options passed.
+   */
+  async computeSignatureAsync(xml: string, options?: ComputeSignatureOptions): Promise<SignedXml> {
+    options = (options ?? {}) as ComputeSignatureOptions;
+
+    // Parse XML and create SignedInfo asynchronously
+    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const signedInfoXml = await this.createSignedInfoAsync(doc, options.prefix);
+
+    // Use shared preparation logic
+    const {
+      doc: preparedDoc,
+      prefix,
+      signatureDoc,
+      signedInfoNode,
+    } = this.prepareSignatureStructure(doc, options, signedInfoXml);
+
+    // Calculate signature asynchronously
+    await this.calculateSignatureValueAsync(preparedDoc);
+    signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
+    this.signatureXml = signatureDoc.toString();
+    this.signedXml = preparedDoc.toString();
+
+    return this;
+  }
+
+  private async calculateSignatureValueAsync(doc: Document): Promise<void> {
+    const signedInfoCanon = this.getCanonSignedInfoXml(doc);
+    const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
+    if (this.privateKey == null) {
+      throw new Error("Private key is required to compute signature");
+    }
+    this.signatureValue = await Promise.resolve(
+      signer.getSignature(signedInfoCanon, this.privateKey),
+    );
+  }
+
+  private async createSignedInfoAsync(doc, prefix) {
+    if (typeof this.canonicalizationAlgorithm !== "string") {
+      throw new Error("Missing canonicalizationAlgorithm");
+    }
+    const transform = this.findCanonicalizationAlgorithm(this.canonicalizationAlgorithm);
+    const algo = this.findSignatureAlgorithm(this.signatureAlgorithm);
+
+    const currentPrefix = prefix || "";
+    const signaturePrefix = currentPrefix ? `${currentPrefix}:` : currentPrefix;
+
+    let res = `<${signaturePrefix}SignedInfo>`;
+    res += `<${signaturePrefix}CanonicalizationMethod Algorithm="${transform.getAlgorithmName()}"`;
+    if (utils.isArrayHasLength(this.inclusiveNamespacesPrefixList)) {
+      res += ">";
+      res += `<InclusiveNamespaces PrefixList="${this.inclusiveNamespacesPrefixList.join(
+        " ",
+      )}" xmlns="${transform.getAlgorithmName()}"/>`;
+      res += `</${signaturePrefix}CanonicalizationMethod>`;
     } else {
-      currentPrefix = "";
+      res += " />";
     }
 
-    Object.keys(attrs).forEach(function (name) {
-      if (name !== "xmlns" && name !== xmlNsAttr) {
-        signatureAttrs.push(`${name}="${attrs[name]}"`);
-      }
-    });
+    res += `<${signaturePrefix}SignatureMethod Algorithm="${algo.getAlgorithmName()}" />`;
+    res += await this.createReferencesAsync(doc, prefix);
+    res += `</${signaturePrefix}SignedInfo>`;
 
-    // add the xml namespace attribute
-    signatureAttrs.push(`${xmlNsAttr}="http://www.w3.org/2000/09/xmldsig#"`);
+    return res;
+  }
 
-    let signatureXml = `<${currentPrefix}Signature ${signatureAttrs.join(" ")}>`;
+  private async createReferencesAsync(doc, prefix) {
+    let res = "";
 
-    signatureXml += this.createSignedInfo(doc, prefix);
-    signatureXml += this.getKeyInfo(prefix);
-    signatureXml += `</${currentPrefix}Signature>`;
+    prefix = prefix || "";
+    prefix = prefix ? `${prefix}:` : prefix;
 
-    this.originalXmlWithIds = doc.toString();
+    /* eslint-disable-next-line deprecation/deprecation */
+    for (const ref of this.getReferences()) {
+      const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
 
-    let existingPrefixesString = "";
-    Object.keys(existingPrefixes).forEach(function (key) {
-      existingPrefixesString += `xmlns:${key}="${existingPrefixes[key]}" `;
-    });
-
-    // A trick to remove the namespaces that already exist in the xml
-    // This only works if the prefix and namespace match with those in the xml
-    const dummySignatureWrapper = `<Dummy ${existingPrefixesString}>${signatureXml}</Dummy>`;
-    const nodeXml = new xmldom.DOMParser().parseFromString(dummySignatureWrapper);
-
-    // Because we are using a dummy wrapper hack described above, we know there will be a `firstChild`
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const signatureDoc = nodeXml.documentElement.firstChild!;
-
-    const referenceNode = xpath.select1(location.reference, doc);
-
-    if (!isDomNode.isNodeLike(referenceNode)) {
-      const err2 = new Error(
-        `the following xpath cannot be used because it was not found: ${location.reference}`,
-      );
-      if (!callback) {
-        throw err2;
-      } else {
-        callback(err2);
-        return;
-      }
-    }
-
-    if (location.action === "append") {
-      referenceNode.appendChild(signatureDoc);
-    } else if (location.action === "prepend") {
-      referenceNode.insertBefore(signatureDoc, referenceNode.firstChild);
-    } else if (location.action === "before") {
-      if (referenceNode.parentNode == null) {
+      if (!utils.isArrayHasLength(nodes)) {
         throw new Error(
-          "`location.reference` refers to the root node (by default), so we can't insert `before`",
+          `the following xpath cannot be signed because it was not found: ${ref.xpath}`,
         );
       }
-      referenceNode.parentNode.insertBefore(signatureDoc, referenceNode);
-    } else if (location.action === "after") {
-      if (referenceNode.parentNode == null) {
-        throw new Error(
-          "`location.reference` refers to the root node (by default), so we can't insert `after`",
-        );
-      }
-      referenceNode.parentNode.insertBefore(signatureDoc, referenceNode.nextSibling);
-    }
 
-    this.signatureNode = signatureDoc;
-    const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
-    if (signedInfoNodes.length === 0) {
-      const err3 = new Error("could not find SignedInfo element in the message");
-      if (!callback) {
-        throw err3;
-      } else {
-        callback(err3);
-        return;
-      }
-    }
-    const signedInfoNode = signedInfoNodes[0];
-
-    if (typeof callback === "function") {
-      // Asynchronous flow
-      this.calculateSignatureValue(doc, (err, signature) => {
-        if (err) {
-          callback(err);
+      for (const node of nodes) {
+        if (ref.isEmptyUri) {
+          res += `<${prefix}Reference URI="">`;
         } else {
-          this.signatureValue = signature || "";
-          signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
-          this.signatureXml = signatureDoc.toString();
-          this.signedXml = doc.toString();
-          callback(null, this);
+          const id = this.ensureHasId(node);
+          ref.uri = id;
+          res += `<${prefix}Reference URI="#${id}">`;
         }
-      });
-    } else {
-      // Synchronous flow
-      this.calculateSignatureValue(doc);
-      signatureDoc.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
-      this.signatureXml = signatureDoc.toString();
-      this.signedXml = doc.toString();
+        res += `<${prefix}Transforms>`;
+        for (const trans of ref.transforms || []) {
+          const transform = this.findCanonicalizationAlgorithm(trans);
+          res += `<${prefix}Transform Algorithm="${transform.getAlgorithmName()}"`;
+          if (utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList)) {
+            res += ">";
+            res += `<InclusiveNamespaces PrefixList="${ref.inclusiveNamespacesPrefixList.join(
+              " ",
+            )}" xmlns="${transform.getAlgorithmName()}"/>`;
+            res += `</${prefix}Transform>`;
+          } else {
+            res += " />";
+          }
+        }
+
+        const canonXml = this.getCanonReferenceXml(doc, ref, node);
+
+        const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
+        const digest = await Promise.resolve(digestAlgorithm.getHash(canonXml));
+        res +=
+          `</${prefix}Transforms>` +
+          `<${prefix}DigestMethod Algorithm="${digestAlgorithm.getAlgorithmName()}" />` +
+          `<${prefix}DigestValue>${digest}</${prefix}DigestValue>` +
+          `</${prefix}Reference>`;
+      }
     }
+
+    return res;
   }
 
   private getKeyInfo(prefix) {
@@ -1286,6 +1761,11 @@ export class SignedXml {
    * @returns The signed XML.
    */
   getSignedXml(): string {
+    if (this.signedXml === undefined) {
+      throw new Error(
+        "signedXml is not set. Call computeSignature() or computeSignatureAsync() first.",
+      );
+    }
     return this.signedXml;
   }
 }
