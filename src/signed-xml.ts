@@ -174,7 +174,7 @@ export class SignedXml {
     this.implicitTransforms = implicitTransforms ?? this.implicitTransforms;
     this.keyInfoAttributes = keyInfoAttributes ?? this.keyInfoAttributes;
     this.getKeyInfoContent = getKeyInfoContent ?? this.getKeyInfoContent;
-    this.getCertFromKeyInfo = getCertFromKeyInfo ?? SignedXml.noop;
+    this.getCertFromKeyInfo = getCertFromKeyInfo ?? this.getCertFromKeyInfo;
     this.CanonicalizationAlgorithms;
     this.HashAlgorithms;
     this.SignatureAlgorithms;
@@ -465,6 +465,14 @@ export class SignedXml {
 
     // Check the signature verification to know whether to reset signature value or not.
     const sigRes = signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
+
+    // Detect if the verifySignature method returned a Promise (async algorithm)
+    if (sigRes instanceof Promise) {
+      throw new Error(
+        "Async algorithms cannot be used with synchronous methods. Use checkSignatureAsync() instead.",
+      );
+    }
+
     if (sigRes === true) {
       if (callback) {
         callback(null, true);
@@ -900,6 +908,12 @@ export class SignedXml {
     const hash = this.findHashAlgorithm(ref.digestAlgorithm);
     const digest = hash.getHash(canonXml);
 
+    if (digest instanceof Promise) {
+      throw new Error(
+        "Async algorithms cannot be used with synchronous methods. Use `checkSignatureAsync()` instead.",
+      );
+    }
+
     if (!utils.validateDigestValue(digest, ref.digestValue)) {
       const validationError = new Error(
         `invalid signature: for uri ${ref.uri} calculated digest is ${digest} but the xml to validate supplies digest ${ref.digestValue}`,
@@ -934,7 +948,8 @@ export class SignedXml {
    */
   loadSignature(signatureNode: Node | string): void {
     if (typeof signatureNode === "string") {
-      this.signatureNode = signatureNode = new xmldom.DOMParser().parseFromString(signatureNode);
+      const parsedDoc = new xmldom.DOMParser().parseFromString(signatureNode, "text/xml");
+      this.signatureNode = signatureNode = parsedDoc.documentElement || parsedDoc;
     } else {
       this.signatureNode = signatureNode;
     }

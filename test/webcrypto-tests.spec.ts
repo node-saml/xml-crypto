@@ -379,6 +379,46 @@ describe("WebCrypto XML Signing and Verification", function () {
     );
   });
 
+  it("should throw error when verifying with async algorithms using sync methods", async function () {
+    const xml = "<root><data>test</data></root>";
+
+    // First, create a signed XML using async methods
+    const signer = new SignedXml();
+    signer.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    signer.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    signer.privateKey = privateKey;
+
+    signer.addReference({
+      xpath: "//*[local-name(.)='data']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    signer.HashAlgorithms["http://www.w3.org/2001/04/xmlenc#sha256"] = WebCryptoSha256;
+    signer.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] =
+      WebCryptoRsaSha256;
+
+    await signer.computeSignatureAsync(xml);
+    const signedXml = signer.getSignedXml();
+
+    // Now try to verify using sync method - should throw
+    const verifier = new SignedXml();
+
+    const crypto = await import("crypto");
+    const publicKeyObj = crypto.createPublicKey(publicKey);
+    const spkiPem = publicKeyObj.export({ type: "spki", format: "pem" }) as string;
+
+    verifier.publicCert = spkiPem;
+    verifier.HashAlgorithms["http://www.w3.org/2001/04/xmlenc#sha256"] = WebCryptoSha256;
+    verifier.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] =
+      WebCryptoRsaSha256;
+
+    // Should throw when using sync method with async algorithm for verification
+    expect(() => verifier.checkSignature(signedXml)).to.throw(
+      "Async algorithms cannot be used with synchronous methods",
+    );
+  });
+
   it("should work with multiple references", async function () {
     const xml = "<root><item id='1'>First</item><item id='2'>Second</item></root>";
 

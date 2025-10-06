@@ -42,4 +42,17 @@ describe("KeyInfo tests", function () {
 
     expect(keyInfo).to.be.undefined;
   });
+
+  it("uses default getCertFromKeyInfo to extract certificate from KeyInfo", function () {
+    // Test that the default getCertFromKeyInfo is properly initialized
+    // by using an existing signed XML with KeyInfo
+    const xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
+    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const verify = new SignedXml();
+    // Don't set publicCert or getCertFromKeyInfo - should use default behavior
+    verify.loadSignature(verify.findSignatures(doc)[0]);
+    const result = verify.checkSignature(xml);
+
+    expect(result, "Signature should be valid using default certificate extraction").to.be.true;
+  });
 });
