@@ -5,7 +5,7 @@
 
 ---
 
-# Upgrading
+## Upgrading
 
 The `.getReferences()` AND the `.references` APIs are deprecated.
 Please do not attempt to access them. The content in them should be treated as unsigned.
@@ -13,18 +13,6 @@ Please do not attempt to access them. The content in them should be treated as u
 Instead, we strongly encourage users to migrate to the `.getSignedReferences()` API. See the [Verifying XML document](#verifying-xml-documents) section
 We understand that this may take a lot of efforts to migrate, feel free to ask for help.
 This will help prevent future XML signature wrapping attacks.
-
----
-
-## Install
-
-Install with [npm](http://github.com/isaacs/npm):
-
-```shell
-npm install xml-crypto
-```
-
-A pre requisite it to have [openssl](http://www.openssl.org/) installed and its /bin to be on the system path. I used version 1.0.1c but it should work on older versions too.
 
 ## Supported Algorithms
 
