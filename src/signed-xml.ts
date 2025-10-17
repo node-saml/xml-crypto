@@ -56,6 +56,8 @@ export class SignedXml {
   keyInfoAttributes: { [attrName: string]: string } = {};
   getKeyInfoContent = SignedXml.getKeyInfoContent;
   getCertFromKeyInfo = SignedXml.getCertFromKeyInfo;
+  //xadesQualifyingProperties?: null;
+  xadesQualifyingProperties: (() => string) | null;
 
   // Internal state
   private id = 0;
@@ -165,6 +167,7 @@ export class SignedXml {
     this.keyInfoAttributes = keyInfoAttributes ?? this.keyInfoAttributes;
     this.getKeyInfoContent = getKeyInfoContent ?? this.getKeyInfoContent;
     this.getCertFromKeyInfo = getCertFromKeyInfo ?? SignedXml.noop;
+    this.xadesQualifyingProperties = null;
     this.CanonicalizationAlgorithms;
     this.HashAlgorithms;
     this.SignatureAlgorithms;
@@ -966,6 +969,9 @@ export class SignedXml {
 
     signatureXml += this.createSignedInfo(doc, prefix);
     signatureXml += this.getKeyInfo(prefix);
+    if (this.xadesQualifyingProperties != null) {
+      signatureXml += `<${currentPrefix}Object>${this.xadesQualifyingProperties()}</${currentPrefix}Object>`;
+    }
     signatureXml += `</${currentPrefix}Signature>`;
 
     this.originalXmlWithIds = doc.toString();
@@ -1083,21 +1089,34 @@ export class SignedXml {
 
     /* eslint-disable-next-line deprecation/deprecation */
     for (const ref of this.getReferences()) {
-      const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+      let nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
 
       if (!utils.isArrayHasLength(nodes)) {
-        throw new Error(
-          `the following xpath cannot be signed because it was not found: ${ref.xpath}`,
-        );
+        if (this.xadesQualifyingProperties != null) {
+          nodes = xpath.selectWithResolver(
+            ref.xpath ?? "",
+            new xmldom.DOMParser().parseFromString(this.xadesQualifyingProperties()),
+            this.namespaceResolver,
+          );
+        }
+        if (!utils.isArrayHasLength(nodes)) {
+          throw new Error(
+            `the following xpath cannot be signed because it was not found: ${ref.xpath}`,
+          );
+        }
       }
 
       for (const node of nodes) {
+        let addattr = "";
+        if (node["localName"] === "SignedProperties") {
+          addattr = ' Type="http://uri.etsi.org/01903#SignedProperties"';
+        }
         if (ref.isEmptyUri) {
-          res += `<${prefix}Reference URI="">`;
+          res += `<${prefix}Reference URI=""${addattr}>`;
         } else {
           const id = this.ensureHasId(node);
           ref.uri = id;
-          res += `<${prefix}Reference URI="#${id}">`;
+          res += `<${prefix}Reference URI="#${id}"${addattr}>`;
         }
         res += `<${prefix}Transforms>`;
         for (const trans of ref.transforms || []) {
