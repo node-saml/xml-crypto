@@ -1,7 +1,10 @@
 import type {
   CanonicalizationAlgorithmType,
+  CanonicalizationOrTransformAlgorithmType,
   CanonicalizationOrTransformationAlgorithm,
+  CanonicalizationOrTransformationAlgorithmProcessOptions,
   ComputeSignatureOptions,
+  ErrorFirstCallback,
   GetKeyInfoContentArgs,
   HashAlgorithm,
   HashAlgorithmType,
@@ -9,21 +12,19 @@ import type {
   SignatureAlgorithm,
   SignatureAlgorithmType,
   SignedXmlOptions,
-  CanonicalizationOrTransformAlgorithmType,
-  ErrorFirstCallback,
-  CanonicalizationOrTransformationAlgorithmProcessOptions,
 } from "./types";
 
-import * as xpath from "xpath";
+import * as isDomNode from "@xmldom/is-dom-node";
 import * as xmldom from "@xmldom/xmldom";
-import * as utils from "./utils";
+import * as crypto from "crypto";
+import { deprecate } from "util";
+import * as xpath from "xpath";
 import * as c14n from "./c14n-canonicalization";
-import * as execC14n from "./exclusive-canonicalization";
 import * as envelopedSignatures from "./enveloped-signature";
+import * as execC14n from "./exclusive-canonicalization";
 import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
-import * as crypto from "crypto";
-import * as isDomNode from "@xmldom/is-dom-node";
+import * as utils from "./utils";
 
 export class SignedXml {
   idMode?: "wssecurity";
@@ -72,6 +73,14 @@ export class SignedXml {
   private references: Reference[] = [];
 
   /**
+   * Contains the canonicalized XML of the references that were validly signed.
+   *
+   * This populates with the canonical XML of the reference only after
+   * verifying the signature is cryptographically authentic.
+   */
+  private signedReferences: string[] = [];
+
+  /**
    *  To add a new transformation algorithm create a new class that implements the {@link TransformationAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
    */
   CanonicalizationAlgorithms: Record<
@@ -87,6 +96,8 @@ export class SignedXml {
     "http://www.w3.org/2000/09/xmldsig#enveloped-signature": envelopedSignatures.EnvelopedSignature,
   };
 
+  // TODO: In v7.x we may consider deprecating sha1
+
   /**
    * To add a new hash algorithm create a new class that implements the {@link HashAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
    */
@@ -96,12 +107,15 @@ export class SignedXml {
     "http://www.w3.org/2001/04/xmlenc#sha512": hashAlgorithms.Sha512,
   };
 
+  // TODO: In v7.x we may consider deprecating sha1
+
   /**
    * To add a new signature algorithm create a new class that implements the {@link SignatureAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
    */
   SignatureAlgorithms: Record<SignatureAlgorithmType, new () => SignatureAlgorithm> = {
     "http://www.w3.org/2000/09/xmldsig#rsa-sha1": signatureAlgorithms.RsaSha1,
     "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256": signatureAlgorithms.RsaSha256,
+    "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1": signatureAlgorithms.RsaSha256Mgf1,
     "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512": signatureAlgorithms.RsaSha512,
     // Disabled by default due to key confusion concerns.
     // 'http://www.w3.org/2000/09/xmldsig#hmac-sha1': SignatureAlgorithms.HmacSha1
@@ -253,33 +267,117 @@ export class SignedXml {
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
 
-    if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
+    // Reset the references as only references from our re-parsed signedInfo node can be trusted
+    this.references = [];
+
+    const unverifiedSignedInfoCanon = this.getCanonSignedInfoXml(doc);
+    if (!unverifiedSignedInfoCanon) {
       if (callback) {
-        callback(new Error("Could not validate all references"));
+        callback(new Error("Canonical signed info cannot be empty"), false);
         return;
       }
 
+      throw new Error("Canonical signed info cannot be empty");
+    }
+
+    // unsigned, verify later to keep with consistent callback behavior
+    const parsedUnverifiedSignedInfo = new xmldom.DOMParser().parseFromString(
+      unverifiedSignedInfoCanon,
+      "text/xml",
+    );
+
+    const unverifiedSignedInfoDoc = parsedUnverifiedSignedInfo.documentElement;
+    if (!unverifiedSignedInfoDoc) {
+      if (callback) {
+        callback(new Error("Could not parse unverifiedSignedInfoCanon into a document"), false);
+        return;
+      }
+
+      throw new Error("Could not parse unverifiedSignedInfoCanon into a document");
+    }
+
+    const references = utils.findChildren(unverifiedSignedInfoDoc, "Reference");
+    if (!utils.isArrayHasLength(references)) {
+      if (callback) {
+        callback(new Error("could not find any Reference elements"), false);
+        return;
+      }
+
+      throw new Error("could not find any Reference elements");
+    }
+
+    // TODO: In a future release we'd like to load the Signature and its References at the same time,
+    // however, in the `.loadSignature()` method we don't have the entire document,
+    // which we need to to keep the inclusive namespaces
+    for (const reference of references) {
+      this.loadReference(reference);
+    }
+
+    /* eslint-disable-next-line deprecation/deprecation */
+    if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
+      /* Trustworthiness can only be determined if SignedInfo's (which holds References' DigestValue(s)
+         which were validated at this stage) signature is valid. Execution does not proceed to validate
+         signature phase thus each References' DigestValue must be considered to be untrusted (attacker
+         might have injected any data with new new references and/or recalculated new DigestValue for
+         altered Reference(s)). Returning any content via `signedReferences` would give false sense of
+         trustworthiness if/when SignedInfo's (which holds references' DigestValues) signature is not
+         valid(ated). Put simply: if one fails, they are all not trustworthy.
+      */
+      this.signedReferences = [];
+      this.references.forEach((ref) => {
+        ref.signedReference = undefined;
+      });
+      // TODO: add this breaking change here later on for even more security: `this.references = [];`
+
+      if (callback) {
+        callback(new Error("Could not validate all references"), false);
+        return;
+      }
+
+      // We return false because some references validated, but not all
+      // We should actually be throwing an error here, but that would be a breaking change
+      // See https://www.w3.org/TR/xmldsig-core/#sec-CoreValidation
       return false;
     }
 
-    const signedInfoCanon = this.getCanonSignedInfoXml(doc);
+    // (Stage B authentication step, show that the `signedInfoCanon` is signed)
+
+    // First find the key & signature algorithm, these should match
+    // Stage B: Take the signature algorithm and key and verify the `SignatureValue` against the canonicalized `SignedInfo`
     const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
     const key = this.getCertFromKeyInfo(this.keyInfo) || this.publicCert || this.privateKey;
     if (key == null) {
       throw new Error("KeyInfo or publicCert or privateKey is required to validate signature");
     }
-    if (callback) {
-      signer.verifySignature(signedInfoCanon, key, this.signatureValue, callback);
-    } else {
-      const verified = signer.verifySignature(signedInfoCanon, key, this.signatureValue);
 
-      if (verified === false) {
+    // Check the signature verification to know whether to reset signature value or not.
+    const sigRes = signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
+    if (sigRes === true) {
+      if (callback) {
+        callback(null, true);
+      } else {
+        return true;
+      }
+    } else {
+      // Ideally, we would start by verifying the `signedInfoCanon` first,
+      // but that may cause some breaking changes, so we'll handle that in v7.x.
+      // If we were validating `signedInfoCanon` first, we wouldn't have to reset this array.
+      this.signedReferences = [];
+      this.references.forEach((ref) => {
+        ref.signedReference = undefined;
+      });
+      // TODO: add this breaking change here later on for even more security: `this.references = [];`
+
+      if (callback) {
+        callback(
+          new Error(`invalid signature: the signature value ${this.signatureValue} is incorrect`),
+        );
+        return; // return early
+      } else {
         throw new Error(
           `invalid signature: the signature value ${this.signatureValue} is incorrect`,
         );
       }
-
-      return true;
     }
   }
 
@@ -294,6 +392,11 @@ export class SignedXml {
     const signedInfo = utils.findChildren(this.signatureNode, "SignedInfo");
     if (signedInfo.length === 0) {
       throw new Error("could not find SignedInfo element in the message");
+    }
+    if (signedInfo.length > 1) {
+      throw new Error(
+        "could not get canonicalized signed info for a signature that contains multiple SignedInfo nodes",
+      );
     }
 
     if (
@@ -391,6 +494,7 @@ export class SignedXml {
       elem = elemOrXpath;
     }
 
+    /* eslint-disable-next-line deprecation/deprecation */
     for (const ref of this.getReferences()) {
       const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
 
@@ -445,14 +549,14 @@ export class SignedXml {
       }
     }
 
-    ref.getValidatedNode = (xpathSelector?: string) => {
+    ref.getValidatedNode = deprecate((xpathSelector?: string) => {
       xpathSelector = xpathSelector || ref.xpath;
       if (typeof xpathSelector !== "string" || ref.validationError != null) {
         return null;
       }
       const selectedValue = xpath.select1(xpathSelector, doc);
       return isDomNode.isNodeLike(selectedValue) ? selectedValue : null;
-    };
+    }, "`ref.getValidatedNode()` is deprecated and insecure. Use `ref.signedReference` or `this.getSignedReferences()` instead.");
 
     if (!isDomNode.isNodeLike(elem)) {
       const validationError = new Error(
@@ -474,6 +578,12 @@ export class SignedXml {
 
       return false;
     }
+    // This step can only be done after we have verified the `signedInfo`.
+    // We verified that they have same hash,
+    // thus the `canonXml` and _only_ the `canonXml` can be trusted.
+    // Append this to `signedReferences`.
+    this.signedReferences.push(canonXml);
+    ref.signedReference = canonXml;
 
     return true;
   }
@@ -522,11 +632,43 @@ export class SignedXml {
       this.signatureAlgorithm = signatureAlgorithm.value as SignatureAlgorithmType;
     }
 
-    this.references = [];
-    const references = xpath.select(
-      ".//*[local-name(.)='SignedInfo']/*[local-name(.)='Reference']",
-      signatureNode,
+    const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
+    if (!utils.isArrayHasLength(signedInfoNodes)) {
+      throw new Error("no signed info node found");
+    }
+    if (signedInfoNodes.length > 1) {
+      throw new Error("could not load signature that contains multiple SignedInfo nodes");
+    }
+
+    // Try to operate on the c14n version of `signedInfo`. This forces the initial `getReferences()`
+    // API call to always return references that are loaded under the canonical `SignedInfo`
+    // in the case that the client access the `.references` **before** signature verification.
+
+    // Ensure canonicalization algorithm is exclusive, otherwise we'd need the entire document
+    let canonicalizationAlgorithmForSignedInfo = this.canonicalizationAlgorithm;
+    if (
+      !canonicalizationAlgorithmForSignedInfo ||
+      canonicalizationAlgorithmForSignedInfo ===
+        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315" ||
+      canonicalizationAlgorithmForSignedInfo ===
+        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
+    ) {
+      canonicalizationAlgorithmForSignedInfo = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    }
+
+    const temporaryCanonSignedInfo = this.getCanonXml(
+      [canonicalizationAlgorithmForSignedInfo],
+      signedInfoNodes[0],
     );
+    const temporaryCanonSignedInfoXml = new xmldom.DOMParser().parseFromString(
+      temporaryCanonSignedInfo,
+      "text/xml",
+    );
+    const signedInfoDoc = temporaryCanonSignedInfoXml.documentElement;
+
+    this.references = [];
+    const references = utils.findChildren(signedInfoDoc, "Reference");
+
     if (!utils.isArrayHasLength(references)) {
       throw new Error("could not find any Reference elements");
     }
@@ -572,11 +714,16 @@ export class SignedXml {
     if (nodes.length === 0) {
       throw new Error(`could not find DigestValue node in reference ${refNode.toString()}`);
     }
-    const firstChild = nodes[0].firstChild;
-    if (!firstChild || !("data" in firstChild)) {
-      throw new Error(`could not find the value of DigestValue in ${nodes[0].toString()}`);
+
+    if (nodes.length > 1) {
+      throw new Error(
+        `could not load reference for a node that contains multiple DigestValue nodes: ${refNode.toString()}`,
+      );
     }
-    const digestValue = firstChild.data;
+    const digestValue = nodes[0].textContent;
+    if (!digestValue) {
+      throw new Error(`could not find the value of DigestValue in ${refNode.toString()}`);
+    }
 
     const transforms: string[] = [];
     let inclusiveNamespacesPrefixList: string[] = [];
@@ -626,11 +773,14 @@ export class SignedXml {
     ) {
       transforms.push("http://www.w3.org/TR/2001/REC-xml-c14n-20010315");
     }
+    const refUri = isDomNode.isElementNode(refNode)
+      ? refNode.getAttribute("URI") || undefined
+      : undefined;
 
     this.addReference({
       transforms,
       digestAlgorithm: digestAlgo,
-      uri: isDomNode.isElementNode(refNode) ? utils.findAttr(refNode, "URI")?.value : undefined,
+      uri: refUri,
       digestValue,
       inclusiveNamespacesPrefixList,
       isEmptyUri: false,
@@ -703,8 +853,22 @@ export class SignedXml {
     });
   }
 
-  getReferences(): Reference[] {
+  /**
+   * Returns the list of references.
+   */
+  getReferences() {
+    // TODO: Refactor once `getValidatedNode` is removed
+    /* Once we completely remove the deprecated `getValidatedNode()` method,
+    we can change this to return a clone to prevent accidental mutations,
+    e.g.:
+    return [...this.references];
+    */
+
     return this.references;
+  }
+
+  getSignedReferences() {
+    return [...this.signedReferences];
   }
 
   /**
@@ -960,6 +1124,7 @@ export class SignedXml {
     prefix = prefix || "";
     prefix = prefix ? `${prefix}:` : prefix;
 
+    /* eslint-disable-next-line deprecation/deprecation */
     for (const ref of this.getReferences()) {
       const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
 
