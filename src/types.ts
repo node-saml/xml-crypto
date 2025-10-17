@@ -10,6 +10,18 @@ import * as crypto from "crypto";
 
 export type ErrorFirstCallback<T> = (err: Error | null, result?: T) => void;
 
+/**
+ * Binary data types that can be used for signing and verification.
+ * Compatible with both Node.js crypto and Web Crypto API.
+ */
+export type BinaryLike = string | ArrayBuffer | Buffer | Uint8Array;
+
+/**
+ * Key types that can be used with xml-crypto.
+ * Includes Node.js crypto.KeyLike (for Node.js crypto) and Web Crypto API CryptoKey.
+ */
+export type KeyLike = crypto.KeyLike | CryptoKey;
+
 export type CanonicalizationAlgorithmType =
   | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
   | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
@@ -40,7 +52,7 @@ export type SignatureAlgorithmType =
  * @param prefix an optional namespace alias to be used for the generated XML
  */
 export interface GetKeyInfoContentArgs {
-  publicCert?: crypto.KeyLike;
+  publicCert?: KeyLike;
   prefix?: string | null;
 }
 
@@ -50,8 +62,8 @@ export interface GetKeyInfoContentArgs {
 export interface SignedXmlOptions {
   idMode?: "wssecurity";
   idAttribute?: string;
-  privateKey?: crypto.KeyLike;
-  publicCert?: crypto.KeyLike;
+  privateKey?: KeyLike;
+  publicCert?: KeyLike;
   signatureAlgorithm?: SignatureAlgorithmType;
   canonicalizationAlgorithm?: CanonicalizationAlgorithmType;
   inclusiveNamespacesPrefixList?: string | string[];
@@ -152,7 +164,7 @@ export interface CanonicalizationOrTransformationAlgorithm {
 export interface HashAlgorithm {
   getAlgorithmName(): HashAlgorithmType;
 
-  getHash(xml: string): string;
+  getHash(xml: string): string | Promise<string>;
 }
 
 /** Extend this to create a new SignatureAlgorithm */
@@ -160,10 +172,10 @@ export interface SignatureAlgorithm {
   /**
    * Sign the given string using the given key
    */
-  getSignature(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string;
+  getSignature(signedInfo: BinaryLike, privateKey: KeyLike): string | Promise<string>;
   getSignature(
-    signedInfo: crypto.BinaryLike,
-    privateKey: crypto.KeyLike,
+    signedInfo: BinaryLike,
+    privateKey: KeyLike,
     callback?: ErrorFirstCallback<string>,
   ): void;
   /**
@@ -171,10 +183,14 @@ export interface SignatureAlgorithm {
    *
    * @param key a public cert, public key, or private key can be passed here
    */
-  verifySignature(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
   verifySignature(
     material: string,
-    key: crypto.KeyLike,
+    key: KeyLike,
+    signatureValue: string,
+  ): boolean | Promise<boolean>;
+  verifySignature(
+    material: string,
+    key: KeyLike,
     signatureValue: string,
     callback?: ErrorFirstCallback<boolean>,
   ): void;
@@ -243,6 +259,33 @@ export function createOptionalCallbackFunction<T, A extends unknown[]>(
     }
   }) as {
     (...args: A): T;
+    (...args: [...A, ErrorFirstCallback<T>]): void;
+  };
+}
+
+/**
+ * This function will add a callback version of an async function.
+ *
+ * This follows the factory pattern.
+ * Just call this function, passing the async function that you'd like to add a callback version of.
+ */
+export function createAsyncOptionalCallbackFunction<T, A extends unknown[]>(
+  asyncVersion: (...args: A) => Promise<T>,
+): {
+  (...args: A): Promise<T>;
+  (...args: [...A, ErrorFirstCallback<T>]): void;
+} {
+  return ((...args: A | [...A, ErrorFirstCallback<T>]) => {
+    const possibleCallback = args[args.length - 1];
+    if (isErrorFirstCallback(possibleCallback)) {
+      asyncVersion(...(args.slice(0, -1) as A))
+        .then((result) => possibleCallback(null, result))
+        .catch((err) => possibleCallback(err instanceof Error ? err : new Error("Unknown error")));
+    } else {
+      return asyncVersion(...(args as A));
+    }
+  }) as {
+    (...args: A): Promise<T>;
     (...args: [...A, ErrorFirstCallback<T>]): void;
   };
 }
