@@ -10,11 +10,10 @@ const signatureAlgorithms = [
   "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
   "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
   "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1",
-  "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"
-]
+  "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512",
+];
 
 describe("Signature unit tests", function () {
-
   describe("sign and verify", function () {
     signatureAlgorithms.forEach((signatureAlgorithm) => {
       function signWith(signatureAlgorithm: string): string {
@@ -31,7 +30,7 @@ describe("Signature unit tests", function () {
         sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
         sig.signatureAlgorithm = signatureAlgorithm;
         sig.computeSignature(xml);
-        return sig.getSignedXml()
+        return sig.getSignedXml();
       }
 
       function loadSignature(xml: string): SignedXml {
@@ -48,27 +47,30 @@ describe("Signature unit tests", function () {
       }
 
       it(`should verify signed xml with ${signatureAlgorithm}`, function () {
-        const xml = signWith(signatureAlgorithm)
-        const sig = loadSignature(xml)
+        const xml = signWith(signatureAlgorithm);
+        const sig = loadSignature(xml);
         const res = sig.checkSignature(xml);
-        expect(res, `expected all signatures with ${signatureAlgorithm} to be valid, but some reported invalid`).to.be.true;
+        expect(
+          res,
+          `expected all signatures with ${signatureAlgorithm} to be valid, but some reported invalid`,
+        ).to.be.true;
       });
 
       it(`should fail verification of signed xml with ${signatureAlgorithm} after manipulation`, function () {
-        const xml = signWith(signatureAlgorithm)
+        const xml = signWith(signatureAlgorithm);
         const doc = new xmldom.DOMParser().parseFromString(xml);
-        const node = xpath.select1(
-          "//*[local-name(.)='x']",
-          doc,
-        );
+        const node = xpath.select1("//*[local-name(.)='x']", doc);
         isDomNode.assertIsElementNode(node);
         const targetElement = node as Element;
-        targetElement.setAttribute("attr", "manipulatedValue")
-        const manipulatedXml = new xmldom.XMLSerializer().serializeToString(doc)
+        targetElement.setAttribute("attr", "manipulatedValue");
+        const manipulatedXml = new xmldom.XMLSerializer().serializeToString(doc);
 
-        const sig = loadSignature(manipulatedXml)
+        const sig = loadSignature(manipulatedXml);
         const res = sig.checkSignature(manipulatedXml);
-        expect(res, `expected all signatures with ${signatureAlgorithm} to be invalid, but some reported valid`).to.be.false;
+        expect(
+          res,
+          `expected all signatures with ${signatureAlgorithm} to be invalid, but some reported valid`,
+        ).to.be.false;
       });
     });
   });
