@@ -1347,4 +1347,60 @@ describe("Signature unit tests", function () {
       "MIIDZ",
     );
   });
+
+  it("adds id and type attributes to Reference elements when provided", function () {
+    const xml = "<root><x /></root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      id: "ref-1",
+      type: "http://www.w3.org/2000/09/xmldsig#Object",
+    });
+
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const referenceElements = xpath.select("//*[local-name(.)='Reference']", doc);
+    isDomNode.assertIsArrayOfNodes(referenceElements);
+    expect(referenceElements.length, "Reference element should exist").to.equal(1);
+
+    const referenceElement = referenceElements[0];
+    isDomNode.assertIsElementNode(referenceElement);
+
+    const idAttribute = referenceElement.getAttribute("Id");
+    expect(idAttribute, "Reference element should have the correct Id attribute value").to.equal(
+      "ref-1",
+    );
+
+    const typeAttribute = referenceElement.getAttribute("Type");
+    expect(
+      typeAttribute,
+      "Reference element should have the correct Type attribute value",
+    ).to.equal("http://www.w3.org/2000/09/xmldsig#Object");
+  });
+
+  it("should throw if xpath matches no nodes", () => {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+
+    sig.addReference({
+      xpath: "//definitelyNotThere",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    expect(() => sig.computeSignature("<root></root>")).to.throw(
+      /the following xpath cannot be signed because it was not found/,
+    );
+  });
 });
