@@ -1196,7 +1196,7 @@ export class SignedXml {
         id,
       );
     } else {
-      node.setAttribute("Id", id);
+      node.setAttribute(this.idAttributes[0], id);
     }
 
     return id;
