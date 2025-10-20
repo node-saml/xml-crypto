@@ -1,14 +1,81 @@
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
-import { SignedXml, createOptionalCallbackFunction, BinaryLike, KeyLike } from "../src/index";
+import { SignedXml, createOptionalCallbackFunction } from "../src/index";
 import * as fs from "fs";
 import * as crypto from "crypto";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
 
+const signatureAlgorithms = [
+  "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+  "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+  "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512",
+];
+
 describe("Signature unit tests", function () {
+  describe("sign and verify", function () {
+    signatureAlgorithms.forEach((signatureAlgorithm) => {
+      function signWith(signatureAlgorithm: string): string {
+        const xml = '<root><x attr="value"></x></root>';
+        const sig = new SignedXml();
+        sig.privateKey = fs.readFileSync("./test/static/client.pem");
+
+        sig.addReference({
+          xpath: "//*[local-name(.)='x']",
+          digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+          transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+        });
+
+        sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+        sig.signatureAlgorithm = signatureAlgorithm;
+        sig.computeSignature(xml);
+        return sig.getSignedXml();
+      }
+
+      function loadSignature(xml: string): SignedXml {
+        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const node = xpath.select1(
+          "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+          doc,
+        );
+        isDomNode.assertIsNodeLike(node);
+        const sig = new SignedXml();
+        sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+        sig.loadSignature(node);
+        return sig;
+      }
+
+      it(`should verify signed xml with ${signatureAlgorithm}`, function () {
+        const xml = signWith(signatureAlgorithm);
+        const sig = loadSignature(xml);
+        const res = sig.checkSignature(xml);
+        expect(
+          res,
+          `expected all signatures with ${signatureAlgorithm} to be valid, but some reported invalid`,
+        ).to.be.true;
+      });
+
+      it(`should fail verification of signed xml with ${signatureAlgorithm} after manipulation`, function () {
+        const xml = signWith(signatureAlgorithm);
+        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const node = xpath.select1("//*[local-name(.)='x']", doc);
+        isDomNode.assertIsElementNode(node);
+        const targetElement = node as Element;
+        targetElement.setAttribute("attr", "manipulatedValue");
+        const manipulatedXml = new xmldom.XMLSerializer().serializeToString(doc);
+
+        const sig = loadSignature(manipulatedXml);
+        const res = sig.checkSignature(manipulatedXml);
+        expect(
+          res,
+          `expected all signatures with ${signatureAlgorithm} to be invalid, but some reported valid`,
+        ).to.be.false;
+      });
+    });
+  });
+
   describe("verify adds ID", function () {
-    function nodeExists(doc: Document, xpathArg: string) {
+    function nodeExists(doc, xpathArg) {
       if (!doc && !xpathArg) {
         return;
       }
@@ -17,7 +84,7 @@ describe("Signature unit tests", function () {
       expect(node.length, `xpath ${xpathArg} not found`).to.equal(1);
     }
 
-    function verifyAddsId(mode: "wssecurity" | undefined, nsMode: string) {
+    function verifyAddsId(mode, nsMode) {
       const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
       const sig = new SignedXml({ idMode: mode });
       sig.privateKey = fs.readFileSync("./test/static/client.pem");
@@ -55,7 +122,7 @@ describe("Signature unit tests", function () {
     }
 
     it("signer adds increasing different id attributes to elements", function () {
-      verifyAddsId(undefined, "different");
+      verifyAddsId(null, "different");
     });
 
     it("signer adds increasing equal id attributes to elements", function () {
@@ -63,7 +130,7 @@ describe("Signature unit tests", function () {
     });
   });
 
-  it.skip("signer adds references with namespaces", function () {
+  it("signer adds references with namespaces", function () {
     const xml =
       '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><name wsu:Id="_1">xml-crypto</name><repository wsu:Id="_2">github</repository></root>';
     const sig = new SignedXml({ idMode: "wssecurity" });
@@ -704,10 +771,10 @@ describe("Signature unit tests", function () {
       };
 
       getSignature = createOptionalCallbackFunction(
-        (signedInfo: BinaryLike, privateKey: KeyLike) => {
+        (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike) => {
           const signer = crypto.createSign("RSA-SHA1");
-          signer.update(signedInfo as crypto.BinaryLike);
-          const res = signer.sign(privateKey as crypto.KeyLike, "base64");
+          signer.update(signedInfo);
+          const res = signer.sign(privateKey, "base64");
           return res;
         },
       );
@@ -1031,7 +1098,7 @@ describe("Signature unit tests", function () {
   });
 
   it("signer adds existing prefixes", function () {
-    function getKeyInfoContentWithAssertionId({ assertionId }: { assertionId: string }) {
+    function getKeyInfoContentWithAssertionId({ assertionId }) {
       return (
         `<wsse:SecurityTokenReference wsse11:TokenType="http://docs.oasis-open.org/wss/oasis-wss-saml-token-profile-1.1#SAMLV1.1" wsu:Id="0" ` +
         `xmlns:wsse11="http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd"> ` +

@@ -1,4 +1,9 @@
-import { createAsyncOptionalCallbackFunction, type SignatureAlgorithm } from "./types";
+import {
+  type BinaryLike,
+  type ErrorFirstCallback,
+  type KeyLike,
+  type SignatureAlgorithm,
+} from "./types";
 import {
   importRsaPrivateKey,
   importRsaPublicKey,
@@ -150,8 +155,22 @@ function toArrayBuffer(data: unknown): ArrayBuffer {
  * Uses the Web Crypto API which is available in browsers and modern Node.js
  */
 export class WebCryptoRsaSha1 implements SignatureAlgorithm {
-  getSignature = createAsyncOptionalCallbackFunction(
-    async (signedInfo: unknown, privateKey: unknown): Promise<string> => {
+  getSignature(signedInfo: BinaryLike, privateKey: KeyLike): string;
+  getSignature(
+    signedInfo: BinaryLike,
+    privateKey: KeyLike,
+    callback: ErrorFirstCallback<string>,
+  ): void;
+  getSignature(
+    signedInfo: BinaryLike,
+    privateKey: KeyLike,
+    callback?: ErrorFirstCallback<string>,
+  ): string | void {
+    if (!callback) {
+      throw new Error("WebCrypto algorithms require a callback");
+    }
+
+    (async () => {
       // If already a CryptoKey, use it directly
       let key: CryptoKey;
       if (isCryptoKey(privateKey)) {
@@ -163,14 +182,31 @@ export class WebCryptoRsaSha1 implements SignatureAlgorithm {
       }
 
       const data = toArrayBuffer(signedInfo);
-
       const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, data);
       return arrayBufferToBase64(signature);
-    },
-  );
+    })()
+      .then((result) => callback(null, result))
+      .catch((err) => callback(err instanceof Error ? err : new Error("Unknown error")));
+  }
 
-  verifySignature = createAsyncOptionalCallbackFunction(
-    async (material: string, key: unknown, signatureValue: string): Promise<boolean> => {
+  verifySignature(material: string, key: KeyLike, signatureValue: string): boolean;
+  verifySignature(
+    material: string,
+    key: KeyLike,
+    signatureValue: string,
+    callback: ErrorFirstCallback<boolean>,
+  ): void;
+  verifySignature(
+    material: string,
+    key: KeyLike,
+    signatureValue: string,
+    callback?: ErrorFirstCallback<boolean>,
+  ): boolean | void {
+    if (!callback) {
+      throw new Error("WebCrypto algorithms require a callback");
+    }
+
+    (async () => {
       // If already a CryptoKey, use it directly
       let publicKey: CryptoKey;
       if (isCryptoKey(key)) {
@@ -184,12 +220,14 @@ export class WebCryptoRsaSha1 implements SignatureAlgorithm {
       const data = new TextEncoder().encode(material);
       const signature = base64ToArrayBuffer(signatureValue);
       return await crypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey, signature, data);
-    },
-  );
+    })()
+      .then((result) => callback(null, result))
+      .catch((err) => callback(err instanceof Error ? err : new Error("Unknown error")));
+  }
 
-  getAlgorithmName = (): string => {
+  getAlgorithmName(): string {
     return "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
-  };
+  }
 }
 
 /**
@@ -197,8 +235,22 @@ export class WebCryptoRsaSha1 implements SignatureAlgorithm {
  * Uses the Web Crypto API which is available in browsers and modern Node.js
  */
 export class WebCryptoRsaSha256 implements SignatureAlgorithm {
-  getSignature = createAsyncOptionalCallbackFunction(
-    async (signedInfo: unknown, privateKey: unknown): Promise<string> => {
+  getSignature(signedInfo: BinaryLike, privateKey: KeyLike): string;
+  getSignature(
+    signedInfo: BinaryLike,
+    privateKey: KeyLike,
+    callback: ErrorFirstCallback<string>,
+  ): void;
+  getSignature(
+    signedInfo: BinaryLike,
+    privateKey: KeyLike,
+    callback?: ErrorFirstCallback<string>,
+  ): string | void {
+    if (!callback) {
+      throw new Error("WebCrypto algorithms require a callback");
+    }
+
+    (async () => {
       // If already a CryptoKey, use it directly
       let key: CryptoKey;
       if (isCryptoKey(privateKey)) {
@@ -210,14 +262,31 @@ export class WebCryptoRsaSha256 implements SignatureAlgorithm {
       }
 
       const data = toArrayBuffer(signedInfo);
-
       const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, data);
-
       return arrayBufferToBase64(signature);
-    },
-  );
-  verifySignature = createAsyncOptionalCallbackFunction(
-    async (material: string, key: unknown, signatureValue: string): Promise<boolean> => {
+    })()
+      .then((result) => callback(null, result))
+      .catch((err) => callback(err instanceof Error ? err : new Error("Unknown error")));
+  }
+
+  verifySignature(material: string, key: KeyLike, signatureValue: string): boolean;
+  verifySignature(
+    material: string,
+    key: KeyLike,
+    signatureValue: string,
+    callback: ErrorFirstCallback<boolean>,
+  ): void;
+  verifySignature(
+    material: string,
+    key: KeyLike,
+    signatureValue: string,
+    callback?: ErrorFirstCallback<boolean>,
+  ): boolean | void {
+    if (!callback) {
+      throw new Error("WebCrypto algorithms require a callback");
+    }
+
+    (async () => {
       // If already a CryptoKey, use it directly
       let publicKey: CryptoKey;
       if (isCryptoKey(key)) {
@@ -230,13 +299,15 @@ export class WebCryptoRsaSha256 implements SignatureAlgorithm {
 
       const data = new TextEncoder().encode(material);
       const signature = base64ToArrayBuffer(signatureValue);
-
       return await crypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey, signature, data);
-    },
-  );
-  getAlgorithmName = (): string => {
+    })()
+      .then((result) => callback(null, result))
+      .catch((err) => callback(err instanceof Error ? err : new Error("Unknown error")));
+  }
+
+  getAlgorithmName(): string {
     return "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
-  };
+  }
 }
 
 /**
@@ -244,8 +315,22 @@ export class WebCryptoRsaSha256 implements SignatureAlgorithm {
  * Uses the Web Crypto API which is available in browsers and modern Node.js
  */
 export class WebCryptoRsaSha512 implements SignatureAlgorithm {
-  getSignature = createAsyncOptionalCallbackFunction(
-    async (signedInfo: unknown, privateKey: unknown): Promise<string> => {
+  getSignature(signedInfo: BinaryLike, privateKey: KeyLike): string;
+  getSignature(
+    signedInfo: BinaryLike,
+    privateKey: KeyLike,
+    callback: ErrorFirstCallback<string>,
+  ): void;
+  getSignature(
+    signedInfo: BinaryLike,
+    privateKey: KeyLike,
+    callback?: ErrorFirstCallback<string>,
+  ): string | void {
+    if (!callback) {
+      throw new Error("WebCrypto algorithms require a callback");
+    }
+
+    (async () => {
       // If already a CryptoKey, use it directly
       let key: CryptoKey;
       if (isCryptoKey(privateKey)) {
@@ -257,14 +342,31 @@ export class WebCryptoRsaSha512 implements SignatureAlgorithm {
       }
 
       const data = toArrayBuffer(signedInfo);
-
       const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, data);
-
       return arrayBufferToBase64(signature);
-    },
-  );
-  verifySignature = createAsyncOptionalCallbackFunction(
-    async (material: string, key: unknown, signatureValue: string): Promise<boolean> => {
+    })()
+      .then((result) => callback(null, result))
+      .catch((err) => callback(err instanceof Error ? err : new Error("Unknown error")));
+  }
+
+  verifySignature(material: string, key: KeyLike, signatureValue: string): boolean;
+  verifySignature(
+    material: string,
+    key: KeyLike,
+    signatureValue: string,
+    callback: ErrorFirstCallback<boolean>,
+  ): void;
+  verifySignature(
+    material: string,
+    key: KeyLike,
+    signatureValue: string,
+    callback?: ErrorFirstCallback<boolean>,
+  ): boolean | void {
+    if (!callback) {
+      throw new Error("WebCrypto algorithms require a callback");
+    }
+
+    (async () => {
       // If already a CryptoKey, use it directly
       let publicKey: CryptoKey;
       if (isCryptoKey(key)) {
@@ -275,15 +377,17 @@ export class WebCryptoRsaSha512 implements SignatureAlgorithm {
         publicKey = await importRsaPublicKey(normalizedKey, "SHA-512");
       }
 
-      const data = new TextEncoder().encode(material);
+      const data = toArrayBuffer(material);
       const signature = base64ToArrayBuffer(signatureValue);
-
       return await crypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey, signature, data);
-    },
-  );
-  getAlgorithmName = (): string => {
+    })()
+      .then((result) => callback(null, result))
+      .catch((err) => callback(err instanceof Error ? err : new Error("Unknown error")));
+  }
+
+  getAlgorithmName(): string {
     return "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512";
-  };
+  }
 }
 
 /**
@@ -291,8 +395,22 @@ export class WebCryptoRsaSha512 implements SignatureAlgorithm {
  * Uses the Web Crypto API which is available in browsers and modern Node.js
  */
 export class WebCryptoHmacSha1 implements SignatureAlgorithm {
-  getSignature = createAsyncOptionalCallbackFunction(
-    async (signedInfo: unknown, privateKey: unknown): Promise<string> => {
+  getSignature(signedInfo: BinaryLike, privateKey: KeyLike): string;
+  getSignature(
+    signedInfo: BinaryLike,
+    privateKey: KeyLike,
+    callback: ErrorFirstCallback<string>,
+  ): void;
+  getSignature(
+    signedInfo: BinaryLike,
+    privateKey: KeyLike,
+    callback?: ErrorFirstCallback<string>,
+  ): string | void {
+    if (!callback) {
+      throw new Error("WebCrypto algorithms require a callback");
+    }
+
+    (async () => {
       // If already a CryptoKey, use it directly
       let key: CryptoKey;
       if (isCryptoKey(privateKey)) {
@@ -305,15 +423,31 @@ export class WebCryptoHmacSha1 implements SignatureAlgorithm {
       }
 
       const data = toArrayBuffer(signedInfo);
-
       const signature = await crypto.subtle.sign("HMAC", key, data);
-
       return arrayBufferToBase64(signature);
-    },
-  );
+    })()
+      .then((result) => callback(null, result))
+      .catch((err) => callback(err instanceof Error ? err : new Error("Unknown error")));
+  }
 
-  verifySignature = createAsyncOptionalCallbackFunction(
-    async (material: string, key: unknown, signatureValue: string): Promise<boolean> => {
+  verifySignature(material: string, key: KeyLike, signatureValue: string): boolean;
+  verifySignature(
+    material: string,
+    key: KeyLike,
+    signatureValue: string,
+    callback: ErrorFirstCallback<boolean>,
+  ): void;
+  verifySignature(
+    material: string,
+    key: KeyLike,
+    signatureValue: string,
+    callback?: ErrorFirstCallback<boolean>,
+  ): boolean | void {
+    if (!callback) {
+      throw new Error("WebCrypto algorithms require a callback");
+    }
+
+    (async () => {
       // If already a CryptoKey, use it directly
       let hmacKey: CryptoKey;
       if (isCryptoKey(key)) {
@@ -330,10 +464,12 @@ export class WebCryptoHmacSha1 implements SignatureAlgorithm {
 
       // Use crypto.subtle.verify for constant-time comparison (prevents timing attacks)
       return await crypto.subtle.verify("HMAC", hmacKey, signature, data);
-    },
-  );
+    })()
+      .then((result) => callback(null, result))
+      .catch((err) => callback(err instanceof Error ? err : new Error("Unknown error")));
+  }
 
-  getAlgorithmName = (): string => {
+  getAlgorithmName(): string {
     return "http://www.w3.org/2000/09/xmldsig#hmac-sha1";
-  };
+  }
 }

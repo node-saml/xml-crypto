@@ -8,8 +8,8 @@ The WebCrypto implementation provides:
 
 - **Browser compatibility**: Run XML signing and verification in the browser
 - **No Node.js crypto dependency**: Uses the standard Web Crypto API
-- **Async-first design**: All WebCrypto operations are asynchronous
-- **Same API structure**: Follows the same patterns as the Node.js crypto implementations
+- **Callback-based async operations**: WebCrypto operations use callbacks for async handling
+- **Same API structure**: Uses the same methods as Node.js crypto, just with callbacks
 
 ## Supported Algorithms
 
@@ -28,7 +28,7 @@ The WebCrypto implementation provides:
 
 ## Usage
 
-### Basic Example (Browser or Node.js with WebCrypto)
+### Basic Example - Signing (Browser or Node.js with WebCrypto)
 
 ```javascript
 import { SignedXml, WebCryptoRsaSha256, WebCryptoSha256 } from "xml-crypto";
@@ -59,16 +59,22 @@ sig.addReference({
 sig.HashAlgorithms["http://www.w3.org/2001/04/xmlenc#sha256"] = WebCryptoSha256;
 sig.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] = WebCryptoRsaSha256;
 
-// Compute signature asynchronously
-const signedXml = await sig.computeSignatureAsync(xml);
+// Compute signature with callback
+sig.computeSignature(xml, (err, signedXmlObj) => {
+  if (err) {
+    console.error("Signing failed:", err);
+    return;
+  }
 
-console.log(signedXml.getSignedXml());
+  console.log(signedXmlObj.getSignedXml());
+});
 ```
 
 ### Verifying a Signature
 
 ```javascript
 import { SignedXml, WebCryptoRsaSha256, WebCryptoSha256 } from "xml-crypto";
+import { DOMParser } from "@xmldom/xmldom";
 
 const signedXml = `<root>...</root>`; // Your signed XML
 
@@ -78,52 +84,56 @@ const sig = new SignedXml();
 sig.HashAlgorithms["http://www.w3.org/2001/04/xmlenc#sha256"] = WebCryptoSha256;
 sig.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] = WebCryptoRsaSha256;
 
-// Provide public key or certificate
+// Provide public key or certificate (SPKI format)
 sig.publicCert = publicKey;
 
-// Load the signature
-sig.loadSignature(signedXml);
+// Load the signature - need to extract it from the signed XML first
+const doc = new DOMParser().parseFromString(signedXml);
+const signature = sig.findSignatures(doc)[0];
+sig.loadSignature(signature);
 
-// Verify asynchronously
-try {
-  const isValid = await sig.checkSignatureAsync(signedXml);
+// Verify with callback
+sig.checkSignature(signedXml, (err, isValid) => {
+  if (err) {
+    console.error("Verification failed:", err);
+    return;
+  }
   console.log("Signature valid:", isValid);
-} catch (error) {
-  console.error("Signature verification failed:", error);
-}
+});
 ```
 
 ## Key Format Conversion
 
-The WebCrypto algorithms accept keys in PEM format (strings) and will automatically convert them to `CryptoKey` objects. You can also pre-import keys using the utility functions:
+The WebCrypto algorithms accept keys in PEM format (strings) and will automatically convert them to `CryptoKey` objects internally.
+
+**Note**: For verification, WebCrypto requires public keys in SPKI format, not X.509 certificates. See the X.509 Certificates section below for how to extract the public key.
+
+## Using Callbacks with WebCrypto
+
+Both `computeSignature` and `checkSignature` support an optional callback parameter. When using WebCrypto algorithms, you **must** provide a callback to handle the asynchronous operations:
 
 ```javascript
-import { importRsaPrivateKey, importRsaPublicKey } from "xml-crypto";
+// Signing with callback
+sig.computeSignature(xml, (err, signedXmlObj) => {
+  if (err) {
+    console.error("Error:", err);
+    return;
+  }
+  // signedXmlObj is the SignedXml instance
+  const result = signedXmlObj.getSignedXml();
+});
 
-// Import private key for signing
-const privateKey = await importRsaPrivateKey(pemPrivateKey, "SHA-256");
-
-// Import public key for verification
-const publicKey = await importRsaPublicKey(pemPublicKey, "SHA-256");
-
-// Use with SignedXml
-const sig = new SignedXml();
-sig.privateKey = privateKey; // Can use CryptoKey directly
+// Verification with callback
+sig.checkSignature(signedXml, (err, isValid) => {
+  if (err) {
+    console.error("Error:", err);
+    return;
+  }
+  console.log("Valid:", isValid);
+});
 ```
 
-## Async vs Sync Methods
-
-### Async Methods (for WebCrypto)
-
-- `computeSignatureAsync(xml, options?)` - Computes signature asynchronously
-- `checkSignatureAsync(xml)` - Verifies signature asynchronously
-
-### Sync Methods (for Node.js crypto)
-
-- `computeSignature(xml, options?, callback?)` - Computes signature synchronously (or with callback)
-- `checkSignature(xml, callback?)` - Verifies signature synchronously (or with callback)
-
-**Important**: You must use the async methods (`*Async`) when using WebCrypto algorithms. The sync methods will throw an error if you try to use them with WebCrypto algorithms.
+**Important**: If you try to use WebCrypto algorithms without providing a callback, the operation will fail because WebCrypto operations are inherently asynchronous.
 
 ## Browser Compatibility
 
@@ -151,14 +161,21 @@ To migrate from Node.js crypto to WebCrypto:
    import { WebCryptoSha256, WebCryptoRsaSha256 } from "xml-crypto";
    ```
 
-2. Update method calls to async:
+2. Update to use callbacks:
 
    ```javascript
-   // Before
+   // Before (synchronous)
    sig.computeSignature(xml);
+   const result = sig.getSignedXml();
 
-   // After
-   await sig.computeSignatureAsync(xml);
+   // After (with callback)
+   sig.computeSignature(xml, (err, signedXmlObj) => {
+     if (err) {
+       console.error(err);
+       return;
+     }
+     const result = signedXmlObj.getSignedXml();
+   });
    ```
 
 3. Register algorithms:
@@ -190,7 +207,7 @@ To migrate from Node.js crypto to WebCrypto:
 
 2. **PEM/DER parsing**: The utility functions provide basic PEM parsing.
 3. **Key formats**: Only PKCS8 private keys and SPKI public keys are currently supported for RSA.
-4. **Async requirement**: All WebCrypto operations are async - you cannot use them with the synchronous API methods.
+4. **Callback requirement**: All WebCrypto operations require callbacks - you cannot use them with the synchronous API (without a callback).
 
 ## Benefits
 
@@ -203,8 +220,9 @@ To migrate from Node.js crypto to WebCrypto:
 
 ```javascript
 import { SignedXml, WebCryptoRsaSha256, WebCryptoSha256 } from "xml-crypto";
+import { DOMParser } from "@xmldom/xmldom";
 
-async function signAndVerify() {
+function signAndVerify(callback) {
   const xml = "<root><data>Important data</data></root>";
 
   // Signing
@@ -222,25 +240,42 @@ async function signAndVerify() {
   sigForSigning.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] =
     WebCryptoRsaSha256;
 
-  await sigForSigning.computeSignatureAsync(xml);
-  const signedXml = sigForSigning.getSignedXml();
+  sigForSigning.computeSignature(xml, (err, signedXmlObj) => {
+    if (err) {
+      return callback(err);
+    }
 
-  // Verification
-  const sigForVerifying = new SignedXml();
-  sigForVerifying.publicCert = publicKeyPem;
+    const signedXml = signedXmlObj.getSignedXml();
 
-  // Register algorithms for verification
-  sigForVerifying.HashAlgorithms["http://www.w3.org/2001/04/xmlenc#sha256"] = WebCryptoSha256;
-  sigForVerifying.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] =
-    WebCryptoRsaSha256;
+    // Verification
+    const sigForVerifying = new SignedXml();
+    sigForVerifying.publicCert = publicKeyPem; // SPKI format
 
-  sigForVerifying.loadSignature(signedXml);
+    // Register algorithms for verification
+    sigForVerifying.HashAlgorithms["http://www.w3.org/2001/04/xmlenc#sha256"] = WebCryptoSha256;
+    sigForVerifying.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] =
+      WebCryptoRsaSha256;
 
-  const isValid = await sigForVerifying.checkSignatureAsync(signedXml);
-  console.log("Signature is valid:", isValid);
+    // Load the signature
+    const doc = new DOMParser().parseFromString(signedXml);
+    const signature = sigForVerifying.findSignatures(doc)[0];
+    sigForVerifying.loadSignature(signature);
 
-  return isValid;
+    sigForVerifying.checkSignature(signedXml, (err, isValid) => {
+      if (err) {
+        return callback(err);
+      }
+      console.log("Signature is valid:", isValid);
+      callback(null, isValid);
+    });
+  });
 }
 
-signAndVerify().catch(console.error);
+signAndVerify((err, isValid) => {
+  if (err) {
+    console.error("Error:", err);
+  } else {
+    console.log("Success! Valid:", isValid);
+  }
+});
 ```

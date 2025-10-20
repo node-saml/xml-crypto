@@ -1,8 +1,8 @@
 /**
- * Example of using xml-crypto with Web Crypto API
+ * Example of using xml-crypto with Web Crypto API (callback-based)
  *
  * This example demonstrates how to use the WebCrypto implementations
- * to sign and verify XML signatures without Node.js crypto dependencies.
+ * to sign and verify XML signatures using callbacks.
  *
  * This works in:
  * - Modern browsers
@@ -14,6 +14,7 @@
 import { SignedXml, WebCryptoRsaSha256, WebCryptoSha256 } from "../lib/index.js";
 import { readFileSync } from "fs";
 import { createPublicKey } from "crypto";
+import { DOMParser } from "@xmldom/xmldom";
 
 /**
  * Helper function to convert X.509 certificate to SPKI format public key
@@ -32,14 +33,14 @@ function extractPublicKeyFromCertificate(certPem) {
   }
 }
 
-async function signXml() {
+function signXml(callback) {
   console.log("=== Signing XML with WebCrypto ===\n");
 
   const xml = "<library><book><name>Harry Potter</name></book></library>";
   console.log("Original XML:", xml);
 
   // Load private key
-  const privateKey = readFileSync("./client.pem", "utf8");
+  const privateKey = readFileSync("./example/client.pem", "utf8");
 
   // Create signature
   const sig = new SignedXml();
@@ -58,20 +59,23 @@ async function signXml() {
   sig.HashAlgorithms["http://www.w3.org/2001/04/xmlenc#sha256"] = WebCryptoSha256;
   sig.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] = WebCryptoRsaSha256;
 
-  // Compute signature asynchronously
-  await sig.computeSignatureAsync(xml);
+  // Compute signature with callback
+  sig.computeSignature(xml, (err, signedXmlObj) => {
+    if (err) {
+      return callback(err);
+    }
 
-  const signedXml = sig.getSignedXml();
-  console.log("\nSigned XML:", signedXml);
-
-  return signedXml;
+    const signedXml = signedXmlObj.getSignedXml();
+    console.log("\nSigned XML:", signedXml);
+    callback(null, signedXml);
+  });
 }
 
-async function verifyXml(signedXml) {
+function verifyXml(signedXml, callback) {
   console.log("\n=== Verifying XML Signature with WebCrypto ===\n");
 
   // Load public certificate and extract the public key in SPKI format
-  const certPem = readFileSync("./client_public.pem", "utf8");
+  const certPem = readFileSync("./example/client_public.pem", "utf8");
   const publicKeySpki = extractPublicKeyFromCertificate(certPem);
 
   console.log("Note: Extracted public key from X.509 certificate");
@@ -84,35 +88,48 @@ async function verifyXml(signedXml) {
   sig.HashAlgorithms["http://www.w3.org/2001/04/xmlenc#sha256"] = WebCryptoSha256;
   sig.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] = WebCryptoRsaSha256;
 
-  // Verify asynchronously - checkSignatureAsync loads the signature automatically
-  try {
-    const isValid = await sig.checkSignatureAsync(signedXml);
+  // We need to load the signature before verification:
+  // 1. Parse the signed XML to get a DOM
+  // 2. Find the <Signature> element within it
+  // 3. Load that specific signature node
+  const doc = new DOMParser().parseFromString(signedXml);
+  const signature = sig.findSignatures(doc)[0];
+  sig.loadSignature(signature);
+
+  // Verify with callback
+  sig.checkSignature(signedXml, (err, isValid) => {
+    if (err) {
+      console.error("Signature verification failed:", err.message);
+      return callback(err);
+    }
     console.log("Signature is valid:", isValid);
-    return isValid;
-  } catch (error) {
-    console.error("Signature verification failed:", error.message);
-    return false;
-  }
+    callback(null, isValid);
+  });
 }
 
-async function main() {
-  try {
-    // Sign the XML
-    const signedXml = await signXml();
-
-    // Verify the signature
-    const isValid = await verifyXml(signedXml);
-
-    if (isValid) {
-      console.log("\n✅ Success! XML was signed and verified using WebCrypto API");
-    } else {
-      console.log("\n❌ Verification failed");
+function main() {
+  // Sign the XML
+  signXml((err, signedXml) => {
+    if (err) {
+      console.error("\n❌ Error during signing:", err);
       process.exit(1);
     }
-  } catch (error) {
-    console.error("\n❌ Error:", error);
-    process.exit(1);
-  }
+
+    // Verify the signature
+    verifyXml(signedXml, (err, isValid) => {
+      if (err) {
+        console.error("\n❌ Error during verification:", err);
+        process.exit(1);
+      }
+
+      if (isValid) {
+        console.log("\n✅ Success! XML was signed and verified using WebCrypto API");
+      } else {
+        console.log("\n❌ Verification failed");
+        process.exit(1);
+      }
+    });
+  });
 }
 
 // Run the example
