@@ -1,13 +1,13 @@
 # xml-crypto
 
-![Build Status](https://github.com/node-saml/node-saml/workflows/Build%20Status/badge.svg)
+![Build Status](https://github.com/node-saml/xml-crypto/workflows/Test%20Status/badge.svg)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 [![codecov](https://codecov.io/gh/node-saml/xml-crypto/branch/master/graph/badge.svg?token=PQWCMBWBFB)](https://codecov.io/gh/node-saml/xml-crypto)
 [![DeepScan grade](https://deepscan.io/api/teams/17569/projects/30525/branches/981134/badge/grade.svg)](https://deepscan.io/dashboard#view=project&tid=17569&pid=30525&bid=981134)
 
 [![NPM](https://nodei.co/npm/xml-crypto.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/xml-crypto)
 
-# Sponsors
+## Sponsors
 
 ![workos](https://github.com/workos.png?size=30) [workos](https://github.com/workos)
 
