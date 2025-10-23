@@ -1,9 +1,17 @@
 # xml-crypto
 
-![Build](https://github.com/node-saml/xml-crypto/actions/workflows/ci.yml/badge.svg)
-[![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-Ready--to--Code-blue?logo=gitpod)](https://gitpod.io/from-referrer/)
+![Build Status](https://github.com/node-saml/node-saml/workflows/Build%20Status/badge.svg)
+[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
+[![codecov](https://codecov.io/gh/node-saml/xml-crypto/branch/master/graph/badge.svg?token=PQWCMBWBFB)](https://codecov.io/gh/node-saml/xml-crypto)
+[![DeepScan grade](https://deepscan.io/api/teams/17569/projects/30525/branches/981134/badge/grade.svg)](https://deepscan.io/dashboard#view=project&tid=17569&pid=30525&bid=981134)
 
----
+[![NPM](https://nodei.co/npm/xml-crypto.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/xml-crypto)
+
+# Sponsors
+
+![workos](https://github.com/workos.png?size=30) [workos](https://github.com/workos)
+
+![stytchauth](https://github.com/stytchauth.png?size=30) [stytchauth](https://github.com/stytchauth)
 
 ## Upgrading
 
@@ -535,11 +543,11 @@ To run tests use:
 npm test
 ```
 
-## More information
+## Sponsors
 
-Visit my [blog](http://webservices20.blogspot.com/) or my [twitter](http://twitter.com/#!/YaronNaveh)
+![Short-io logo](https://github.com/Short-io.png?size=30) [Short-io](https://github.com/Short-io)
 
-[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/yaronn/xml-crypto/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+![RideAmigosCorp logo](https://github.com/RideAmigosCorp.png?size=30) [RideAmigosCorp](https://github.com/RideAmigosCorp)
 
 ## License
 
