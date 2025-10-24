@@ -516,12 +516,12 @@ Set `action` to one of the following:
 - after - append to specific node (use the `referenceNode` property)
 
 ```javascript
-var SignedXml = require("xml-crypto").SignedXml,
-  fs = require("fs");
+const SignedXml = require("xml-crypto").SignedXml;
+const fs = require("fs");
 
-var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
-var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
+const sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
 sig.addReference({
   xpath: "//*[local-name(.)='book']",
   digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
@@ -530,7 +530,7 @@ sig.addReference({
 sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
 sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml, {
-  location: { reference: "//*[local-name(.)='book']", action: "after" }, //This will place the signature after the book element
+  location: { reference: "//*[local-name(.)='book']", action: "after" }, // This will place the signature after the book element
 });
 ```
 
@@ -539,10 +539,10 @@ sig.computeSignature(xml, {
 Use the `objects` option when creating a SignedXml instance to add custom Objects to the signature.
 
 ```javascript
-var SignedXml = require("xml-crypto").SignedXml,
-  fs = require("fs");
+const SignedXml = require("xml-crypto").SignedXml;
+const fs = require("fs");
 
-var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
 const sig = new SignedXml({
   privateKey: fs.readFileSync("client.pem"),
@@ -562,7 +562,7 @@ const sig = new SignedXml({
 // Add a reference to the Object element
 sig.addReference({
   xpath: "//*[@Id='Object1']",
-  digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
   transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
 });
 
