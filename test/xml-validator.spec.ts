@@ -10,7 +10,10 @@ const privateKey = fs.readFileSync("./test/static/client.pem", "utf-8");
 const publicCert = fs.readFileSync("./test/static/client_public.pem", "utf-8");
 
 // Helper function to create a signed XML document
-function createSignedXml(xml: string, options: { prefix?: string; attrs?: Record<string, string> } = {}): string {
+function createSignedXml(
+  xml: string,
+  options: { prefix?: string; attrs?: Record<string, string> } = {},
+): string {
   const sig = new SignedXml({
     privateKey,
     canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
@@ -101,8 +104,11 @@ describe("XmlValidator", function () {
 
     it("should throw error when neither publicCert nor getCertFromKeyInfo is provided", function () {
       expect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         new XmlValidator({} as any);
-      }).to.throw("XmlValidator requires either a publicCert or getCertFromKeyInfo function in options.");
+      }).to.throw(
+        "XmlValidator requires either a publicCert or getCertFromKeyInfo function in options.",
+      );
     });
 
     it("should not allow idAttributes when WS-Security mode is enabled", function () {
@@ -118,7 +124,7 @@ describe("XmlValidator", function () {
 
   describe("loadSignature", function () {
     it("should load a specific signature node", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
       const doc = new xmldom.DOMParser().parseFromString(signedXml);
       const signatureNode = xpath.select1("//*[local-name(.)='Signature']", doc);
@@ -129,7 +135,7 @@ describe("XmlValidator", function () {
     });
 
     it("should throw error when trying to load signature twice", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
       const doc = new xmldom.DOMParser().parseFromString(signedXml);
       const signatureNode = xpath.select1("//*[local-name(.)='Signature']", doc);
@@ -139,14 +145,14 @@ describe("XmlValidator", function () {
       validator.loadSignature(signatureNode);
 
       expect(() => validator.loadSignature(signatureNode)).to.throw(
-        "A signature has already been loaded into this XmlValidator instance."
+        "A signature has already been loaded into this XmlValidator instance.",
       );
     });
   });
 
   describe("validate (synchronous)", function () {
     it("should validate a valid signed XML document", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
 
       const validator = new XmlValidator({ publicCert });
@@ -159,7 +165,7 @@ describe("XmlValidator", function () {
     });
 
     it("should fail validation for invalid signature", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
       const tamperedXml = signedXml.replace("content", "tampered");
 
@@ -171,7 +177,7 @@ describe("XmlValidator", function () {
     });
 
     it("should automatically load single signature when none is pre-loaded", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
 
       const validator = new XmlValidator({ publicCert });
@@ -181,7 +187,7 @@ describe("XmlValidator", function () {
     });
 
     it("should fail when no signature is found", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
 
       const validator = new XmlValidator({ publicCert });
       const result = validator.validate(xml);
@@ -191,7 +197,7 @@ describe("XmlValidator", function () {
     });
 
     it("should fail when multiple signatures are found without pre-loading", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const multiSignedXml = createMultiSignedXml(xml);
 
       const validator = new XmlValidator({ publicCert });
@@ -202,7 +208,7 @@ describe("XmlValidator", function () {
     });
 
     it("should validate specific signature when pre-loaded", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const multiSignedXml = createMultiSignedXml(xml);
       const doc = new xmldom.DOMParser().parseFromString(multiSignedXml);
       const firstSignature = xpath.select1("//*[local-name(.)='Signature'][@Id='sig1']", doc);
@@ -216,7 +222,7 @@ describe("XmlValidator", function () {
     });
 
     it("should throw error when validator is reused", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
 
       const validator = new XmlValidator({ publicCert });
@@ -228,7 +234,7 @@ describe("XmlValidator", function () {
     });
 
     it("should work with getCertFromKeyInfo function", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
 
       const validator = new XmlValidator({
@@ -265,7 +271,8 @@ describe("XmlValidator", function () {
     });
 
     it("should work with WS-Security mode", function () {
-      const xml = '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><test wsu:Id="test1">content</test></root>';
+      const xml =
+        '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><test wsu:Id="test1">content</test></root>';
       const sig = new SignedXml({
         privateKey,
         canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
@@ -294,7 +301,7 @@ describe("XmlValidator", function () {
     });
 
     it("should handle validation errors gracefully when throwOnError is false", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
       const corruptedXml = signedXml.replace("<SignatureValue>", "<SignatureValue>corrupted");
 
@@ -309,7 +316,7 @@ describe("XmlValidator", function () {
     });
 
     it("should throw validation errors when throwOnError is true", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
 
       const validator = new XmlValidator({
         publicCert,
@@ -322,7 +329,7 @@ describe("XmlValidator", function () {
 
   describe("validate (asynchronous)", function () {
     it("should validate a valid signed XML document asynchronously", function (done) {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
 
       const validator = new XmlValidator({ publicCert });
@@ -341,7 +348,7 @@ describe("XmlValidator", function () {
     });
 
     it("should fail validation for invalid signature asynchronously", function (done) {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
       const tamperedXml = signedXml.replace("content", "tampered");
 
@@ -359,7 +366,7 @@ describe("XmlValidator", function () {
     });
 
     it("should handle errors gracefully in async mode", function (done) {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
 
       const validator = new XmlValidator({
         publicCert,
@@ -378,7 +385,7 @@ describe("XmlValidator", function () {
     });
 
     it("should handle reuse error in async mode", function (done) {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
 
       const validator = new XmlValidator({ publicCert });
@@ -447,7 +454,7 @@ describe("XmlValidatorFactory", function () {
     });
 
     it("should create validator with factory getCertFromKeyInfo and override with publicCert", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
 
       const factory = new XmlValidatorFactory({
@@ -460,7 +467,7 @@ describe("XmlValidatorFactory", function () {
     });
 
     it("should create multiple independent validators", function () {
-      const xml = '<root><test>content</test></root>';
+      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
 
       const factory = new XmlValidatorFactory({ publicCert });
@@ -475,7 +482,8 @@ describe("XmlValidatorFactory", function () {
     });
 
     it("should preserve factory configuration in created validators", function () {
-      const xml = '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><test wsu:Id="test1">content</test></root>';
+      const xml =
+        '<root xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><test wsu:Id="test1">content</test></root>';
       const sig = new SignedXml({
         privateKey,
         canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
@@ -510,7 +518,7 @@ describe("XmlValidatorFactory", function () {
 
 describe("XmlValidator Security Features", function () {
   it("should prevent signature wrapping attacks by only returning signed content", function () {
-    const xml = '<root><test>content</test><unsigned>malicious</unsigned></root>';
+    const xml = "<root><test>content</test><unsigned>malicious</unsigned></root>";
     const signedXml = createSignedXml(xml);
 
     const validator = new XmlValidator({ publicCert });
@@ -524,11 +532,11 @@ describe("XmlValidator Security Features", function () {
   });
 
   it("should enforce single-use pattern for security", function () {
-    const xml = '<root><test>content</test></root>';
+    const xml = "<root><test>content</test></root>";
     const signedXml = createSignedXml(xml);
 
     const validator = new XmlValidator({ publicCert });
-    
+
     // First use should work
     const result1 = validator.validate(signedXml);
     expect(result1.valid).to.be.true;
@@ -540,7 +548,7 @@ describe("XmlValidator Security Features", function () {
   });
 
   it("should validate with maxTransforms limit", function () {
-    const xml = '<root><test>content</test></root>';
+    const xml = "<root><test>content</test></root>";
     const signedXml = createSignedXml(xml);
 
     const validator = new XmlValidator({
@@ -554,7 +562,7 @@ describe("XmlValidator Security Features", function () {
 
   it("should handle edge cases gracefully", function () {
     const validator = new XmlValidator({ publicCert });
-    
+
     // Empty XML
     const result1 = validator.validate("");
     expect(result1.valid).to.be.false;
@@ -620,7 +628,7 @@ describe("XmlValidator Integration", function () {
   it("should validate signatures created by XmlSigner", function () {
     // This test ensures compatibility between XmlSigner and XmlValidator
     const xml = '<root><test id="test1">content</test></root>';
-    
+
     // Create signature using SignedXml (simulating XmlSigner output)
     const sig = new SignedXml({
       privateKey,

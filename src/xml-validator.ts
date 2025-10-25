@@ -158,31 +158,31 @@ export class XmlValidator {
       );
     }
 
-    // Check if a signature has been loaded
-    if (!this.signatureLoaded) {
-      // We will load the signature if exactly one signature is found in the document
-      const doc = new DOMParser().parseFromString(xml, "application/xml");
-      const signatureNodes = this.signedXml.findSignatures(doc);
+    try {
+      // Check if a signature has been loaded
+      if (!this.signatureLoaded) {
+        // We will load the signature if exactly one signature is found in the document
+        const doc = new DOMParser().parseFromString(xml, "application/xml");
+        const signatureNodes = this.signedXml.findSignatures(doc);
 
-      if (signatureNodes.length === 0) {
-        return this.handleError(
-          "No Signature element found in the provided XML document.",
-          callback,
-        );
-      } else if (signatureNodes.length > 1) {
-        return this.handleError(
-          "Multiple Signature elements found in the provided XML document. Please load the desired signature explicitly using loadSignature().",
-          callback,
-        );
+        if (signatureNodes.length === 0) {
+          return this.handleError(
+            "No Signature element found in the provided XML document.",
+            callback,
+          );
+        } else if (signatureNodes.length > 1) {
+          return this.handleError(
+            "Multiple Signature elements found in the provided XML document. Please load the desired signature explicitly using loadSignature().",
+            callback,
+          );
+        }
+
+        // Load the single found signature
+        this.signedXml.loadSignature(signatureNodes[0]);
       }
 
-      // Load the single found signature
-      this.signedXml.loadSignature(signatureNodes[0]);
-    }
+      this.wasUsed = true;
 
-    this.wasUsed = true;
-
-    try {
       if (callback) {
         // ASYNCHRONOUS PATH
         this.signedXml.checkSignature(xml, (error, isValid) => {

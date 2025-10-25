@@ -1,11 +1,11 @@
 const fs = require("fs");
-const { 
-  XmlSignerFactory, 
+const {
+  XmlSignerFactory,
   XmlValidatorFactory,
   SIGNATURE_ALGORITHMS,
   CANONICALIZATION_ALGORITHMS,
   TRANSFORM_ALGORITHMS,
-  HASH_ALGORITHMS
+  HASH_ALGORITHMS,
 } = require("../dist/src/index");
 
 // Example XML to sign
@@ -118,10 +118,7 @@ function signEnvelopedExample() {
     references: [
       {
         uri: "", // Empty URI for enveloped signature
-        transforms: [
-          TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE,
-          TRANSFORM_ALGORITHMS.EXCLUSIVE_C14N,
-        ],
+        transforms: [TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE, TRANSFORM_ALGORITHMS.EXCLUSIVE_C14N],
         digestAlgorithm: HASH_ALGORITHMS.SHA256,
       },
     ],

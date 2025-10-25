@@ -3,13 +3,14 @@ import { expect } from "chai";
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
 import * as isDomNode from "@xmldom/is-dom-node";
-import { 
-  XmlSigner, 
-  XmlSignerFactory, 
+import {
+  XmlSigner,
+  XmlSignerFactory,
   type SigningReference,
   type XmlSignerFactoryOptions,
-  type ReferenceAttributes
+  type ReferenceAttributes,
 } from "../src/xml-signer";
+import { SignedXml } from "../src";
 
 const privateKey = fs.readFileSync("./test/static/client.pem", "utf-8");
 const publicCert = fs.readFileSync("./test/static/client_public.pem", "utf-8");
@@ -56,8 +57,8 @@ describe("XmlSignerFactory", function () {
             xpath: "//*[@id='test']",
             transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
             digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-          }
-        ]
+          },
+        ],
       });
       expect(factory).to.be.instanceOf(XmlSignerFactory);
     });
@@ -69,7 +70,7 @@ describe("XmlSignerFactory", function () {
         signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
         canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
       });
-      
+
       const signer = factory.createSigner(privateKey);
       expect(signer).to.be.instanceOf(XmlSigner);
     });
@@ -80,7 +81,7 @@ describe("XmlSignerFactory", function () {
         signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
         canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
       });
-      
+
       const signer = factory.createSigner();
       expect(signer).to.be.instanceOf(XmlSigner);
     });
@@ -91,7 +92,9 @@ describe("XmlSignerFactory", function () {
         canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
       });
 
-      expect(() => factory.createSigner()).to.throw("privateKey is required to create an XmlSigner");
+      expect(() => factory.createSigner()).to.throw(
+        "privateKey is required to create an XmlSigner",
+      );
     });
 
     it("should create signer with default references", function () {
@@ -108,13 +111,13 @@ describe("XmlSignerFactory", function () {
             xpath: "//*[@id='test2']",
             transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
             digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-          }
-        ]
+          },
+        ],
       });
-      
+
       const signer = factory.createSigner(privateKey);
       const xml = '<root><test id="test1">content1</test><test id="test2">content2</test></root>';
-      
+
       // Should be able to sign without adding references (uses factory defaults)
       expect(() => signer.sign(xml)).to.not.throw();
     });
@@ -122,7 +125,6 @@ describe("XmlSignerFactory", function () {
 });
 
 describe("XmlSigner", function () {
-
   describe("addReference", function () {
     it("should add a signing reference", function () {
       const factory = new XmlSignerFactory({
@@ -162,7 +164,7 @@ describe("XmlSigner", function () {
         canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
       });
       const signer = factory.createSigner(privateKey);
-      
+
       signer.addReference({
         xpath: "//*[@id='test1']",
         transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
@@ -187,7 +189,7 @@ describe("XmlSigner", function () {
         canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
       });
       const signer = factory.createSigner(privateKey);
-      
+
       // Add XPath reference
       signer.addReference({
         xpath: "//*[@id='test1']",
@@ -221,7 +223,9 @@ describe("XmlSigner", function () {
           transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
           digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
         });
-      }).to.throw("External URI references are not supported for signing: http://example.com/document.xml");
+      }).to.throw(
+        "External URI references are not supported for signing: http://example.com/document.xml",
+      );
     });
 
     it("should throw error when URI is specified in attributes", function () {
@@ -263,7 +267,9 @@ describe("XmlSigner", function () {
           transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
           digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
         });
-      }).to.throw("Cannot add references after signing has been performed. Create a new XmlSigner instance to add more references.");
+      }).to.throw(
+        "Cannot add references after signing has been performed. Create a new XmlSigner instance to add more references.",
+      );
     });
   });
 
@@ -410,7 +416,9 @@ describe("XmlSigner", function () {
       const xml = '<root><test id="test">content</test></root>';
       const signedXml = signer.sign(xml);
 
-      expect(signedXml).to.include("<X509Data><X509Certificate>test-cert</X509Certificate></X509Data>");
+      expect(signedXml).to.include(
+        "<X509Data><X509Certificate>test-cert</X509Certificate></X509Data>",
+      );
     });
 
     it("should include custom KeyInfo content with prefix when signature uses prefix", function () {
@@ -437,7 +445,9 @@ describe("XmlSigner", function () {
       const xml = '<root><test id="test">content</test></root>';
       const signedXml = signer.sign(xml);
 
-      expect(signedXml).to.include("<ds:X509Data><ds:X509Certificate>test-cert</ds:X509Certificate></ds:X509Data>");
+      expect(signedXml).to.include(
+        "<ds:X509Data><ds:X509Certificate>test-cert</ds:X509Certificate></ds:X509Data>",
+      );
     });
 
     it("should include KeyInfo attributes", function () {
@@ -536,15 +546,16 @@ describe("XmlSigner", function () {
         inclusiveNamespacesPrefixList: ["ns3", "ns4"],
       });
 
-      const xml = '<root xmlns:ns1="uri1" xmlns:ns2="uri2"><test id="test" xmlns:ns3="uri3" xmlns:ns4="uri4">content</test></root>';
+      const xml =
+        '<root xmlns:ns1="uri1" xmlns:ns2="uri2"><test id="test" xmlns:ns3="uri3" xmlns:ns4="uri4">content</test></root>';
       const signedXml = signer.sign(xml);
 
       const doc = new xmldom.DOMParser().parseFromString(signedXml);
-      
+
       // Check canonicalization method inclusive namespaces
       const canonInclusiveNs = xpath.select1(
         "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
-        doc
+        doc,
       );
       isDomNode.assertIsElementNode(canonInclusiveNs);
       expect(canonInclusiveNs.getAttribute("PrefixList")).to.equal("ns1 ns2");
@@ -552,7 +563,7 @@ describe("XmlSigner", function () {
       // Check reference transform inclusive namespaces
       const refInclusiveNs = xpath.select1(
         "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
-        doc
+        doc,
       );
       isDomNode.assertIsElementNode(refInclusiveNs);
       expect(refInclusiveNs.getAttribute("PrefixList")).to.equal("ns3 ns4");
@@ -572,8 +583,10 @@ describe("XmlSigner", function () {
       });
 
       const xml = '<root><test id="test">content</test></root>';
-      
-      expect(() => signer.sign(xml)).to.throw(/the following xpath cannot be signed because it was not found/);
+
+      expect(() => signer.sign(xml)).to.throw(
+        /the following xpath cannot be signed because it was not found/,
+      );
     });
   });
 
@@ -592,7 +605,7 @@ describe("XmlSigner", function () {
       });
 
       const xml = '<root><test id="test">content</test></root>';
-      
+
       signer.sign(xml, (err, signedXml) => {
         try {
           expect(err).to.be.null;
@@ -620,7 +633,7 @@ describe("XmlSigner", function () {
       });
 
       const xml = '<root><test id="test">content</test></root>';
-      
+
       signer.sign(xml, (err, signedXml) => {
         try {
           expect(err).to.be.null;
@@ -647,11 +660,13 @@ describe("XmlSigner", function () {
       });
 
       const xml = '<root><test id="test">content</test></root>';
-      
+
       signer.sign(xml, (err, signedXml) => {
         try {
           expect(err).to.be.instanceOf(Error);
-          expect(err?.message).to.include("the following xpath cannot be signed because it was not found");
+          expect(err?.message).to.include(
+            "the following xpath cannot be signed because it was not found",
+          );
           expect(signedXml).to.be.undefined;
           done();
         } catch (error) {
@@ -677,7 +692,7 @@ describe("XmlSigner", function () {
 
       const xml = '<root><test id="test">content</test></root>';
       signer.sign(xml);
-      
+
       const signatureXml = signer.getSignatureXml();
       expect(signatureXml).to.be.a("string");
       expect(signatureXml).to.include("<Signature");
@@ -698,7 +713,9 @@ describe("XmlSigner", function () {
         digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
       });
 
-      expect(() => signer.getSignatureXml()).to.throw("Cannot get signature XML before signing a document. Call sign() first.");
+      expect(() => signer.getSignatureXml()).to.throw(
+        "Cannot get signature XML before signing a document. Call sign() first.",
+      );
     });
   });
 
@@ -718,12 +735,14 @@ describe("XmlSigner", function () {
 
       const xml1 = '<root><test id="test">content1</test></root>';
       const xml2 = '<root><test id="test">content2</test></root>';
-      
+
       // First signing should work
       signer.sign(xml1);
-      
+
       // Second signing should throw error
-      expect(() => signer.sign(xml2)).to.throw("This XmlSigner instance has already been used to sign a document. Create a new instance to sign another document.");
+      expect(() => signer.sign(xml2)).to.throw(
+        "This XmlSigner instance has already been used to sign a document. Create a new instance to sign another document.",
+      );
     });
 
     it("should throw error when trying to sign multiple documents asynchronously", function (done) {
@@ -741,15 +760,17 @@ describe("XmlSigner", function () {
 
       const xml1 = '<root><test id="test">content1</test></root>';
       const xml2 = '<root><test id="test">content2</test></root>';
-      
+
       // First signing should work
       signer.sign(xml1, (err, result) => {
         try {
           expect(err).to.be.null;
           expect(result).to.be.a("string");
-          
+
           // Second signing should throw error
-          expect(() => signer.sign(xml2, () => {})).to.throw("This XmlSigner instance has already been used to sign a document. Create a new instance to sign another document.");
+          expect(() => signer.sign(xml2, () => {})).to.throw(
+            "This XmlSigner instance has already been used to sign a document. Create a new instance to sign another document.",
+          );
           done();
         } catch (error) {
           done(error);
@@ -757,7 +778,7 @@ describe("XmlSigner", function () {
       });
     });
   });
-  
+
   describe("different signature algorithms", function () {
     const algorithms = [
       "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
@@ -885,11 +906,10 @@ describe("XmlSigner", function () {
       const signedXml = signer.sign(xml);
 
       // Verify the signature can be loaded and validated by SignedXml
-      const { SignedXml } = await import("../src/signed-xml");
       const doc = new xmldom.DOMParser().parseFromString(signedXml);
       const signatureNode = xpath.select1(
         "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-        doc
+        doc,
       );
       isDomNode.assertIsNodeLike(signatureNode);
 
