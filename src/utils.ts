@@ -331,3 +331,46 @@ export function isDescendantOf(node: Node, parent: Node): boolean {
 
   return false;
 }
+
+/**
+ * Helper function to build safe XPath string literals
+ * XPath 1.0 has no escape mechanism for quotes, so we must:
+ * - Use double quotes if the value contains single quotes
+ * - Use single quotes if the value contains double quotes
+ * - Use concat() if the value contains both quote types
+ */
+function buildXPathLiteral(value: string): string {
+  const hasSingle = value.includes("'");
+  const hasDouble = value.includes('"');
+  if (!hasSingle) {
+    return `'${value}'`;
+  }
+  if (!hasDouble) {
+    return `"${value}"`;
+  }
+  // Split on single quotes and concat with "'"
+  return `concat(${value
+    .split("'")
+    .map((part, i, arr) => {
+      const pieces: string[] = [];
+      if (part.length) {
+        pieces.push(`'${part}'`);
+      }
+      if (i < arr.length - 1) {
+        pieces.push(`"'"`);
+      }
+      return pieces.join(", ");
+    })
+    .filter(Boolean)
+    .join(", ")})`;
+}
+
+export function buildIdXPath(idAttributes: string[], idValue: string): string {
+  if (idAttributes.length === 0) {
+    throw new Error("No ID attributes provided for XPath generation.");
+  }
+
+  const idLiteral = buildXPathLiteral(idValue);
+  const conditions = idAttributes.map((attr) => `local-name()=${buildXPathLiteral(attr)}`);
+  return `//*[@*[${conditions.join(" or ")}]=${idLiteral}]`;
+}
