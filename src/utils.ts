@@ -1,5 +1,5 @@
 import * as xpath from "xpath";
-import type { NamespacePrefix } from "./types";
+import type { NamespacePrefix, IdAttributeType } from "./types";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 export function isArrayHasLength(array: unknown): array is unknown[] {
@@ -29,6 +29,19 @@ export function findAttr(element: Element, localName: string, namespace?: string
     }
   }
   return null;
+}
+
+export function findAttrQName(
+  node: Element,
+  qName: string,
+  nsMap: Record<string, string> | undefined,
+) {
+  if (!nsMap) {
+    return findAttr(node, qName);
+  }
+  const [prefix, localName] = qName.includes(":") ? qName.split(":") : ["", qName];
+  const namespace = nsMap[prefix] || undefined;
+  return findAttr(node, localName, namespace);
 }
 
 export function findChildren(node: Node | Document, localName: string, namespace?: string) {
@@ -330,4 +343,90 @@ export function isDescendantOf(node: Node, parent: Node): boolean {
   }
 
   return false;
+}
+
+/**
+ * Helper function to build safe XPath string literals
+ * XPath 1.0 has no escape mechanism for quotes, so we must:
+ * - Use double quotes if the value contains single quotes
+ * - Use single quotes if the value contains double quotes
+ * - Use concat() if the value contains both quote types
+ */
+function buildXPathLiteral(value: string): string {
+  const hasSingle = value.includes("'");
+  const hasDouble = value.includes('"');
+  if (!hasSingle) {
+    return `'${value}'`;
+  }
+  if (!hasDouble) {
+    return `"${value}"`;
+  }
+  // Split on single quotes and concat with "'"
+  return `concat(${value
+    .split("'")
+    .map((part, i, arr) => {
+      const pieces: string[] = [];
+      if (part.length) {
+        pieces.push(`'${part}'`);
+      }
+      if (i < arr.length - 1) {
+        pieces.push(`"'"`);
+      }
+      return pieces.join(", ");
+    })
+    .filter(Boolean)
+    .join(", ")})`;
+}
+
+export function splitQName(qName: string): [string | undefined, string] {
+  if (qName.includes(":")) {
+    const [prefix, localName] = qName.split(":", 2);
+    return [prefix, localName];
+  }
+  return [undefined, qName];
+}
+
+export function resolveQName(
+  qName: string,
+  namespaceMap: Record<string, string> | undefined,
+): [string | undefined, string, string | undefined] {
+  const [prefix, localName] = splitQName(qName);
+  if (!prefix) {
+    return [undefined, localName, undefined];
+  }
+  if (!namespaceMap) {
+    throw new Error(`No namespace map provided to resolve prefix "${prefix}".`);
+  }
+  const namespaceURI = namespaceMap[prefix];
+  if (!namespaceURI) {
+    throw new Error(`Prefix "${prefix}" not found in namespace map.`);
+  }
+  return [prefix, localName, namespaceURI];
+}
+
+export function buildIdXPathWithNamespaces(
+  idAttributes: IdAttributeType[],
+  idValue: string,
+): string {
+  if (idAttributes.length === 0) {
+    throw new Error("No ID attributes provided for XPath generation.");
+  }
+  const idLiteral = buildXPathLiteral(idValue);
+  const conditions: string[] = [];
+
+  for (const idAttr of idAttributes) {
+    if (typeof idAttr === "string") {
+      conditions.push(`local-name()="${idAttr}"`);
+    } else {
+      if (idAttr.namespaceUri) {
+        conditions.push(
+          `local-name()="${idAttr.localName}" and namespace-uri()="${idAttr.namespaceUri}"`,
+        );
+      } else {
+        conditions.push(`local-name()="${idAttr.localName}"`);
+      }
+    }
+  }
+
+  return `//*[@*[${conditions.join(" or ")}]=${idLiteral}]`;
 }

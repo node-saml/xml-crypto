@@ -12,3 +12,4 @@ npm-debug.log
 .nyc_output/
 coverage/
 .idea
+.aider*

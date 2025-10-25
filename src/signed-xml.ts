@@ -8,6 +8,7 @@ import type {
   GetKeyInfoContentArgs,
   HashAlgorithm,
   HashAlgorithmType,
+  IdAttributeType,
   ObjectAttributes,
   Reference,
   SignatureAlgorithm,
@@ -29,7 +30,7 @@ import * as utils from "./utils";
 
 export class SignedXml {
   idMode?: "wssecurity";
-  idAttributes: string[];
+  idAttributes: IdAttributeType[];
   /**
    * A {@link Buffer} or pem encoded {@link String} containing your private key
    */
@@ -53,6 +54,7 @@ export class SignedXml {
       throw new Error("Not implemented");
     },
   };
+  private maxTransforms: number | null;
   implicitTransforms: ReadonlyArray<CanonicalizationOrTransformAlgorithmType> = [];
   keyInfoAttributes: { [attrName: string]: string } = {};
   getKeyInfoContent = SignedXml.getKeyInfoContent;
@@ -137,11 +139,13 @@ export class SignedXml {
     const {
       idMode,
       idAttribute,
+      idAttributes,
       privateKey,
       publicCert,
       signatureAlgorithm,
       canonicalizationAlgorithm,
       inclusiveNamespacesPrefixList,
+      maxTransforms,
       implicitTransforms,
       keyInfoAttributes,
       getKeyInfoContent,
@@ -151,7 +155,7 @@ export class SignedXml {
 
     // Options
     this.idMode = idMode;
-    this.idAttributes = ["Id", "ID", "id"];
+    this.idAttributes = idAttributes ?? ["Id", "ID", "id"];
     if (idAttribute) {
       this.idAttributes.unshift(idAttribute);
     }
@@ -164,6 +168,7 @@ export class SignedXml {
     } else if (utils.isArrayHasLength(inclusiveNamespacesPrefixList)) {
       this.inclusiveNamespacesPrefixList = inclusiveNamespacesPrefixList;
     }
+    this.maxTransforms = maxTransforms ?? null;
     this.implicitTransforms = implicitTransforms ?? this.implicitTransforms;
     this.keyInfoAttributes = keyInfoAttributes ?? this.keyInfoAttributes;
     this.getKeyInfoContent = getKeyInfoContent ?? this.getKeyInfoContent;
@@ -502,11 +507,18 @@ export class SignedXml {
     for (const ref of this.getReferences()) {
       const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
 
-      for (const attr of this.idAttributes) {
-        const elemId = elem.getAttribute(attr);
-        if (uri === elemId) {
-          ref.xpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
-          break; // found the correct element, no need to check further
+      for (const idAttr of this.idAttributes) {
+        if (typeof idAttr === "string") {
+          if (uri === elem.getAttribute(idAttr)) {
+            ref.xpath = `//*[@*[local-name(.)='${idAttr}']='${uri}']`;
+            break; // found the correct element, no need to check further
+          }
+        } else {
+          const attr = utils.findAttr(elem, idAttr.localName, idAttr.namespaceUri);
+          if (attr && uri === attr.value) {
+            ref.xpath = `//*[@*[local-name(.)='${idAttr.localName}' and namespace-uri(.)='${idAttr.namespaceUri}']='${uri}']`;
+            break; // found the correct element, no need to check further
+          }
         }
       }
 
@@ -533,8 +545,19 @@ export class SignedXml {
       throw new Error("Cannot validate a uri with quotes inside it");
     } else {
       let num_elements_for_id = 0;
-      for (const attr of this.idAttributes) {
-        const tmp_elemXpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
+      for (const idAttr of this.idAttributes) {
+        let tmp_elemXpath: string;
+
+        if (typeof idAttr === "string") {
+          tmp_elemXpath = `//*[@*[local-name(.)='${idAttr}']='${uri}']`;
+        } else {
+          if (idAttr.namespaceUri) {
+            tmp_elemXpath = `//*[@*[local-name(.)='${idAttr.localName}' and namespace-uri(.)='${idAttr.namespaceUri}']='${uri}']`;
+          } else {
+            tmp_elemXpath = `//*[@*[local-name(.)='${idAttr.localName}']='${uri}']`;
+          }
+        }
+
         const tmp_elem = xpath.select(tmp_elemXpath, doc);
         if (utils.isArrayHasLength(tmp_elem)) {
           num_elements_for_id += tmp_elem.length;
@@ -780,6 +803,14 @@ export class SignedXml {
     const refUri = isDomNode.isElementNode(refNode)
       ? refNode.getAttribute("URI") || undefined
       : undefined;
+
+    if (this.maxTransforms) {
+      if (transforms.length > this.maxTransforms) {
+        throw new Error(
+          `Number of transforms (${transforms.length}) exceeds the maximum allowed (${this.maxTransforms})`,
+        );
+      }
+    }
 
     this.addReference({
       transforms,
@@ -1305,7 +1336,11 @@ export class SignedXml {
       );
     } else {
       this.idAttributes.some((idAttribute) => {
-        attr = utils.findAttr(node, idAttribute);
+        if (typeof idAttribute === "string") {
+          attr = utils.findAttr(node, idAttribute);
+        } else {
+          attr = utils.findAttr(node, idAttribute.localName, idAttribute.namespaceUri);
+        }
         return !!attr; // This will break the loop as soon as a truthy attr is found.
       });
     }
@@ -1329,7 +1364,26 @@ export class SignedXml {
         id,
       );
     } else {
-      node.setAttribute("Id", id);
+      // Use the first idAttribute to set the new ID
+      const firstIdAttr = this.idAttributes[0];
+      if (typeof firstIdAttr === "string") {
+        node.setAttribute(firstIdAttr, id);
+      } else {
+        if (firstIdAttr.prefix && firstIdAttr.namespaceUri) {
+          node.setAttributeNS(
+            "http://www.w3.org/2000/xmlns/",
+            `xmlns:${firstIdAttr.prefix}`,
+            firstIdAttr.namespaceUri,
+          );
+          node.setAttributeNS(
+            firstIdAttr.namespaceUri,
+            `${firstIdAttr.prefix}:${firstIdAttr.localName}`,
+            id,
+          );
+        } else {
+          node.setAttribute(firstIdAttr.localName, id);
+        }
+      }
     }
 
     return id;
