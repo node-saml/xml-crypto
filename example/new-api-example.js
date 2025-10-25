@@ -6,7 +6,7 @@ const {
   CANONICALIZATION_ALGORITHMS,
   TRANSFORM_ALGORITHMS,
   HASH_ALGORITHMS,
-} = require("../dist/src/index");
+} = require("xml-crypto");
 
 // Example XML to sign
 const xml = `<root>

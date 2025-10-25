@@ -7,6 +7,9 @@ import {
 } from "./types";
 import { SignedXml } from "./signed-xml";
 import * as crypto from "crypto";
+import { buildIdXPath } from "./utils";
+
+const DEFAULT_ID_ATTRIBUTES = ["Id", "ID", "id"];
 
 /**
  * Signature attributes as defined in XMLDSig spec and are emitted verbatim
@@ -142,18 +145,11 @@ export interface UriSigningReference extends BaseSigningReference {
 export type SigningReference = XPathSigningReference | UriSigningReference;
 
 /**
- * Options for the XmlSigner constructor.
+ * Base interface for signing factory options.
  */
-export interface XmlSignerFactoryOptions {
+interface BaseXmlSignerFactoryOptionsCommon {
   /** You can provide a default private key here, which will be used by all signers created by the factory. */
   privateKey?: crypto.KeyLike;
-
-  /**
-   * Enable WS-Security mode for ID handling.
-   * When true, creates/validates IDs with the WS-Security namespace.
-   * @default false
-   */
-  enableWSSecurityMode?: boolean;
 
   /** Use a custom prefix for the xmldsig namespace */
   prefix?: string;
@@ -190,6 +186,44 @@ export interface XmlSignerFactoryOptions {
 }
 
 /**
+ * When WSSecurity mode is disabled, users can specify custom ID attributes.
+ */
+export interface BaseXmlSignerFactoryOptionsWithId extends BaseXmlSignerFactoryOptionsCommon {
+  /**
+   * Enable WS-Security mode for ID handling.
+   * When true, creates/validates IDs with the WS-Security namespace.
+   * @default false
+   */
+  enableWSSecurityMode?: false;
+
+  /** Custom ID attributes to use for element identification */
+  idAttributes?: string[];
+}
+
+/**
+ * When WSSecurity mode is enabled, ID attributes are fixed to WS-Security standards. (wsu:Id)
+ * Accepting idAttributes in this mode is disallowed to prevent confusion.
+ */
+export interface BaseXmlSignerFactoryOptionsWS extends BaseXmlSignerFactoryOptionsCommon {
+  /**
+   * Enable WS-Security mode for ID handling.
+   * When true, creates/validates IDs with the WS-Security namespace.
+   * @default false
+   */
+  enableWSSecurityMode: true;
+
+  /** ID attributes are not configurable in WS-Security mode */
+  idAttributes?: never;
+}
+
+/**
+ * Options for the XmlSigner constructor.
+ */
+export type XmlSignerFactoryOptions =
+  | BaseXmlSignerFactoryOptionsWithId
+  | BaseXmlSignerFactoryOptionsWS;
+
+/**
  * Adds a reference to be signed.
  *
  * @param signedXml The SignedXml instance
@@ -212,7 +246,7 @@ function addSigningReference(signedXml: SignedXml, reference: SigningReference):
       isEmptyUri: false,
       id: reference.attributes?.Id,
       type: reference.attributes?.Type,
-      uri: "", // Will be computed during signing
+      uri: undefined,
     });
   } else {
     // URI-based reference - convert URI to XPath
@@ -226,9 +260,8 @@ function addSigningReference(signedXml: SignedXml, reference: SigningReference):
     } else if (reference.uri.startsWith("#")) {
       // Fragment identifier - select element with matching ID
       const id = reference.uri.substring(1);
-      // Escape single quotes to prevent breaking the XPath expression
-      const escapedId = id.replace(/'/g, "&apos;");
-      xpath = `//*[@id='${escapedId}']`;
+      // Build a safe XPath literal that handles quotes correctly
+      xpath = buildIdXPath(signedXml.idAttributes, id);
       isEmptyUri = false;
     } else {
       // External URI - this is not supported for signing as we can only sign content within the document
@@ -419,6 +452,13 @@ export class XmlSignerFactory {
       objects: this.options.objects,
       idMode: this.options.enableWSSecurityMode ? "wssecurity" : undefined,
     });
+
+    // Force the SignedXml to use the appropriate ID attributes
+    signedXml.idAttributes = this.options.enableWSSecurityMode
+      ? ["Id"]
+      : this.options.idAttributes && this.options.idAttributes.length > 0
+        ? this.options.idAttributes
+        : DEFAULT_ID_ATTRIBUTES;
 
     if (this.options.references) {
       for (const reference of this.options.references) {
