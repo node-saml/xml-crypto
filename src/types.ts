@@ -10,30 +10,13 @@ import * as crypto from "crypto";
 
 export type ErrorFirstCallback<T> = (err: Error | null, result?: T) => void;
 
-export type CanonicalizationAlgorithmType =
-  | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
-  | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
-  | "http://www.w3.org/2001/10/xml-exc-c14n#"
-  | "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"
-  | string;
+export type CanonicalizationAlgorithmType = string;
 
-export type CanonicalizationOrTransformAlgorithmType =
-  | CanonicalizationAlgorithmType
-  | "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
+export type CanonicalizationOrTransformAlgorithmType = string;
 
-export type HashAlgorithmType =
-  | "http://www.w3.org/2000/09/xmldsig#sha1"
-  | "http://www.w3.org/2001/04/xmlenc#sha256"
-  | "http://www.w3.org/2001/04/xmlenc#sha512"
-  | string;
+export type HashAlgorithmType = string;
 
-export type SignatureAlgorithmType =
-  | "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
-  | "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
-  | "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1"
-  | "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"
-  | "http://www.w3.org/2000/09/xmldsig#hmac-sha1"
-  | string;
+export type SignatureAlgorithmType = string;
 
 /**
  * @param cert the certificate as a string or array of strings (@see https://www.w3.org/TR/2008/REC-xmldsig-core-20080610/#sec-X509Data)
