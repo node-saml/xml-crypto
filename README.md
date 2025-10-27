@@ -265,10 +265,12 @@ A `SignedXml` object provides the following methods:
 
 To sign xml documents:
 
-- `addReference(xpath, transforms, digestAlgorithm)` - adds a reference to a xml element where:
+- `addReference({ xpath, transforms, digestAlgorithm, id, type })` - adds a reference to a xml element where:
   - `xpath` - a string containing a XPath expression referencing a xml element
   - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array
   - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing-algorithms)
+  - `id` - an optional `Id` attribute to add to the reference element
+  - `type` - the optional `Type` attribute to add to the reference element (represented as a URI)
 - `computeSignature(xml, [options])` - compute the signature of the given xml where:
   - `xml` - a string containing a xml document
   - `options` - an object with the following properties:
@@ -513,12 +515,12 @@ Set `action` to one of the following:
 - after - append to specific node (use the `referenceNode` property)
 
 ```javascript
-var SignedXml = require("xml-crypto").SignedXml,
-  fs = require("fs");
+const SignedXml = require("xml-crypto").SignedXml;
+const fs = require("fs");
 
-var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
-var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
+const sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
 sig.addReference({
   xpath: "//*[local-name(.)='book']",
   digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
@@ -527,8 +529,44 @@ sig.addReference({
 sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
 sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml, {
-  location: { reference: "//*[local-name(.)='book']", action: "after" }, //This will place the signature after the book element
+  location: { reference: "//*[local-name(.)='book']", action: "after" }, // This will place the signature after the book element
 });
+```
+
+### How to add custom Objects to the signature
+
+Use the `objects` option when creating a SignedXml instance to add custom Objects to the signature.
+
+```javascript
+const SignedXml = require("xml-crypto").SignedXml;
+const fs = require("fs");
+
+const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+
+const sig = new SignedXml({
+  privateKey: fs.readFileSync("client.pem"),
+  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+  objects: [
+    {
+      content: "<TestObject>Test data in Object</TestObject>",
+      attributes: {
+        Id: "Object1",
+        MimeType: "text/xml",
+      },
+    },
+  ],
+});
+
+// Add a reference to the Object element
+sig.addReference({
+  xpath: "//*[@Id='Object1']",
+  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+  transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+});
+
+sig.computeSignature(xml);
+fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
 
 ### more examples (_coming soon_)
