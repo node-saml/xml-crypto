@@ -1135,27 +1135,7 @@ export class SignedXml {
         if (ref.isEmptyUri) {
           targetUri = "";
         } else {
-          let id: string | null = null;
-          if (this.idMode === "wssecurity") {
-            const attr = utils.findAttr(
-              node,
-              "Id",
-              "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
-            );
-            if (attr) {
-              id = attr.value;
-            }
-          } else {
-            for (const attr of this.idAttributes) {
-              id = node.getAttribute(attr);
-              if (id) {
-                break;
-              }
-            }
-          }
-          if (!id) {
-            throw new Error(`No ID attribute found on node for reference: ${ref.xpath}`);
-          }
+          const id = this.ensureHasId(node);
           ref.uri = id;
           targetUri = `#${id}`;
         }

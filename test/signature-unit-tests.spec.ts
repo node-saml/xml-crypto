@@ -1403,4 +1403,35 @@ describe("Signature unit tests", function () {
       /the following xpath cannot be signed because it was not found/,
     );
   });
+
+  it("should sign references when the Id attribute is prefixed", () => {
+    const xml = '<root><x xmlns:ns="urn:example" ns:Id="unique-id"/></root>';
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+    });
+
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const referenceElements = xpath.select("//*[local-name(.)='Reference']", doc);
+    isDomNode.assertIsArrayOfNodes(referenceElements);
+    expect(referenceElements.length, "Reference element should exist").to.equal(1);
+
+    const referenceElement = referenceElements[0];
+    isDomNode.assertIsElementNode(referenceElement);
+
+    const uriAttribute = referenceElement.getAttribute("URI");
+    expect(uriAttribute, "Reference element should have the correct URI attribute value").to.equal(
+      "#unique-id",
+    );
+  });
 });
