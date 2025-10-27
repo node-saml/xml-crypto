@@ -1403,13 +1403,14 @@ export class SignedXml {
   }
 
   /**
-   * Returns the original xml with Id attributes added on relevant elements (required for validation), must be called only after {@link computeSignature}
+   * Returns the original xml with Id attributes added on relevant elements, must be called only after {@link computeSignature}
    *
    * @returns The original XML with IDs.
+   * @deprecated This function is deprecated and will be removed in a future version. Use ComputeSignatureOptionsLocation to control where the signature will be placed in the original XML.
    */
-  getOriginalXmlWithIds(): string {
+  getOriginalXmlWithIds = deprecate((): string => {
     return this.originalXmlWithIds;
-  }
+  }, "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use ComputeSignatureOptionsLocation to control where the signature will be placed in the original XML.");
 
   /**
    * Returns the original xml document with the signature in it, must be called only after {@link computeSignature}
