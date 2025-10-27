@@ -256,9 +256,8 @@ The `SignedXml` constructor provides an abstraction for sign and verify xml docu
 - `inclusiveNamespacesPrefixList` - string - default `null` - a list of namespace prefixes to include during canonicalization
 - `implicitTransforms` - string[] - default `[]` - a list of implicit transforms to use during verification
 - `keyInfoAttributes` - object - default `{}` - a hash of attributes and values `attrName: value` to add to the KeyInfo node
-- `getKeyInfoContent` - function - default `noop` - a function that returns the content of the KeyInfo node
-- `getCertFromKeyInfo` - function - default `SignedXml.getCertFromKeyInfo` - a function that returns the certificate from the `<KeyInfo />` node
-- `objects` - array - default `undefined` - an array of objects defining the content of the `<Object/>` nodes
+- `getKeyInfoContent` - function - default `SignedXml.getKeyInfoContent` - a function that returns the content of the KeyInfo node
+- `getCertFromKeyInfo` - function - default `noop` - a function that returns the certificate from the `<KeyInfo />` node
 
 #### API
 
