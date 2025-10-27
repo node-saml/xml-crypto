@@ -30,6 +30,7 @@ export type HashAlgorithmType =
 export type SignatureAlgorithmType =
   | "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
   | "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
+  | "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1"
   | "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"
   | "http://www.w3.org/2000/09/xmldsig#hmac-sha1"
   | string;
@@ -41,6 +42,21 @@ export type SignatureAlgorithmType =
 export interface GetKeyInfoContentArgs {
   publicCert?: crypto.KeyLike;
   prefix?: string | null;
+}
+
+/**
+ * Object attributes as defined in XMLDSig spec and are emitted verbatim
+ * @see https://www.w3.org/TR/xmldsig-core/#sec-Object
+ */
+export interface ObjectAttributes {
+  /** Optional ID attribute */
+  Id?: string;
+  /** Optional MIME type attribute */
+  MimeType?: string;
+  /** Optional encoding attribute */
+  Encoding?: string;
+  /** Any additional custom attributes */
+  [key: string]: string | undefined;
 }
 
 /**
@@ -58,6 +74,7 @@ export interface SignedXmlOptions {
   keyInfoAttributes?: Record<string, string>;
   getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
   getCertFromKeyInfo?(keyInfo?: Node | null): string | null;
+  objects?: Array<{ content: string; attributes?: ObjectAttributes }>;
 }
 
 export interface NamespacePrefix {
@@ -126,6 +143,12 @@ export interface Reference {
 
   // Optional. Indicates whether the URI is empty.
   isEmptyUri: boolean;
+
+  // Optional. The `Id` attribute of the reference node.
+  id?: string;
+
+  // Optional. The `Type` attribute of the reference node.
+  type?: string;
 
   // Optional. The type of the reference node.
   ancestorNamespaces?: NamespacePrefix[];

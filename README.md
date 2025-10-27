@@ -1,11 +1,19 @@
 # xml-crypto
 
-![Build](https://github.com/node-saml/xml-crypto/actions/workflows/ci.yml/badge.svg)
-[![Gitpod Ready-to-Code](https://img.shields.io/badge/Gitpod-Ready--to--Code-blue?logo=gitpod)](https://gitpod.io/from-referrer/)
+![Build Status](https://github.com/node-saml/xml-crypto/workflows/Test%20Status/badge.svg)
+[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
+[![codecov](https://codecov.io/gh/node-saml/xml-crypto/branch/master/graph/badge.svg?token=PQWCMBWBFB)](https://codecov.io/gh/node-saml/xml-crypto)
+[![DeepScan grade](https://deepscan.io/api/teams/17569/projects/30525/branches/981134/badge/grade.svg)](https://deepscan.io/dashboard#view=project&tid=17569&pid=30525&bid=981134)
 
----
+[![NPM](https://nodei.co/npm/xml-crypto.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/xml-crypto)
 
-# Upgrading
+## Sponsors
+
+![workos](https://github.com/workos.png?size=30) [workos](https://github.com/workos)
+
+![stytchauth](https://github.com/stytchauth.png?size=30) [stytchauth](https://github.com/stytchauth)
+
+## Upgrading
 
 The `.getReferences()` AND the `.references` APIs are deprecated.
 Please do not attempt to access them. The content in them should be treated as unsigned.
@@ -13,18 +21,6 @@ Please do not attempt to access them. The content in them should be treated as u
 Instead, we strongly encourage users to migrate to the `.getSignedReferences()` API. See the [Verifying XML document](#verifying-xml-documents) section
 We understand that this may take a lot of efforts to migrate, feel free to ask for help.
 This will help prevent future XML signature wrapping attacks.
-
----
-
-## Install
-
-Install with [npm](http://github.com/isaacs/npm):
-
-```shell
-npm install xml-crypto
-```
-
-A pre requisite it to have [openssl](http://www.openssl.org/) installed and its /bin to be on the system path. I used version 1.0.1c but it should work on older versions too.
 
 ## Supported Algorithms
 
@@ -46,6 +42,7 @@ A pre requisite it to have [openssl](http://www.openssl.org/) installed and its 
 
 - RSA-SHA1 <http://www.w3.org/2000/09/xmldsig#rsa-sha1>
 - RSA-SHA256 <http://www.w3.org/2001/04/xmldsig-more#rsa-sha256>
+- RSA-SHA256 with MGF1 <http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1>
 - RSA-SHA512 <http://www.w3.org/2001/04/xmldsig-more#rsa-sha512>
 
 HMAC-SHA1 is also available but it is disabled by default
@@ -259,8 +256,8 @@ The `SignedXml` constructor provides an abstraction for sign and verify xml docu
 - `inclusiveNamespacesPrefixList` - string - default `null` - a list of namespace prefixes to include during canonicalization
 - `implicitTransforms` - string[] - default `[]` - a list of implicit transforms to use during verification
 - `keyInfoAttributes` - object - default `{}` - a hash of attributes and values `attrName: value` to add to the KeyInfo node
-- `getKeyInfoContent` - function - default `noop` - a function that returns the content of the KeyInfo node
-- `getCertFromKeyInfo` - function - default `SignedXml.getCertFromKeyInfo` - a function that returns the certificate from the `<KeyInfo />` node
+- `getKeyInfoContent` - function - default `SignedXml.getKeyInfoContent` - a function that returns the content of the KeyInfo node
+- `getCertFromKeyInfo` - function - default `noop` - a function that returns the certificate from the `<KeyInfo />` node
 
 #### API
 
@@ -268,10 +265,12 @@ A `SignedXml` object provides the following methods:
 
 To sign xml documents:
 
-- `addReference(xpath, transforms, digestAlgorithm)` - adds a reference to a xml element where:
+- `addReference({ xpath, transforms, digestAlgorithm, id, type })` - adds a reference to a xml element where:
   - `xpath` - a string containing a XPath expression referencing a xml element
   - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array
   - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing-algorithms)
+  - `id` - an optional `Id` attribute to add to the reference element
+  - `type` - the optional `Type` attribute to add to the reference element (represented as a URI)
 - `computeSignature(xml, [options])` - compute the signature of the given xml where:
   - `xml` - a string containing a xml document
   - `options` - an object with the following properties:
@@ -516,12 +515,12 @@ Set `action` to one of the following:
 - after - append to specific node (use the `referenceNode` property)
 
 ```javascript
-var SignedXml = require("xml-crypto").SignedXml,
-  fs = require("fs");
+const SignedXml = require("xml-crypto").SignedXml;
+const fs = require("fs");
 
-var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
-var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
+const sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
 sig.addReference({
   xpath: "//*[local-name(.)='book']",
   digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
@@ -530,8 +529,44 @@ sig.addReference({
 sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
 sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml, {
-  location: { reference: "//*[local-name(.)='book']", action: "after" }, //This will place the signature after the book element
+  location: { reference: "//*[local-name(.)='book']", action: "after" }, // This will place the signature after the book element
 });
+```
+
+### How to add custom Objects to the signature
+
+Use the `objects` option when creating a SignedXml instance to add custom Objects to the signature.
+
+```javascript
+const SignedXml = require("xml-crypto").SignedXml;
+const fs = require("fs");
+
+const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+
+const sig = new SignedXml({
+  privateKey: fs.readFileSync("client.pem"),
+  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+  objects: [
+    {
+      content: "<TestObject>Test data in Object</TestObject>",
+      attributes: {
+        Id: "Object1",
+        MimeType: "text/xml",
+      },
+    },
+  ],
+});
+
+// Add a reference to the Object element
+sig.addReference({
+  xpath: "//*[@Id='Object1']",
+  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+  transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+});
+
+sig.computeSignature(xml);
+fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
 
 ### more examples (_coming soon_)
@@ -546,11 +581,11 @@ To run tests use:
 npm test
 ```
 
-## More information
+## Sponsors
 
-Visit my [blog](http://webservices20.blogspot.com/) or my [twitter](http://twitter.com/#!/YaronNaveh)
+![Short-io logo](https://github.com/Short-io.png?size=30) [Short-io](https://github.com/Short-io)
 
-[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/yaronn/xml-crypto/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+![RideAmigosCorp logo](https://github.com/RideAmigosCorp.png?size=30) [RideAmigosCorp](https://github.com/RideAmigosCorp)
 
 ## License
 
