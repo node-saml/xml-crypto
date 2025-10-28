@@ -804,7 +804,7 @@ export class SignedXml {
       ? refNode.getAttribute("URI") || undefined
       : undefined;
 
-    if (this.maxTransforms) {
+    if (this.maxTransforms !== null) {
       if (transforms.length > this.maxTransforms) {
         throw new Error(
           `Number of transforms (${transforms.length}) exceeds the maximum allowed (${this.maxTransforms})`,

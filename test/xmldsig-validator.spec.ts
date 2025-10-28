@@ -73,7 +73,7 @@ function createMultiSignedXml(xml: string): string {
   return sig2.getSignedXml();
 }
 
-describe("XmlValidator", function () {
+describe("XmlDSigValidator", function () {
   describe("constructor", function () {
     it("should create validator with public certificate", function () {
       const validator = new XmlDSigValidator({
@@ -113,7 +113,7 @@ describe("XmlValidator", function () {
 
     it("should throw error when keySelector is missing", function () {
       expect(() => new XmlDSigValidator({})).to.throw(
-        "XmlValidator requires a keySelector in options.",
+        "XmlDSigValidator requires a keySelector in options.",
       );
     });
   });
@@ -284,7 +284,7 @@ describe("XmlValidator", function () {
   });
 });
 
-describe("XmlValidator Certificate Expiration", function () {
+describe("XmlDSigValidator Certificate Expiration", function () {
   it("should reject expired certificate when checkCertExpiration is true", function () {
     const xml = "<root><test>content</test></root>";
 
@@ -396,7 +396,7 @@ describe("XmlValidator Certificate Expiration", function () {
   });
 });
 
-describe("XmlValidator Security Features", function () {
+describe("XmlDSigValidator Security Features", function () {
   it("should prevent signature wrapping attacks by only returning signed content", function () {
     const xml = "<root><test>content</test><unsigned>malicious</unsigned></root>";
     const signedXml = createSignedXml(xml);
@@ -458,7 +458,7 @@ describe("XmlValidator Security Features", function () {
   });
 });
 
-describe("XmlValidator Truststore", function () {
+describe("XmlDSigValidator Truststore", function () {
   it("should validate document signed with chain certificate when root is in truststore", function () {
     const xml = "<root><test>content</test></root>";
 
@@ -618,7 +618,7 @@ describe("XmlValidator Truststore", function () {
   });
 });
 
-describe("XmlValidator Integration", function () {
+describe("XmlDSigValidator Integration", function () {
   it("should work with real-world signed XML documents", function () {
     // Test with a more complex XML structure
     const xml = `
@@ -680,11 +680,11 @@ describe("XmlValidator Integration", function () {
     expect(result.signedReferences).to.have.length(1);
   });
 
-  it("should validate signatures created by XmlSigner", function () {
-    // This test ensures compatibility between XmlSigner and XmlValidator
+  it("should validate signatures created by XmlDSigSigner", function () {
+    // This test ensures compatibility between XmlDSigSigner and XmlDSigValidator
     const xml = '<root><test id="test1">content</test></root>';
 
-    // Create signature using SignedXml (simulating XmlSigner output)
+    // Create signature using SignedXml (simulating XmlDSigSigner output)
     const sig = new SignedXml({
       privateKey,
       canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
@@ -700,7 +700,7 @@ describe("XmlValidator Integration", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    // Validate using XmlValidator
+    // Validate using XmlDSigValidator
     const validator = new XmlDSigValidator({
       keySelector: { publicCert },
     });

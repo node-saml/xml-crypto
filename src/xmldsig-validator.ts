@@ -108,13 +108,13 @@ export class XmlDSigValidator {
   private readonly truststore: KeyObject[] | undefined;
 
   /**
-   * Creates a new XmlValidator instance. The instance can be reused for multiple validations.
+   * Creates a new XmlDSigValidator instance. The instance can be reused for multiple validations.
    *
    * @param options Configuration options for validation
    */
   constructor(options: Partial<XmlDSigValidatorOptions>) {
     if (!options.keySelector) {
-      throw new Error("XmlValidator requires a keySelector in options.");
+      throw new Error("XmlDSigValidator requires a keySelector in options.");
     }
     this.options = {
       ...options,
@@ -211,7 +211,7 @@ export class XmlDSigValidator {
       !("getCertFromKeyInfo" in this.options.keySelector)
     ) {
       throw new Error(
-        "XmlValidator requires either a publicCert or getCertFromKeyInfo function in options.",
+        "XmlDSigValidator requires either a publicCert or getCertFromKeyInfo function in options.",
       );
     }
 
