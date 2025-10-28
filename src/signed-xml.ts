@@ -1,19 +1,20 @@
 import type {
-  CanonicalizationAlgorithmType,
-  CanonicalizationOrTransformAlgorithmType,
-  CanonicalizationOrTransformationAlgorithm,
-  CanonicalizationOrTransformationAlgorithmProcessOptions,
+  CanonicalizationAlgorithmName,
+  TransformAlgorithmName,
+  TransformAlgorithmOptions,
   ComputeSignatureOptions,
   ErrorFirstCallback,
   GetKeyInfoContentArgs,
-  HashAlgorithm,
-  HashAlgorithmType,
+  HashAlgorithmName,
   IdAttributeType,
   ObjectAttributes,
   Reference,
-  SignatureAlgorithm,
-  SignatureAlgorithmType,
+  SignatureAlgorithmName,
   SignedXmlOptions,
+  HashAlgorithmMap,
+  SignatureAlgorithmMap,
+  CanonicalizationAlgorithmMap,
+  TransformAlgorithmMap,
 } from "./types";
 
 import * as isDomNode from "@xmldom/is-dom-node";
@@ -27,9 +28,21 @@ import * as execC14n from "./exclusive-canonicalization";
 import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
+import { Algorithms, Namespaces } from "./constants";
 
 export class SignedXml {
+  /**
+   * Specifies the mode to use when searching for ID attributes.
+   * Planned for deprecation. Use `idAttributes` instead with value [{ prefix: "wsu", localName: "Id", namespaceUri: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" }]
+   */
   idMode?: "wssecurity";
+  /**
+   * Specifies the Id attributes which will be usedd to resolve reference URIs.
+   * When signing, if no Id attribute is found on the element to be signed, the first one from this list will be added.
+   *
+   * @default ["Id", "ID", "id"]
+   * @example [{ prefix: "wsu", localName: "Id", namespaceUri: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" }]
+   */
   idAttributes: IdAttributeType[];
   /**
    * A {@link Buffer} or pem encoded {@link String} containing your private key
@@ -38,15 +51,16 @@ export class SignedXml {
   publicCert?: crypto.KeyLike;
   /**
    * One of the supported signature algorithms.
-   * @see {@link SignatureAlgorithmType}
+   * @see {@link SignatureAlgorithmName}
    */
-  signatureAlgorithm?: SignatureAlgorithmType = undefined;
+  signatureAlgorithm?: SignatureAlgorithmName = undefined;
   /**
    * Rules used to convert an XML document into its canonical form.
    */
-  canonicalizationAlgorithm?: CanonicalizationAlgorithmType = undefined;
+  canonicalizationAlgorithm?: CanonicalizationAlgorithmName = undefined;
   /**
    * It specifies a list of namespace prefixes that should be considered "inclusive" during the canonicalization process.
+   * Only applicable when using exclusive canonicalization.
    */
   inclusiveNamespacesPrefixList: string[] = [];
   namespaceResolver: XPathNSResolver = {
@@ -54,8 +68,9 @@ export class SignedXml {
       throw new Error("Not implemented");
     },
   };
-  private maxTransforms: number | null;
-  implicitTransforms: ReadonlyArray<CanonicalizationOrTransformAlgorithmType> = [];
+
+  maxTransforms: number | null;
+  implicitTransforms: ReadonlyArray<TransformAlgorithmName> = [];
   keyInfoAttributes: { [attrName: string]: string } = {};
   getKeyInfoContent = SignedXml.getKeyInfoContent;
   getCertFromKeyInfo = SignedXml.getCertFromKeyInfo;
@@ -85,51 +100,62 @@ export class SignedXml {
   private signedReferences: string[] = [];
 
   /**
-   *  To add a new transformation algorithm create a new class that implements the {@link TransformationAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
+   *  To add a new transformation algorithm create a new class that implements the {@link CanonicalizationAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
    */
-  CanonicalizationAlgorithms: Record<
-    CanonicalizationOrTransformAlgorithmType,
-    new () => CanonicalizationOrTransformationAlgorithm
-  > = {
-    "http://www.w3.org/TR/2001/REC-xml-c14n-20010315": c14n.C14nCanonicalization,
-    "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments":
-      c14n.C14nCanonicalizationWithComments,
-    "http://www.w3.org/2001/10/xml-exc-c14n#": execC14n.ExclusiveCanonicalization,
-    "http://www.w3.org/2001/10/xml-exc-c14n#WithComments":
-      execC14n.ExclusiveCanonicalizationWithComments,
-    "http://www.w3.org/2000/09/xmldsig#enveloped-signature": envelopedSignatures.EnvelopedSignature,
-  };
-
-  // TODO: In v7.x we may consider deprecating sha1
+  CanonicalizationAlgorithms: CanonicalizationAlgorithmMap;
 
   /**
    * To add a new hash algorithm create a new class that implements the {@link HashAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
    */
-  HashAlgorithms: Record<HashAlgorithmType, new () => HashAlgorithm> = {
-    "http://www.w3.org/2000/09/xmldsig#sha1": hashAlgorithms.Sha1,
-    "http://www.w3.org/2001/04/xmlenc#sha256": hashAlgorithms.Sha256,
-    "http://www.w3.org/2001/04/xmlenc#sha512": hashAlgorithms.Sha512,
-  };
-
-  // TODO: In v7.x we may consider deprecating sha1
+  HashAlgorithms: HashAlgorithmMap;
 
   /**
    * To add a new signature algorithm create a new class that implements the {@link SignatureAlgorithm} interface, and register it here. More info: {@link https://github.com/node-saml/xml-crypto#customizing-algorithms|Customizing Algorithms}
    */
-  SignatureAlgorithms: Record<SignatureAlgorithmType, new () => SignatureAlgorithm> = {
-    "http://www.w3.org/2000/09/xmldsig#rsa-sha1": signatureAlgorithms.RsaSha1,
-    "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256": signatureAlgorithms.RsaSha256,
-    "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1": signatureAlgorithms.RsaSha256Mgf1,
-    "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512": signatureAlgorithms.RsaSha512,
-    // Disabled by default due to key confusion concerns.
-    // 'http://www.w3.org/2000/09/xmldsig#hmac-sha1': SignatureAlgorithms.HmacSha1
-  };
+  SignatureAlgorithms: SignatureAlgorithmMap;
+
+  /**
+   * To add a new transformation algorithm create a new class that implements the {@link TransformAlgorithm} interface, and register it here.
+   */
+  TransformAlgorithms: TransformAlgorithmMap | undefined;
 
   static defaultNsForPrefix = {
-    ds: "http://www.w3.org/2000/09/xmldsig#",
+    ds: Namespaces.ds,
   };
 
   static noop = () => null;
+
+  static readonly getDefaultCanonicalizationAlgorithms = () => ({
+    [Algorithms.canonicalization.C14N]: c14n.C14nCanonicalization,
+    [Algorithms.canonicalization.C14N_WITH_COMMENTS]: c14n.C14nCanonicalizationWithComments,
+    [Algorithms.canonicalization.EXCLUSIVE_C14N]: execC14n.ExclusiveCanonicalization,
+    [Algorithms.canonicalization.EXCLUSIVE_C14N_WITH_COMMENTS]:
+      execC14n.ExclusiveCanonicalizationWithComments,
+    // TODO: separate TransformAlgorithms from CanonicalizationAlgorithms
+    [Algorithms.transform.ENVELOPED_SIGNATURE]: envelopedSignatures.EnvelopedSignature,
+  });
+
+  static readonly getDefaultHashAlgorithms = () => ({
+    // TODO: In v7.x we may consider removing sha1 from defaults
+    [Algorithms.hash.SHA1]: hashAlgorithms.Sha1,
+    [Algorithms.hash.SHA256]: hashAlgorithms.Sha256,
+    [Algorithms.hash.SHA512]: hashAlgorithms.Sha512,
+  });
+
+  static readonly getDefaultSignatureAlgorithms = () => ({
+    // TODO: In v7.x we may consider removing rsa-sha1 from defaults
+    [Algorithms.signature.RSA_SHA1]: signatureAlgorithms.RsaSha1,
+    [Algorithms.signature.RSA_SHA256]: signatureAlgorithms.RsaSha256,
+    [Algorithms.signature.RSA_SHA256_MGF1]: signatureAlgorithms.RsaSha256Mgf1,
+    [Algorithms.signature.RSA_SHA512]: signatureAlgorithms.RsaSha512,
+    // Disabled by default due to key confusion concerns.
+    // 'http://www.w3.org/2000/09/xmldsig#hmac-sha1': SignatureAlgorithms.HmacSha1
+  });
+
+  static readonly getDefaultTransformAlgorithms = () =>
+    SignedXml.getDefaultCanonicalizationAlgorithms();
+
+  static readonly getDefaultIdAttributes = () => ["Id", "ID", "id"];
 
   /**
    * The SignedXml constructor provides an abstraction for sign and verify xml documents. The object is constructed using
@@ -151,11 +177,15 @@ export class SignedXml {
       getKeyInfoContent,
       getCertFromKeyInfo,
       objects,
+      allowedSignatureAlgorithms,
+      allowedHashAlgorithms,
+      allowedCanonicalizationAlgorithms,
+      allowedTransformAlgorithms,
     } = options;
 
     // Options
     this.idMode = idMode;
-    this.idAttributes = idAttributes ?? ["Id", "ID", "id"];
+    this.idAttributes = idAttributes ?? SignedXml.getDefaultIdAttributes();
     if (idAttribute) {
       this.idAttributes.unshift(idAttribute);
     }
@@ -174,9 +204,13 @@ export class SignedXml {
     this.getKeyInfoContent = getKeyInfoContent ?? this.getKeyInfoContent;
     this.getCertFromKeyInfo = getCertFromKeyInfo ?? SignedXml.noop;
     this.objects = objects;
-    this.CanonicalizationAlgorithms;
-    this.HashAlgorithms;
-    this.SignatureAlgorithms;
+    this.CanonicalizationAlgorithms =
+      allowedCanonicalizationAlgorithms ?? SignedXml.getDefaultCanonicalizationAlgorithms();
+    this.HashAlgorithms = allowedHashAlgorithms ?? SignedXml.getDefaultHashAlgorithms();
+    this.SignatureAlgorithms =
+      allowedSignatureAlgorithms ?? SignedXml.getDefaultSignatureAlgorithms();
+    // TODO: use default transform algorithms if not provided (breaking change)
+    this.TransformAlgorithms = allowedTransformAlgorithms;
   }
 
   /**
@@ -186,7 +220,7 @@ export class SignedXml {
    */
   enableHMAC(): void {
     this.SignatureAlgorithms = {
-      "http://www.w3.org/2000/09/xmldsig#hmac-sha1": signatureAlgorithms.HmacSha1,
+      [Algorithms.signature.HMAC_SHA1]: signatureAlgorithms.HmacSha1,
     };
     this.getKeyInfoContent = SignedXml.noop;
   }
@@ -409,9 +443,8 @@ export class SignedXml {
     }
 
     if (
-      this.canonicalizationAlgorithm === "http://www.w3.org/TR/2001/REC-xml-c14n-20010315" ||
-      this.canonicalizationAlgorithm ===
-        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
+      this.canonicalizationAlgorithm === Algorithms.canonicalization.C14N ||
+      this.canonicalizationAlgorithm === Algorithms.canonicalization.C14N_WITH_COMMENTS
     ) {
       if (!doc || typeof doc !== "object") {
         throw new Error(
@@ -461,7 +494,7 @@ export class SignedXml {
     }
   }
 
-  private findSignatureAlgorithm(name?: SignatureAlgorithmType) {
+  private findSignatureAlgorithm(name?: SignatureAlgorithmName) {
     if (name == null) {
       throw new Error("signatureAlgorithm is required");
     }
@@ -473,7 +506,7 @@ export class SignedXml {
     }
   }
 
-  private findCanonicalizationAlgorithm(name: CanonicalizationOrTransformAlgorithmType) {
+  private findCanonicalizationAlgorithm(name: CanonicalizationAlgorithmName) {
     if (name != null) {
       const algo = this.CanonicalizationAlgorithms[name];
       if (algo) {
@@ -484,12 +517,25 @@ export class SignedXml {
     throw new Error(`canonicalization algorithm '${name}' is not supported`);
   }
 
-  private findHashAlgorithm(name: HashAlgorithmType) {
+  private findHashAlgorithm(name: HashAlgorithmName) {
     const algo = this.HashAlgorithms[name];
     if (algo) {
       return new algo();
     } else {
       throw new Error(`hash algorithm '${name}' is not supported`);
+    }
+  }
+
+  private findTransformAlgorithm(name: TransformAlgorithmName) {
+    // TODO: remove this fallback (breaking change)
+    if (this.TransformAlgorithms == null) {
+      return this.findCanonicalizationAlgorithm(name);
+    }
+    const algo = this.TransformAlgorithms[name];
+    if (algo) {
+      return new algo();
+    } else {
+      throw new Error(`transform algorithm '${name}' is not supported`);
     }
   }
 
@@ -617,7 +663,7 @@ export class SignedXml {
 
   findSignatures(doc: Node): Node[] {
     const nodes = xpath.select(
-      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*[local-name(.)='Signature' and namespace-uri(.)='${Namespaces.ds}']`,
       doc,
     );
 
@@ -647,7 +693,13 @@ export class SignedXml {
     }
 
     if (isDomNode.isAttributeNode(node)) {
-      this.canonicalizationAlgorithm = node.value as CanonicalizationAlgorithmType;
+      this.canonicalizationAlgorithm = node.value as CanonicalizationAlgorithmName;
+
+      if (!this.findCanonicalizationAlgorithm(this.canonicalizationAlgorithm)) {
+        throw new Error(
+          `unsupported canonicalization algorithm: ${this.canonicalizationAlgorithm}`,
+        );
+      }
     }
 
     const signatureAlgorithm = xpath.select1(
@@ -656,7 +708,7 @@ export class SignedXml {
     );
 
     if (isDomNode.isAttributeNode(signatureAlgorithm)) {
-      this.signatureAlgorithm = signatureAlgorithm.value as SignatureAlgorithmType;
+      this.signatureAlgorithm = signatureAlgorithm.value as SignatureAlgorithmName;
     }
 
     const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
@@ -675,12 +727,10 @@ export class SignedXml {
     let canonicalizationAlgorithmForSignedInfo = this.canonicalizationAlgorithm;
     if (
       !canonicalizationAlgorithmForSignedInfo ||
-      canonicalizationAlgorithmForSignedInfo ===
-        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315" ||
-      canonicalizationAlgorithmForSignedInfo ===
-        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
+      canonicalizationAlgorithmForSignedInfo === Algorithms.canonicalization.C14N ||
+      canonicalizationAlgorithmForSignedInfo === Algorithms.canonicalization.C14N_WITH_COMMENTS
     ) {
-      canonicalizationAlgorithmForSignedInfo = "http://www.w3.org/2001/10/xml-exc-c14n#";
+      canonicalizationAlgorithmForSignedInfo = Algorithms.canonicalization.EXCLUSIVE_C14N;
     }
 
     const temporaryCanonSignedInfo = this.getCanonXml(
@@ -1192,7 +1242,7 @@ export class SignedXml {
         );
 
         for (const trans of ref.transforms || []) {
-          const transform = this.findCanonicalizationAlgorithm(trans);
+          const transform = this.findTransformAlgorithm(trans);
           const transformElem = signatureDoc.createElementNS(
             signatureNamespace,
             `${currentPrefix}Transform`,
@@ -1295,7 +1345,7 @@ export class SignedXml {
   getCanonXml(
     transforms: Reference["transforms"],
     node: Node,
-    options: CanonicalizationOrTransformationAlgorithmProcessOptions = {},
+    options: TransformAlgorithmOptions = {},
   ) {
     options.defaultNsForPrefix = options.defaultNsForPrefix ?? SignedXml.defaultNsForPrefix;
     options.signatureNode = this.signatureNode;
@@ -1306,7 +1356,7 @@ export class SignedXml {
     transforms.forEach((transformName) => {
       if (isDomNode.isNodeLike(transformedXml)) {
         // If, after processing, `transformedNode` is a string, we can't do anymore transforms on it
-        const transform = this.findCanonicalizationAlgorithm(transformName);
+        const transform = this.findTransformAlgorithm(transformName);
         transformedXml = transform.process(transformedXml, options);
       }
       //TODO: currently transform.process may return either Node or String value (enveloped transformation returns Node, exclusive-canonicalization returns String).
@@ -1354,7 +1404,7 @@ export class SignedXml {
 
     if (this.idMode === "wssecurity") {
       node.setAttributeNS(
-        "http://www.w3.org/2000/xmlns/",
+        Namespaces.xmlns,
         "xmlns:wsu",
         "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
       );
@@ -1369,9 +1419,9 @@ export class SignedXml {
       if (typeof firstIdAttr === "string") {
         node.setAttribute(firstIdAttr, id);
       } else {
-        if (firstIdAttr.prefix && firstIdAttr.namespaceUri) {
+        if ("prefix" in firstIdAttr && firstIdAttr.prefix) {
           node.setAttributeNS(
-            "http://www.w3.org/2000/xmlns/",
+            Namespaces.xmlns,
             `xmlns:${firstIdAttr.prefix}`,
             firstIdAttr.namespaceUri,
           );
@@ -1399,17 +1449,17 @@ export class SignedXml {
         "Missing canonicalizationAlgorithm when trying to create signed info for XML",
       );
     }
-    const transform = this.findCanonicalizationAlgorithm(this.canonicalizationAlgorithm);
+    const canonicalization = this.findCanonicalizationAlgorithm(this.canonicalizationAlgorithm);
     const algo = this.findSignatureAlgorithm(this.signatureAlgorithm);
     const currentPrefix = prefix ? `${prefix}:` : "";
 
     let res = `<${currentPrefix}SignedInfo>`;
-    res += `<${currentPrefix}CanonicalizationMethod Algorithm="${transform.getAlgorithmName()}"`;
+    res += `<${currentPrefix}CanonicalizationMethod Algorithm="${canonicalization.getAlgorithmName()}"`;
     if (utils.isArrayHasLength(this.inclusiveNamespacesPrefixList)) {
       res += ">";
       res += `<InclusiveNamespaces PrefixList="${this.inclusiveNamespacesPrefixList.join(
         " ",
-      )}" xmlns="${transform.getAlgorithmName()}"/>`;
+      )}" xmlns="${canonicalization.getAlgorithmName()}"/>`;
       res += `</${currentPrefix}CanonicalizationMethod>`;
     } else {
       res += " />";
@@ -1438,7 +1488,7 @@ export class SignedXml {
     const signatureValueXml = `<${prefix}SignatureValue>${this.signatureValue}</${prefix}SignatureValue>`;
     //the canonicalization requires to get a valid xml node.
     //we need to wrap the info in a dummy signature since it contains the default namespace.
-    const dummySignatureWrapper = `<${prefix}Signature ${xmlNsAttr}="http://www.w3.org/2000/09/xmldsig#">${signatureValueXml}</${prefix}Signature>`;
+    const dummySignatureWrapper = `<${prefix}Signature ${xmlNsAttr}="${Namespaces.ds}">${signatureValueXml}</${prefix}Signature>`;
 
     const doc = new xmldom.DOMParser().parseFromString(dummySignatureWrapper);
 

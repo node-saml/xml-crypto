@@ -1,10 +1,12 @@
 import type {
-  CanonicalizationOrTransformationAlgorithm,
-  CanonicalizationOrTransformationAlgorithmProcessOptions,
+  CanonicalizationAlgorithmName,
+  CanonicalizationAlgorithm,
+  TransformAlgorithmOptions,
   NamespacePrefix,
 } from "./types";
 import * as utils from "./utils";
 import * as isDomNode from "@xmldom/is-dom-node";
+import { Algorithms } from "./constants";
 
 function isPrefixInScope(prefixesInScope, prefix, namespaceURI) {
   let ret = false;
@@ -17,7 +19,7 @@ function isPrefixInScope(prefixesInScope, prefix, namespaceURI) {
   return ret;
 }
 
-export class ExclusiveCanonicalization implements CanonicalizationOrTransformationAlgorithm {
+export class ExclusiveCanonicalization implements CanonicalizationAlgorithm {
   protected includeComments = false;
 
   constructor() {
@@ -265,7 +267,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
    *
    * @api public
    */
-  process(elem: Element, options: CanonicalizationOrTransformationAlgorithmProcessOptions): string {
+  process(elem: Element, options: TransformAlgorithmOptions): string {
     options = options || {};
     let inclusiveNamespacesPrefixList = options.inclusiveNamespacesPrefixList || [];
     const defaultNs = options.defaultNs || "";
@@ -319,8 +321,8 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     return res;
   }
 
-  getAlgorithmName() {
-    return "http://www.w3.org/2001/10/xml-exc-c14n#";
+  getAlgorithmName(): CanonicalizationAlgorithmName {
+    return Algorithms.canonicalization.EXCLUSIVE_C14N;
   }
 }
 
@@ -330,7 +332,7 @@ export class ExclusiveCanonicalizationWithComments extends ExclusiveCanonicaliza
     this.includeComments = true;
   }
 
-  getAlgorithmName() {
-    return "http://www.w3.org/2001/10/xml-exc-c14n#WithComments";
+  getAlgorithmName(): CanonicalizationAlgorithmName {
+    return Algorithms.canonicalization.EXCLUSIVE_C14N_WITH_COMMENTS;
   }
 }

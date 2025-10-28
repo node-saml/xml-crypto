@@ -7,18 +7,14 @@
 /// <reference types="node" />
 
 import * as crypto from "crypto";
+import { Algorithms } from "./constants";
 
 export type ErrorFirstCallback<T> = (err: Error | null, result?: T) => void;
 
-export type IdAttributeType = string | { prefix: string; localName: string; namespaceUri: string };
-
-export type CanonicalizationAlgorithmType = string;
-
-export type CanonicalizationOrTransformAlgorithmType = string;
-
-export type HashAlgorithmType = string;
-
-export type SignatureAlgorithmType = string;
+export type IdAttributeType =
+  | string
+  | { prefix: string; localName: string; namespaceUri: string }
+  | { localName: string; namespaceUri: string | undefined };
 
 /**
  * @param cert the certificate as a string or array of strings (@see https://www.w3.org/TR/2008/REC-xmldsig-core-20080610/#sec-X509Data)
@@ -46,6 +42,86 @@ export interface ObjectAttributes {
 
 export type KeySelectorFunction = (keyInfo?: Node | null) => string | null;
 
+export interface NamespacePrefix {
+  prefix: string;
+  namespaceURI: string;
+}
+
+export interface TransformAlgorithmOptions {
+  defaultNs?: string;
+  defaultNsForPrefix?: Record<string, string>;
+  ancestorNamespaces?: NamespacePrefix[];
+  signatureNode?: Node | null;
+  inclusiveNamespacesPrefixList?: string[];
+}
+
+export type SignatureAlgorithmName =
+  | (typeof Algorithms.signature)[keyof typeof Algorithms.signature]
+  | string;
+
+/** Extend this to create a new SignatureAlgorithm */
+export interface SignatureAlgorithm {
+  /**
+   * Sign the given string using the given key
+   */
+  getSignature(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string;
+  getSignature(
+    signedInfo: crypto.BinaryLike,
+    privateKey: crypto.KeyLike,
+    callback?: ErrorFirstCallback<string>,
+  ): void;
+  /**
+   * Verify the given signature of the given string using key
+   *
+   * @param key a public cert, public key, or private key can be passed here
+   */
+  verifySignature(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
+  verifySignature(
+    material: string,
+    key: crypto.KeyLike,
+    signatureValue: string,
+    callback?: ErrorFirstCallback<boolean>,
+  ): void;
+
+  getAlgorithmName(): SignatureAlgorithmName;
+}
+export type SignatureAlgorithmMap = Record<SignatureAlgorithmName, new () => SignatureAlgorithm>;
+
+export type HashAlgorithmName = (typeof Algorithms.hash)[keyof typeof Algorithms.hash] | string;
+/** Implement this to create a new HashAlgorithm */
+export interface HashAlgorithm {
+  getAlgorithmName(): HashAlgorithmName;
+
+  getHash(xml: string): string;
+}
+export type HashAlgorithmMap = Record<HashAlgorithmName, new () => HashAlgorithm>;
+
+export type TransformAlgorithmName =
+  | (typeof Algorithms.transform)[keyof typeof Algorithms.transform]
+  | string;
+/** Implement this to create a new TransformAlgorithm */
+export interface TransformAlgorithm {
+  getAlgorithmName(): TransformAlgorithmName;
+
+  process(node: Node, options: TransformAlgorithmOptions): string | Node;
+}
+export type TransformAlgorithmMap = Record<TransformAlgorithmName, new () => TransformAlgorithm>;
+
+export type CanonicalizationAlgorithmName =
+  | (typeof Algorithms.canonicalization)[keyof typeof Algorithms.canonicalization]
+  | string;
+/** Implement this to create a new CanonicalizationAlgorithm */
+export interface CanonicalizationAlgorithm extends TransformAlgorithm {
+  getAlgorithmName(): CanonicalizationAlgorithmName;
+
+  // TODO: after  canonicalization algorithms algorithms are separated from transform algorithms,
+  //       set process to return string only
+  process(node: Node, options: TransformAlgorithmOptions): string | Node;
+}
+export type CanonicalizationAlgorithmMap = Record<
+  CanonicalizationAlgorithmName,
+  new () => CanonicalizationAlgorithm
+>;
 /**
  * Options for the SignedXml constructor.
  */
@@ -55,33 +131,24 @@ export interface SignedXmlOptions {
   idAttributes?: IdAttributeType[];
   privateKey?: crypto.KeyLike;
   publicCert?: crypto.KeyLike;
-  signatureAlgorithm?: SignatureAlgorithmType;
-  canonicalizationAlgorithm?: CanonicalizationAlgorithmType;
+  signatureAlgorithm?: SignatureAlgorithmName;
+  canonicalizationAlgorithm?: CanonicalizationAlgorithmName;
   inclusiveNamespacesPrefixList?: string | string[];
   maxTransforms?: number | null;
-  implicitTransforms?: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>;
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmName>;
   keyInfoAttributes?: Record<string, string>;
   getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
   getCertFromKeyInfo?: KeySelectorFunction;
   objects?: Array<{ content: string; attributes?: ObjectAttributes }>;
-}
-
-export interface NamespacePrefix {
-  prefix: string;
-  namespaceURI: string;
+  allowedSignatureAlgorithms?: SignatureAlgorithmMap;
+  allowedHashAlgorithms?: HashAlgorithmMap;
+  allowedCanonicalizationAlgorithms?: CanonicalizationAlgorithmMap;
+  allowedTransformAlgorithms?: TransformAlgorithmMap;
 }
 
 export interface RenderedNamespace {
   rendered: string;
   newDefaultNs: string;
-}
-
-export interface CanonicalizationOrTransformationAlgorithmProcessOptions {
-  defaultNs?: string;
-  defaultNsForPrefix?: Record<string, string>;
-  ancestorNamespaces?: NamespacePrefix[];
-  signatureNode?: Node | null;
-  inclusiveNamespacesPrefixList?: string[];
 }
 
 export interface ComputeSignatureOptionsLocation {
@@ -116,10 +183,10 @@ export interface Reference {
   xpath?: string;
 
   // An array of transforms to be applied to the data before signing.
-  transforms: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>;
+  transforms: ReadonlyArray<TransformAlgorithmName>;
 
   // The algorithm used to calculate the digest value of the data.
-  digestAlgorithm: HashAlgorithmType;
+  digestAlgorithm: HashAlgorithmName;
 
   // The URI that identifies the data to be signed.
   uri: string;
@@ -147,57 +214,6 @@ export interface Reference {
   getValidatedNode(xpathSelector?: string): Node | null;
 
   signedReference?: string;
-}
-
-/** Implement this to create a new CanonicalizationOrTransformationAlgorithm */
-export interface CanonicalizationOrTransformationAlgorithm {
-  process(
-    node: Node,
-    options: CanonicalizationOrTransformationAlgorithmProcessOptions,
-  ): Node | string;
-
-  getAlgorithmName(): CanonicalizationOrTransformAlgorithmType;
-}
-
-/** Implement this to create a new HashAlgorithm */
-export interface HashAlgorithm {
-  getAlgorithmName(): HashAlgorithmType;
-
-  getHash(xml: string): string;
-}
-
-/** Extend this to create a new SignatureAlgorithm */
-export interface SignatureAlgorithm {
-  /**
-   * Sign the given string using the given key
-   */
-  getSignature(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string;
-  getSignature(
-    signedInfo: crypto.BinaryLike,
-    privateKey: crypto.KeyLike,
-    callback?: ErrorFirstCallback<string>,
-  ): void;
-  /**
-   * Verify the given signature of the given string using key
-   *
-   * @param key a public cert, public key, or private key can be passed here
-   */
-  verifySignature(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
-  verifySignature(
-    material: string,
-    key: crypto.KeyLike,
-    signatureValue: string,
-    callback?: ErrorFirstCallback<boolean>,
-  ): void;
-
-  getAlgorithmName(): SignatureAlgorithmType;
-}
-
-/** Implement this to create a new TransformAlgorithm */
-export interface TransformAlgorithm {
-  getAlgorithmName(): CanonicalizationOrTransformAlgorithmType;
-
-  process(node: Node): string;
 }
 
 /**

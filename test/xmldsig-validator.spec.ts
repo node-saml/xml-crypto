@@ -1,12 +1,14 @@
 import * as fs from "fs";
 import { expect } from "chai";
-import * as xpath from "xpath";
-import * as xmldom from "@xmldom/xmldom";
-import * as isDomNode from "@xmldom/is-dom-node";
-import { XmlDSigValidator, SignedXml, Algorithms } from "../src";
+import { XmlDSigValidator, SignedXml, Algorithms, ExclusiveCanonicalization } from "../src";
+import { XmlDSigValidationResult } from "../src/xmldsig-validator";
+import { RsaSha1 } from "../src/signature-algorithms";
+import { Sha1 } from "../src/hash-algorithms";
+import { EnvelopedSignature } from "../src/enveloped-signature";
 
 const { canonicalization, hash, signature } = Algorithms;
 
+// Default test certificate files
 const privateKey = fs.readFileSync("./test/static/client.pem", "utf-8");
 const publicCert = fs.readFileSync("./test/static/client_public.pem", "utf-8");
 
@@ -40,40 +42,62 @@ function createSignedXml(
   return sig.getSignedXml();
 }
 
-// Helper function to create a signed XML with multiple signatures
-function createMultiSignedXml(xml: string): string {
-  const sig1 = new SignedXml({
-    privateKey,
+// Helper function to create a signed XML document for truststore testing
+function createChainSignedXml(xml: string): string {
+  const sig = new SignedXml({
+    privateKey: chainPrivateKey,
     canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
     signatureAlgorithm: signature.RSA_SHA1,
+    getKeyInfoContent: () => SignedXml.getKeyInfoContent({ publicCert: chainPublicCert }),
   });
 
-  sig1.addReference({
+  sig.addReference({
     xpath: "//*[local-name(.)='test']",
     digestAlgorithm: hash.SHA1,
     transforms: [canonicalization.EXCLUSIVE_C14N],
   });
 
-  sig1.computeSignature(xml, { attrs: { Id: "sig1" } });
-  const signedOnce = sig1.getSignedXml();
+  sig.computeSignature(xml);
+  return sig.getSignedXml();
+}
 
-  const sig2 = new SignedXml({
-    privateKey,
+function createExpiredSignedXml(xml: string): string {
+  const sig = new SignedXml({
+    privateKey: expiredKey,
     canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
     signatureAlgorithm: signature.RSA_SHA1,
+    getKeyInfoContent: () => SignedXml.getKeyInfoContent({ publicCert: expiredCert }),
   });
 
-  sig2.addReference({
+  sig.addReference({
     xpath: "//*[local-name(.)='test']",
     digestAlgorithm: hash.SHA1,
     transforms: [canonicalization.EXCLUSIVE_C14N],
   });
 
-  sig2.computeSignature(signedOnce, { attrs: { Id: "sig2" } });
-  return sig2.getSignedXml();
+  sig.computeSignature(xml);
+  return sig.getSignedXml();
+}
+
+function expectValidResult(result: XmlDSigValidationResult, references: number = 1) {
+  expect(result.valid).to.be.true;
+  expect(result.error).to.be.undefined;
+  expect(result.signedReferences).to.be.an("array");
+  expect(result.signedReferences).to.have.length(references);
+}
+
+function expectInvalidResult(result: XmlDSigValidationResult, errorMessage?: string) {
+  expect(result.valid).to.be.false;
+  expect(result.signedReferences).to.be.undefined;
+  expect(result.error).to.be.a("string");
+  if (errorMessage && result.error) {
+    expect(result.error.toLowerCase()).to.contain(errorMessage.toLowerCase());
+  }
 }
 
 describe("XmlDSigValidator", function () {
+  const xml = "<root><test>content</test></root>";
+
   describe("constructor", function () {
     it("should create validator with public certificate", function () {
       const validator = new XmlDSigValidator({
@@ -91,134 +115,65 @@ describe("XmlDSigValidator", function () {
       expect(validator).to.be.instanceOf(XmlDSigValidator);
     });
 
-    it("should create validator with custom ID attributes", function () {
-      const validator = new XmlDSigValidator({
-        keySelector: { publicCert },
-        idAttributes: ["customId", "myId"],
-      });
-      expect(validator).to.be.instanceOf(XmlDSigValidator);
+    it("should throw when trying to create a validator without publicCert or getCertFromKeyInfo", function () {
+      expect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        new XmlDSigValidator({ keySelector: {} as any });
+      }).to.throw("XmlDSigValidator requires a keySelector in options.");
     });
 
-    it("should create validator with security options", function () {
+    it("should create validator with all options set", function () {
       const validator = new XmlDSigValidator({
         keySelector: { publicCert },
-        security: {
-          maxTransforms: 2,
-          checkCertExpiration: false,
-        },
+        idAttributes: ["customId"],
+        implicitTransforms: [canonicalization.EXCLUSIVE_C14N],
         throwOnError: true,
+        security: {
+          maxTransforms: 5,
+          checkCertExpiration: true,
+          truststore: [rootCert],
+          signatureAlgorithms: SignedXml.getDefaultSignatureAlgorithms(),
+          hashAlgorithms: SignedXml.getDefaultHashAlgorithms(),
+          transformAlgorithms: SignedXml.getDefaultTransformAlgorithms(),
+        },
       });
       expect(validator).to.be.instanceOf(XmlDSigValidator);
-    });
-
-    it("should throw error when keySelector is missing", function () {
-      expect(() => new XmlDSigValidator({})).to.throw(
-        "XmlDSigValidator requires a keySelector in options.",
-      );
     });
   });
 
-  describe("validate", function () {
+  describe("publicCert selector", function () {
     it("should validate a valid signed XML document", function () {
-      const xml = "<root><test>content</test></root>";
       const signedXml = createSignedXml(xml);
 
       const validator = new XmlDSigValidator({
         keySelector: { publicCert },
       });
-      const result = validator.validate(signedXml);
-
-      expect(result.valid).to.be.true;
-      expect(result.error).to.be.undefined;
-      expect(result.signedReferences).to.be.an("array");
-      expect(result.signedReferences).to.have.length(1);
+      expectValidResult(validator.validate(signedXml));
     });
 
-    it("should fail validation for invalid signature", function () {
-      const xml = "<root><test>content</test></root>";
-      const signedXml = createSignedXml(xml);
-      const tamperedXml = signedXml.replace("content", "tampered");
-
-      const validator = new XmlDSigValidator({
-        keySelector: { publicCert },
-      });
-      const result = validator.validate(tamperedXml);
-
-      expect(result.valid).to.be.false;
-      expect(result.signedReferences).to.be.undefined;
-    });
-
-    it("should automatically load single signature when none is specified", function () {
-      const xml = "<root><test>content</test></root>";
+    it("should validate when publicCert is a buffer", function () {
       const signedXml = createSignedXml(xml);
 
       const validator = new XmlDSigValidator({
-        keySelector: { publicCert },
+        keySelector: { publicCert: Buffer.from(publicCert) },
       });
-      const result = validator.validate(signedXml);
-
-      expect(result.valid).to.be.true;
+      expectValidResult(validator.validate(signedXml));
     });
 
-    it("should fail when no signature is found", function () {
-      const xml = "<root><test>content</test></root>";
+    it("should fail validation when document is signed with different key", function () {
+      const signedXml = createChainSignedXml(xml);
 
       const validator = new XmlDSigValidator({
         keySelector: { publicCert },
-      });
-      const result = validator.validate(xml);
-
-      expect(result.valid).to.be.false;
-      expect(result.error).to.include("No Signature element found");
-    });
-
-    it("should fail when multiple signatures are found without specifying signatureNode", function () {
-      const xml = "<root><test>content</test></root>";
-      const multiSignedXml = createMultiSignedXml(xml);
-
-      const validator = new XmlDSigValidator({
-        keySelector: { publicCert },
-      });
-      const result = validator.validate(multiSignedXml);
-
-      expect(result.valid).to.be.false;
-      expect(result.error).to.include("Multiple Signature elements found");
-    });
-
-    it("should validate specific signature when signatureNode is provided", function () {
-      const xml = "<root><test>content</test></root>";
-      const multiSignedXml = createMultiSignedXml(xml);
-      const doc = new xmldom.DOMParser().parseFromString(multiSignedXml);
-      const firstSignature = xpath.select1("//*[local-name(.)='Signature'][@Id='sig1']", doc);
-      isDomNode.assertIsNodeLike(firstSignature);
-
-      const validator = new XmlDSigValidator({
-        keySelector: { publicCert },
-      });
-      const result = validator.validate(multiSignedXml, firstSignature);
-
-      expect(result.valid).to.be.true;
-    });
-
-    it("should be reusable for multiple validations", function () {
-      const xml = "<root><test>content</test></root>";
-      const signedXml = createSignedXml(xml);
-
-      const validator = new XmlDSigValidator({
-        keySelector: { publicCert },
+        throwOnError: false,
       });
 
-      // First validation
-      const result1 = validator.validate(signedXml);
-      expect(result1.valid).to.be.true;
-
-      // Second validation should also work (validator is reusable)
-      const result2 = validator.validate(signedXml);
-      expect(result2.valid).to.be.true;
+      expectInvalidResult(validator.validate(signedXml), "invalid signature");
     });
+  });
 
-    it("should work with getCertFromKeyInfo function", function () {
-      const xml = "<root><test>content</test></root>";
+  describe("getCertFromKeyInfo selector", function () {
+    it("should validate a valid signed XML document", function () {
       const signedXml = createSignedXml(xml);
 
       const validator = new XmlDSigValidator({
@@ -226,487 +181,339 @@ describe("XmlDSigValidator", function () {
           getCertFromKeyInfo: () => publicCert,
         },
       });
-      const result = validator.validate(signedXml);
-
-      expect(result.valid).to.be.true;
+      expectValidResult(validator.validate(signedXml));
     });
 
-    it("should work with custom ID attributes", function () {
-      const xml = '<root><test customId="test1">content</test></root>';
+    it("should fail validation when document is signed with different key", function () {
+      const signedXml = createChainSignedXml(xml);
+
+      const validator = new XmlDSigValidator({
+        keySelector: {
+          getCertFromKeyInfo: () => publicCert,
+        },
+        throwOnError: false,
+      });
+
+      expectInvalidResult(validator.validate(signedXml), "invalid signature");
+    });
+  });
+
+  describe("idAttributes option", function () {
+    const xmlWithCustomId = '<root><test customId="test1">content</test></root>';
+    const xmlWithPrefixedId = `<root xmlns:foo="uri:foo"><test foo:customId="test1">content</test></root>`;
+
+    it("should validate a valid signed XML document with custom Id", function () {
       const sig = new SignedXml({
         privateKey,
         canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
         signatureAlgorithm: signature.RSA_SHA1,
+        idAttributes: ["customId"],
       });
-      sig.idAttributes = ["customId"];
       sig.addReference({
         xpath: "//*[@customId='test1']",
         digestAlgorithm: hash.SHA1,
         transforms: [canonicalization.EXCLUSIVE_C14N],
       });
-      sig.computeSignature(xml);
+      sig.computeSignature(xmlWithCustomId);
       const signedXml = sig.getSignedXml();
 
       const validator = new XmlDSigValidator({
         keySelector: { publicCert },
         idAttributes: ["customId"],
       });
-      const result = validator.validate(signedXml);
-
-      expect(result.valid).to.be.true;
+      expectValidResult(validator.validate(signedXml));
     });
 
-    it("should handle validation errors gracefully when throwOnError is false", function () {
-      const xml = "<root><test>content</test></root>";
-      const signedXml = createSignedXml(xml);
-      const corruptedXml = signedXml.replace("<SignatureValue>", "<SignatureValue>corrupted");
+    it("should validate a valid signed XML document with prefixed Id", function () {
+      const sig = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
+        signatureAlgorithm: signature.RSA_SHA1,
+        idAttributes: ["customId"],
+      });
+      sig.addReference({
+        xpath: "//*[@*[namespace-uri() = 'uri:foo' and local-name() = 'customId']]",
+        digestAlgorithm: hash.SHA1,
+        transforms: [canonicalization.EXCLUSIVE_C14N],
+      });
+      sig.computeSignature(xmlWithPrefixedId);
+      const signedXml = sig.getSignedXml();
 
       const validator = new XmlDSigValidator({
         keySelector: { publicCert },
-        throwOnError: false,
+        idAttributes: ["customId"],
       });
-      const result = validator.validate(corruptedXml);
-
-      expect(result.valid).to.be.false;
-      expect(result.error).to.be.a("string");
+      expectValidResult(validator.validate(signedXml));
     });
 
+    it("should work with explicitly namespaced Id attributes", function () {
+      const sig = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
+        signatureAlgorithm: signature.RSA_SHA1,
+        idAttributes: ["customId"],
+      });
+      sig.addReference({
+        xpath: "//*[@*[namespace-uri() = 'uri:foo' and local-name() = 'customId']]",
+        digestAlgorithm: hash.SHA1,
+        transforms: [canonicalization.EXCLUSIVE_C14N],
+      });
+      sig.computeSignature(xmlWithPrefixedId);
+      const signedXml = sig.getSignedXml();
+
+      const validator = new XmlDSigValidator({
+        keySelector: { publicCert },
+        idAttributes: [{ localName: "customId", namespaceUri: "uri:foo" }],
+      });
+      expectValidResult(validator.validate(signedXml));
+    });
+
+    it("should fail validation when Id attribute is not in the correct namespace", function () {
+      const sig = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
+        signatureAlgorithm: signature.RSA_SHA1,
+        idAttributes: ["customId"],
+      });
+      sig.addReference({
+        xpath: "//*[@*[namespace-uri() = 'uri:foo' and local-name() = 'customId']]",
+        digestAlgorithm: hash.SHA1,
+        transforms: [canonicalization.EXCLUSIVE_C14N],
+      });
+      sig.computeSignature(xmlWithPrefixedId);
+      const signedXml = sig.getSignedXml();
+
+      const validator = new XmlDSigValidator({
+        keySelector: { publicCert },
+        idAttributes: [{ localName: "customId", namespaceUri: "uri:bar" }],
+        throwOnError: false,
+      });
+      expectInvalidResult(validator.validate(signedXml), "fail");
+    });
+
+    it("should fail validation when Id attribute is not namespaced but namespaceUri is provided", function () {
+      const sig = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
+        signatureAlgorithm: signature.RSA_SHA1,
+        idAttributes: ["customId"],
+      });
+      sig.addReference({
+        xpath: "//*[@customId='test1']",
+        digestAlgorithm: hash.SHA1,
+        transforms: [canonicalization.EXCLUSIVE_C14N],
+      });
+      sig.computeSignature(xmlWithCustomId);
+      const signedXml = sig.getSignedXml();
+
+      const validator = new XmlDSigValidator({
+        keySelector: { publicCert },
+        idAttributes: [{ localName: "customId", namespaceUri: "uri:foo" }],
+        throwOnError: false,
+      });
+      expectInvalidResult(validator.validate(signedXml), "fail");
+    });
+  });
+
+  describe("throwOnError option", function () {
     it("should throw validation errors when throwOnError is true", function () {
-      const xml = "<root><test>content</test></root>";
+      const signedXml = createSignedXml(xml);
+      const tamperedXml = signedXml.replace("content", "tampered");
 
       const validator = new XmlDSigValidator({
         keySelector: { publicCert },
         throwOnError: true,
       });
 
-      expect(() => validator.validate(xml)).to.throw();
+      expect(() => validator.validate(tamperedXml)).to.throw("Signature validation failed");
+    });
+
+    it("should return error details when throwOnError is false", function () {
+      const signedXml = createSignedXml(xml);
+      const tamperedXml = signedXml.replace("content", "tampered");
+
+      const validator = new XmlDSigValidator({
+        keySelector: { publicCert },
+        throwOnError: false,
+      });
+
+      const result = validator.validate(tamperedXml);
+      expectInvalidResult(result, "Signature validation failed");
     });
   });
-});
 
-describe("XmlDSigValidator Certificate Expiration", function () {
-  it("should reject expired certificate when checkCertExpiration is true", function () {
-    const xml = "<root><test>content</test></root>";
+  describe("security options", function () {
+    describe("maxTransforms", function () {
+      it("should validate when number of transforms is within maxTransforms", function () {
+        const signedXml = createSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { publicCert },
+          security: { maxTransforms: 1 },
+        });
+        expectValidResult(validator.validate(signedXml));
+      });
 
-    // Create signature using regular certificate first (we can't sign with expired cert)
-    const sig = new SignedXml({
-      privateKey: expiredKey,
-      canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
-      signatureAlgorithm: signature.RSA_SHA1,
-      getKeyInfoContent: () => SignedXml.getKeyInfoContent({ publicCert: expiredCert }),
+      it("should fail validation when number of transforms exceeds maxTransforms", function () {
+        const sig = new SignedXml({
+          privateKey,
+          canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
+          signatureAlgorithm: signature.RSA_SHA1,
+        });
+        sig.addReference({
+          xpath: "//*[local-name(.)='test']",
+          digestAlgorithm: hash.SHA1,
+          transforms: [canonicalization.EXCLUSIVE_C14N, Algorithms.transform.ENVELOPED_SIGNATURE],
+        });
+        sig.computeSignature(xml);
+        const signedXml = sig.getSignedXml();
+        const validator = new XmlDSigValidator({
+          keySelector: { publicCert },
+          security: { maxTransforms: 1 },
+        });
+        expectInvalidResult(validator.validate(signedXml), "exceeds the maximum allowed");
+      });
     });
 
-    sig.addReference({
-      xpath: "//*[local-name(.)='test']",
-      digestAlgorithm: hash.SHA1,
-      transforms: [canonicalization.EXCLUSIVE_C14N],
+    describe("checkCertExpiration", function () {
+      it("should validate when certificate is not expired and checkCertExpiration is true", function () {
+        const signedXml = createSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { publicCert },
+          security: { checkCertExpiration: true },
+        });
+        expectValidResult(validator.validate(signedXml));
+      });
+
+      it("should validate when certificate is expired and checkCertExpiration is false", function () {
+        const signedXml = createExpiredSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { publicCert: expiredCert },
+          security: { checkCertExpiration: false },
+        });
+        expectValidResult(validator.validate(signedXml));
+      });
+
+      it("should fail validation when certificate is expired and checkCertExpiration is true", function () {
+        const signedXml = createExpiredSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { getCertFromKeyInfo: () => expiredCert },
+          security: { checkCertExpiration: true },
+        });
+        expectInvalidResult(validator.validate(signedXml), "expired");
+      });
     });
 
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
+    describe("truststore", function () {
+      it("should validate when certificate is exactly in truststore", function () {
+        const signedXml = createSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { getCertFromKeyInfo: () => publicCert },
+          security: { truststore: [publicCert] },
+        });
 
-    // Create validator that will try to use expired certificate for validation
-    const validator = new XmlDSigValidator({
-      keySelector: {
-        getCertFromKeyInfo: SignedXml.getCertFromKeyInfo,
-      },
-      security: {
-        checkCertExpiration: true,
-      },
-      throwOnError: false,
+        expectValidResult(validator.validate(signedXml));
+      });
+
+      it("should validate when certificate is trusted", function () {
+        const signedXml = createChainSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { getCertFromKeyInfo: () => chainPublicCert },
+          security: { truststore: [rootCert] },
+        });
+
+        expectValidResult(validator.validate(signedXml));
+      });
+
+      it("should fail validation when certificate is not trusted", function () {
+        const signedXml = createSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { getCertFromKeyInfo: () => publicCert },
+          security: { truststore: [rootCert] },
+        });
+        expectInvalidResult(validator.validate(signedXml), "not trusted");
+      });
     });
 
-    const result = validator.validate(signedXml);
-    expect(result.valid).to.be.false;
-    expect(result.error).to.include("expired");
-  });
+    describe("signatureAlgorithms", function () {
+      it("should validate when signature algorithm is allowed", function () {
+        const signedXml = createSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { publicCert },
+          security: { signatureAlgorithms: SignedXml.getDefaultSignatureAlgorithms() },
+        });
+        expectValidResult(validator.validate(signedXml));
+      });
 
-  it("should throw error for expired certificate when throwOnError is true", function () {
-    const xml = "<root><test>content</test></root>";
-
-    const sig = new SignedXml({
-      privateKey,
-      canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
-      signatureAlgorithm: signature.RSA_SHA1,
+      it("should fail validation when signature algorithm is not allowed", function () {
+        const signedXml = createSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { publicCert },
+          security: { signatureAlgorithms: { foo: RsaSha1 } },
+        });
+        expectInvalidResult(validator.validate(signedXml), "signature algorithm");
+      });
     });
 
-    sig.addReference({
-      xpath: "//*[local-name(.)='test']",
-      digestAlgorithm: hash.SHA1,
-      transforms: [canonicalization.EXCLUSIVE_C14N],
+    describe("hashAlgorithms", function () {
+      it("should validate when hash algorithm is allowed", function () {
+        const signedXml = createSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { publicCert },
+          security: { hashAlgorithms: SignedXml.getDefaultHashAlgorithms() },
+        });
+        expectValidResult(validator.validate(signedXml));
+      });
+
+      it("should fail validation when hash algorithm is not allowed", function () {
+        const signedXml = createSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { publicCert },
+          security: { hashAlgorithms: { foo: Sha1 } },
+        });
+        expectInvalidResult(validator.validate(signedXml), "hash algorithm");
+      });
     });
 
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
+    describe("transformAlgorithms", function () {
+      it("should validate when transform algorithms are allowed", function () {
+        const signedXml = createSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { publicCert },
+          security: { transformAlgorithms: SignedXml.getDefaultTransformAlgorithms() },
+        });
+        expectValidResult(validator.validate(signedXml));
+      });
 
-    const validator = new XmlDSigValidator({
-      keySelector: {
-        getCertFromKeyInfo: () => {
-          return expiredCert;
-        },
-      },
-      security: {
-        checkCertExpiration: true,
-      },
-      throwOnError: true,
+      it("should fail validation when a transform algorithm is not allowed", function () {
+        const signedXml = createSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { publicCert },
+          security: { transformAlgorithms: { foo: EnvelopedSignature } },
+        });
+        expectInvalidResult(validator.validate(signedXml), "transform algorithm");
+      });
     });
 
-    expect(() => validator.validate(signedXml)).to.throw("expired");
-  });
+    describe("canonicalizationAlgorithms", function () {
+      it("should validate when canonicalization algorithms are allowed", function () {
+        const signedXml = createSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { publicCert },
+          security: {
+            canonicalizationAlgorithms: SignedXml.getDefaultCanonicalizationAlgorithms(),
+          },
+        });
+        expectValidResult(validator.validate(signedXml));
+      });
 
-  it("should accept expired certificate when checkCertExpiration is false", function () {
-    const xml = "<root><test>content</test></root>";
-
-    const sig = new SignedXml({
-      privateKey,
-      canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
-      signatureAlgorithm: signature.RSA_SHA1,
+      it("should fail validation when a canonicalization algorithm is not allowed", function () {
+        const signedXml = createSignedXml(xml);
+        const validator = new XmlDSigValidator({
+          keySelector: { publicCert },
+          security: { canonicalizationAlgorithms: { foo: ExclusiveCanonicalization } },
+        });
+        expectInvalidResult(validator.validate(signedXml), "canonicalization algorithm");
+      });
     });
-
-    sig.addReference({
-      xpath: "//*[local-name(.)='test']",
-      digestAlgorithm: hash.SHA1,
-      transforms: [canonicalization.EXCLUSIVE_C14N],
-    });
-
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
-
-    const validator = new XmlDSigValidator({
-      keySelector: {
-        getCertFromKeyInfo: () => {
-          return expiredCert;
-        },
-      },
-      security: {
-        checkCertExpiration: false, // Disable certificate expiration checking
-      },
-    });
-
-    // Note: This test might still fail due to signature mismatch since we're using
-    // a different certificate than what was used to sign, but it should not fail
-    // due to expiration specifically. In a real scenario, you'd sign with the same
-    // certificate you're validating with.
-    const result = validator.validate(signedXml);
-    // We expect this to fail due to signature mismatch, not expiration
-    expect(result.valid).to.be.false;
-    if (result.error) {
-      expect(result.error).to.not.include("expired");
-    }
-  });
-});
-
-describe("XmlDSigValidator Security Features", function () {
-  it("should prevent signature wrapping attacks by only returning signed content", function () {
-    const xml = "<root><test>content</test><unsigned>malicious</unsigned></root>";
-    const signedXml = createSignedXml(xml);
-
-    const validator = new XmlDSigValidator({
-      keySelector: { publicCert },
-    });
-    const result = validator.validate(signedXml);
-
-    expect(result.valid).to.be.true;
-    expect(result.signedReferences).to.have.length(1);
-    // The signed references should only contain the canonicalized content that was actually signed
-    expect(result.signedReferences?.[0]).to.not.include("malicious");
-    expect(result.signedReferences?.[0]).to.include("content");
-  });
-
-  it("should be reusable (no single-use restriction)", function () {
-    const xml = "<root><test>content</test></root>";
-    const signedXml = createSignedXml(xml);
-
-    const validator = new XmlDSigValidator({
-      keySelector: { publicCert },
-    });
-
-    // First use should work
-    const result1 = validator.validate(signedXml);
-    expect(result1.valid).to.be.true;
-
-    // Second use should also work (validator is reusable)
-    const result2 = validator.validate(signedXml);
-    expect(result2.valid).to.be.true;
-  });
-
-  it("should validate with maxTransforms limit", function () {
-    const xml = "<root><test>content</test></root>";
-    const signedXml = createSignedXml(xml);
-
-    const validator = new XmlDSigValidator({
-      keySelector: { publicCert },
-      security: {
-        maxTransforms: 1,
-        checkCertExpiration: true,
-      },
-    });
-    const result = validator.validate(signedXml);
-
-    expect(result.valid).to.be.true;
-  });
-
-  it("should handle edge cases gracefully", function () {
-    const validator = new XmlDSigValidator({
-      keySelector: { publicCert },
-    });
-
-    // Empty XML
-    const result1 = validator.validate("");
-    expect(result1.valid).to.be.false;
-    expect(result1.error).to.be.a("string");
-  });
-});
-
-describe("XmlDSigValidator Truststore", function () {
-  it("should validate document signed with chain certificate when root is in truststore", function () {
-    const xml = "<root><test>content</test></root>";
-
-    // Create signature using chain certificate with KeyInfo containing the certificate
-    const sig = new SignedXml({
-      privateKey: chainPrivateKey,
-      canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
-      signatureAlgorithm: signature.RSA_SHA1,
-    });
-
-    sig.addReference({
-      xpath: "//*[local-name(.)='test']",
-      digestAlgorithm: hash.SHA1,
-      transforms: [canonicalization.EXCLUSIVE_C14N],
-    });
-
-    // Add KeyInfo with the chain certificate
-    sig.getKeyInfoContent = () => SignedXml.getKeyInfoContent({ publicCert: chainPublicCert });
-
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
-
-    // Create validator with truststore containing root certificate
-    const validator = new XmlDSigValidator({
-      keySelector: {
-        getCertFromKeyInfo: () => {
-          // Extract certificate from KeyInfo (in real scenario this would parse the KeyInfo)
-          return chainPublicCert;
-        },
-      },
-      security: {
-        truststore: [rootCert],
-        checkCertExpiration: false, // Disable for test certificates
-      },
-    });
-
-    const result = validator.validate(signedXml);
-    expect(result.valid).to.be.true;
-    expect(result.signedReferences).to.have.length(1);
-  });
-
-  it("should reject document signed with untrusted certificate", function () {
-    const xml = "<root><test>content</test></root>";
-
-    // Create signature using regular client certificate (not in chain)
-    const sig = new SignedXml({
-      privateKey,
-      canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
-      signatureAlgorithm: signature.RSA_SHA1,
-    });
-
-    sig.addReference({
-      xpath: "//*[local-name(.)='test']",
-      digestAlgorithm: hash.SHA1,
-      transforms: [canonicalization.EXCLUSIVE_C14N],
-    });
-
-    // Add KeyInfo with the regular client certificate
-    sig.getKeyInfoContent = () => SignedXml.getKeyInfoContent({ publicCert });
-
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
-
-    // Create validator with truststore containing only root certificate
-    const validator = new XmlDSigValidator({
-      keySelector: {
-        getCertFromKeyInfo: () => {
-          // Extract certificate from KeyInfo
-          return publicCert;
-        },
-      },
-      security: {
-        truststore: [rootCert],
-        checkCertExpiration: false,
-      },
-      throwOnError: false,
-    });
-
-    const result = validator.validate(signedXml);
-    expect(result.valid).to.be.false;
-    expect(result.error).to.include("not trusted");
-  });
-
-  it("should validate when certificate matches truststore exactly", function () {
-    const xml = "<root><test>content</test></root>";
-
-    // Create signature using chain certificate
-    const sig = new SignedXml({
-      privateKey: chainPrivateKey,
-      canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
-      signatureAlgorithm: signature.RSA_SHA1,
-    });
-
-    sig.addReference({
-      xpath: "//*[local-name(.)='test']",
-      digestAlgorithm: hash.SHA1,
-      transforms: [canonicalization.EXCLUSIVE_C14N],
-    });
-
-    sig.getKeyInfoContent = () => SignedXml.getKeyInfoContent({ publicCert: chainPublicCert });
-
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
-
-    // Create validator with truststore containing the exact certificate
-    const validator = new XmlDSigValidator({
-      keySelector: {
-        getCertFromKeyInfo: () => {
-          return chainPublicCert;
-        },
-      },
-      security: {
-        truststore: [chainPublicCert], // Exact certificate match
-        checkCertExpiration: false,
-      },
-    });
-
-    const result = validator.validate(signedXml);
-    expect(result.valid).to.be.true;
-    expect(result.signedReferences).to.have.length(1);
-  });
-
-  it("should work without truststore when not specified", function () {
-    const xml = "<root><test>content</test></root>";
-
-    // Create signature using regular certificate
-    const sig = new SignedXml({
-      privateKey,
-      canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
-      signatureAlgorithm: signature.RSA_SHA1,
-    });
-
-    sig.addReference({
-      xpath: "//*[local-name(.)='test']",
-      digestAlgorithm: hash.SHA1,
-      transforms: [canonicalization.EXCLUSIVE_C14N],
-    });
-
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
-
-    // Create validator without truststore
-    const validator = new XmlDSigValidator({
-      keySelector: {
-        getCertFromKeyInfo: () => {
-          return publicCert;
-        },
-      },
-      security: {
-        checkCertExpiration: false,
-      },
-    });
-
-    const result = validator.validate(signedXml);
-    expect(result.valid).to.be.true;
-    expect(result.signedReferences).to.have.length(1);
-  });
-});
-
-describe("XmlDSigValidator Integration", function () {
-  it("should work with real-world signed XML documents", function () {
-    // Test with a more complex XML structure
-    const xml = `
-      <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-        <soap:Header>
-          <wsse:Security xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd">
-            <test wsu:Id="test1" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
-              Secure content
-            </test>
-          </wsse:Security>
-        </soap:Header>
-        <soap:Body>
-          <operation>data</operation>
-        </soap:Body>
-      </soap:Envelope>
-    `;
-
-    const sig = new SignedXml({
-      privateKey,
-      canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
-      signatureAlgorithm: signature.RSA_SHA1,
-      idMode: "wssecurity",
-    });
-
-    sig.addReference({
-      xpath: "//*[@wsu:Id='test1']",
-      digestAlgorithm: hash.SHA1,
-      transforms: [canonicalization.EXCLUSIVE_C14N],
-    });
-
-    sig.computeSignature(xml, {
-      location: {
-        reference: "//*[local-name(.)='Security']",
-        action: "append",
-      },
-      existingPrefixes: {
-        soap: "http://schemas.xmlsoap.org/soap/envelope/",
-        wsse: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd",
-        wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
-      },
-    });
-
-    const signedXml = sig.getSignedXml();
-
-    const validator = new XmlDSigValidator({
-      keySelector: { publicCert },
-      idAttributes: [
-        {
-          prefix: "wsu",
-          localName: "Id",
-          namespaceUri:
-            "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
-        },
-      ],
-    });
-    const result = validator.validate(signedXml);
-
-    expect(result.valid).to.be.true;
-    expect(result.signedReferences).to.have.length(1);
-  });
-
-  it("should validate signatures created by XmlDSigSigner", function () {
-    // This test ensures compatibility between XmlDSigSigner and XmlDSigValidator
-    const xml = '<root><test id="test1">content</test></root>';
-
-    // Create signature using SignedXml (simulating XmlDSigSigner output)
-    const sig = new SignedXml({
-      privateKey,
-      canonicalizationAlgorithm: canonicalization.EXCLUSIVE_C14N,
-      signatureAlgorithm: signature.RSA_SHA1,
-    });
-
-    sig.addReference({
-      xpath: "//*[@id='test1']",
-      digestAlgorithm: hash.SHA1,
-      transforms: [canonicalization.EXCLUSIVE_C14N],
-    });
-
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
-
-    // Validate using XmlDSigValidator
-    const validator = new XmlDSigValidator({
-      keySelector: { publicCert },
-    });
-    const result = validator.validate(signedXml);
-
-    expect(result.valid).to.be.true;
-    expect(result.signedReferences).to.have.length(1);
   });
 });

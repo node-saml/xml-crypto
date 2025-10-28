@@ -42,3 +42,15 @@ export const Algorithms = {
   hash: HASH_ALGORITHMS,
   signature: SIGNATURE_ALGORITHMS,
 };
+
+const NAMESPACES = {
+  xml: "http://www.w3.org/XML/1998/namespace",
+  xmlns: "http://www.w3.org/2000/xmlns/",
+  ds: "http://www.w3.org/2000/09/xmldsig#",
+  wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
+} as const;
+
+/**
+ * Commonly used namespaces
+ */
+export const Namespaces = NAMESPACES;

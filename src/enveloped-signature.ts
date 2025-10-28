@@ -2,19 +2,19 @@ import * as xpath from "xpath";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 import type {
-  CanonicalizationOrTransformationAlgorithm,
-  CanonicalizationOrTransformationAlgorithmProcessOptions,
-  CanonicalizationOrTransformAlgorithmType,
+  TransformAlgorithmOptions,
+  TransformAlgorithm,
+  TransformAlgorithmName,
 } from "./types";
 
-export class EnvelopedSignature implements CanonicalizationOrTransformationAlgorithm {
+export class EnvelopedSignature implements TransformAlgorithm {
   protected includeComments = false;
 
   constructor() {
     this.includeComments = false;
   }
 
-  process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions): Node {
+  process(node: Node, options: TransformAlgorithmOptions): Node {
     if (null == options.signatureNode) {
       const signature = xpath.select1(
         "./*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
@@ -55,7 +55,7 @@ export class EnvelopedSignature implements CanonicalizationOrTransformationAlgor
     return node;
   }
 
-  getAlgorithmName(): CanonicalizationOrTransformAlgorithmType {
+  getAlgorithmName(): TransformAlgorithmName {
     return "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
   }
 }
