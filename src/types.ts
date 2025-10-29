@@ -8,6 +8,7 @@
 
 import * as crypto from "crypto";
 import { XMLDSIG_URIS } from "./xmldsig-uris";
+import { KeyLike, X509Certificate } from "node:crypto";
 const {
   SIGNATURE_ALGORITHMS,
   DIGEST_ALGORITHMS,
@@ -282,3 +283,130 @@ export function createOptionalCallbackFunction<T, A extends unknown[]>(
     (...args: [...A, ErrorFirstCallback<T>]): void;
   };
 }
+
+/*** XmlDSigVerifier types ***/
+
+export type CertificateKeySelector = {
+  /** Public certificate or key to use for verification */
+  publicCert: KeyLike;
+};
+
+export type KeyInfoKeySelector = {
+  /** Function to extract the public key from KeyInfo element */
+  getCertFromKeyInfo: (keyInfo?: Node | null) => string | null;
+};
+
+export type KeySelector = CertificateKeySelector | KeyInfoKeySelector;
+
+export interface XmlDSigVerifierSecurityOptions {
+  /**
+   * Maximum number of transforms allowed per Reference element.
+   * Limits complexity to prevent denial-of-service attacks.
+   * @default {@link DEFAULT_MAX_TRANSFORMS}
+   */
+  maxTransforms?: number;
+
+  /**
+   * Check certificate expiration dates during verification.
+   * If true, signatures with expired certificates will be considered invalid.
+   * This only applies when using KeyInfoKeySelector
+   * @default true
+   */
+  checkCertExpiration?: boolean;
+
+  /**
+   * Optional truststore of trusted certificates
+   * When provided, the certificate used to sign the XML must chain to one of these trusted certificates.
+   * These must be PEM or DER encoded X509 certificates
+   */
+  truststore?: Array<string | Buffer | X509Certificate>;
+
+  /**
+   * Signature algorithms allowed during verification.
+   *
+   * @default {@link SignedXml.getDefaultSignatureAlgorithms()}
+   */
+  signatureAlgorithms?: SignatureAlgorithmMap;
+
+  /**
+   * Hash algorithms allowed during verification.
+   *
+   * @default {@link SignedXml.getDefaultDigestAlgorithms()}
+   */
+  hashAlgorithms?: DigestAlgorithmMap;
+
+  /**
+   * Transform algorithms allowed during verification. (This must include canonicalization algorithms)
+   *
+   * @default all algorithms in {@link SignedXml.getDefaultTransformAlgorithms()}
+   */
+  transformAlgorithms?: TransformAlgorithmMap;
+
+  /**
+   * Canonicalization algorithms allowed during verification.
+   *
+   * @default all algorithms in {@link SignedXml.getDefaultCanonicalizationAlgorithms()}
+   */
+  canonicalizationAlgorithms?: TransformAlgorithmMap;
+}
+
+/**
+ * Common configuration options for XML-DSig verification.
+ */
+export interface XmlDSigVerifierOptions {
+  /**
+   * Key selector for determining the public key to use for verification.
+   */
+  keySelector: KeySelector;
+
+  /**
+   * Names of XML attributes to treat as element identifiers.
+   * Used when resolving URI references in signatures.
+   * When passing strings, only the localName is matched, ignoring namespace.
+   * To explicitly match attributes without namespaces, use: { localName: "Id", namespaceUri: undefined }
+   * @default {@link SignedXml.getDefaultIdAttributes()}
+   * @example For WS-Security: [{ localName: "Id", namespaceUri: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" }]
+   */
+  idAttributes?: VerificationIdAttributeType[];
+
+  /**
+   * Transforms to apply implicitly during canonicalization.
+   * Used for specific XML-DSig profiles that require additional transforms.
+   */
+  implicitTransforms?: ReadonlyArray<string>;
+
+  /**
+   * Whether to throw an exception on verification failure.
+   * If false, errors are returned in the XmlDsigVerificationResult.
+   * @default false
+   */
+  throwOnError?: boolean;
+
+  /**
+   * Security options for verification.
+   */
+  security?: XmlDSigVerifierSecurityOptions;
+}
+
+/**
+ * Verification result containing the outcome and signed content.
+ */
+export type SuccessfulXmlDsigVerificationResult = {
+  /** Whether the signature was successfully verified */
+  success: true;
+  error?: undefined;
+  /** The canonicalized XML content that passed verification */
+  signedReferences: string[];
+};
+
+export type FailedXmlDsigVerificationResult = {
+  /** Whether the signature was sucessfuly verified */
+  success: false;
+  /** Error message if verification failed */
+  error: string;
+  signedReferences?: undefined;
+};
+
+export type XmlDsigVerificationResult =
+  | SuccessfulXmlDsigVerificationResult
+  | FailedXmlDsigVerificationResult;

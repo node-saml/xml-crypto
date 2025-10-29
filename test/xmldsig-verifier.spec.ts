@@ -1,11 +1,10 @@
 import * as fs from "fs";
 import { expect } from "chai";
 import { XmlDSigVerifier, SignedXml, ExclusiveCanonicalization } from "../src";
-import { XmlDsigVerificationResult } from "../src/xmldsig-verifier";
 import { RsaSha1 } from "../src/signature-algorithms";
 import { Sha1 } from "../src/hash-algorithms";
 import { EnvelopedSignature } from "../src/enveloped-signature";
-import { XMLDSIG_URIS } from "../src/xmldsig-uris";
+import { XMLDSIG_URIS, XmlDsigVerificationResult } from "../src/";
 
 const {
   CANONICALIZATION_ALGORITHMS,
