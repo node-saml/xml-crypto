@@ -373,7 +373,7 @@ export interface XmlDSigVerifierOptions {
    * Transforms to apply implicitly during canonicalization.
    * Used for specific XML-DSig profiles that require additional transforms.
    */
-  implicitTransforms?: ReadonlyArray<string>;
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmName>;
 
   /**
    * Whether to throw an exception on verification failure.
