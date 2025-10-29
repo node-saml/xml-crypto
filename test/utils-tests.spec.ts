@@ -80,4 +80,60 @@ describe("Utils tests", function () {
       expect(() => utils.pemToDer("not a pem")).to.throw();
     });
   });
+
+  describe("findAttr", function () {
+    it("should find attribute with no namespace when null is passed as namespace", function () {
+      const xml =
+        '<root testAttr="value" xmlns:ns="http://example.com" ns:testAttr="nsValue"></root>';
+      const doc = new xmldom.DOMParser().parseFromString(xml);
+      const rootElement = doc.documentElement;
+
+      const attr = utils.findAttr(rootElement, "testAttr", null);
+
+      expect(attr).to.not.be.null;
+      expect(attr?.value).to.equal("value");
+      expect(attr?.namespaceURI).to.be.undefined;
+    });
+
+    it("should not find namespaced attribute when null is passed as namespace", function () {
+      const xml = '<root xmlns:ns="http://example.com" ns:testAttr="nsValue"></root>';
+      const doc = new xmldom.DOMParser().parseFromString(xml);
+      const rootElement = doc.documentElement;
+
+      const attr = utils.findAttr(rootElement, "testAttr", null);
+
+      expect(attr).to.be.null;
+    });
+
+    it("should find namespaced attribute when matching namespace is provided", function () {
+      const xml = '<root xmlns:ns="http://example.com" ns:testAttr="nsValue"></root>';
+      const doc = new xmldom.DOMParser().parseFromString(xml);
+      const rootElement = doc.documentElement;
+
+      const attr = utils.findAttr(rootElement, "testAttr", "http://example.com");
+
+      expect(attr).to.not.be.null;
+      expect(attr?.value).to.equal("nsValue");
+      expect(attr?.namespaceURI).to.equal("http://example.com");
+    });
+
+    it("should distinguish between namespaced and non-namespaced attributes with same localName", function () {
+      const xml =
+        '<root testAttr="noNsValue" xmlns:ns="http://example.com" ns:testAttr="nsValue"></root>';
+      const doc = new xmldom.DOMParser().parseFromString(xml);
+      const rootElement = doc.documentElement;
+
+      // Find the non-namespaced attribute
+      const noNsAttr = utils.findAttr(rootElement, "testAttr", null);
+      expect(noNsAttr).to.not.be.null;
+      expect(noNsAttr?.value).to.equal("noNsValue");
+      expect(noNsAttr?.namespaceURI).to.be.undefined;
+
+      // Find the namespaced attribute
+      const nsAttr = utils.findAttr(rootElement, "testAttr", "http://example.com");
+      expect(nsAttr).to.not.be.null;
+      expect(nsAttr?.value).to.equal("nsValue");
+      expect(nsAttr?.namespaceURI).to.equal("http://example.com");
+    });
+  });
 });
