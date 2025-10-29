@@ -400,7 +400,7 @@ export type SuccessfulXmlDsigVerificationResult = {
 };
 
 export type FailedXmlDsigVerificationResult = {
-  /** Whether the signature was sucessfuly verified */
+  /** Whether the signature was successfully verified */
   success: false;
   /** Error message if verification failed */
   error: string;
