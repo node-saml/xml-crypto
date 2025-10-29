@@ -347,7 +347,7 @@ export interface XmlDSigVerifierSecurityOptions {
    *
    * @default all algorithms in {@link SignedXml.getDefaultCanonicalizationAlgorithms()}
    */
-  canonicalizationAlgorithms?: TransformAlgorithmMap;
+  canonicalizationAlgorithms?: CanonicalizationAlgorithmMap;
 }
 
 /**
