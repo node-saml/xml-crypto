@@ -23,7 +23,7 @@ export type SignatureIdAttributeType =
   | { prefix: string; localName: string; namespaceUri: string };
 export type VerificationIdAttributeType =
   | string
-  | { localName: string; namespaceUri: string | undefined };
+  | { localName: string; namespaceUri: string | null };
 export type IdAttributeType = SignatureIdAttributeType | VerificationIdAttributeType;
 
 /**
