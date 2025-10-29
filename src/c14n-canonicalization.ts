@@ -7,7 +7,7 @@ import type {
 } from "./types";
 import * as utils from "./utils";
 import * as isDomNode from "@xmldom/is-dom-node";
-import { Algorithms } from "./constants";
+import { XMLDSIG_URIS } from "./xmldsig-uris";
 
 export class C14nCanonicalization implements CanonicalizationAlgorithm {
   protected includeComments = false;
@@ -279,7 +279,7 @@ export class C14nCanonicalization implements CanonicalizationAlgorithm {
   }
 
   getAlgorithmName(): CanonicalizationAlgorithmName {
-    return Algorithms.canonicalization.C14N;
+    return XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.C14N;
   }
 }
 
@@ -293,6 +293,6 @@ export class C14nCanonicalizationWithComments extends C14nCanonicalization {
   }
 
   getAlgorithmName(): CanonicalizationAlgorithmName {
-    return Algorithms.canonicalization.C14N_WITH_COMMENTS;
+    return XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.C14N_WITH_COMMENTS;
   }
 }

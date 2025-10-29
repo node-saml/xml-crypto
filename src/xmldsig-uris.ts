@@ -17,9 +17,9 @@ const TRANSFORM_ALGORITHMS = {
 } as const;
 
 /**
- * Supported hash/digest algorithms
+ * Supported digest algorithms
  */
-const HASH_ALGORITHMS = {
+const DIGEST_ALGORITHMS = {
   SHA1: "http://www.w3.org/2000/09/xmldsig#sha1",
   SHA256: "http://www.w3.org/2001/04/xmlenc#sha256",
   SHA512: "http://www.w3.org/2001/04/xmlenc#sha512",
@@ -36,13 +36,9 @@ const SIGNATURE_ALGORITHMS = {
   HMAC_SHA1: "http://www.w3.org/2000/09/xmldsig#hmac-sha1",
 } as const;
 
-export const Algorithms = {
-  canonicalization: CANONICALIZATION_ALGORITHMS,
-  transform: TRANSFORM_ALGORITHMS,
-  hash: HASH_ALGORITHMS,
-  signature: SIGNATURE_ALGORITHMS,
-};
-
+/**
+ * Common XML namespaces
+ */
 const NAMESPACES = {
   xml: "http://www.w3.org/XML/1998/namespace",
   xmlns: "http://www.w3.org/2000/xmlns/",
@@ -51,6 +47,12 @@ const NAMESPACES = {
 } as const;
 
 /**
- * Commonly used namespaces
+ * XML-DSig URI constants organized by category
  */
-export const Namespaces = NAMESPACES;
+export const XMLDSIG_URIS = {
+  CANONICALIZATION_ALGORITHMS,
+  TRANSFORM_ALGORITHMS,
+  DIGEST_ALGORITHMS, // Changed from HASH_ALGORITHMS
+  SIGNATURE_ALGORITHMS,
+  NAMESPACES,
+} as const;

@@ -6,7 +6,7 @@ import type {
 } from "./types";
 import * as utils from "./utils";
 import * as isDomNode from "@xmldom/is-dom-node";
-import { Algorithms } from "./constants";
+import { XMLDSIG_URIS } from "./xmldsig-uris";
 
 function isPrefixInScope(prefixesInScope, prefix, namespaceURI) {
   let ret = false;
@@ -322,7 +322,7 @@ export class ExclusiveCanonicalization implements CanonicalizationAlgorithm {
   }
 
   getAlgorithmName(): CanonicalizationAlgorithmName {
-    return Algorithms.canonicalization.EXCLUSIVE_C14N;
+    return XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N;
   }
 }
 
@@ -333,6 +333,6 @@ export class ExclusiveCanonicalizationWithComments extends ExclusiveCanonicaliza
   }
 
   getAlgorithmName(): CanonicalizationAlgorithmName {
-    return Algorithms.canonicalization.EXCLUSIVE_C14N_WITH_COMMENTS;
+    return XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N_WITH_COMMENTS;
   }
 }

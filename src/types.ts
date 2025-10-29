@@ -7,14 +7,23 @@
 /// <reference types="node" />
 
 import * as crypto from "crypto";
-import { Algorithms } from "./constants";
+import { XMLDSIG_URIS } from "./xmldsig-uris";
+const {
+  SIGNATURE_ALGORITHMS,
+  DIGEST_ALGORITHMS,
+  TRANSFORM_ALGORITHMS,
+  CANONICALIZATION_ALGORITHMS,
+} = XMLDSIG_URIS;
 
 export type ErrorFirstCallback<T> = (err: Error | null, result?: T) => void;
 
-export type IdAttributeType =
+export type SignatureIdAttributeType =
   | string
-  | { prefix: string; localName: string; namespaceUri: string }
+  | { prefix: string; localName: string; namespaceUri: string };
+export type VerificationIdAttributeType =
+  | string
   | { localName: string; namespaceUri: string | undefined };
+export type IdAttributeType = SignatureIdAttributeType | VerificationIdAttributeType;
 
 /**
  * @param cert the certificate as a string or array of strings (@see https://www.w3.org/TR/2008/REC-xmldsig-core-20080610/#sec-X509Data)
@@ -56,7 +65,7 @@ export interface TransformAlgorithmOptions {
 }
 
 export type SignatureAlgorithmName =
-  | (typeof Algorithms.signature)[keyof typeof Algorithms.signature]
+  | (typeof SIGNATURE_ALGORITHMS)[keyof typeof SIGNATURE_ALGORITHMS]
   | string;
 
 /** Extend this to create a new SignatureAlgorithm */
@@ -87,17 +96,17 @@ export interface SignatureAlgorithm {
 }
 export type SignatureAlgorithmMap = Record<SignatureAlgorithmName, new () => SignatureAlgorithm>;
 
-export type HashAlgorithmName = (typeof Algorithms.hash)[keyof typeof Algorithms.hash] | string;
+export type HashAlgorithmName = (typeof DIGEST_ALGORITHMS)[keyof typeof DIGEST_ALGORITHMS] | string;
 /** Implement this to create a new HashAlgorithm */
 export interface HashAlgorithm {
   getAlgorithmName(): HashAlgorithmName;
 
   getHash(xml: string): string;
 }
-export type HashAlgorithmMap = Record<HashAlgorithmName, new () => HashAlgorithm>;
+export type DigestAlgorithmMap = Record<HashAlgorithmName, new () => HashAlgorithm>;
 
 export type TransformAlgorithmName =
-  | (typeof Algorithms.transform)[keyof typeof Algorithms.transform]
+  | (typeof TRANSFORM_ALGORITHMS)[keyof typeof TRANSFORM_ALGORITHMS]
   | string;
 /** Implement this to create a new TransformAlgorithm */
 export interface TransformAlgorithm {
@@ -108,7 +117,7 @@ export interface TransformAlgorithm {
 export type TransformAlgorithmMap = Record<TransformAlgorithmName, new () => TransformAlgorithm>;
 
 export type CanonicalizationAlgorithmName =
-  | (typeof Algorithms.canonicalization)[keyof typeof Algorithms.canonicalization]
+  | (typeof CANONICALIZATION_ALGORITHMS)[keyof typeof CANONICALIZATION_ALGORITHMS]
   | string;
 /** Implement this to create a new CanonicalizationAlgorithm */
 export interface CanonicalizationAlgorithm extends TransformAlgorithm {
@@ -127,8 +136,8 @@ export type CanonicalizationAlgorithmMap = Record<
  */
 export interface SignedXmlOptions {
   idMode?: "wssecurity";
-  idAttribute?: IdAttributeType;
-  idAttributes?: IdAttributeType[];
+  idAttribute?: SignatureIdAttributeType;
+  idAttributes?: VerificationIdAttributeType[];
   privateKey?: crypto.KeyLike;
   publicCert?: crypto.KeyLike;
   signatureAlgorithm?: SignatureAlgorithmName;
@@ -141,7 +150,7 @@ export interface SignedXmlOptions {
   getCertFromKeyInfo?: KeySelectorFunction;
   objects?: Array<{ content: string; attributes?: ObjectAttributes }>;
   allowedSignatureAlgorithms?: SignatureAlgorithmMap;
-  allowedHashAlgorithms?: HashAlgorithmMap;
+  allowedDigestAlgorithms?: DigestAlgorithmMap;
   allowedCanonicalizationAlgorithms?: CanonicalizationAlgorithmMap;
   allowedTransformAlgorithms?: TransformAlgorithmMap;
 }

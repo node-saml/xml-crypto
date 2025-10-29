@@ -3,19 +3,20 @@ import { DOMParser } from "@xmldom/xmldom";
 import { SignedXml } from "./signed-xml";
 import {
   KeySelectorFunction,
-  IdAttributeType,
-  HashAlgorithmMap,
+  DigestAlgorithmMap,
   TransformAlgorithmMap,
   SignatureAlgorithmMap,
   SignedXmlOptions,
+  VerificationIdAttributeType,
 } from "./types";
+import { isArrayHasLength } from "./utils";
 
 const DEFAULT_MAX_TRANSFORMS = 4;
 const DEFAULT_THROW_ON_ERROR = false;
 const DEFAULT_CHECK_CERT_EXPIRATION = true;
 
 export type CertificateKeySelector = {
-  /** Public certificate or key to use for validation */
+  /** Public certificate or key to use for verification */
   publicCert: KeyLike;
 };
 
@@ -26,21 +27,21 @@ export type KeyInfoKeySelector = {
 
 export type KeySelector = CertificateKeySelector | KeyInfoKeySelector;
 
-export interface XmlDsigValidatorSecurityOptions {
+export interface XmlDSigVerifierSecurityOptions {
   /**
    * Maximum number of transforms allowed per Reference element.
    * Limits complexity to prevent denial-of-service attacks.
    * @default {@link DEFAULT_MAX_TRANSFORMS}
    */
-  maxTransforms: number;
+  maxTransforms?: number;
 
   /**
-   * Check certificate expiration dates during validation.
+   * Check certificate expiration dates during verification.
    * If true, signatures with expired certificates will be considered invalid.
    * This only applies when using KeyInfoKeySelector
    * @default true
    */
-  checkCertExpiration: boolean;
+  checkCertExpiration?: boolean;
 
   /**
    * Optional truststore of trusted certificates
@@ -50,28 +51,28 @@ export interface XmlDsigValidatorSecurityOptions {
   truststore?: Array<string | Buffer | X509Certificate>;
 
   /**
-   * Signature algorithms allowed during validation.
+   * Signature algorithms allowed during verification.
    *
    * @default {@link SignedXml.getDefaultSignatureAlgorithms()}
    */
   signatureAlgorithms?: SignatureAlgorithmMap;
 
   /**
-   * Hash algorithms allowed during validation.
+   * Hash algorithms allowed during verification.
    *
-   * @default {@link SignedXml.getDefaultHashAlgorithms()}
+   * @default {@link SignedXml.getDefaultDigestAlgorithms()}
    */
-  hashAlgorithms?: HashAlgorithmMap;
+  hashAlgorithms?: DigestAlgorithmMap;
 
   /**
-   * Transform algorithms allowed during validation. (This must include canonicalization algorithms)
+   * Transform algorithms allowed during verification. (This must include canonicalization algorithms)
    *
    * @default all algorithms in {@link SignedXml.getDefaultTransformAlgorithms()}
    */
   transformAlgorithms?: TransformAlgorithmMap;
 
   /**
-   * Canonicalization algorithms allowed during validation.
+   * Canonicalization algorithms allowed during verification.
    *
    * @default all algorithms in {@link SignedXml.getDefaultCanonicalizationAlgorithms()}
    */
@@ -79,11 +80,11 @@ export interface XmlDsigValidatorSecurityOptions {
 }
 
 /**
- * Common configuration options for XML-DSig validation.
+ * Common configuration options for XML-DSig verification.
  */
-interface XmlDSigValidatorOptions {
+export interface XmlDSigVerifierOptions {
   /**
-   * Key selector for determining the public key to use for validation.
+   * Key selector for determining the public key to use for verification.
    */
   keySelector: KeySelector;
 
@@ -92,10 +93,10 @@ interface XmlDSigValidatorOptions {
    * Used when resolving URI references in signatures.
    * When passing strings, only the localName is matched, ignoring namespace.
    * To explicitly match attributes without namespaces, use: { localName: "Id", namespaceUri: undefined }
-   * @default ["Id", "ID", "id"]
+   * @default {@link SignedXml.getDefaultIdAttributes()}
    * @example For WS-Security: [{ localName: "Id", namespaceUri: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" }]
    */
-  idAttributes: IdAttributeType[];
+  idAttributes?: VerificationIdAttributeType[];
 
   /**
    * Transforms to apply implicitly during canonicalization.
@@ -104,70 +105,83 @@ interface XmlDSigValidatorOptions {
   implicitTransforms?: ReadonlyArray<string>;
 
   /**
-   * Whether to throw an exception on validation failure.
-   * If false, errors are returned in the ValidationResult.
+   * Whether to throw an exception on verification failure.
+   * If false, errors are returned in the XmlDsigVerificationResult.
    * @default false
    */
+  throwOnError?: boolean;
+
+  /**
+   * Security options for verification.
+   */
+  security?: XmlDSigVerifierSecurityOptions;
+}
+
+/**
+ * Verification result containing the outcome and signed content.
+ */
+export type SuccessfulXmlDsigVerificationResult = {
+  /** Whether the signature was successfully verified */
+  success: true;
+  error?: undefined;
+  /** The canonicalized XML content that passed verification */
+  signedReferences: string[];
+};
+
+export type FailedXmlDsigVerificationResult = {
+  /** Whether the signature was sucessfuly verified */
+  success: false;
+  /** Error message if verification failed */
+  error: string;
+  signedReferences?: undefined;
+};
+
+export type XmlDsigVerificationResult =
+  | SuccessfulXmlDsigVerificationResult
+  | FailedXmlDsigVerificationResult;
+
+type ResolvedXmlDsigVerifierOptions = {
+  keySelector: KeySelector;
+  idAttributes: VerificationIdAttributeType[];
+  implicitTransforms?: ReadonlyArray<string>;
   throwOnError: boolean;
-
-  /**
-   * Security options for validation.
-   */
-  security: Partial<XmlDsigValidatorSecurityOptions>;
-}
+  security: Required<XmlDSigVerifierSecurityOptions>;
+};
 
 /**
- * Validation result containing the outcome and signed content.
+ * A focused API for XML signature verification with enhanced security.
  */
-export interface XmlDSigValidationResult {
-  /** Whether the signature is valid */
-  valid: boolean;
-
-  /** Error message if validation failed */
-  error?: string;
-
-  /**
-   * The canonicalized XML content that passed validation.
-   * Only available after successful validation.
-   * Contains the raw authenticated bytes - users must parse these themselves
-   * to ensure they're working with cryptographically verified data only.
-   * This prevents signature wrapping attacks.
-   */
-  signedReferences?: string[];
-}
-
-/**
- * A focused API for XML signature validation with enhanced security.
- */
-export class XmlDSigValidator {
+export class XmlDSigVerifier {
   private readonly signedXml: SignedXml;
-  private readonly options: XmlDSigValidatorOptions;
-  private readonly truststore: KeyObject[] | undefined;
+  private readonly options: ResolvedXmlDsigVerifierOptions;
+  private readonly truststore: KeyObject[] = [];
 
   /**
-   * Creates a new XmlDSigValidator instance. The instance can be reused for multiple validations.
+   * Creates a new XmlDSigVerifier instance. The instance can be reused for multiple verifications.
    *
-   * @param options Configuration options for validation
+   * @param options Configuration options for verification
    */
-  constructor(options: Partial<XmlDSigValidatorOptions>) {
+  constructor(options: XmlDSigVerifierOptions) {
     if (
       !options.keySelector ||
       (!("publicCert" in options.keySelector) && !("getCertFromKeyInfo" in options.keySelector))
     ) {
-      throw new Error("XmlDSigValidator requires a keySelector in options.");
+      throw new Error("XmlDSigVerifier requires a keySelector in options.");
     }
     this.options = {
       ...options,
       keySelector: { ...options.keySelector },
-      idAttributes: options.idAttributes ?? SignedXml.getDefaultIdAttributes(),
+      idAttributes: isArrayHasLength(options.idAttributes)
+        ? options.idAttributes
+        : SignedXml.getDefaultIdAttributes(),
       throwOnError: options.throwOnError ?? DEFAULT_THROW_ON_ERROR,
       security: {
         maxTransforms: options.security?.maxTransforms ?? DEFAULT_MAX_TRANSFORMS,
         checkCertExpiration: options.security?.checkCertExpiration ?? DEFAULT_CHECK_CERT_EXPIRATION,
-        truststore: options.security?.truststore,
+        truststore: options.security?.truststore ?? [],
         signatureAlgorithms:
           options.security?.signatureAlgorithms ?? SignedXml.getDefaultSignatureAlgorithms(),
-        hashAlgorithms: options.security?.hashAlgorithms ?? SignedXml.getDefaultHashAlgorithms(),
+        hashAlgorithms: options.security?.hashAlgorithms ?? SignedXml.getDefaultDigestAlgorithms(),
         transformAlgorithms:
           options.security?.transformAlgorithms ?? SignedXml.getDefaultTransformAlgorithms(),
         canonicalizationAlgorithms:
@@ -176,35 +190,34 @@ export class XmlDSigValidator {
       },
     };
 
-    if ("truststore" in this.options.security && this.options.security.truststore !== undefined) {
-      this.truststore = this.options.security.truststore.map((cert) => {
-        if (typeof cert === "string" || Buffer.isBuffer(cert)) {
-          const x509 = new X509Certificate(cert);
-          return x509.publicKey;
-        }
-        return cert.publicKey;
-      });
-      if (this.truststore.length === 0) {
-        throw new Error("Truststore cannot be empty when provided.");
+    this.truststore = this.options.security.truststore.map((cert) => {
+      if (typeof cert === "string" || Buffer.isBuffer(cert)) {
+        const x509 = new X509Certificate(cert);
+        return x509.publicKey;
       }
-    }
+      return cert.publicKey;
+    });
 
     this.signedXml = this.createSignedXml();
   }
 
   /**
-   * Validates an XML signature. Static convenience method for one-off validations.
+   * Verifies an XML signature. Static convenience method for one-off verifications.
    *
    * @param xml The signed XML document to validate
-   * @param options Configuration options for validation
+   * @param options Configuration options for verification
    * @param signatureNode Optional specific Signature node to validate
    */
-  public static validate(
+  public static verifySignature(
     xml: string,
-    options: Partial<XmlDSigValidatorOptions>,
+    options: XmlDSigVerifierOptions,
     signatureNode?: Node,
-  ): XmlDSigValidationResult {
-    return new XmlDSigValidator(options).validate(xml, signatureNode);
+  ): XmlDsigVerificationResult {
+    try {
+      return new XmlDSigVerifier(options).verifySignature(xml, signatureNode);
+    } catch (error) {
+      return XmlDSigVerifier.handleError(error, options.throwOnError ?? DEFAULT_THROW_ON_ERROR);
+    }
   }
 
   /**
@@ -212,9 +225,9 @@ export class XmlDSigValidator {
    *
    * @param xml The signed XML document to validate
    * @param signatureNode Optional specific Signature node to validate
-   * @returns Validation result with signed references if successful
+   * @returns Verification result with signed references if successful
    */
-  public validate(xml: string, signatureNode?: Node): XmlDSigValidationResult {
+  public verifySignature(xml: string, signatureNode?: Node): XmlDsigVerificationResult {
     try {
       // Load the signature node
       if (signatureNode) {
@@ -226,10 +239,14 @@ export class XmlDSigValidator {
         const signatureNodes = this.signedXml.findSignatures(doc);
 
         if (signatureNodes.length === 0) {
-          return this.handleError("No Signature element found in the provided XML document.");
+          return XmlDSigVerifier.handleError(
+            "No Signature element found in the provided XML document.",
+            this.options.throwOnError,
+          );
         } else if (signatureNodes.length > 1) {
-          return this.handleError(
+          return XmlDSigVerifier.handleError(
             "Multiple Signature elements found in the provided XML document. Please provide the specific signatureNode parameter to validate.",
+            this.options.throwOnError,
           );
         }
 
@@ -237,52 +254,41 @@ export class XmlDSigValidator {
         this.signedXml.loadSignature(signatureNodes[0]);
       }
 
-      // Perform cryptographic validation
+      // Perform cryptographic verification
       const isValid = this.signedXml.checkSignature(xml);
 
-      // Only return signed references if validation succeeded
-      const signedReferences = isValid ? this.signedXml.getSignedReferences() : undefined;
-
       if (!isValid) {
-        throw new Error("Signature validation failed");
+        throw new Error("Signature verification failed");
       }
 
       return {
-        valid: isValid,
-        signedReferences,
+        success: isValid,
+        signedReferences: this.signedXml.getSignedReferences(),
       };
     } catch (error) {
-      if (this.options.throwOnError) {
-        // Re-throw the error instead of handling it
-        throw error instanceof Error
-          ? error
-          : new Error(typeof error === "string" ? error : "Unknown validation error");
-      }
-      return this.handleError(error);
+      return XmlDSigVerifier.handleError(error, this.options.throwOnError);
     }
   }
 
   private createSignedXml(): SignedXml {
-    const signedXmlOptions: Partial<SignedXmlOptions> = {
+    const signedXmlOptions: SignedXmlOptions = {
       publicCert: undefined as KeyLike | undefined,
       getCertFromKeyInfo: undefined as KeySelectorFunction | undefined,
       idAttributes: this.options.idAttributes,
       maxTransforms: this.options.security.maxTransforms,
       implicitTransforms: this.options.implicitTransforms,
       allowedSignatureAlgorithms: this.options.security.signatureAlgorithms,
-      allowedHashAlgorithms: this.options.security.hashAlgorithms,
+      allowedDigestAlgorithms: this.options.security.hashAlgorithms,
       allowedTransformAlgorithms: this.options.security.transformAlgorithms,
       allowedCanonicalizationAlgorithms: this.options.security.canonicalizationAlgorithms,
     };
 
-    // Validate and configure key selector (keySelector is guaranteed to exist from constructor validation)
+    // Validate and configure key selector (keySelector is guaranteed to exist from constructor verification)
     if ("publicCert" in this.options.keySelector) {
       signedXmlOptions.publicCert = this.options.keySelector.publicCert;
     } else if ("getCertFromKeyInfo" in this.options.keySelector) {
       if (!this.options.keySelector.getCertFromKeyInfo) {
-        throw new Error(
-          "XmlDSigValidator requires a valid getCertFromKeyInfo function in options.",
-        );
+        throw new Error("XmlDSigVerifier requires a valid getCertFromKeyInfo function in options.");
       }
 
       const getCertFromKeyInfo = this.options.keySelector.getCertFromKeyInfo;
@@ -293,7 +299,7 @@ export class XmlDSigValidator {
         if (!certPem) {
           return null;
         }
-        if (checkCertExpiration || truststore) {
+        if (checkCertExpiration || isArrayHasLength(truststore)) {
           const x509 = new X509Certificate(certPem);
           if (checkCertExpiration) {
             const now = new Date();
@@ -304,7 +310,7 @@ export class XmlDSigValidator {
               throw new Error("The certificate used to sign the XML is not yet valid.");
             }
           }
-          if (truststore) {
+          if (isArrayHasLength(truststore)) {
             const isTrusted = truststore.some((trustedCert) => {
               try {
                 if (trustedCert.equals(x509.publicKey) || x509.verify(trustedCert)) {
@@ -323,22 +329,22 @@ export class XmlDSigValidator {
       };
     } else {
       throw new Error(
-        "XmlDSigValidator requires either a publicCert or getCertFromKeyInfo function in options.",
+        "XmlDSigVerifier requires either a publicCert or getCertFromKeyInfo function in options.",
       );
     }
 
     return new SignedXml(signedXmlOptions);
   }
 
-  private handleError(error: unknown): XmlDSigValidationResult {
+  private static handleError(error: unknown, throwOnError: boolean): XmlDsigVerificationResult {
     const errorMessage =
       error instanceof Error
         ? error.message
         : typeof error === "string"
           ? error
-          : "Unknown validation error";
+          : "Unknown verification error";
 
-    if (this.options.throwOnError) {
+    if (throwOnError) {
       if (error instanceof Error) {
         throw error;
       }
@@ -346,7 +352,7 @@ export class XmlDSigValidator {
     }
 
     return {
-      valid: false,
+      success: false,
       error: errorMessage,
     };
   }
