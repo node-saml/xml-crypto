@@ -565,13 +565,20 @@ export class SignedXml {
       for (const idAttr of this.idAttributes) {
         if (typeof idAttr === "string") {
           if (uri === elem.getAttribute(idAttr)) {
+            // We look for attributes in any namespace or no namespace
             ref.xpath = `//*[@*[local-name(.)='${idAttr}']='${uri}']`;
             break; // found the correct element, no need to check further
           }
         } else {
           const attr = utils.findAttr(elem, idAttr.localName, idAttr.namespaceUri);
           if (attr && uri === attr.value) {
-            ref.xpath = `//*[@*[local-name(.)='${idAttr.localName}' and namespace-uri(.)='${idAttr.namespaceUri}']='${uri}']`;
+            if (idAttr.namespaceUri !== undefined) {
+              // When namespaceUri is set, we look for attributes in that specific namespace
+              ref.xpath = `//*[@*[local-name(.)='${idAttr.localName}' and namespace-uri(.)='${idAttr.namespaceUri}']='${uri}']`;
+            } else {
+              // When namespaceUri is explicitly set to undefined, we look only for attributes without a namespace
+              ref.xpath = `//*[@*[local-name(.)='${idAttr.localName}' and namespace-uri(.)='']='${uri}']`;
+            }
             break; // found the correct element, no need to check further
           }
         }
