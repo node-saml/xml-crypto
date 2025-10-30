@@ -206,7 +206,7 @@ export class XmlDSigVerifier {
     }
 
     const errorMessage =
-      error instanceof Error ? error.message : `Verification error occured: ${String(error)}`;
+      error instanceof Error ? error.message : `Verification error occurred: ${String(error)}`;
 
     return {
       success: false,
