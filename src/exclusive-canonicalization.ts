@@ -1,5 +1,5 @@
 import type {
-  CanonicalizationAlgorithmName,
+  CanonicalizationAlgorithmURI,
   CanonicalizationAlgorithm,
   TransformAlgorithmOptions,
   NamespacePrefix,
@@ -301,7 +301,7 @@ export class ExclusiveCanonicalization implements CanonicalizationAlgorithm {
           ancestorNamespaces.forEach(function (ancestorNamespace) {
             if (prefix === ancestorNamespace.prefix) {
               elem.setAttributeNS(
-                "http://www.w3.org/2000/xmlns/",
+                XMLDSIG_URIS.NAMESPACES.xmlns,
                 `xmlns:${prefix}`,
                 ancestorNamespace.namespaceURI,
               );
@@ -321,7 +321,7 @@ export class ExclusiveCanonicalization implements CanonicalizationAlgorithm {
     return res;
   }
 
-  getAlgorithmName(): CanonicalizationAlgorithmName {
+  getAlgorithmName(): CanonicalizationAlgorithmURI {
     return XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N;
   }
 }
@@ -332,7 +332,7 @@ export class ExclusiveCanonicalizationWithComments extends ExclusiveCanonicaliza
     this.includeComments = true;
   }
 
-  getAlgorithmName(): CanonicalizationAlgorithmName {
+  getAlgorithmName(): CanonicalizationAlgorithmURI {
     return XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N_WITH_COMMENTS;
   }
 }

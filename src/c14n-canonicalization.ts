@@ -1,5 +1,5 @@
 import type {
-  CanonicalizationAlgorithmName,
+  CanonicalizationAlgorithmURI,
   CanonicalizationAlgorithm,
   TransformAlgorithmOptions,
   NamespacePrefix,
@@ -278,7 +278,7 @@ export class C14nCanonicalization implements CanonicalizationAlgorithm {
     return res;
   }
 
-  getAlgorithmName(): CanonicalizationAlgorithmName {
+  getAlgorithmName(): CanonicalizationAlgorithmURI {
     return XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.C14N;
   }
 }
@@ -292,7 +292,7 @@ export class C14nCanonicalizationWithComments extends C14nCanonicalization {
     this.includeComments = true;
   }
 
-  getAlgorithmName(): CanonicalizationAlgorithmName {
+  getAlgorithmName(): CanonicalizationAlgorithmURI {
     return XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.C14N_WITH_COMMENTS;
   }
 }

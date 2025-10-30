@@ -9,7 +9,7 @@ import {
   XmlDSigVerifierSecurityOptions,
   XmlDSigVerifierOptions,
   XmlDsigVerificationResult,
-  TransformAlgorithmName,
+  TransformAlgorithmURI,
 } from "./types";
 import { isArrayHasLength } from "./utils";
 
@@ -20,7 +20,7 @@ const DEFAULT_CHECK_CERT_EXPIRATION = true;
 type ResolvedXmlDsigVerifierOptions = {
   keySelector: KeySelector;
   idAttributes: VerificationIdAttributeType[];
-  implicitTransforms?: ReadonlyArray<TransformAlgorithmName>;
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmURI>;
   throwOnError: boolean;
   security: Required<XmlDSigVerifierSecurityOptions>;
 };
@@ -51,7 +51,7 @@ export class XmlDSigVerifier {
         truststore: options.security?.truststore ?? [],
         signatureAlgorithms:
           options.security?.signatureAlgorithms ?? SignedXml.getDefaultSignatureAlgorithms(),
-        hashAlgorithms: options.security?.hashAlgorithms ?? SignedXml.getDefaultDigestAlgorithms(),
+        hashAlgorithms: options.security?.hashAlgorithms ?? SignedXml.getDefaultHashAlgorithms(),
         transformAlgorithms:
           options.security?.transformAlgorithms ?? SignedXml.getDefaultTransformAlgorithms(),
         canonicalizationAlgorithms:
@@ -140,7 +140,7 @@ export class XmlDSigVerifier {
       maxTransforms: options.security.maxTransforms,
       implicitTransforms: options.implicitTransforms,
       allowedSignatureAlgorithms: options.security.signatureAlgorithms,
-      allowedDigestAlgorithms: options.security.hashAlgorithms,
+      allowedHashAlgorithms: options.security.hashAlgorithms,
       allowedTransformAlgorithms: options.security.transformAlgorithms,
       allowedCanonicalizationAlgorithms: options.security.canonicalizationAlgorithms,
     };

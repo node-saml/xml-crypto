@@ -11,12 +11,8 @@ import { X509Certificate } from "node:crypto";
 // Parse the XML and get both signature nodes
 import { DOMParser } from "@xmldom/xmldom";
 
-const {
-  CANONICALIZATION_ALGORITHMS,
-  DIGEST_ALGORITHMS,
-  SIGNATURE_ALGORITHMS,
-  TRANSFORM_ALGORITHMS,
-} = XMLDSIG_URIS;
+const { CANONICALIZATION_ALGORITHMS, HASH_ALGORITHMS, SIGNATURE_ALGORITHMS, TRANSFORM_ALGORITHMS } =
+  XMLDSIG_URIS;
 
 // Default test certificate files
 const privateKey = fs.readFileSync("./test/static/client.pem", "utf-8");
@@ -48,7 +44,7 @@ function createSignedXml(
 
   sig.addReference({
     xpath: "//*[local-name(.)='test']",
-    digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+    digestAlgorithm: HASH_ALGORITHMS.SHA1,
     transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
   });
 
@@ -67,7 +63,7 @@ function createChainSignedXml(xml: string): string {
 
   sig.addReference({
     xpath: "//*[local-name(.)='test']",
-    digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+    digestAlgorithm: HASH_ALGORITHMS.SHA1,
     transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
   });
 
@@ -85,7 +81,7 @@ function createExpiredSignedXml(xml: string): string {
 
   sig.addReference({
     xpath: "//*[local-name(.)='test']",
-    digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+    digestAlgorithm: HASH_ALGORITHMS.SHA1,
     transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
   });
 
@@ -103,7 +99,7 @@ function createFutureSignedXml(xml: string): string {
 
   sig.addReference({
     xpath: "//*[local-name(.)='test']",
-    digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+    digestAlgorithm: HASH_ALGORITHMS.SHA1,
     transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
   });
 
@@ -167,7 +163,7 @@ describe("XmlDSigVerifier", function () {
           checkCertExpiration: true,
           truststore: [rootCert],
           signatureAlgorithms: SignedXml.getDefaultSignatureAlgorithms(),
-          hashAlgorithms: SignedXml.getDefaultDigestAlgorithms(),
+          hashAlgorithms: SignedXml.getDefaultHashAlgorithms(),
           transformAlgorithms: SignedXml.getDefaultTransformAlgorithms(),
         },
       });
@@ -291,7 +287,7 @@ describe("XmlDSigVerifier", function () {
       });
       sig.addReference({
         xpath: "//*[@customId='test1']",
-        digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+        digestAlgorithm: HASH_ALGORITHMS.SHA1,
         transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
       });
       sig.computeSignature(xmlWithCustomId);
@@ -313,7 +309,7 @@ describe("XmlDSigVerifier", function () {
       });
       sig.addReference({
         xpath: "//*[@*[namespace-uri() = 'uri:foo' and local-name() = 'customId']]",
-        digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+        digestAlgorithm: HASH_ALGORITHMS.SHA1,
         transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
       });
       sig.computeSignature(xmlWithPrefixedId);
@@ -335,7 +331,7 @@ describe("XmlDSigVerifier", function () {
       });
       sig.addReference({
         xpath: "//*[@*[namespace-uri() = 'uri:foo' and local-name() = 'customId']]",
-        digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+        digestAlgorithm: HASH_ALGORITHMS.SHA1,
         transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
       });
       sig.computeSignature(xmlWithPrefixedId);
@@ -357,7 +353,7 @@ describe("XmlDSigVerifier", function () {
       });
       sig.addReference({
         xpath: "//*[@*[namespace-uri() = 'uri:foo' and local-name() = 'customId']]",
-        digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+        digestAlgorithm: HASH_ALGORITHMS.SHA1,
         transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
       });
       sig.computeSignature(xmlWithPrefixedId);
@@ -380,7 +376,7 @@ describe("XmlDSigVerifier", function () {
       });
       sig.addReference({
         xpath: "//*[@customId='test1']",
-        digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+        digestAlgorithm: HASH_ALGORITHMS.SHA1,
         transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
       });
       sig.computeSignature(xmlWithCustomId);
@@ -441,7 +437,7 @@ describe("XmlDSigVerifier", function () {
         });
         sig.addReference({
           xpath: "//*[local-name(.)='test']",
-          digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+          digestAlgorithm: HASH_ALGORITHMS.SHA1,
           transforms: [
             CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
             TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE,
@@ -587,7 +583,7 @@ describe("XmlDSigVerifier", function () {
         const signedXml = createSignedXml(xml);
         const verifier = new XmlDSigVerifier({
           keySelector: { publicCert },
-          security: { hashAlgorithms: SignedXml.getDefaultDigestAlgorithms() },
+          security: { hashAlgorithms: SignedXml.getDefaultHashAlgorithms() },
         });
         expectValidResult(verifier.verifySignature(signedXml));
       });
@@ -661,10 +657,7 @@ describe("XmlDSigVerifier", function () {
     it("should validate when signatureNode is provided directly", function () {
       const signedXml = createSignedXml(xml);
       const doc = new DOMParser().parseFromString(signedXml, "application/xml");
-      const signatureNode = doc.getElementsByTagNameNS(
-        "http://www.w3.org/2000/09/xmldsig#",
-        "Signature",
-      )[0];
+      const signatureNode = doc.getElementsByTagNameNS(XMLDSIG_URIS.NAMESPACES.ds, "Signature")[0];
 
       const verifier = new XmlDSigVerifier({
         keySelector: { publicCert },
@@ -687,7 +680,7 @@ describe("XmlDSigVerifier", function () {
       });
       sig1.addReference({
         xpath: "//*[@id='1']",
-        digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+        digestAlgorithm: HASH_ALGORITHMS.SHA1,
         transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
       });
       sig1.computeSignature(xmlWithTwoElements, {
@@ -703,7 +696,7 @@ describe("XmlDSigVerifier", function () {
       });
       sig2.addReference({
         xpath: "//*[@id='2']",
-        digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+        digestAlgorithm: HASH_ALGORITHMS.SHA1,
         transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
       });
       sig2.computeSignature(xmlWithFirstSig, {
@@ -733,7 +726,7 @@ describe("XmlDSigVerifier", function () {
       });
       sig1.addReference({
         xpath: "//*[@id='1']",
-        digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+        digestAlgorithm: HASH_ALGORITHMS.SHA1,
         transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
       });
       sig1.computeSignature(xmlWithTwoElements, {
@@ -749,7 +742,7 @@ describe("XmlDSigVerifier", function () {
       });
       sig2.addReference({
         xpath: "//*[@id='2']",
-        digestAlgorithm: DIGEST_ALGORITHMS.SHA1,
+        digestAlgorithm: HASH_ALGORITHMS.SHA1,
         transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
       });
       sig2.computeSignature(xmlWithFirstSig, {
@@ -757,10 +750,7 @@ describe("XmlDSigVerifier", function () {
       });
       const xmlWithTwoSigs = sig2.getSignedXml();
       const doc = new DOMParser().parseFromString(xmlWithTwoSigs, "application/xml");
-      const signatureNodes = doc.getElementsByTagNameNS(
-        "http://www.w3.org/2000/09/xmldsig#",
-        "Signature",
-      );
+      const signatureNodes = doc.getElementsByTagNameNS(XMLDSIG_URIS.NAMESPACES.ds, "Signature");
 
       expect(signatureNodes.length).to.equal(2);
 

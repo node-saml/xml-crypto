@@ -9,12 +9,8 @@
 import * as crypto from "crypto";
 import { XMLDSIG_URIS } from "./xmldsig-uris";
 import { KeyLike, X509Certificate } from "node:crypto";
-const {
-  SIGNATURE_ALGORITHMS,
-  DIGEST_ALGORITHMS,
-  TRANSFORM_ALGORITHMS,
-  CANONICALIZATION_ALGORITHMS,
-} = XMLDSIG_URIS;
+const { SIGNATURE_ALGORITHMS, HASH_ALGORITHMS, TRANSFORM_ALGORITHMS, CANONICALIZATION_ALGORITHMS } =
+  XMLDSIG_URIS;
 
 export type ErrorFirstCallback<T> = (err: Error | null, result?: T) => void;
 
@@ -65,7 +61,7 @@ export interface TransformAlgorithmOptions {
   inclusiveNamespacesPrefixList?: string[];
 }
 
-export type SignatureAlgorithmName =
+export type SignatureAlgorithmURI =
   | (typeof SIGNATURE_ALGORITHMS)[keyof typeof SIGNATURE_ALGORITHMS]
   | string;
 
@@ -93,43 +89,43 @@ export interface SignatureAlgorithm {
     callback?: ErrorFirstCallback<boolean>,
   ): void;
 
-  getAlgorithmName(): SignatureAlgorithmName;
+  getAlgorithmName(): SignatureAlgorithmURI;
 }
-export type SignatureAlgorithmMap = Record<SignatureAlgorithmName, new () => SignatureAlgorithm>;
+export type SignatureAlgorithmMap = Record<SignatureAlgorithmURI, new () => SignatureAlgorithm>;
 
-export type HashAlgorithmName = (typeof DIGEST_ALGORITHMS)[keyof typeof DIGEST_ALGORITHMS] | string;
+export type HashAlgorithmURI = (typeof HASH_ALGORITHMS)[keyof typeof HASH_ALGORITHMS] | string;
 /** Implement this to create a new HashAlgorithm */
 export interface HashAlgorithm {
-  getAlgorithmName(): HashAlgorithmName;
+  getAlgorithmName(): HashAlgorithmURI;
 
   getHash(xml: string): string;
 }
-export type DigestAlgorithmMap = Record<HashAlgorithmName, new () => HashAlgorithm>;
+export type HashAlgorithmMap = Record<HashAlgorithmURI, new () => HashAlgorithm>;
 
-export type TransformAlgorithmName =
+export type TransformAlgorithmURI =
   | (typeof TRANSFORM_ALGORITHMS)[keyof typeof TRANSFORM_ALGORITHMS]
   | string;
 /** Implement this to create a new TransformAlgorithm */
 export interface TransformAlgorithm {
-  getAlgorithmName(): TransformAlgorithmName;
+  getAlgorithmName(): TransformAlgorithmURI;
 
   process(node: Node, options: TransformAlgorithmOptions): string | Node;
 }
-export type TransformAlgorithmMap = Record<TransformAlgorithmName, new () => TransformAlgorithm>;
+export type TransformAlgorithmMap = Record<TransformAlgorithmURI, new () => TransformAlgorithm>;
 
-export type CanonicalizationAlgorithmName =
+export type CanonicalizationAlgorithmURI =
   | (typeof CANONICALIZATION_ALGORITHMS)[keyof typeof CANONICALIZATION_ALGORITHMS]
   | string;
 /** Implement this to create a new CanonicalizationAlgorithm */
 export interface CanonicalizationAlgorithm extends TransformAlgorithm {
-  getAlgorithmName(): CanonicalizationAlgorithmName;
+  getAlgorithmName(): CanonicalizationAlgorithmURI;
 
   // TODO: after  canonicalization algorithms algorithms are separated from transform algorithms,
   //       set process to return string only
   process(node: Node, options: TransformAlgorithmOptions): string | Node;
 }
 export type CanonicalizationAlgorithmMap = Record<
-  CanonicalizationAlgorithmName,
+  CanonicalizationAlgorithmURI,
   new () => CanonicalizationAlgorithm
 >;
 /**
@@ -141,17 +137,17 @@ export interface SignedXmlOptions {
   idAttributes?: VerificationIdAttributeType[];
   privateKey?: crypto.KeyLike;
   publicCert?: crypto.KeyLike;
-  signatureAlgorithm?: SignatureAlgorithmName;
-  canonicalizationAlgorithm?: CanonicalizationAlgorithmName;
+  signatureAlgorithm?: SignatureAlgorithmURI;
+  canonicalizationAlgorithm?: CanonicalizationAlgorithmURI;
   inclusiveNamespacesPrefixList?: string | string[];
   maxTransforms?: number | null;
-  implicitTransforms?: ReadonlyArray<TransformAlgorithmName>;
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmURI>;
   keyInfoAttributes?: Record<string, string>;
   getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
   getCertFromKeyInfo?: KeySelectorFunction;
   objects?: Array<{ content: string; attributes?: ObjectAttributes }>;
   allowedSignatureAlgorithms?: SignatureAlgorithmMap;
-  allowedDigestAlgorithms?: DigestAlgorithmMap;
+  allowedHashAlgorithms?: HashAlgorithmMap;
   allowedCanonicalizationAlgorithms?: CanonicalizationAlgorithmMap;
   allowedTransformAlgorithms?: TransformAlgorithmMap;
 }
@@ -193,10 +189,10 @@ export interface Reference {
   xpath?: string;
 
   // An array of transforms to be applied to the data before signing.
-  transforms: ReadonlyArray<TransformAlgorithmName>;
+  transforms: ReadonlyArray<TransformAlgorithmURI>;
 
   // The algorithm used to calculate the digest value of the data.
-  digestAlgorithm: HashAlgorithmName;
+  digestAlgorithm: HashAlgorithmURI;
 
   // The URI that identifies the data to be signed.
   uri: string;
@@ -331,9 +327,9 @@ export interface XmlDSigVerifierSecurityOptions {
   /**
    * Hash algorithms allowed during verification.
    *
-   * @default {@link SignedXml.getDefaultDigestAlgorithms()}
+   * @default {@link SignedXml.getDefaultHashAlgorithms()}
    */
-  hashAlgorithms?: DigestAlgorithmMap;
+  hashAlgorithms?: HashAlgorithmMap;
 
   /**
    * Transform algorithms allowed during verification. (This must include canonicalization algorithms)
@@ -373,7 +369,7 @@ export interface XmlDSigVerifierOptions {
    * Transforms to apply implicitly during canonicalization.
    * Used for specific XML-DSig profiles that require additional transforms.
    */
-  implicitTransforms?: ReadonlyArray<TransformAlgorithmName>;
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmURI>;
 
   /**
    * Whether to throw an exception on verification failure.

@@ -19,7 +19,7 @@ const TRANSFORM_ALGORITHMS = {
 /**
  * Supported digest algorithms
  */
-const DIGEST_ALGORITHMS = {
+const HASH_ALGORITHMS = {
   SHA1: "http://www.w3.org/2000/09/xmldsig#sha1",
   SHA256: "http://www.w3.org/2001/04/xmlenc#sha256",
   SHA512: "http://www.w3.org/2001/04/xmlenc#sha512",
@@ -44,6 +44,8 @@ const NAMESPACES = {
   xmlns: "http://www.w3.org/2000/xmlns/",
   ds: "http://www.w3.org/2000/09/xmldsig#",
   wsu: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
+  wsse: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd",
+  xades: "http://uri.etsi.org/01903/v1.3.2#",
 } as const;
 
 /**
@@ -52,7 +54,7 @@ const NAMESPACES = {
 export const XMLDSIG_URIS = {
   CANONICALIZATION_ALGORITHMS,
   TRANSFORM_ALGORITHMS,
-  DIGEST_ALGORITHMS,
+  HASH_ALGORITHMS,
   SIGNATURE_ALGORITHMS,
   NAMESPACES,
 } as const;

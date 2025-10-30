@@ -1,11 +1,7 @@
 import * as xpath from "xpath";
 import * as isDomNode from "@xmldom/is-dom-node";
-
-import type {
-  TransformAlgorithmOptions,
-  TransformAlgorithm,
-  TransformAlgorithmName,
-} from "./types";
+import { XMLDSIG_URIS } from "./xmldsig-uris";
+import type { TransformAlgorithmOptions, TransformAlgorithm, TransformAlgorithmURI } from "./types";
 
 export class EnvelopedSignature implements TransformAlgorithm {
   protected includeComments = false;
@@ -17,7 +13,7 @@ export class EnvelopedSignature implements TransformAlgorithm {
   process(node: Node, options: TransformAlgorithmOptions): Node {
     if (null == options.signatureNode) {
       const signature = xpath.select1(
-        "./*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+        `./*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
         node,
       );
       if (isDomNode.isNodeLike(signature) && signature.parentNode) {
@@ -34,7 +30,7 @@ export class EnvelopedSignature implements TransformAlgorithm {
       const expectedSignatureValueData = expectedSignatureValue.data;
 
       const signatures = xpath.select(
-        ".//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+        `.//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
         node,
       );
       for (const nodeSignature of Array.isArray(signatures) ? signatures : []) {
@@ -55,7 +51,7 @@ export class EnvelopedSignature implements TransformAlgorithm {
     return node;
   }
 
-  getAlgorithmName(): TransformAlgorithmName {
-    return "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
+  getAlgorithmName(): TransformAlgorithmURI {
+    return XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE;
   }
 }
