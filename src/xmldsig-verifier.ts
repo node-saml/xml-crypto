@@ -1,4 +1,4 @@
-import { KeyLike, KeyObject, X509Certificate } from "node:crypto";
+import { KeyLike, X509Certificate } from "node:crypto";
 import { DOMParser } from "@xmldom/xmldom";
 import { SignedXml } from "./signed-xml";
 import {
@@ -9,6 +9,7 @@ import {
   XmlDSigVerifierSecurityOptions,
   XmlDSigVerifierOptions,
   XmlDsigVerificationResult,
+  TransformAlgorithmName,
 } from "./types";
 import { isArrayHasLength } from "./utils";
 
@@ -19,7 +20,7 @@ const DEFAULT_CHECK_CERT_EXPIRATION = true;
 type ResolvedXmlDsigVerifierOptions = {
   keySelector: KeySelector;
   idAttributes: VerificationIdAttributeType[];
-  implicitTransforms?: ReadonlyArray<string>;
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmName>;
   throwOnError: boolean;
   security: Required<XmlDSigVerifierSecurityOptions>;
 };
@@ -30,7 +31,6 @@ type ResolvedXmlDsigVerifierOptions = {
 export class XmlDSigVerifier {
   private readonly signedXml: SignedXml;
   private readonly options: ResolvedXmlDsigVerifierOptions;
-  private readonly truststore: KeyObject[] = [];
 
   /**
    * Creates a new XmlDSigVerifier instance. The instance can be reused for multiple verifications.
@@ -38,12 +38,6 @@ export class XmlDSigVerifier {
    * @param options Configuration options for verification
    */
   constructor(options: XmlDSigVerifierOptions) {
-    if (
-      !options.keySelector ||
-      (!("publicCert" in options.keySelector) && !("getCertFromKeyInfo" in options.keySelector))
-    ) {
-      throw new Error("XmlDSigVerifier requires a keySelector in options.");
-    }
     this.options = {
       ...options,
       keySelector: { ...options.keySelector },
@@ -66,15 +60,7 @@ export class XmlDSigVerifier {
       },
     };
 
-    this.truststore = this.options.security.truststore.map((cert) => {
-      if (typeof cert === "string" || Buffer.isBuffer(cert)) {
-        const x509 = new X509Certificate(cert);
-        return x509.publicKey;
-      }
-      return cert.publicKey;
-    });
-
-    this.signedXml = this.createSignedXml();
+    this.signedXml = XmlDSigVerifier.createSignedXml(this.options);
   }
 
   /**
@@ -146,30 +132,36 @@ export class XmlDSigVerifier {
     }
   }
 
-  private createSignedXml(): SignedXml {
+  private static createSignedXml(options: ResolvedXmlDsigVerifierOptions): SignedXml {
     const signedXmlOptions: SignedXmlOptions = {
       publicCert: undefined as KeyLike | undefined,
       getCertFromKeyInfo: undefined as KeySelectorFunction | undefined,
-      idAttributes: this.options.idAttributes,
-      maxTransforms: this.options.security.maxTransforms,
-      implicitTransforms: this.options.implicitTransforms,
-      allowedSignatureAlgorithms: this.options.security.signatureAlgorithms,
-      allowedDigestAlgorithms: this.options.security.hashAlgorithms,
-      allowedTransformAlgorithms: this.options.security.transformAlgorithms,
-      allowedCanonicalizationAlgorithms: this.options.security.canonicalizationAlgorithms,
+      idAttributes: options.idAttributes,
+      maxTransforms: options.security.maxTransforms,
+      implicitTransforms: options.implicitTransforms,
+      allowedSignatureAlgorithms: options.security.signatureAlgorithms,
+      allowedDigestAlgorithms: options.security.hashAlgorithms,
+      allowedTransformAlgorithms: options.security.transformAlgorithms,
+      allowedCanonicalizationAlgorithms: options.security.canonicalizationAlgorithms,
     };
 
     // Validate and configure key selector (keySelector is guaranteed to exist from constructor verification)
-    if ("publicCert" in this.options.keySelector) {
-      signedXmlOptions.publicCert = this.options.keySelector.publicCert;
-    } else if ("getCertFromKeyInfo" in this.options.keySelector) {
-      if (!this.options.keySelector.getCertFromKeyInfo) {
+    if ("publicCert" in options.keySelector) {
+      signedXmlOptions.publicCert = options.keySelector.publicCert;
+    } else if ("getCertFromKeyInfo" in options.keySelector) {
+      if (typeof options.keySelector.getCertFromKeyInfo !== "function") {
         throw new Error("XmlDSigVerifier requires a valid getCertFromKeyInfo function in options.");
       }
 
-      const getCertFromKeyInfo = this.options.keySelector.getCertFromKeyInfo;
-      const truststore = this.truststore;
-      const checkCertExpiration = this.options.security.checkCertExpiration;
+      const getCertFromKeyInfo = options.keySelector.getCertFromKeyInfo;
+      const truststore = options.security.truststore.map((cert) => {
+        if (typeof cert === "string" || Buffer.isBuffer(cert)) {
+          const x509 = new X509Certificate(cert);
+          return x509.publicKey;
+        }
+        return cert.publicKey;
+      });
+      const checkCertExpiration = options.security.checkCertExpiration;
       signedXmlOptions.getCertFromKeyInfo = (keyInfo?: Node | null): string | null => {
         const certPem = getCertFromKeyInfo(keyInfo);
         if (!certPem) {
@@ -188,12 +180,8 @@ export class XmlDSigVerifier {
           }
           if (isArrayHasLength(truststore)) {
             const isTrusted = truststore.some((trustedCert) => {
-              try {
-                if (trustedCert.equals(x509.publicKey) || x509.verify(trustedCert)) {
-                  return true;
-                }
-              } catch {
-                return false;
+              if (trustedCert.equals(x509.publicKey) || x509.verify(trustedCert)) {
+                return true;
               }
             });
             if (!isTrusted) {
@@ -205,7 +193,7 @@ export class XmlDSigVerifier {
       };
     } else {
       throw new Error(
-        "XmlDSigVerifier requires either a publicCert or getCertFromKeyInfo function in options.",
+        "XmlDSigVerifier requires a valid keySelector option with either a publicCert or getCertFromKeyInfo function set.",
       );
     }
 
@@ -213,19 +201,12 @@ export class XmlDSigVerifier {
   }
 
   private static handleError(error: unknown, throwOnError: boolean): XmlDsigVerificationResult {
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : typeof error === "string"
-          ? error
-          : "Unknown verification error";
-
     if (throwOnError) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error(errorMessage);
+      throw error;
     }
+
+    const errorMessage =
+      error instanceof Error ? error.message : `Verification error occured: ${String(error)}`;
 
     return {
       success: false,
