@@ -5,25 +5,72 @@ import {
   KeySelectorFunction,
   SignedXmlOptions,
   VerificationIdAttributeType,
-  KeySelector,
-  XmlDSigVerifierSecurityOptions,
   XmlDSigVerifierOptions,
   XmlDsigVerificationResult,
   TransformAlgorithmURI,
+  KeyInfoXmlDSigSecurityOptions,
+  KeyInfoKeySelector,
+  SharedSecretKeySelector,
+  CertificateKeySelector,
+  XmlDSigVerifierSecurityOptions,
+  KeyInfoXmlDSigVerifierOptions,
+  SharedSecretXmlDSigVerifierOptions,
+  PublicCertXmlDSigVerifierOptions,
 } from "./types";
 import { isArrayHasLength } from "./utils";
 
-const DEFAULT_MAX_TRANSFORMS = 4;
-const DEFAULT_THROW_ON_ERROR = false;
-const DEFAULT_CHECK_CERT_EXPIRATION = true;
-
-type ResolvedXmlDsigVerifierOptions = {
-  keySelector: KeySelector;
+type ResolvedXmlDSigVerifierOptionsBase = {
   idAttributes: VerificationIdAttributeType[];
   implicitTransforms?: ReadonlyArray<TransformAlgorithmURI>;
   throwOnError: boolean;
+};
+
+type ResolvedKeyInfoOptions = ResolvedXmlDSigVerifierOptionsBase & {
+  optionsType: "keyinfo";
+  keySelector: KeyInfoKeySelector;
+  security: Required<KeyInfoXmlDSigSecurityOptions>;
+};
+
+type ResolvedCertificateOptions = ResolvedXmlDSigVerifierOptionsBase & {
+  optionsType: "certificate";
+  keySelector: CertificateKeySelector;
   security: Required<XmlDSigVerifierSecurityOptions>;
 };
+
+type ResolvedSharedSecretOptions = ResolvedXmlDSigVerifierOptionsBase & {
+  optionsType: "sharedsecret";
+  keySelector: SharedSecretKeySelector;
+  security: Required<XmlDSigVerifierSecurityOptions>;
+};
+
+type ResolvedXmlDsigVerifierOptions =
+  | ResolvedKeyInfoOptions
+  | ResolvedCertificateOptions
+  | ResolvedSharedSecretOptions;
+
+const isResolvedKeyInfoOptions = (
+  options: ResolvedXmlDsigVerifierOptions,
+): options is ResolvedKeyInfoOptions => options.optionsType === "keyinfo";
+
+const isResolvedPublicCertOptions = (
+  options: ResolvedXmlDsigVerifierOptions,
+): options is ResolvedCertificateOptions => options.optionsType === "certificate";
+
+const isResolvedSharedSecretOptions = (
+  options: ResolvedXmlDsigVerifierOptions,
+): options is ResolvedSharedSecretOptions => options.optionsType === "sharedsecret";
+
+const isKeyInfoSelector = (
+  options: XmlDSigVerifierOptions,
+): options is KeyInfoXmlDSigVerifierOptions => "getCertFromKeyInfo" in options.keySelector;
+
+const isSharedSecretSelector = (
+  options: XmlDSigVerifierOptions,
+): options is SharedSecretXmlDSigVerifierOptions => "sharedSecretKey" in options.keySelector;
+
+const isPublicCertSelector = (
+  options: XmlDSigVerifierOptions,
+): options is PublicCertXmlDSigVerifierOptions => "publicCert" in options.keySelector;
 
 /**
  * A focused API for XML signature verification with enhanced security.
@@ -32,33 +79,17 @@ export class XmlDSigVerifier {
   private readonly signedXml: SignedXml;
   private readonly options: ResolvedXmlDsigVerifierOptions;
 
+  public static readonly DEFAULT_MAX_TRANSFORMS = 4;
+  public static readonly DEFAULT_CHECK_CERT_EXPIRATION = true;
+  public static readonly DEFAULT_THROW_ON_ERROR = false;
+
   /**
    * Creates a new XmlDSigVerifier instance. The instance can be reused for multiple verifications.
    *
    * @param options Configuration options for verification
    */
   constructor(options: XmlDSigVerifierOptions) {
-    this.options = {
-      ...options,
-      keySelector: { ...options.keySelector },
-      idAttributes: isArrayHasLength(options.idAttributes)
-        ? options.idAttributes
-        : SignedXml.getDefaultIdAttributes(),
-      throwOnError: options.throwOnError ?? DEFAULT_THROW_ON_ERROR,
-      security: {
-        maxTransforms: options.security?.maxTransforms ?? DEFAULT_MAX_TRANSFORMS,
-        checkCertExpiration: options.security?.checkCertExpiration ?? DEFAULT_CHECK_CERT_EXPIRATION,
-        truststore: options.security?.truststore ?? [],
-        signatureAlgorithms:
-          options.security?.signatureAlgorithms ?? SignedXml.getDefaultSignatureAlgorithms(),
-        hashAlgorithms: options.security?.hashAlgorithms ?? SignedXml.getDefaultHashAlgorithms(),
-        transformAlgorithms:
-          options.security?.transformAlgorithms ?? SignedXml.getDefaultTransformAlgorithms(),
-        canonicalizationAlgorithms:
-          options.security?.canonicalizationAlgorithms ??
-          SignedXml.getDefaultCanonicalizationAlgorithms(),
-      },
-    };
+    this.options = XmlDSigVerifier.resolveOptions(options);
 
     this.signedXml = XmlDSigVerifier.createSignedXml(this.options);
   }
@@ -78,7 +109,10 @@ export class XmlDSigVerifier {
     try {
       return new XmlDSigVerifier(options).verifySignature(xml, signatureNode);
     } catch (error) {
-      return XmlDSigVerifier.handleError(error, options.throwOnError ?? DEFAULT_THROW_ON_ERROR);
+      return XmlDSigVerifier.handleError(
+        error,
+        options.throwOnError ?? XmlDSigVerifier.DEFAULT_THROW_ON_ERROR,
+      );
     }
   }
 
@@ -132,6 +166,66 @@ export class XmlDSigVerifier {
     }
   }
 
+  private static resolveOptions(options: XmlDSigVerifierOptions): ResolvedXmlDsigVerifierOptions {
+    const defaults = {
+      idAttributes: SignedXml.getDefaultIdAttributes(),
+      maxTransforms: XmlDSigVerifier.DEFAULT_MAX_TRANSFORMS,
+      checkCertExpiration: XmlDSigVerifier.DEFAULT_CHECK_CERT_EXPIRATION,
+      truststore: [],
+      signatureAlgorithms: isSharedSecretSelector(options)
+        ? SignedXml.getDefaultSymmetricSignatureAlgorithms()
+        : SignedXml.getDefaultAsymmetricSignatureAlgorithms(),
+      hashAlgorithms: SignedXml.getDefaultHashAlgorithms(),
+      transformAlgorithms: SignedXml.getDefaultTransformAlgorithms(),
+      canonicalizationAlgorithms: SignedXml.getDefaultCanonicalizationAlgorithms(),
+    };
+
+    const baseOptions = {
+      idAttributes: options.idAttributes ?? defaults.idAttributes,
+      implicitTransforms: options.implicitTransforms,
+      throwOnError: options.throwOnError ?? XmlDSigVerifier.DEFAULT_THROW_ON_ERROR,
+    };
+
+    const baseSecurity = {
+      maxTransforms: options.security?.maxTransforms ?? defaults.maxTransforms,
+      signatureAlgorithms: options.security?.signatureAlgorithms ?? defaults.signatureAlgorithms,
+      hashAlgorithms: options.security?.hashAlgorithms ?? defaults.hashAlgorithms,
+      transformAlgorithms: options.security?.transformAlgorithms ?? defaults.transformAlgorithms,
+      canonicalizationAlgorithms:
+        options.security?.canonicalizationAlgorithms ?? defaults.canonicalizationAlgorithms,
+    };
+
+    if (isKeyInfoSelector(options)) {
+      return {
+        optionsType: "keyinfo",
+        ...baseOptions,
+        keySelector: options.keySelector,
+        security: {
+          ...baseSecurity,
+          checkCertExpiration:
+            options.security?.checkCertExpiration ?? defaults.checkCertExpiration,
+          truststore: options.security?.truststore ?? defaults.truststore,
+        },
+      };
+    } else if (isSharedSecretSelector(options)) {
+      return {
+        optionsType: "sharedsecret",
+        ...baseOptions,
+        keySelector: options.keySelector,
+        security: baseSecurity,
+      };
+    } else if (isPublicCertSelector(options)) {
+      return {
+        optionsType: "certificate",
+        ...baseOptions,
+        keySelector: options.keySelector,
+        security: baseSecurity,
+      };
+    } else {
+      throw new Error("XmlDSigVerifier requires a valid keySelector option.");
+    }
+  }
+
   private static createSignedXml(options: ResolvedXmlDsigVerifierOptions): SignedXml {
     const signedXmlOptions: SignedXmlOptions = {
       publicCert: undefined as KeyLike | undefined,
@@ -145,15 +239,14 @@ export class XmlDSigVerifier {
       allowedCanonicalizationAlgorithms: options.security.canonicalizationAlgorithms,
     };
 
-    // Validate and configure key selector (keySelector is guaranteed to exist from constructor verification)
-    if ("publicCert" in options.keySelector) {
-      signedXmlOptions.publicCert = options.keySelector.publicCert;
-    } else if ("getCertFromKeyInfo" in options.keySelector) {
-      if (typeof options.keySelector.getCertFromKeyInfo !== "function") {
-        throw new Error("XmlDSigVerifier requires a valid getCertFromKeyInfo function in options.");
+    if (isResolvedKeyInfoOptions(options)) {
+      const keySelector = options.keySelector;
+
+      if (typeof keySelector.getCertFromKeyInfo !== "function") {
+        throw new Error("XmlDSigVerifier requires a valid getCertFromKeyInfo function.");
       }
 
-      const getCertFromKeyInfo = options.keySelector.getCertFromKeyInfo;
+      const getCertFromKeyInfo = keySelector.getCertFromKeyInfo;
       const truststore = options.security.truststore.map((cert) => {
         if (typeof cert === "string" || Buffer.isBuffer(cert)) {
           const x509 = new X509Certificate(cert);
@@ -162,11 +255,13 @@ export class XmlDSigVerifier {
         return cert.publicKey;
       });
       const checkCertExpiration = options.security.checkCertExpiration;
+
       signedXmlOptions.getCertFromKeyInfo = (keyInfo?: Node | null): string | null => {
         const certPem = getCertFromKeyInfo(keyInfo);
         if (!certPem) {
           return null;
         }
+
         if (checkCertExpiration || isArrayHasLength(truststore)) {
           const x509 = new X509Certificate(certPem);
           if (checkCertExpiration) {
@@ -180,9 +275,10 @@ export class XmlDSigVerifier {
           }
           if (isArrayHasLength(truststore)) {
             const isTrusted = truststore.some((trustedCert) => {
-              if (trustedCert.equals(x509.publicKey) || x509.verify(trustedCert)) {
+              if (trustedCert.equals?.(x509.publicKey) || x509.verify(trustedCert)) {
                 return true;
               }
+              return false;
             });
             if (!isTrusted) {
               throw new Error("The certificate used to sign the XML is not trusted.");
@@ -191,10 +287,10 @@ export class XmlDSigVerifier {
         }
         return certPem;
       };
-    } else {
-      throw new Error(
-        "XmlDSigVerifier requires a valid keySelector option with either a publicCert or getCertFromKeyInfo function set.",
-      );
+    } else if (isResolvedPublicCertOptions(options)) {
+      signedXmlOptions.publicCert = options.keySelector.publicCert;
+    } else if (isResolvedSharedSecretOptions(options)) {
+      signedXmlOptions.privateKey = options.keySelector.sharedSecretKey;
     }
 
     return new SignedXml(signedXmlOptions);

@@ -151,14 +151,16 @@ export class SignedXml {
     [HASH_ALGORITHMS.SHA512]: hashAlgorithms.Sha512,
   });
 
-  static readonly getDefaultSignatureAlgorithms = (): SignatureAlgorithmMap => ({
+  static readonly getDefaultAsymmetricSignatureAlgorithms = (): SignatureAlgorithmMap => ({
     // TODO: In v7.x we may consider removing rsa-sha1 from defaults
     [SIGNATURE_ALGORITHMS.RSA_SHA1]: signatureAlgorithms.RsaSha1,
     [SIGNATURE_ALGORITHMS.RSA_SHA256]: signatureAlgorithms.RsaSha256,
     [SIGNATURE_ALGORITHMS.RSA_SHA256_MGF1]: signatureAlgorithms.RsaSha256Mgf1,
     [SIGNATURE_ALGORITHMS.RSA_SHA512]: signatureAlgorithms.RsaSha512,
-    // Disabled by default due to key confusion concerns.
-    // 'http://www.w3.org/2000/09/xmldsig#hmac-sha1': SignatureAlgorithms.HmacSha1
+  });
+
+  static readonly getDefaultSymmetricSignatureAlgorithms = (): SignatureAlgorithmMap => ({
+    [SIGNATURE_ALGORITHMS.HMAC_SHA1]: signatureAlgorithms.HmacSha1,
   });
 
   static readonly getDefaultTransformAlgorithms = (): TransformAlgorithmMap =>
@@ -217,7 +219,7 @@ export class SignedXml {
       allowedCanonicalizationAlgorithms ?? SignedXml.getDefaultCanonicalizationAlgorithms();
     this.HashAlgorithms = allowedHashAlgorithms ?? SignedXml.getDefaultHashAlgorithms();
     this.SignatureAlgorithms =
-      allowedSignatureAlgorithms ?? SignedXml.getDefaultSignatureAlgorithms();
+      allowedSignatureAlgorithms ?? SignedXml.getDefaultAsymmetricSignatureAlgorithms();
     // TODO: use default transform algorithms if not provided (breaking change)
     this.TransformAlgorithms = allowedTransformAlgorithms;
   }
@@ -228,9 +230,7 @@ export class SignedXml {
    * This enables HMAC and disables other signing algorithms.
    */
   enableHMAC(): void {
-    this.SignatureAlgorithms = {
-      [SIGNATURE_ALGORITHMS.HMAC_SHA1]: signatureAlgorithms.HmacSha1,
-    };
+    this.SignatureAlgorithms = SignedXml.getDefaultSymmetricSignatureAlgorithms();
     this.getKeyInfoContent = SignedXml.noop;
   }
 

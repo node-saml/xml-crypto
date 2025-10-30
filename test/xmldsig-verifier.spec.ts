@@ -147,9 +147,7 @@ describe("XmlDSigVerifier", function () {
       expect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         new XmlDSigVerifier({ keySelector: {} as any });
-      }).to.throw(
-        "XmlDSigVerifier requires a valid keySelector option with either a publicCert or getCertFromKeyInfo function set.",
-      );
+      }).to.throw("XmlDSigVerifier requires a valid keySelector option");
     });
 
     it("should create verifier with all options set", function () {
@@ -162,7 +160,7 @@ describe("XmlDSigVerifier", function () {
           maxTransforms: 5,
           checkCertExpiration: true,
           truststore: [rootCert],
-          signatureAlgorithms: SignedXml.getDefaultSignatureAlgorithms(),
+          signatureAlgorithms: SignedXml.getDefaultAsymmetricSignatureAlgorithms(),
           hashAlgorithms: SignedXml.getDefaultHashAlgorithms(),
           transformAlgorithms: SignedXml.getDefaultTransformAlgorithms(),
         },
@@ -177,7 +175,7 @@ describe("XmlDSigVerifier", function () {
             getCertFromKeyInfo: undefined as never,
           },
         });
-      }).to.throw("XmlDSigVerifier requires a valid getCertFromKeyInfo function in options.");
+      }).to.throw("XmlDSigVerifier requires a valid getCertFromKeyInfo function.");
     });
 
     it("should throw when getCertFromKeyInfo is set to publicCert string directly", function () {
@@ -187,7 +185,7 @@ describe("XmlDSigVerifier", function () {
             getCertFromKeyInfo: publicCert as never,
           },
         });
-      }).to.throw("XmlDSigVerifier requires a valid getCertFromKeyInfo function in options.");
+      }).to.throw("XmlDSigVerifier requires a valid getCertFromKeyInfo function.");
     });
   });
 
@@ -456,6 +454,7 @@ describe("XmlDSigVerifier", function () {
     describe("checkCertExpiration", function () {
       it("should validate when certificate is not expired and checkCertExpiration is true", function () {
         const signedXml = createSignedXml(xml);
+        // @ts-expect-error -- ignore for test purposes
         const verifier = new XmlDSigVerifier({
           keySelector: { publicCert },
           security: { checkCertExpiration: true },
@@ -465,6 +464,7 @@ describe("XmlDSigVerifier", function () {
 
       it("should validate when certificate is expired and checkCertExpiration is false", function () {
         const signedXml = createExpiredSignedXml(xml);
+        // @ts-expect-error -- ignore for test purposes
         const verifier = new XmlDSigVerifier({
           keySelector: { publicCert: expiredCert },
           security: { checkCertExpiration: false },
@@ -563,7 +563,7 @@ describe("XmlDSigVerifier", function () {
         const signedXml = createSignedXml(xml);
         const verifier = new XmlDSigVerifier({
           keySelector: { publicCert },
-          security: { signatureAlgorithms: SignedXml.getDefaultSignatureAlgorithms() },
+          security: { signatureAlgorithms: SignedXml.getDefaultAsymmetricSignatureAlgorithms() },
         });
         expectValidResult(verifier.verifySignature(signedXml));
       });
@@ -824,10 +824,7 @@ describe("XmlDSigVerifier", function () {
         },
       });
 
-      expectInvalidResult(
-        result,
-        "XmlDSigVerifier requires a valid getCertFromKeyInfo function in options.",
-      );
+      expectInvalidResult(result, "XmlDSigVerifier requires a valid getCertFromKeyInfo function.");
     });
   });
 });

@@ -292,35 +292,47 @@ export type KeyInfoKeySelector = {
   getCertFromKeyInfo: (keyInfo?: Node | null) => string | null;
 };
 
-export type KeySelector = CertificateKeySelector | KeyInfoKeySelector;
+export type SharedSecretKeySelector = {
+  /** Shared secret key to use for HMAC verification */
+  sharedSecretKey: KeyLike;
+};
+
+export type KeySelector = CertificateKeySelector | KeyInfoKeySelector | SharedSecretKeySelector;
+
+/**
+ * Common configuration options for XML-DSig verification (Base).
+ */
+export interface XmlDSigVerifierOptionsBase {
+  /**
+   * Names of XML attributes to treat as element identifiers.
+   * @default {@link SignedXml.getDefaultIdAttributes()}
+   */
+  idAttributes?: VerificationIdAttributeType[];
+
+  /**
+   * Transforms to apply implicitly during canonicalization.
+   */
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmURI>;
+
+  /**
+   * Whether to throw an exception on verification failure.
+   * @default false
+   */
+  throwOnError?: boolean;
+}
 
 export interface XmlDSigVerifierSecurityOptions {
   /**
    * Maximum number of transforms allowed per Reference element.
    * Limits complexity to prevent denial-of-service attacks.
-   * @default {@link DEFAULT_MAX_TRANSFORMS}
+   * @default {@link SignedXml.DEFAULT_MAX_TRANSFORMS}
    */
   maxTransforms?: number;
 
   /**
-   * Check certificate expiration dates during verification.
-   * If true, signatures with expired certificates will be considered invalid.
-   * This only applies when using KeyInfoKeySelector
-   * @default true
-   */
-  checkCertExpiration?: boolean;
-
-  /**
-   * Optional truststore of trusted certificates
-   * When provided, the certificate used to sign the XML must chain to one of these trusted certificates.
-   * These must be PEM or DER encoded X509 certificates
-   */
-  truststore?: Array<string | Buffer | X509Certificate>;
-
-  /**
    * Signature algorithms allowed during verification.
    *
-   * @default {@link SignedXml.getDefaultSignatureAlgorithms()}
+   * @default {@link SignedXml.getDefaultAsymmetricSignatureAlgorithms()} {@link SignedXml.getDefaultSymmetricSignatureAlgorithms()}
    */
   signatureAlgorithms?: SignatureAlgorithmMap;
 
@@ -346,43 +358,74 @@ export interface XmlDSigVerifierSecurityOptions {
   canonicalizationAlgorithms?: CanonicalizationAlgorithmMap;
 }
 
+export interface KeyInfoXmlDSigSecurityOptions extends XmlDSigVerifierSecurityOptions {
+  /**
+   * Check certificate expiration dates during verification.
+   * If true, signatures with expired certificates will be considered invalid.
+   * This only applies when using KeyInfoKeySelector
+   * @default true
+   */
+  checkCertExpiration?: boolean;
+
+  /**
+   * Optional truststore of trusted certificates
+   * When provided, the certificate used to sign the XML must chain to one of these trusted certificates.
+   * These must be PEM or DER encoded X509 certificates
+   */
+  truststore?: Array<string | Buffer | X509Certificate>;
+}
+
 /**
- * Common configuration options for XML-DSig verification.
+ * Configuration options for verification using KeyInfo.
+ * Allows advanced security options for cert validation.
  */
-export interface XmlDSigVerifierOptions {
+export type KeyInfoXmlDSigVerifierOptions = XmlDSigVerifierOptionsBase & {
   /**
-   * Key selector for determining the public key to use for verification.
+   * Function to extract the public key from KeyInfo element.
    */
-  keySelector: KeySelector;
+  keySelector: KeyInfoKeySelector;
 
   /**
-   * Names of XML attributes to treat as element identifiers.
-   * Used when resolving URI references in signatures.
-   * When passing strings, only the localName is matched, ignoring namespace.
-   * To explicitly match attributes without namespaces, use: { localName: "Id", namespaceUri: null }
-   * @default {@link SignedXml.getDefaultIdAttributes()}
-   * @example For WS-Security: [{ localName: "Id", namespaceUri: "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" }]
+   * Security options for KeyInfo verification.
    */
-  idAttributes?: VerificationIdAttributeType[];
+  security?: KeyInfoXmlDSigSecurityOptions;
+};
+
+/**
+ * Configuration options for verification using a provided public certificate.
+ * Certificate validation options (e.g., expiration) are not applicable here.
+ */
+export type PublicCertXmlDSigVerifierOptions = XmlDSigVerifierOptionsBase & {
+  /**
+   * Public certificate or key to use for verification.
+   */
+  keySelector: CertificateKeySelector;
 
   /**
-   * Transforms to apply implicitly during canonicalization.
-   * Used for specific XML-DSig profiles that require additional transforms.
-   */
-  implicitTransforms?: ReadonlyArray<TransformAlgorithmURI>;
-
-  /**
-   * Whether to throw an exception on verification failure.
-   * If false, errors are returned in the XmlDsigVerificationResult.
-   * @default false
-   */
-  throwOnError?: boolean;
-
-  /**
-   * Security options for verification.
+   * Basic security options for verification.
    */
   security?: XmlDSigVerifierSecurityOptions;
-}
+};
+
+/**
+ * Configuration options for verification using a shared secret (HMAC).
+ */
+export type SharedSecretXmlDSigVerifierOptions = XmlDSigVerifierOptionsBase & {
+  /**
+   * Shared secret key to use for HMAC verification.
+   */
+  keySelector: SharedSecretKeySelector;
+
+  /**
+   * Basic security options for verification.
+   */
+  security?: XmlDSigVerifierSecurityOptions;
+};
+
+export type XmlDSigVerifierOptions =
+  | KeyInfoXmlDSigVerifierOptions
+  | PublicCertXmlDSigVerifierOptions
+  | SharedSecretXmlDSigVerifierOptions;
 
 /**
  * Verification result containing the outcome and signed content.
