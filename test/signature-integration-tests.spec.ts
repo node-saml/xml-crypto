@@ -1,6 +1,6 @@
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
-import { SignedXml } from "../src/index";
+import { SignedXml, XMLDSIG_URIS } from "../src";
 import * as fs from "fs";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
@@ -13,13 +13,13 @@ describe("Signature integration tests", function () {
     xpath.map(function (n) {
       sig.addReference({
         xpath: n,
-        digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+        digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA1,
+        transforms: [XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
       });
     });
 
     sig.canonicalizationAlgorithm = canonicalizationAlgorithm;
-    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    sig.signatureAlgorithm = XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA1;
     sig.computeSignature(xml);
     const signed = sig.getSignedXml();
 
@@ -34,7 +34,7 @@ describe("Signature integration tests", function () {
       xml,
       "./test/static/integration/expectedVerify.xml",
       ["//*[local-name(.)='x']", "//*[local-name(.)='y']", "//*[local-name(.)='w']"],
-      "http://www.w3.org/2001/10/xml-exc-c14n#",
+      XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
     );
   });
 
@@ -54,7 +54,7 @@ describe("Signature integration tests", function () {
       xml,
       "./test/static/integration/expectedVerifyComplex.xml",
       ["//*[local-name(.)='book']"],
-      "http://www.w3.org/2001/10/xml-exc-c14n#",
+      XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
     );
   });
 
@@ -101,7 +101,7 @@ describe("Signature integration tests", function () {
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
-      "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -120,7 +120,7 @@ describe("Signature integration tests", function () {
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
-      "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -142,7 +142,7 @@ describe("Signature integration tests", function () {
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
-      "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -164,7 +164,7 @@ describe("Signature integration tests", function () {
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
-      "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -183,12 +183,12 @@ describe("Signature integration tests", function () {
     const sig = new SignedXml();
     sig.addReference({
       xpath: "//*[local-name(.)='book']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA1,
+      transforms: [XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
     });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    sig.canonicalizationAlgorithm = XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N;
+    sig.signatureAlgorithm = XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA1;
     sig.computeSignature(xml);
 
     const signed = sig.getSignedXml();

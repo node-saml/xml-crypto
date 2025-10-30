@@ -1,7 +1,7 @@
 import * as xmldom from "@xmldom/xmldom";
 import * as fs from "fs";
 import * as xpath from "xpath";
-import { SignedXml } from "../src/index";
+import { SignedXml, XMLDSIG_URIS } from "../src";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
 
@@ -11,8 +11,8 @@ describe("KeyInfo tests", function () {
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
-    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    sig.canonicalizationAlgorithm = XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N;
+    sig.signatureAlgorithm = XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA1;
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
@@ -27,14 +27,14 @@ describe("KeyInfo tests", function () {
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/hmac.key");
     sig.publicCert = fs.readFileSync("./test/static/hmac.key");
-    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#hmac-sha1";
+    sig.signatureAlgorithm = XMLDSIG_URIS.SIGNATURE_ALGORITHMS.HMAC_SHA1;
     sig.enableHMAC();
     sig.addReference({
       xpath: "//*[local-name(.)='book']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA1,
+      transforms: [XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
     });
-    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.canonicalizationAlgorithm = XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N;
     sig.computeSignature(xml);
 
     const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());

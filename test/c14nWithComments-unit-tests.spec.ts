@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { ExclusiveCanonicalizationWithComments as c14nWithComments } from "../src/exclusive-canonicalization";
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
-import { SignedXml } from "../src/index";
+import { SignedXml, XMLDSIG_URIS } from "../src";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 const compare = function (xml, xpathArg, expected, inclusiveNamespacesPrefixList?: string[]) {
@@ -216,7 +216,7 @@ describe("Exclusive canonicalization with comments", function () {
     );
   });
 
-  /* 
+  /*
   TODO: Uncomment this when this issue is fixed
     it("Exclusive canonicalization removal of whitespace between PITarget and its data", function () {
       compare(
@@ -242,7 +242,7 @@ describe("Exclusive canonicalization with comments", function () {
     );
   });
 
-  /* 
+  /*
   TODO: Uncomment this when this issue is fixed
     it("The XML declaration and document type declaration (DTD) are removed, stylesheet retained", function () {
       compare(
@@ -356,8 +356,8 @@ describe("Exclusive canonicalization with comments", function () {
     const sig = new SignedXml();
     const res = sig.getCanonXml(
       [
-        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
-        "http://www.w3.org/2001/10/xml-exc-c14n#",
+        XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE,
+        XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
       ],
       node,
     );
@@ -373,7 +373,7 @@ describe("Exclusive canonicalization with comments", function () {
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const node = xpath.select1("//*[local-name(.)='y']", doc);
     const sig = new SignedXml();
-    const transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
+    const transforms = [XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE];
     isDomNode.assertIsNodeLike(node);
     const res = sig.getCanonXml(transforms, node);
     expect(res).to.equal("<y/>");

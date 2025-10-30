@@ -1,6 +1,6 @@
 //
 // This example signs an XML file using an
-// envelope signature. It then verifies the 
+// envelope signature. It then verifies the
 // signed XML.
 //
 using System;
@@ -66,7 +66,7 @@ public class SignVerifyEnvelope
         }
 
         sxml.LoadXml((XmlElement)dsig);
-        
+
         // Check the signature
         bool isValid = sxml.CheckSignature(certificate, true);
 
@@ -91,13 +91,13 @@ public class SignVerifyEnvelope
         var resolver = new XmlSecureResolver(new XmlUrlResolver(), securityUrl);
         //TransformToOctetStream(Stream input, XmlResolver resolver, string baseUri)
         MethodInfo trans = _ref.TransformChain.GetType().GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)[2];
-        
+
         var stream = trans.Invoke(_ref.TransformChain, new object[] {receipt, resolver, securityUrl});
 
 
         var canontype = sig.GetType().Assembly.GetType("System.Security.Cryptography.Xml.CanonicalXml");
         var foo = Activator.CreateInstance(canontype, BindingFlags.NonPublic | BindingFlags.Instance, null, new object[] {receipt, resolver}, null);
-        
+
 
 
 
@@ -124,21 +124,21 @@ public class SignVerifyEnvelope
 
 
         //calculate caninicalized xml
-        
+
         var t = new XmlDsigEnvelopedSignatureTransform(false);
         XmlDocument doc = new XmlDocument();
         //doc.PreserveWhitespace = true;
         doc.Load(@"c:\temp\x.xml");
         t.LoadInput(doc);
 
-        
-        FieldInfo field = t.GetType().GetField("_signaturePosition", 
+
+        FieldInfo field = t.GetType().GetField("_signaturePosition",
                          BindingFlags.NonPublic |
                          BindingFlags.Instance);
 
 
-        field.SetValue(t, 1);        
-        
+        field.SetValue(t, 1);
+
         var res = (XmlDocument)t.GetOutput();
         var s = res.OuterXml;
 
@@ -147,31 +147,31 @@ public class SignVerifyEnvelope
         var mem = (MemoryStream)c14.GetOutput();
 
         var sha = new SHA256Managed();
-        
+
         var byte1 = c14.GetDigestedOutput(new SHA256Managed());
-        var digest1 = Convert.ToBase64String(byte1);                
+        var digest1 = Convert.ToBase64String(byte1);
         var byte2 = sha.ComputeHash(mem.ToArray());
         var digest2 = Convert.ToBase64String(byte2);
-        
 
-        var s1 = System.Text.Encoding.UTF8.GetString(mem.ToArray());        
+
+        var s1 = System.Text.Encoding.UTF8.GetString(mem.ToArray());
         var byte3 = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(s1));
         var digest3 = Convert.ToBase64String(byte3);
 
         //return;
-        
 
-        
-        //validate signature        
-        
+
+
+        //validate signature
+
         CryptoConfig.AddAlgorithm(typeof(RSAPKCS1SHA256SignatureDescription), "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256");
-        XmlDocument xmlDoc = new XmlDocument();        
+        XmlDocument xmlDoc = new XmlDocument();
         xmlDoc.Load(@"c:\temp\x.xml");
         XmlNode node = xmlDoc.DocumentElement;
         X509Certificate2 cert = new X509Certificate2(File.ReadAllBytes(@"c:\temp\x.cer"));
-        bool isValid = ValidateXml(xmlDoc, cert);        
+        bool isValid = ValidateXml(xmlDoc, cert);
         //return;
-        
+
 
         //calc hash
         var sha1 = new SHA256Managed();
@@ -179,8 +179,8 @@ public class SignVerifyEnvelope
         var b64 = Convert.ToBase64String(b1);
     }
 
-    // Sign an XML file and save the signature in a new file. This method does not  
-    // save the public key within the XML file.  This file cannot be verified unless  
+    // Sign an XML file and save the signature in a new file. This method does not
+    // save the public key within the XML file.  This file cannot be verified unless
     // the verifying code has the key with which it was signed.
     public static void SignXmlFile(string FileName, string SignedFileName, RSA Key)
     {
@@ -193,7 +193,7 @@ public class SignVerifyEnvelope
         // Create a SignedXml object.
         SignedXml signedXml = new SignedXml(doc);
 
-        // Add the key to the SignedXml document. 
+        // Add the key to the SignedXml document.
         signedXml.SigningKey = Key;
 
         // Create a reference to be signed.
@@ -229,14 +229,14 @@ public class SignVerifyEnvelope
         xmltw.Close();
     }
 
-    // Verify the signature of an XML file against an asymetric 
+    // Verify the signature of an XML file against an asymetric
     // algorithm and return the result.
     public static Boolean VerifyXmlFile(String Name, RSA Key)
     {
         // Create a new XML document.
         XmlDocument xmlDocument = new XmlDocument();
 
-        // Load the passed XML file into the document. 
+        // Load the passed XML file into the document.
         xmlDocument.Load(Name);
 
         // Create a new SignedXml object and pass it
