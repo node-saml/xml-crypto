@@ -85,7 +85,7 @@ describe("Signature unit tests", function () {
       expect(node.length, `xpath ${xpathArg} not found`).to.equal(1);
     }
 
-    function verifyAddsId(mode, nsMode, idAttribute:string|undefined = undefined) {
+    function verifyAddsId(mode, nsMode, idAttribute: string | undefined = undefined) {
       const xml = '<root><x xmlns="ns"></x><y attr="value"></y><z><w></w></z></root>';
       const sig = new SignedXml({ idMode: mode, idAttribute });
       sig.privateKey = fs.readFileSync("./test/static/client.pem");
@@ -114,7 +114,9 @@ describe("Signature unit tests", function () {
 
       const op = nsMode === "equal" ? "=" : "!=";
 
-      const xpathArg = `//*[local-name(.)='{elem}' and '_{id}' = @*[local-name(.)='${idAttribute || 'Id'}' and namespace-uri(.)${op}'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd']]`;
+      const xpathArg = `//*[local-name(.)='{elem}' and '_{id}' = @*[local-name(.)='${
+        idAttribute || "Id"
+      }' and namespace-uri(.)${op}'http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd']]`;
 
       //verify each of the signed nodes now has an "Id" attribute with the right value
       nodeExists(doc, xpathArg.replace("{id}", "0").replace("{elem}", "x"));
@@ -123,7 +125,7 @@ describe("Signature unit tests", function () {
     }
 
     it("signer adds increasing different id attributes to elements with custom idAttribute", function () {
-      verifyAddsId(null, "different", 'myIdAttribute');
+      verifyAddsId(null, "different", "myIdAttribute");
     });
 
     it("signer adds increasing different id attributes to elements", function () {

@@ -8,6 +8,7 @@ import type {
   GetKeyInfoContentArgs,
   HashAlgorithm,
   HashAlgorithmType,
+  NamespacedId,
   ObjectAttributes,
   Reference,
   SignatureAlgorithm,
@@ -26,10 +27,11 @@ import * as execC14n from "./exclusive-canonicalization";
 import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
+import { KNOWN_NAMESPACED_IDS } from "./constants";
 
 export class SignedXml {
   idMode?: "wssecurity";
-  idAttributes: string[];
+  idAttributes: (string | NamespacedId)[];
   /**
    * A {@link Buffer} or pem encoded {@link String} containing your private key
    */
@@ -155,6 +157,10 @@ export class SignedXml {
     if (idAttribute) {
       this.idAttributes.unshift(idAttribute);
     }
+    if (idMode === "wssecurity") {
+      this.idAttributes.unshift(KNOWN_NAMESPACED_IDS["wssecurity"]);
+    }
+
     this.privateKey = privateKey;
     this.publicCert = publicCert;
     this.signatureAlgorithm = signatureAlgorithm ?? this.signatureAlgorithm;
@@ -503,7 +509,10 @@ export class SignedXml {
       const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
 
       for (const attr of this.idAttributes) {
-        const elemId = elem.getAttribute(attr);
+        const elemId =
+          typeof attr === "string"
+            ? elem.getAttribute(attr)
+            : elem.getAttribute(`${attr.prefix}:${attr.localName}`);
         if (uri === elemId) {
           ref.xpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
           break; // found the correct element, no need to check further
@@ -1297,18 +1306,10 @@ export class SignedXml {
   private ensureHasId(node) {
     let attr;
 
-    if (this.idMode === "wssecurity") {
-      attr = utils.findAttr(
-        node,
-        "Id",
-        "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
-      );
-    } else {
-      this.idAttributes.some((idAttribute) => {
-        attr = utils.findAttr(node, idAttribute);
-        return !!attr; // This will break the loop as soon as a truthy attr is found.
-      });
-    }
+    this.idAttributes.some((idAttribute) => {
+      attr = utils.findAttr(node, idAttribute);
+      return !!attr; // This will break the loop as soon as a truthy attr is found.
+    });
 
     if (attr) {
       return attr.value;
@@ -1317,21 +1318,20 @@ export class SignedXml {
     //add the attribute
     const id = `_${this.id++}`;
 
-    if (this.idMode === "wssecurity") {
+    if (typeof this.idAttributes[0] === "string") {
+      node.setAttribute(this.idAttributes[0], id);
+    } else {
       node.setAttributeNS(
         "http://www.w3.org/2000/xmlns/",
-        "xmlns:wsu",
-        "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
+        `xmlns:${this.idAttributes[0].prefix}`,
+        this.idAttributes[0].nameSpaceURI,
       );
       node.setAttributeNS(
-        "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd",
-        "wsu:Id",
+        this.idAttributes[0].nameSpaceURI,
+        `${this.idAttributes[0].prefix}:${this.idAttributes[0].localName}`,
         id,
       );
-    } else {
-      node.setAttribute(this.idAttributes[0], id);
     }
-
     return id;
   }
 

@@ -60,11 +60,23 @@ export interface ObjectAttributes {
 }
 
 /**
+ * Namespaced id attribute.
+ */
+export interface NamespacedId {
+  /** Namespace prefix */
+  prefix: string;
+  /** Attribute local name */
+  localName: string;
+  /** Namespace URI */
+  nameSpaceURI: string;
+}
+
+/**
  * Options for the SignedXml constructor.
  */
 export interface SignedXmlOptions {
   idMode?: "wssecurity";
-  idAttribute?: string;
+  idAttribute?: string | NamespacedId;
   privateKey?: crypto.KeyLike;
   publicCert?: crypto.KeyLike;
   signatureAlgorithm?: SignatureAlgorithmType;
