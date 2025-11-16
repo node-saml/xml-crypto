@@ -1,5 +1,5 @@
 import * as xpath from "xpath";
-import type { NamespacePrefix } from "./types";
+import type { NamespacedId, NamespacePrefix } from "./types";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 export function isArrayHasLength(array: unknown): array is unknown[] {
@@ -17,10 +17,17 @@ function attrEqualsImplicitly(attr: Attr, localName: string, namespace?: string,
   );
 }
 
-export function findAttr(element: Element, localName: string, namespace?: string) {
+export function findAttr(element: Element, id: string | NamespacedId) {
   for (let i = 0; i < element.attributes.length; i++) {
     const attr = element.attributes[i];
-
+    let localName: string;
+    let namespace: string | undefined;
+    if (typeof id === "string") {
+      localName = id;
+    } else {
+      localName = id.localName;
+      namespace = id.nameSpaceURI;
+    }
     if (
       attrEqualsExplicitly(attr, localName, namespace) ||
       attrEqualsImplicitly(attr, localName, namespace, element)
