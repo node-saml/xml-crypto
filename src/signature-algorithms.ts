@@ -144,7 +144,17 @@ export class HmacSha1 implements SignatureAlgorithm {
       verifier.update(material);
       const res = verifier.digest("base64");
 
-      return res === signatureValue;
+      // Use constant-time comparison to prevent timing attacks (CWE-208)
+      // See: https://github.com/node-saml/xml-crypto/issues/522
+      try {
+        return crypto.timingSafeEqual(
+          Buffer.from(res, "base64"),
+          Buffer.from(signatureValue, "base64"),
+        );
+      } catch (e) {
+        // timingSafeEqual throws if buffer lengths don't match
+        return false;
+      }
     },
   );
 
