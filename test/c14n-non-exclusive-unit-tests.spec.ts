@@ -1,6 +1,6 @@
 import { expect } from "chai";
 
-import { C14nCanonicalization } from "../src/c14n-canonicalization";
+import { C14nCanonicalization } from "../src";
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import * as utils from "../src/utils";

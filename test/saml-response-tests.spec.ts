@@ -1,4 +1,4 @@
-import { SignedXml } from "../src/index";
+import { SignedXml, XMLDSIG_URIS } from "../src";
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
 import * as fs from "fs";
@@ -10,7 +10,7 @@ describe("SAML response tests", function () {
     const xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const signature = xpath.select1(
-      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `/*/*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -27,7 +27,7 @@ describe("SAML response tests", function () {
     const xml = fs.readFileSync("./test/static/valid_saml_sha256_rsa_mgf1.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const signature = xpath.select1(
-      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `/*/*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -43,7 +43,7 @@ describe("SAML response tests", function () {
     const xml = fs.readFileSync("./test/static/invalid_saml_sha256_rsa_mgf1.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const signature = xpath.select1(
-      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `/*/*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -61,7 +61,7 @@ describe("SAML response tests", function () {
     const assertion = xpath.select1("//*[local-name(.)='Assertion']", doc);
     isDomNode.assertIsNodeLike(assertion);
     const signature = xpath.select1(
-      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       assertion,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -83,7 +83,7 @@ describe("SAML response tests", function () {
     const xml = fs.readFileSync("./test/static/saml_external_ns.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const signature = xpath.select1(
-      "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -101,7 +101,7 @@ describe("SAML response tests", function () {
     const assertion = xpath.select1("//*[local-name(.)='Assertion']", doc);
     isDomNode.assertIsNodeLike(assertion);
     const signature = xpath.select1(
-      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       assertion,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -117,7 +117,7 @@ describe("SAML response tests", function () {
     const xml = fs.readFileSync("./test/static/valid_saml_withcomments.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const signature = xpath.select1(
-      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `/*/*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -133,7 +133,7 @@ describe("SAML response tests", function () {
     const xml = fs.readFileSync("./test/static/invalid_saml_no_signed_info.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const node = xpath.select1(
-      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `/*/*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
 
@@ -151,7 +151,7 @@ describe("SAML response tests", function () {
     const assertion = xpath.select1("//*[local-name(.)='Assertion']", doc);
     isDomNode.assertIsNodeLike(assertion);
     const signature = xpath.select1(
-      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       assertion,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -172,7 +172,7 @@ describe("SAML response tests", function () {
     const assertion = xpath.select1("//*[local-name(.)='Assertion'][1]", doc);
     isDomNode.assertIsNodeLike(assertion);
     const signature = xpath.select1(
-      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       assertion,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -191,7 +191,7 @@ describe("SAML response tests", function () {
       const assertion = xpath.select1("//*[local-name(.)='Assertion']", doc);
       isDomNode.assertIsNodeLike(assertion);
       const signature = xpath.select1(
-        "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+        `//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
         assertion,
       );
       isDomNode.assertIsNodeLike(signature);

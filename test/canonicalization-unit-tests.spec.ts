@@ -1,9 +1,8 @@
 import { expect } from "chai";
 
-import { ExclusiveCanonicalization } from "../src/exclusive-canonicalization";
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
-import { SignedXml } from "../src/index";
+import { SignedXml, ExclusiveCanonicalization, XMLDSIG_URIS } from "../src";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 const compare = function (
@@ -58,7 +57,7 @@ describe("Canonicalization unit tests", function () {
       "//*[local-name(.)='SignedInfo']",
       '<ds:SignedInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></ds:CanonicalizationMethod></ds:SignedInfo>',
       undefined,
-      { ds: "http://www.w3.org/2000/09/xmldsig#" },
+      { ds: XMLDSIG_URIS.NAMESPACES.ds },
     );
   });
 
@@ -407,8 +406,8 @@ describe("Canonicalization unit tests", function () {
     const sig = new SignedXml();
     const res = sig.getCanonXml(
       [
-        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
-        "http://www.w3.org/2001/10/xml-exc-c14n#",
+        XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE,
+        XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
       ],
       node,
     );
@@ -426,12 +425,12 @@ describe("Canonicalization unit tests", function () {
     const sig = new SignedXml();
     const res1 = sig.getCanonXml(
       [
-        "http://www.w3.org/2001/10/xml-exc-c14n#",
-        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+        XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE,
       ],
       node1,
     );
-    const res2 = sig.getCanonXml(["http://www.w3.org/2001/10/xml-exc-c14n#"], node2);
+    const res2 = sig.getCanonXml([XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N], node2);
     expect(res1)
       .to.equal(res2)
       .to.equal(
@@ -450,7 +449,7 @@ describe("Canonicalization unit tests", function () {
     isDomNode.assertIsNodeLike(node);
 
     const sig = new SignedXml();
-    const transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
+    const transforms = [XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE];
     const res = sig.getCanonXml(transforms, node);
     expect(res).to.equal("<y/>");
   });

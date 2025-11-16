@@ -1,5 +1,6 @@
 import * as crypto from "crypto";
 import { type SignatureAlgorithm, createOptionalCallbackFunction } from "./types";
+import { XMLDSIG_URIS } from "./xmldsig-uris";
 
 export class RsaSha1 implements SignatureAlgorithm {
   getSignature = createOptionalCallbackFunction(
@@ -23,7 +24,7 @@ export class RsaSha1 implements SignatureAlgorithm {
   );
 
   getAlgorithmName = () => {
-    return "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    return XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA1;
   };
 }
 
@@ -49,7 +50,7 @@ export class RsaSha256 implements SignatureAlgorithm {
   );
 
   getAlgorithmName = () => {
-    return "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    return XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA256;
   };
 }
 
@@ -96,7 +97,7 @@ export class RsaSha256Mgf1 implements SignatureAlgorithm {
   );
 
   getAlgorithmName = () => {
-    return "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1";
+    return XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA256_MGF1;
   };
 }
 
@@ -122,7 +123,7 @@ export class RsaSha512 implements SignatureAlgorithm {
   );
 
   getAlgorithmName = () => {
-    return "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512";
+    return XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA512;
   };
 }
 
@@ -158,6 +159,6 @@ export class HmacSha1 implements SignatureAlgorithm {
   );
 
   getAlgorithmName = () => {
-    return "http://www.w3.org/2000/09/xmldsig#hmac-sha1";
+    return XMLDSIG_URIS.SIGNATURE_ALGORITHMS.HMAC_SHA1;
   };
 }

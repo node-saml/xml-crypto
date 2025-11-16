@@ -1,5 +1,6 @@
 import * as crypto from "crypto";
 import type { HashAlgorithm } from "./types";
+import { XMLDSIG_URIS } from "./xmldsig-uris";
 
 export class Sha1 implements HashAlgorithm {
   getHash = function (xml) {
@@ -10,7 +11,7 @@ export class Sha1 implements HashAlgorithm {
   };
 
   getAlgorithmName = function () {
-    return "http://www.w3.org/2000/09/xmldsig#sha1";
+    return XMLDSIG_URIS.HASH_ALGORITHMS.SHA1;
   };
 }
 
@@ -23,7 +24,7 @@ export class Sha256 implements HashAlgorithm {
   };
 
   getAlgorithmName = function () {
-    return "http://www.w3.org/2001/04/xmlenc#sha256";
+    return XMLDSIG_URIS.HASH_ALGORITHMS.SHA256;
   };
 }
 
@@ -36,6 +37,6 @@ export class Sha512 implements HashAlgorithm {
   };
 
   getAlgorithmName = function () {
-    return "http://www.w3.org/2001/04/xmlenc#sha512";
+    return XMLDSIG_URIS.HASH_ALGORITHMS.SHA512;
   };
 }

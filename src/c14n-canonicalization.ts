@@ -1,13 +1,15 @@
 import type {
-  CanonicalizationOrTransformationAlgorithm,
-  CanonicalizationOrTransformationAlgorithmProcessOptions,
+  CanonicalizationAlgorithmURI,
+  CanonicalizationAlgorithm,
+  TransformAlgorithmOptions,
   NamespacePrefix,
   RenderedNamespace,
 } from "./types";
 import * as utils from "./utils";
 import * as isDomNode from "@xmldom/is-dom-node";
+import { XMLDSIG_URIS } from "./xmldsig-uris";
 
-export class C14nCanonicalization implements CanonicalizationOrTransformationAlgorithm {
+export class C14nCanonicalization implements CanonicalizationAlgorithm {
   protected includeComments = false;
 
   constructor() {
@@ -252,9 +254,10 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
    * Perform canonicalization of the given node
    *
    * @param node
+   * @param options
    * @api public
    */
-  process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions): string {
+  process(node: Node, options: TransformAlgorithmOptions): string {
     options = options || {};
     const defaultNs = options.defaultNs || "";
     const defaultNsForPrefix = options.defaultNsForPrefix || {};
@@ -275,8 +278,8 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     return res;
   }
 
-  getAlgorithmName() {
-    return "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+  getAlgorithmName(): CanonicalizationAlgorithmURI {
+    return XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.C14N;
   }
 }
 
@@ -289,7 +292,7 @@ export class C14nCanonicalizationWithComments extends C14nCanonicalization {
     this.includeComments = true;
   }
 
-  getAlgorithmName() {
-    return "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments";
+  getAlgorithmName(): CanonicalizationAlgorithmURI {
+    return XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.C14N_WITH_COMMENTS;
   }
 }

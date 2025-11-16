@@ -6,18 +6,33 @@ export function isArrayHasLength(array: unknown): array is unknown[] {
   return Array.isArray(array) && array.length > 0;
 }
 
-function attrEqualsExplicitly(attr: Attr, localName: string, namespace?: string) {
+function attrEqualsExplicitly(attr: Attr, localName: string, namespace?: string | null) {
+  if (namespace === null) {
+    return attr.localName === localName && !attr.namespaceURI;
+  }
   return attr.localName === localName && (attr.namespaceURI === namespace || namespace == null);
 }
 
-function attrEqualsImplicitly(attr: Attr, localName: string, namespace?: string, node?: Element) {
+function attrEqualsImplicitly(
+  attr: Attr,
+  localName: string,
+  namespace?: string | null,
+  node?: Element,
+) {
+  if (namespace === null) {
+    return attr.localName === localName && !attr.namespaceURI;
+  }
   return (
     attr.localName === localName &&
     ((!attr.namespaceURI && node?.namespaceURI === namespace) || namespace == null)
   );
 }
 
-export function findAttr(element: Element, localName: string, namespace?: string) {
+export function findAttr(
+  element: Element,
+  localName: string,
+  namespace?: string | null | undefined,
+) {
   for (let i = 0; i < element.attributes.length; i++) {
     const attr = element.attributes[i];
 
