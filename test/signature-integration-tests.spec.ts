@@ -223,4 +223,37 @@ describe("Signature integration tests", function () {
       "<library> should have two child nodes : <book> and <Signature>",
     ).to.equal(2);
   });
+
+  it("should create valid signature when signature location is nested in child element", function () {
+    const xml = "<root><child/></root>";
+
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference({
+      xpath: "/*",
+      transforms: [
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        "http://www.w3.org/2001/10/xml-exc-c14n#",
+      ],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+
+    sig.computeSignature(xml, {
+      location: { action: "append", reference: "//*[local-name()='child']" },
+    });
+
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const signatureNode = xpath.select1("//*[local-name(.)='Signature']", doc);
+    isDomNode.assertIsNodeLike(signatureNode);
+
+    const verifier = new SignedXml();
+    verifier.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    verifier.loadSignature(signatureNode);
+
+    expect(verifier.checkSignature(signedXml)).to.be.true;
+  });
 });
