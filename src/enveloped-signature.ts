@@ -17,7 +17,7 @@ export class EnvelopedSignature implements TransformAlgorithm {
   process(node: Node, options: TransformAlgorithmOptions): Node {
     if (null == options.signatureNode) {
       const signature = xpath.select1(
-        `./*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
+        `.//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
         node,
       );
       if (isDomNode.isNodeLike(signature) && signature.parentNode) {
