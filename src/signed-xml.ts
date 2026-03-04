@@ -168,9 +168,6 @@ export class SignedXml {
     this.getKeyInfoContent = getKeyInfoContent ?? this.getKeyInfoContent;
     this.getCertFromKeyInfo = getCertFromKeyInfo ?? SignedXml.noop;
     this.objects = objects;
-    this.CanonicalizationAlgorithms;
-    this.HashAlgorithms;
-    this.SignatureAlgorithms;
   }
 
   /**
@@ -313,7 +310,6 @@ export class SignedXml {
       this.loadReference(reference);
     }
 
-    /* eslint-disable-next-line deprecation/deprecation */
     if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
       /* Trustworthiness can only be determined if SignedInfo's (which holds References' DigestValue(s)
          which were validated at this stage) signature is valid. Execution does not proceed to validate
@@ -494,7 +490,6 @@ export class SignedXml {
       elem = elemOrXpath;
     }
 
-    /* eslint-disable-next-line deprecation/deprecation */
     for (const ref of this.getReferences()) {
       const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
 

@@ -150,7 +150,7 @@ export class HmacSha1 implements SignatureAlgorithm {
           Buffer.from(res, "base64"),
           Buffer.from(signatureValue, "base64"),
         );
-      } catch (e) {
+      } catch {
         // timingSafeEqual throws if buffer lengths don't match
         return false;
       }

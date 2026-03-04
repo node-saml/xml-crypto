@@ -203,7 +203,6 @@ describe("Canonicalization unit tests", function () {
 
   it("Exclusive canonicalization works on xml with element values with special characters", function () {
     compare(
-      // eslint-disable-next-line no-useless-escape
       '<root><child><innerEncoded>&amp;&lt;>&quot;11&#xD;</innerEncoded><innerUnencoded>&>"11\r</innerUnencoded></child></root>',
       "//*[local-name(.)='child']",
       '<child><innerEncoded>&amp;&lt;&gt;"11&#xD;</innerEncoded><innerUnencoded>&amp;&gt;"11\n</innerUnencoded></child>',
