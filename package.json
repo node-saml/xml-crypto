@@ -39,7 +39,7 @@
   },
   "dependencies": {
     "@xmldom/is-dom-node": "^1.0.1",
-    "@xmldom/xmldom": "^0.8.10",
+    "@xmldom/xmldom": "^0.8.11",
     "xpath": "^0.0.34"
   },
   "devDependencies": {
