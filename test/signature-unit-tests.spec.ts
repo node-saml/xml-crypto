@@ -1,10 +1,11 @@
 import * as xpath from "xpath";
-import * as xmldom from "@xmldom/xmldom";
 import { SignedXml, createOptionalCallbackFunction } from "../src/index";
 import * as fs from "fs";
 import * as crypto from "crypto";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
+import * as utils from "../src/utils";
+import * as xmldom from "@xmldom/xmldom";
 
 const signatureAlgorithms = [
   "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
@@ -34,7 +35,7 @@ describe("Signature unit tests", function () {
       }
 
       function loadSignature(xml: string): SignedXml {
-        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const doc = utils.parseXml(xml);
         const node = xpath.select1(
           "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
           doc,
@@ -58,12 +59,14 @@ describe("Signature unit tests", function () {
 
       it(`should fail verification of signed xml with ${signatureAlgorithm} after manipulation`, function () {
         const xml = signWith(signatureAlgorithm);
-        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const doc = utils.parseXml(xml);
         const node = xpath.select1("//*[local-name(.)='x']", doc);
         isDomNode.assertIsElementNode(node);
         const targetElement = node as Element;
         targetElement.setAttribute("attr", "manipulatedValue");
-        const manipulatedXml = new xmldom.XMLSerializer().serializeToString(doc);
+        const manipulatedXml = new xmldom.XMLSerializer().serializeToString(
+          doc as unknown as xmldom.Node,
+        );
 
         const sig = loadSignature(manipulatedXml);
         const res = sig.checkSignature(manipulatedXml);
@@ -110,7 +113,7 @@ describe("Signature unit tests", function () {
       sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
       sig.computeSignature(xml);
       const signedXml = sig.getOriginalXmlWithIds();
-      const doc = new xmldom.DOMParser().parseFromString(signedXml);
+      const doc = utils.parseXml(signedXml);
 
       const op = nsMode === "equal" ? "=" : "!=";
 
@@ -153,7 +156,7 @@ describe("Signature unit tests", function () {
     });
 
     const signedXml = sig.getSignatureXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
     const references = xpath.select("//*[local-name(.)='Reference']", doc);
     isDomNode.assertIsArrayOfNodes(references);
     expect(references.length).to.equal(2);
@@ -173,7 +176,7 @@ describe("Signature unit tests", function () {
       sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
       sig.computeSignature(xml);
       const signedXml = sig.getOriginalXmlWithIds();
-      const doc = new xmldom.DOMParser().parseFromString(signedXml);
+      const doc = utils.parseXml(signedXml);
       const attrs = xpath.select("//@*", doc);
       isDomNode.assertIsArrayOfNodes(attrs);
       expect(attrs.length, "wrong number of attributes").to.equal(2);
@@ -212,7 +215,7 @@ describe("Signature unit tests", function () {
     });
 
     const signedXml = sig.getSignatureXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
     const signatureNode = doc.documentElement;
 
     expect(attrs.Id, `Id attribute is not equal to the expected value: "${attrs.Id}"`).to.equal(
@@ -245,7 +248,7 @@ describe("Signature unit tests", function () {
     sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const doc = utils.parseXml(sig.getSignedXml());
 
     const lastChild = doc.documentElement.lastChild;
     isDomNode.assertIsElementNode(lastChild);
@@ -275,7 +278,7 @@ describe("Signature unit tests", function () {
       },
     });
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const doc = utils.parseXml(sig.getSignedXml());
     const referenceNode = xpath.select1("/root/name", doc);
 
     isDomNode.assertIsNodeLike(referenceNode);
@@ -307,7 +310,7 @@ describe("Signature unit tests", function () {
       },
     });
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const doc = utils.parseXml(sig.getSignedXml());
     const referenceNode = xpath.select1("/root/name", doc);
     isDomNode.assertIsNodeLike(referenceNode);
     const firstChild = referenceNode.firstChild;
@@ -338,7 +341,7 @@ describe("Signature unit tests", function () {
       },
     });
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const doc = utils.parseXml(sig.getSignedXml());
     const referenceNode = xpath.select1("/root/name", doc);
     isDomNode.assertIsNodeLike(referenceNode);
     const previousSibling = referenceNode.previousSibling;
@@ -370,7 +373,7 @@ describe("Signature unit tests", function () {
       },
     });
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const doc = utils.parseXml(sig.getSignedXml());
     const referenceNode = xpath.select1("/root/name", doc);
 
     isDomNode.assertIsNodeLike(referenceNode);
@@ -850,7 +853,7 @@ describe("Signature unit tests", function () {
     describe("pass loading signatures", function () {
       function passLoadSignature(file: string, toString?: boolean) {
         const xml = fs.readFileSync(file, "utf8");
-        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const doc = utils.parseXml(xml);
         const signature = xpath.select1(
           "/*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
           doc,
@@ -930,7 +933,7 @@ describe("Signature unit tests", function () {
 
     describe("pass verify signature", function () {
       function loadSignature(xml: string, idMode?: "wssecurity") {
-        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const doc = utils.parseXml(xml);
         const node = xpath.select1(
           "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
           doc,
@@ -1068,7 +1071,7 @@ describe("Signature unit tests", function () {
     sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
     const URI = xpath.select1("//*[local-name(.)='Reference']/@URI", doc);
     isDomNode.assertIsAttributeNode(URI);
     expect(URI.value, `uri should be empty but instead was ${URI.value}`).to.equal("");
@@ -1161,7 +1164,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
     const inclusiveNamespaces = xpath.select(
       "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
       doc.documentElement,
@@ -1198,7 +1201,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
     const inclusiveNamespaces = xpath.select1(
       "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
       doc.documentElement,
@@ -1223,7 +1226,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
     const inclusiveNamespaces = xpath.select(
       "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
       doc.documentElement,
@@ -1262,7 +1265,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
     const inclusiveNamespaces = xpath.select1(
       "//*[local-name(.)='CanonicalizationMethod']/*[local-name(.)='InclusiveNamespaces']",
       doc.documentElement,
@@ -1289,7 +1292,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
     const keyInfoElements = xpath.select("//*[local-name(.)='KeyInfo']", doc.documentElement);
 
     isDomNode.assertIsArrayOfNodes(keyInfoElements);
@@ -1321,7 +1324,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
 
     const x509certificates = xpath.select(
       "//*[local-name(.)='X509Certificate']",
@@ -1366,7 +1369,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
     const referenceElements = xpath.select("//*[local-name(.)='Reference']", doc);
     isDomNode.assertIsArrayOfNodes(referenceElements);
     expect(referenceElements.length, "Reference element should exist").to.equal(1);
@@ -1421,7 +1424,7 @@ describe("Signature unit tests", function () {
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
     const referenceElements = xpath.select("//*[local-name(.)='Reference']", doc);
     isDomNode.assertIsArrayOfNodes(referenceElements);
     expect(referenceElements.length, "Reference element should exist").to.equal(1);

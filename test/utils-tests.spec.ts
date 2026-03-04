@@ -1,7 +1,6 @@
 import * as fs from "fs";
 import * as utils from "../src/utils";
 import { expect } from "chai";
-import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import * as isDomNode from "@xmldom/is-dom-node";
 
@@ -45,7 +44,7 @@ describe("Utils tests", function () {
     });
 
     it("will return a normalized PEM format when given a base64 string with line breaks and spaces at the line breaks", function () {
-      const xml = new xmldom.DOMParser().parseFromString(
+      const xml = utils.parseXml(
         fs.readFileSync("./test/static/keyinfo - pretty-printed.xml", "latin1"),
       );
       const cert = xpath.select1(".//*[local-name(.)='X509Certificate']", xml);

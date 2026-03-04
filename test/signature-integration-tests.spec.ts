@@ -1,9 +1,9 @@
 import * as xpath from "xpath";
-import * as xmldom from "@xmldom/xmldom";
 import { SignedXml } from "../src/index";
 import * as fs from "fs";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
+import * as utils from "../src/utils";
 
 describe("Signature integration tests", function () {
   function verifySignature(xml, expected, xpath, canonicalizationAlgorithm) {
@@ -97,7 +97,7 @@ describe("Signature integration tests", function () {
      */
     xml = xml.replace(/>\s*</g, "><");
 
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
@@ -116,7 +116,7 @@ describe("Signature integration tests", function () {
 
   it("signature with inclusive namespaces", function () {
     const xml = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
@@ -138,7 +138,7 @@ describe("Signature integration tests", function () {
       "./test/static/signature_with_inclusivenamespaces_lines.xml",
       "utf-8",
     );
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
@@ -160,7 +160,7 @@ describe("Signature integration tests", function () {
       "./test/static/signature_with_inclusivenamespaces_lines_windows.xml",
       "utf-8",
     );
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
@@ -193,7 +193,7 @@ describe("Signature integration tests", function () {
 
     const signed = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signed);
+    const doc = utils.parseXml(signed);
 
     /*
         Expecting this structure:

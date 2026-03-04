@@ -1,10 +1,10 @@
 import * as fs from "fs";
 import { expect, assert } from "chai";
 import * as xpath from "xpath";
-import * as xmldom from "@xmldom/xmldom";
 import * as isDomNode from "@xmldom/is-dom-node";
 import { SignedXml } from "../src";
 import { Sha256 } from "../src/hash-algorithms";
+import * as utils from "../src/utils";
 
 const privateKey = fs.readFileSync("./test/static/client.pem", "utf-8");
 const publicCert = fs.readFileSync("./test/static/client_public.pem", "utf-8");
@@ -81,7 +81,7 @@ describe("ds:Object support in XML signatures", function () {
 
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
 
     // Should have three Object elements
     const objectNodes = selectNs("/root/ds:Signature/ds:Object", doc);
@@ -146,7 +146,7 @@ describe("ds:Object support in XML signatures", function () {
     // When we add a prefix to the signature, there is no default namespace
     sig.computeSignature(xml, { prefix: "ds" });
     const signedXml = sig.getSignedXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
 
     // Verify the namespace of the ds:Object element
     const objectNode = select1Ns("/root/ds:Signature/ds:Object[@Id='object1']", doc);
@@ -172,7 +172,7 @@ describe("ds:Object support in XML signatures", function () {
 
     sigWithNull.computeSignature(xml);
     const signedXmlWithNull = sigWithNull.getSignedXml();
-    const docWithNull = new xmldom.DOMParser().parseFromString(signedXmlWithNull);
+    const docWithNull = utils.parseXml(signedXmlWithNull);
 
     // Verify that no Object elements exist
     const objectNodesWithNull = selectNs("//ds:Object", docWithNull);
@@ -195,7 +195,7 @@ describe("ds:Object support in XML signatures", function () {
 
     sigWithEmpty.computeSignature(xml);
     const signedXmlWithEmpty = sigWithEmpty.getSignedXml();
-    const docWithEmpty = new xmldom.DOMParser().parseFromString(signedXmlWithEmpty);
+    const docWithEmpty = utils.parseXml(signedXmlWithEmpty);
 
     // Verify that no Object elements exist
     const objectNodesWithEmpty = selectNs("//ds:Object", docWithEmpty);
@@ -230,7 +230,7 @@ describe("ds:Object support in XML signatures", function () {
 
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
-    const signedDoc = new xmldom.DOMParser().parseFromString(signedXml);
+    const signedDoc = utils.parseXml(signedXml);
 
     // Verify that there is exactly one ds:Reference
     const referenceNodes = selectNs("/root/ds:Signature/ds:SignedInfo/ds:Reference", signedDoc);
@@ -300,7 +300,7 @@ describe("Valid signatures with ds:Object elements", function () {
 
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
 
     // Verify that the signature is valid
     const { valid, errorMessage } = checkSignature(signedXml, doc);
@@ -348,7 +348,7 @@ describe("Valid signatures with ds:Object elements", function () {
 
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
 
     // Verify that there are two Reference elements
     const referenceNodes = selectNs("/ns1:root/ds:Signature/ds:SignedInfo/ds:Reference", doc, {
@@ -391,7 +391,7 @@ describe("Valid signatures with ds:Object elements", function () {
 
     sig.computeSignature(xml, { prefix: "ds" });
     const signedXml = sig.getSignedXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
 
     // Find the ds:Object/Data element and get the value of its Id attribute (ensuring it was generated)
     const dataEl = select1Ns("/root/ds:Signature/ds:Object/Data[@Id]", doc);
@@ -435,7 +435,7 @@ describe("Should successfuly sign references to ds:KeyInfo elements", function (
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
 
     // Verify that there is a Reference to KeyInfo
     const referenceEl = select1Ns(
@@ -470,7 +470,7 @@ describe("Should successfuly sign references to ds:KeyInfo elements", function (
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
 
     // Find the KeyInfo element and get the value of its Id attribute (ensuring it was generated)
     const keyInfoEl = select1Ns("/root/ds:Signature/ds:KeyInfo[@Id]", doc);
@@ -552,7 +552,7 @@ describe("XAdES Object support in XML signatures", function () {
     });
 
     const signedXml = sig.getSignedXml();
-    const signedDoc = new xmldom.DOMParser().parseFromString(signedXml);
+    const signedDoc = utils.parseXml(signedXml);
 
     // ds:Signature exists and has the expected Id
     const elSig = select1Ns(`/root/ds:Signature[@Id='${signatureId}']`, signedDoc);
