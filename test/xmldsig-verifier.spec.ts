@@ -124,14 +124,14 @@ describe("XmlDSigVerifier", function () {
   const xml = "<root><test>content</test></root>";
 
   describe("constructor", function () {
-    it("should create verifier with public certificate", function () {
+    it("constructs when keySelector.publicCert is provided", function () {
       const verifier = new XmlDSigVerifier({
         keySelector: { publicCert },
       });
       expect(verifier).to.be.instanceOf(XmlDSigVerifier);
     });
 
-    it("should create verifier with getCertFromKeyInfo function", function () {
+    it("constructs when keySelector.getCertFromKeyInfo is a function", function () {
       const verifier = new XmlDSigVerifier({
         keySelector: {
           getCertFromKeyInfo: () => publicCert,
@@ -140,14 +140,14 @@ describe("XmlDSigVerifier", function () {
       expect(verifier).to.be.instanceOf(XmlDSigVerifier);
     });
 
-    it("should throw when trying to create a verifier without publicCert or getCertFromKeyInfo", function () {
+    it("throws when keySelector has neither publicCert nor getCertFromKeyInfo", function () {
       expect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         new XmlDSigVerifier({ keySelector: {} as any });
       }).to.throw("XmlDSigVerifier requires a valid keySelector option");
     });
 
-    it("should create verifier with all options set", function () {
+    it("constructs when all supported constructor options are provided", function () {
       const verifier = new XmlDSigVerifier({
         keySelector: { publicCert },
         idAttributes: ["customId"],
@@ -165,7 +165,7 @@ describe("XmlDSigVerifier", function () {
       expect(verifier).to.be.instanceOf(XmlDSigVerifier);
     });
 
-    it("should throw when getCertFromKeyInfo is undefined", function () {
+    it("throws when keySelector.getCertFromKeyInfo is undefined", function () {
       expect(() => {
         new XmlDSigVerifier({
           keySelector: {
@@ -175,7 +175,7 @@ describe("XmlDSigVerifier", function () {
       }).to.throw("XmlDSigVerifier requires a valid getCertFromKeyInfo function.");
     });
 
-    it("should throw when getCertFromKeyInfo is set to publicCert string directly", function () {
+    it("throws when keySelector.getCertFromKeyInfo is not a function (public cert string passed)", function () {
       expect(() => {
         new XmlDSigVerifier({
           keySelector: {
@@ -187,7 +187,7 @@ describe("XmlDSigVerifier", function () {
   });
 
   describe("publicCert selector", function () {
-    it("should validate a valid signed XML document", function () {
+    it("verifies a valid signature using the publicCert selector", function () {
       const signedXml = createSignedXml(xml);
 
       const verifier = new XmlDSigVerifier({
@@ -196,7 +196,7 @@ describe("XmlDSigVerifier", function () {
       expectValidResult(verifier.verifySignature(signedXml));
     });
 
-    it("should validate when publicCert is a buffer", function () {
+    it("verifies a valid signature when keySelector.publicCert is provided as a Buffer", function () {
       const signedXml = createSignedXml(xml);
 
       const verifier = new XmlDSigVerifier({
@@ -205,7 +205,7 @@ describe("XmlDSigVerifier", function () {
       expectValidResult(verifier.verifySignature(signedXml));
     });
 
-    it("should fail validation when document is signed with different key", function () {
+    it("returns an invalid result when the signature key does not match keySelector.publicCert", function () {
       const signedXml = createChainSignedXml(xml);
 
       const verifier = new XmlDSigVerifier({
@@ -218,7 +218,7 @@ describe("XmlDSigVerifier", function () {
   });
 
   describe("getCertFromKeyInfo selector", function () {
-    it("should validate a valid signed XML document", function () {
+    it("verifies a valid signature using the getCertFromKeyInfo selector", function () {
       const signedXml = createSignedXml(xml);
 
       const verifier = new XmlDSigVerifier({
@@ -229,7 +229,7 @@ describe("XmlDSigVerifier", function () {
       expectValidResult(verifier.verifySignature(signedXml));
     });
 
-    it("should fail validation when document is signed with different key", function () {
+    it("returns an invalid result when callback cert does not match the signing key", function () {
       const signedXml = createChainSignedXml(xml);
 
       const verifier = new XmlDSigVerifier({
@@ -242,7 +242,7 @@ describe("XmlDSigVerifier", function () {
       expectInvalidResult(verifier.verifySignature(signedXml), "invalid signature");
     });
 
-    it("should fail validation when getCertFromKeyInfo returns null", function () {
+    it("returns an invalid result when getCertFromKeyInfo returns null", function () {
       const signedXml = createSignedXml(xml);
 
       const verifier = new XmlDSigVerifier({
@@ -255,7 +255,7 @@ describe("XmlDSigVerifier", function () {
       expectInvalidResult(verifier.verifySignature(signedXml), "keyinfo");
     });
 
-    it("should fail validation when getCertFromKeyInfo returns empty string", function () {
+    it("returns an invalid result when getCertFromKeyInfo returns an empty string", function () {
       const signedXml = createSignedXml(xml);
 
       const verifier = new XmlDSigVerifier({
