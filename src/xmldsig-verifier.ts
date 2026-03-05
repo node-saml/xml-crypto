@@ -1,5 +1,4 @@
 import { KeyLike, X509Certificate } from "node:crypto";
-import { DOMParser } from "@xmldom/xmldom";
 import { SignedXml } from "./signed-xml";
 import {
   KeySelectorFunction,
@@ -19,7 +18,7 @@ import {
   SharedSecretXmlDSigVerifierOptions,
   PublicCertXmlDSigVerifierOptions,
 } from "./types";
-import { isArrayHasLength } from "./utils";
+import { isArrayHasLength, parseXml } from "./utils";
 import { Sha1, Sha256, Sha512 } from "./hash-algorithms";
 import { RsaSha1, RsaSha256, RsaSha256Mgf1, RsaSha512, HmacSha1 } from "./signature-algorithms";
 import { C14nCanonicalization, C14nCanonicalizationWithComments } from "./c14n-canonicalization";
@@ -185,7 +184,7 @@ export class XmlDSigVerifier {
         this.signedXml.loadSignature(signatureNode);
       } else {
         // Auto-detect signature if exactly one signature is found in the document
-        const doc = new DOMParser().parseFromString(xml, "application/xml");
+        const doc = parseXml(xml, "application/xml");
         const signatureNodes = this.signedXml.findSignatures(doc);
 
         if (signatureNodes.length === 0) {

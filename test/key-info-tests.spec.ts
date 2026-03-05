@@ -4,6 +4,7 @@ import * as xpath from "xpath";
 import { SignedXml, XMLDSIG_URIS } from "../src";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
+import * as utils from "../src/utils";
 
 describe("KeyInfo tests", function () {
   it("adds X509Certificate element during signature", function () {
@@ -15,7 +16,7 @@ describe("KeyInfo tests", function () {
     sig.signatureAlgorithm = XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA1;
     sig.computeSignature(xml);
     const signedXml = sig.getSignedXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const doc = utils.parseXml(signedXml);
     const x509 = xpath.select("//*[local-name(.)='X509Certificate']", doc.documentElement);
     isDomNode.assertIsArrayOfNodes(x509);
 
@@ -37,7 +38,7 @@ describe("KeyInfo tests", function () {
     sig.canonicalizationAlgorithm = XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N;
     sig.computeSignature(xml);
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const doc = utils.parseXml(sig.getSignedXml());
     const keyInfo = xpath.select1("//*[local-name(.)='KeyInfo']", doc);
 
     expect(keyInfo).to.be.undefined;

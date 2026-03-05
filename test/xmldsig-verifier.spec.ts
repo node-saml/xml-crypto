@@ -2,6 +2,7 @@ import * as fs from "fs";
 import { expect } from "chai";
 import { XmlDSigVerifier, SignedXml, EnvelopedSignature, XMLDSIG_URIS } from "../src";
 import type { XmlDsigVerificationResult } from "../src/";
+import * as utils from "../src/utils";
 
 import { X509Certificate } from "node:crypto";
 
@@ -824,7 +825,7 @@ describe("XmlDSigVerifier", function () {
 
     it("should validate when signatureNode is provided directly", function () {
       const signedXml = createSignedXml(xml);
-      const doc = new DOMParser().parseFromString(signedXml, "application/xml");
+      const doc = utils.parseXml(signedXml, "application/xml");
       const signatureNode = doc.getElementsByTagNameNS(XMLDSIG_URIS.NAMESPACES.ds, "Signature")[0];
 
       const verifier = new XmlDSigVerifier({
@@ -917,7 +918,7 @@ describe("XmlDSigVerifier", function () {
         location: { reference: "/root", action: "append" },
       });
       const xmlWithTwoSigs = sig2.getSignedXml();
-      const doc = new DOMParser().parseFromString(xmlWithTwoSigs, "application/xml");
+      const doc = utils.parseXml(xmlWithTwoSigs, "application/xml");
       const signatureNodes = doc.getElementsByTagNameNS(XMLDSIG_URIS.NAMESPACES.ds, "Signature");
 
       expect(signatureNodes.length).to.equal(2);

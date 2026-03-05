@@ -1,6 +1,12 @@
+import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import type { NamespacePrefix } from "./types";
 import * as isDomNode from "@xmldom/is-dom-node";
+
+export function parseXml(xml: string, mimeType = "text/xml"): Document {
+  const normalizedXml = xml.replace(/^\uFEFF/, "");
+  return new xmldom.DOMParser().parseFromString(normalizedXml, mimeType) as unknown as Document;
+}
 
 export function isArrayHasLength(array: unknown): array is unknown[] {
   return Array.isArray(array) && array.length > 0;
