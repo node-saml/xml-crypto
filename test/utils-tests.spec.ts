@@ -7,7 +7,7 @@ import * as isDomNode from "@xmldom/is-dom-node";
 describe("Utils tests", function () {
   describe("parseXml", function () {
     it("accepts XML documents with a UTF-8 BOM", function () {
-      const xml = utils.parseXml("\uFEFF<?xml version=\"1.0\" encoding=\"UTF-8\"?><root/>");
+      const xml = utils.parseXml('\uFEFF<?xml version="1.0" encoding="UTF-8"?><root/>');
       expect(xml.documentElement.localName).to.equal("root");
     });
   });
