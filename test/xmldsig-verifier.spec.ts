@@ -28,6 +28,10 @@ const expiredCert = fs.readFileSync("./test/static/expired_certificate.crt.pem",
 const futureKey = fs.readFileSync("./test/static/future_certificate.key.pem", "utf-8");
 const futureCert = fs.readFileSync("./test/static/future_certificate.crt.pem", "utf-8");
 
+// Shared-secret keys for HMAC verification testing
+const hmacKey = fs.readFileSync("./test/static/hmac.key");
+const wrongHmacKey = fs.readFileSync("./test/static/hmac-foobar.key");
+
 // Helper function to create a signed XML document
 function createSignedXml(
   xml: string,
@@ -93,6 +97,23 @@ function createFutureSignedXml(xml: string): string {
     signatureAlgorithm: SIGNATURE_ALGORITHMS.RSA_SHA1,
     getKeyInfoContent: () => SignedXml.getKeyInfoContent({ publicCert: futureCert }),
   });
+
+  sig.addReference({
+    xpath: "//*[local-name(.)='test']",
+    digestAlgorithm: HASH_ALGORITHMS.SHA1,
+    transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
+  });
+
+  sig.computeSignature(xml);
+  return sig.getSignedXml();
+}
+
+function createHmacSignedXml(xml: string): string {
+  const sig = new SignedXml();
+  sig.enableHMAC();
+  sig.privateKey = hmacKey;
+  sig.canonicalizationAlgorithm = CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N;
+  sig.signatureAlgorithm = SIGNATURE_ALGORITHMS.HMAC_SHA1;
 
   sig.addReference({
     xpath: "//*[local-name(.)='test']",
@@ -269,6 +290,41 @@ describe("XmlDSigVerifier", function () {
     });
   });
 
+  describe("sharedSecretKey selector", function () {
+    it("verifies a valid HMAC signature using the sharedSecretKey selector", function () {
+      const signedXml = createHmacSignedXml(xml);
+
+      const verifier = new XmlDSigVerifier({
+        keySelector: { sharedSecretKey: hmacKey },
+      });
+
+      expectValidResult(verifier.verifySignature(signedXml));
+    });
+
+    it("returns an invalid result when sharedSecretKey does not match the signing key", function () {
+      const signedXml = createHmacSignedXml(xml);
+
+      const verifier = new XmlDSigVerifier({
+        keySelector: { sharedSecretKey: wrongHmacKey },
+        throwOnError: false,
+      });
+
+      expectInvalidResult(verifier.verifySignature(signedXml), "invalid signature");
+    });
+
+    it("returns an invalid result when HMAC signature algorithm is not allowed", function () {
+      const signedXml = createHmacSignedXml(xml);
+
+      const verifier = new XmlDSigVerifier({
+        keySelector: { sharedSecretKey: hmacKey },
+        throwOnError: false,
+        security: { signatureAlgorithms: [] },
+      });
+
+      expectInvalidResult(verifier.verifySignature(signedXml), "signature algorithm");
+    });
+  });
+
   describe("idAttributes option", function () {
     const xmlWithCustomId = '<root><test customId="test1">content</test></root>';
     const xmlWithPrefixedId = `<root xmlns:foo="uri:foo"><test foo:customId="test1">content</test></root>`;
@@ -359,7 +415,7 @@ describe("XmlDSigVerifier", function () {
         idAttributes: [{ localName: "customId", namespaceUri: "uri:bar" }],
         throwOnError: false,
       });
-      expectInvalidResult(verifier.verifySignature(signedXml), "fail");
+      expectInvalidResult(verifier.verifySignature(signedXml), "verification failed");
     });
 
     it("should fail validation when Id attribute is not namespaced but namespaceUri is provided", function () {
@@ -382,7 +438,7 @@ describe("XmlDSigVerifier", function () {
         idAttributes: [{ localName: "customId", namespaceUri: "uri:foo" }],
         throwOnError: false,
       });
-      expectInvalidResult(verifier.verifySignature(signedXml), "fail");
+      expectInvalidResult(verifier.verifySignature(signedXml), "verification failed");
     });
 
     describe("idAttributes property handling", function () {
@@ -618,24 +674,24 @@ describe("XmlDSigVerifier", function () {
     });
 
     describe("checkCertExpiration", function () {
-      it("should validate when certificate is not expired and checkCertExpiration is true", function () {
-        const signedXml = createSignedXml(xml);
-        // @ts-expect-error -- ignore for test purposes
-        const verifier = new XmlDSigVerifier({
-          keySelector: { publicCert },
-          security: { checkCertExpiration: true },
-        });
-        expectValidResult(verifier.verifySignature(signedXml));
+      it("should reject checkCertExpiration when used with publicCert selector (true)", function () {
+        expect(() => {
+          // @ts-expect-error -- checkCertExpiration is currently only typed for keyinfo selector
+          new XmlDSigVerifier({
+            keySelector: { publicCert },
+            security: { checkCertExpiration: true },
+          });
+        }).to.throw("checkCertExpiration is only supported with getCertFromKeyInfo");
       });
 
-      it("should validate when certificate is expired and checkCertExpiration is false", function () {
-        const signedXml = createExpiredSignedXml(xml);
-        // @ts-expect-error -- ignore for test purposes
-        const verifier = new XmlDSigVerifier({
-          keySelector: { publicCert: expiredCert },
-          security: { checkCertExpiration: false },
-        });
-        expectValidResult(verifier.verifySignature(signedXml));
+      it("should reject checkCertExpiration when used with publicCert selector (false)", function () {
+        expect(() => {
+          // @ts-expect-error -- checkCertExpiration is currently only typed for keyinfo selector
+          new XmlDSigVerifier({
+            keySelector: { publicCert: expiredCert },
+            security: { checkCertExpiration: false },
+          });
+        }).to.throw("checkCertExpiration is only supported with getCertFromKeyInfo");
       });
 
       it("should fail validation when certificate is expired and checkCertExpiration is true", function () {
@@ -658,6 +714,26 @@ describe("XmlDSigVerifier", function () {
     });
 
     describe("truststore", function () {
+      it("should reject truststore when used with publicCert selector", function () {
+        expect(() => {
+          // @ts-expect-error -- truststore is currently only typed for keyinfo selector
+          new XmlDSigVerifier({
+            keySelector: { publicCert },
+            security: { truststore: [rootCert] },
+          });
+        }).to.throw("truststore is only supported with getCertFromKeyInfo");
+      });
+
+      it("should reject truststore when used with sharedSecretKey selector", function () {
+        expect(() => {
+          // @ts-expect-error -- truststore is currently only typed for keyinfo selector
+          new XmlDSigVerifier({
+            keySelector: { sharedSecretKey: hmacKey },
+            security: { truststore: [rootCert] },
+          });
+        }).to.throw("truststore is only supported with getCertFromKeyInfo");
+      });
+
       it("should validate when certificate is exactly in truststore", function () {
         const signedXml = createSignedXml(xml);
         const verifier = new XmlDSigVerifier({
