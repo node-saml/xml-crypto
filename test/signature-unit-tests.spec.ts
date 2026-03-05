@@ -1437,4 +1437,24 @@ describe("Signature unit tests", function () {
       "#unique-id",
     );
   });
+
+  it("should throw when idAttributes namespaceUri is provided without prefix during signing", () => {
+    const xml = "<root><x/></root>";
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      signatureAlgorithm: SIGNATURE_ALGORITHMS.RSA_SHA1,
+      idAttributes: [{ localName: "customId", namespaceUri: "urn:test" }],
+    });
+
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: HASH_ALGORITHMS.SHA1,
+      transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
+    });
+
+    expect(() => sig.computeSignature(xml)).to.throw(
+      /prefix is required when namespaceUri is provided/,
+    );
+  });
 });

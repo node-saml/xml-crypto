@@ -6,11 +6,11 @@ import * as isDomNode from "@xmldom/is-dom-node";
 import * as utils from "../src/utils";
 
 describe("Signature integration tests", function () {
-  function verifySignature(xml, expected, xpath, canonicalizationAlgorithm) {
+  function verifySignature(xml, expected, xpathQueries, canonicalizationAlgorithm) {
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
-    xpath.forEach(function (n) {
+    xpathQueries.forEach(function (n) {
       sig.addReference({
         xpath: n,
         digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA1,

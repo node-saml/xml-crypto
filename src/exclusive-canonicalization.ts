@@ -267,8 +267,7 @@ export class ExclusiveCanonicalization implements CanonicalizationAlgorithm {
    *
    * @api public
    */
-  process(elem: Element, options: TransformAlgorithmOptions): string {
-    options = options || {};
+  process(elem: Element, options: TransformAlgorithmOptions = {}): string {
     let inclusiveNamespacesPrefixList = options.inclusiveNamespacesPrefixList || [];
     const defaultNs = options.defaultNs || "";
     const defaultNsForPrefix = options.defaultNsForPrefix || {};

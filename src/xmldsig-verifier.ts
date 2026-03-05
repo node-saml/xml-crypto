@@ -106,13 +106,16 @@ export class XmlDSigVerifier {
   public static readonly DEFAULT_CHECK_CERT_EXPIRATION = true;
   public static readonly DEFAULT_THROW_ON_ERROR = false;
 
+  // TODO(v7): remove SHA-1 from default hash algorithms.
   static readonly defaultHashAlgorithms = [Sha1, Sha256, Sha512];
   static readonly defaultAsymmetricSignatureAlgorithms = [
+    // TODO(v7): remove RSA-SHA1 from default signature algorithms.
     RsaSha1,
     RsaSha256,
     RsaSha256Mgf1,
     RsaSha512,
   ];
+  // TODO: add HMAC-SHA256 support and make it the default instead of HMAC-SHA1.
   static readonly defaultSymmetricSignatureAlgorithms = [HmacSha1];
   static readonly defaultCanonicalizationAlgorithms = [
     C14nCanonicalization,

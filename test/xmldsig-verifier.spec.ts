@@ -250,6 +250,21 @@ describe("XmlDSigVerifier", function () {
       expectValidResult(verifier.verifySignature(signedXml));
     });
 
+    it("does not carry verification state between sequential verifySignature calls", function () {
+      const signedXml = createChainSignedXml(xml);
+      const tamperedXml = signedXml.replace("content", "tampered");
+
+      const verifier = new XmlDSigVerifier({
+        keySelector: {
+          getCertFromKeyInfo: () => chainPublicCert,
+        },
+        throwOnError: false,
+      });
+
+      expectValidResult(verifier.verifySignature(signedXml));
+      expectInvalidResult(verifier.verifySignature(tamperedXml), "verification failed");
+    });
+
     it("returns an invalid result when callback cert does not match the signing key", function () {
       const signedXml = createChainSignedXml(xml);
 

@@ -163,6 +163,7 @@ export class SignedXml {
   });
 
   static readonly getDefaultSymmetricSignatureAlgorithms = (): SignatureAlgorithmMap => ({
+    // TODO: add HMAC-SHA256 support and make it the default instead of HMAC-SHA1.
     [SIGNATURE_ALGORITHMS.HMAC_SHA1]: signatureAlgorithms.HmacSha1,
   });
 
@@ -1434,6 +1435,10 @@ export class SignedXml {
             firstIdAttr.namespaceUri,
             `${firstIdAttr.prefix}:${firstIdAttr.localName}`,
             id,
+          );
+        } else if (typeof firstIdAttr.namespaceUri === "string") {
+          throw new Error(
+            `Invalid idAttributes[0]: prefix is required when namespaceUri is provided (${firstIdAttr.localName}).`,
           );
         } else {
           node.setAttribute(firstIdAttr.localName, id);
