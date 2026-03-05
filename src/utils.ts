@@ -1,6 +1,12 @@
-import * as xpath from "xpath";
-import type { NamespacePrefix } from "./types";
 import * as isDomNode from "@xmldom/is-dom-node";
+import * as xmldom from "@xmldom/xmldom";
+import * as xpath from "xpath";
+
+import type { NamespacePrefix } from "./types";
+
+export function parseXml(xml: string): Document {
+  return new xmldom.DOMParser().parseFromString(xml, "text/xml") as unknown as Document;
+}
 
 export function isArrayHasLength(array: unknown): array is unknown[] {
   return Array.isArray(array) && array.length > 0;

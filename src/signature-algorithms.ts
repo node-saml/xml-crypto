@@ -1,5 +1,6 @@
 import * as crypto from "crypto";
-import { type SignatureAlgorithm, createOptionalCallbackFunction } from "./types";
+
+import { createOptionalCallbackFunction, type SignatureAlgorithm } from "./types";
 
 export class RsaSha1 implements SignatureAlgorithm {
   getSignature = createOptionalCallbackFunction(
@@ -150,7 +151,7 @@ export class HmacSha1 implements SignatureAlgorithm {
           Buffer.from(res, "base64"),
           Buffer.from(signatureValue, "base64"),
         );
-      } catch (e) {
+      } catch {
         // timingSafeEqual throws if buffer lengths don't match
         return false;
       }

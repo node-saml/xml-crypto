@@ -1,10 +1,10 @@
-import * as xpath from "xpath";
 import * as isDomNode from "@xmldom/is-dom-node";
+import * as xpath from "xpath";
 
 import type {
+  CanonicalizationOrTransformAlgorithmType,
   CanonicalizationOrTransformationAlgorithm,
   CanonicalizationOrTransformationAlgorithmProcessOptions,
-  CanonicalizationOrTransformAlgorithmType,
 } from "./types";
 
 export class EnvelopedSignature implements CanonicalizationOrTransformationAlgorithm {

@@ -1,14 +1,15 @@
-import { SignedXml } from "../src/index";
-import * as xpath from "xpath";
-import * as xmldom from "@xmldom/xmldom";
-import * as fs from "fs";
-import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
+import { expect } from "chai";
+import * as fs from "fs";
+import * as xpath from "xpath";
+
+import { SignedXml } from "../src/index";
+import * as utils from "../src/utils";
 
 describe("SAML response tests", function () {
   it("test validating SAML response", function () {
     const xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
@@ -25,7 +26,7 @@ describe("SAML response tests", function () {
 
   it("test validating SAML response with sha256-rsa-MGF1", function () {
     const xml = fs.readFileSync("./test/static/valid_saml_sha256_rsa_mgf1.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
@@ -41,7 +42,7 @@ describe("SAML response tests", function () {
 
   it("test validating SAML response with sha256-rsa-MGF1 fails for modified file", function () {
     const xml = fs.readFileSync("./test/static/invalid_saml_sha256_rsa_mgf1.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
@@ -57,7 +58,7 @@ describe("SAML response tests", function () {
 
   it("test validating wrapped assertion signature", function () {
     const xml = fs.readFileSync("./test/static/valid_saml_signature_wrapping.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const assertion = xpath.select1("//*[local-name(.)='Assertion']", doc);
     isDomNode.assertIsNodeLike(assertion);
     const signature = xpath.select1(
@@ -81,7 +82,7 @@ describe("SAML response tests", function () {
 
   it("test validating SAML response where a namespace is defined outside the signed element", function () {
     const xml = fs.readFileSync("./test/static/saml_external_ns.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const signature = xpath.select1(
       "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
@@ -97,7 +98,7 @@ describe("SAML response tests", function () {
 
   it("test reference id does not contain quotes", function () {
     const xml = fs.readFileSync("./test/static/id_with_quotes.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const assertion = xpath.select1("//*[local-name(.)='Assertion']", doc);
     isDomNode.assertIsNodeLike(assertion);
     const signature = xpath.select1(
@@ -115,7 +116,7 @@ describe("SAML response tests", function () {
 
   it("test validating SAML response WithComments", function () {
     const xml = fs.readFileSync("./test/static/valid_saml_withcomments.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
@@ -131,7 +132,7 @@ describe("SAML response tests", function () {
 
   it("throws an error for a document with no `SignedInfo` node", function () {
     const xml = fs.readFileSync("./test/static/invalid_saml_no_signed_info.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const node = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
@@ -147,7 +148,7 @@ describe("SAML response tests", function () {
 
   it("test validation ignores an additional wrapped `SignedInfo` node", function () {
     const xml = fs.readFileSync("./test/static/saml_wrapped_signed_info_node.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const assertion = xpath.select1("//*[local-name(.)='Assertion']", doc);
     isDomNode.assertIsNodeLike(assertion);
     const signature = xpath.select1(
@@ -159,7 +160,7 @@ describe("SAML response tests", function () {
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/saml_external_ns.pem");
     sig.loadSignature(signature);
-    /* eslint-disable-next-line deprecation/deprecation */
+
     expect(sig.getReferences().length).to.equal(1);
     const checkSignatureResult = sig.checkSignature(xml);
     expect(checkSignatureResult).to.be.true;
@@ -168,7 +169,7 @@ describe("SAML response tests", function () {
 
   it("test signature throws if multiple `SignedInfo` nodes are found", function () {
     const xml = fs.readFileSync("./test/static/saml_multiple_signed_info_nodes.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const assertion = xpath.select1("//*[local-name(.)='Assertion'][1]", doc);
     isDomNode.assertIsNodeLike(assertion);
     const signature = xpath.select1(
@@ -187,7 +188,7 @@ describe("SAML response tests", function () {
   describe("for a SAML response with a digest value comment", () => {
     it("loads digest value from text content instead of comment", function () {
       const xml = fs.readFileSync("./test/static/valid_saml_with_digest_comment.xml", "utf-8");
-      const doc = new xmldom.DOMParser().parseFromString(xml);
+      const doc = utils.parseXml(xml);
       const assertion = xpath.select1("//*[local-name(.)='Assertion']", doc);
       isDomNode.assertIsNodeLike(assertion);
       const signature = xpath.select1(
@@ -200,7 +201,6 @@ describe("SAML response tests", function () {
 
       sig.loadSignature(signature);
 
-      /* eslint-disable-next-line deprecation/deprecation */
       expect(sig.getReferences()[0].digestValue).to.equal("RnNjoyUguwze5w2R+cboyTHlkQk=");
       expect(sig.checkSignature(xml)).to.be.false;
       expect(sig.getSignedReferences().length).to.equal(0);

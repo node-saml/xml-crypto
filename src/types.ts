@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 // Type definitions for @node-saml/xml-crypto
 // Project: https://github.com/node-saml/xml-crypto#readme
 // Original definitions by: Eric Heikes <https://github.com/eheikes>

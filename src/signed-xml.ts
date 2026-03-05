@@ -1,3 +1,13 @@
+import * as isDomNode from "@xmldom/is-dom-node";
+import * as crypto from "crypto";
+import { deprecate } from "util";
+import * as xpath from "xpath";
+
+import * as c14n from "./c14n-canonicalization";
+import * as envelopedSignatures from "./enveloped-signature";
+import * as execC14n from "./exclusive-canonicalization";
+import * as hashAlgorithms from "./hash-algorithms";
+import * as signatureAlgorithms from "./signature-algorithms";
 import type {
   CanonicalizationAlgorithmType,
   CanonicalizationOrTransformAlgorithmType,
@@ -14,17 +24,6 @@ import type {
   SignatureAlgorithmType,
   SignedXmlOptions,
 } from "./types";
-
-import * as isDomNode from "@xmldom/is-dom-node";
-import * as xmldom from "@xmldom/xmldom";
-import * as crypto from "crypto";
-import { deprecate } from "util";
-import * as xpath from "xpath";
-import * as c14n from "./c14n-canonicalization";
-import * as envelopedSignatures from "./enveloped-signature";
-import * as execC14n from "./exclusive-canonicalization";
-import * as hashAlgorithms from "./hash-algorithms";
-import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
 
 export class SignedXml {
@@ -169,9 +168,6 @@ export class SignedXml {
     this.getKeyInfoContent = getKeyInfoContent ?? this.getKeyInfoContent;
     this.getCertFromKeyInfo = getCertFromKeyInfo ?? SignedXml.noop;
     this.objects = objects;
-    this.CanonicalizationAlgorithms;
-    this.HashAlgorithms;
-    this.SignatureAlgorithms;
   }
 
   /**
@@ -269,7 +265,7 @@ export class SignedXml {
 
     this.signedXml = xml;
 
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
 
     // Reset the references as only references from our re-parsed signedInfo node can be trusted
     this.references = [];
@@ -285,10 +281,7 @@ export class SignedXml {
     }
 
     // unsigned, verify later to keep with consistent callback behavior
-    const parsedUnverifiedSignedInfo = new xmldom.DOMParser().parseFromString(
-      unverifiedSignedInfoCanon,
-      "text/xml",
-    );
+    const parsedUnverifiedSignedInfo = utils.parseXml(unverifiedSignedInfoCanon);
 
     const unverifiedSignedInfoDoc = parsedUnverifiedSignedInfo.documentElement;
     if (!unverifiedSignedInfoDoc) {
@@ -317,7 +310,6 @@ export class SignedXml {
       this.loadReference(reference);
     }
 
-    /* eslint-disable-next-line deprecation/deprecation */
     if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
       /* Trustworthiness can only be determined if SignedInfo's (which holds References' DigestValue(s)
          which were validated at this stage) signature is valid. Execution does not proceed to validate
@@ -498,7 +490,6 @@ export class SignedXml {
       elem = elemOrXpath;
     }
 
-    /* eslint-disable-next-line deprecation/deprecation */
     for (const ref of this.getReferences()) {
       const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
 
@@ -607,17 +598,15 @@ export class SignedXml {
    * @param signatureNode The XML node or string representing the signature.
    */
   loadSignature(signatureNode: Node | string): void {
-    if (typeof signatureNode === "string") {
-      this.signatureNode = signatureNode = new xmldom.DOMParser().parseFromString(signatureNode);
-    } else {
-      this.signatureNode = signatureNode;
-    }
+    const signatureNodeParsed =
+      typeof signatureNode === "string" ? utils.parseXml(signatureNode) : signatureNode;
+    this.signatureNode = signatureNodeParsed;
 
-    this.signatureXml = signatureNode.toString();
+    this.signatureXml = signatureNodeParsed.toString();
 
     const node = xpath.select1(
       ".//*[local-name(.)='CanonicalizationMethod']/@Algorithm",
-      signatureNode,
+      signatureNodeParsed,
     );
     if (!isDomNode.isNodeLike(node)) {
       throw new Error("could not find CanonicalizationMethod/@Algorithm element");
@@ -629,7 +618,7 @@ export class SignedXml {
 
     const signatureAlgorithm = xpath.select1(
       ".//*[local-name(.)='SignatureMethod']/@Algorithm",
-      signatureNode,
+      signatureNodeParsed,
     );
 
     if (isDomNode.isAttributeNode(signatureAlgorithm)) {
@@ -664,10 +653,7 @@ export class SignedXml {
       [canonicalizationAlgorithmForSignedInfo],
       signedInfoNodes[0],
     );
-    const temporaryCanonSignedInfoXml = new xmldom.DOMParser().parseFromString(
-      temporaryCanonSignedInfo,
-      "text/xml",
-    );
+    const temporaryCanonSignedInfoXml = utils.parseXml(temporaryCanonSignedInfo);
     const signedInfoDoc = temporaryCanonSignedInfoXml.documentElement;
 
     this.references = [];
@@ -683,14 +669,14 @@ export class SignedXml {
 
     const signatureValue = xpath.select1(
       ".//*[local-name(.)='SignatureValue']/text()",
-      signatureNode,
+      signatureNodeParsed,
     );
 
     if (isDomNode.isTextNode(signatureValue)) {
       this.signatureValue = signatureValue.data.replace(/\r?\n/g, "");
     }
 
-    const keyInfo = xpath.select1(".//*[local-name(.)='KeyInfo']", signatureNode);
+    const keyInfo = xpath.select1(".//*[local-name(.)='KeyInfo']", signatureNodeParsed);
 
     if (isDomNode.isNodeLike(keyInfo)) {
       this.keyInfo = keyInfo;
@@ -918,7 +904,7 @@ export class SignedXml {
       options = (options ?? {}) as ComputeSignatureOptions;
     }
 
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     let xmlNsAttr = "xmlns";
     const signatureAttrs: string[] = [];
     let currentPrefix: string;
@@ -961,11 +947,12 @@ export class SignedXml {
         continue;
       } // No specific nodes to ID for empty URI
 
-      const nodes = xpath.selectWithResolver(
-        ref.xpath ?? "",
-        doc,
-        this.namespaceResolver,
-      ) as Element[];
+      const selectedNodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+      const nodes = isDomNode.isArrayOfNodes(selectedNodes)
+        ? selectedNodes
+        : isDomNode.isNodeLike(selectedNodes)
+          ? [selectedNodes]
+          : [];
       for (const node of nodes) {
         isDomNode.assertIsElementNode(node);
         this.ensureHasId(node);
@@ -1007,7 +994,7 @@ export class SignedXml {
     // A trick to remove the namespaces that already exist in the xml
     // This only works if the prefix and namespace match with those in the xml
     const dummySignatureWrapper = `<Dummy ${existingPrefixesString}>${signatureXml}</Dummy>`;
-    const nodeXml = new xmldom.DOMParser().parseFromString(dummySignatureWrapper);
+    const nodeXml = utils.parseXml(dummySignatureWrapper);
 
     // Because we are using a dummy wrapper hack described above, we know there will be a `firstChild`
     // and that it will be an `Element` node.
@@ -1386,7 +1373,7 @@ export class SignedXml {
     //we need to wrap the info in a dummy signature since it contains the default namespace.
     const dummySignatureWrapper = `<${prefix}Signature ${xmlNsAttr}="http://www.w3.org/2000/09/xmldsig#">${signatureValueXml}</${prefix}Signature>`;
 
-    const doc = new xmldom.DOMParser().parseFromString(dummySignatureWrapper);
+    const doc = utils.parseXml(dummySignatureWrapper);
 
     // Because we are using a dummy wrapper hack described above, we know there will be a `firstChild`
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

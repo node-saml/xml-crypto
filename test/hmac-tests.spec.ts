@@ -1,14 +1,15 @@
-import { SignedXml } from "../src/index";
-import * as xpath from "xpath";
-import * as xmldom from "@xmldom/xmldom";
-import * as fs from "fs";
-import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
+import { expect } from "chai";
+import * as fs from "fs";
+import * as xpath from "xpath";
+
+import { SignedXml } from "../src/index";
+import * as utils from "../src/utils";
 
 describe("HMAC tests", function () {
   it("test validating HMAC signature", function () {
     const xml = fs.readFileSync("./test/static/hmac_signature.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
@@ -27,7 +28,7 @@ describe("HMAC tests", function () {
 
   it("test HMAC signature with incorrect key", function () {
     const xml = fs.readFileSync("./test/static/hmac_signature.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
@@ -57,7 +58,7 @@ describe("HMAC tests", function () {
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
     sig.computeSignature(xml);
 
-    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const doc = utils.parseXml(sig.getSignedXml());
     const signature = xpath.select1(
       "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
       doc,
