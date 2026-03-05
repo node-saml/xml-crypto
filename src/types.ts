@@ -128,29 +128,7 @@ export type CanonicalizationAlgorithmMap = Record<
   CanonicalizationAlgorithmURI,
   new () => CanonicalizationAlgorithm
 >;
-/**
- * @deprecated Use CanonicalizationAlgorithm or TransformAlgorithm instead.
- */
-// eslint-disable-next-line deprecation/deprecation
-export type CanonicalizationOrTransformationAlgorithm =
-  | CanonicalizationAlgorithm
-  | TransformAlgorithm;
-export type TransformAlgorithmMap = Record<
-  TransformAlgorithmURI,
-  // eslint-disable-next-line deprecation/deprecation
-  new () => CanonicalizationOrTransformationAlgorithm
->; // TODO: replace with TransformAlgorithm in next breaking change
-/**
- * @deprecated Use CanonicalizationAlgorithmURI or TransformAlgorithmURI instead.
- */
-export type CanonicalizationOrTransformAlgorithmType =
-  | CanonicalizationAlgorithmURI
-  | TransformAlgorithmURI;
-
-/**
- * @deprecated Use CanonicalizationAlgorithmURI instead.
- */
-export type CanonicalizationAlgorithmType = CanonicalizationAlgorithmURI;
+export type TransformAlgorithmMap = Record<TransformAlgorithmURI, new () => TransformAlgorithm>;
 /**
  * Options for the SignedXml constructor.
  */
@@ -164,8 +142,7 @@ export interface SignedXmlOptions {
   canonicalizationAlgorithm?: CanonicalizationAlgorithmURI;
   inclusiveNamespacesPrefixList?: string | string[];
   maxTransforms?: number | null;
-  // eslint-disable-next-line deprecation/deprecation
-  implicitTransforms?: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>; // TODO: replace with TransformAlgorithmURI in next breaking change
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmURI>;
   keyInfoAttributes?: Record<string, string>;
   getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
   getCertFromKeyInfo?: KeySelectorFunction;
@@ -213,8 +190,7 @@ export interface Reference {
   xpath?: string;
 
   // An array of transforms to be applied to the data before signing.
-  // eslint-disable-next-line deprecation/deprecation
-  transforms: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>; // TODO: replace with TransformAlgorithmURI in next breaking change
+  transforms: ReadonlyArray<TransformAlgorithmURI>;
 
   // The algorithm used to calculate the digest value of the data.
   digestAlgorithm: HashAlgorithmURI;
@@ -337,8 +313,7 @@ export interface XmlDSigVerifierOptionsBase {
   /**
    * Transforms to apply implicitly during canonicalization.
    */
-  // eslint-disable-next-line deprecation/deprecation
-  implicitTransforms?: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>; // TODO: replace with TransformAlgorithmURI in next breaking change
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmURI>;
 
   /**
    * Whether to throw an exception on verification failure.
@@ -351,37 +326,42 @@ export interface XmlDSigVerifierSecurityOptions {
   /**
    * Maximum number of transforms allowed per Reference element.
    * Limits complexity to prevent denial-of-service attacks.
-   * @default {@link SignedXml.DEFAULT_MAX_TRANSFORMS}
+   * @default {@link XmlDSigVerifier.DEFAULT_MAX_TRANSFORMS}
    */
   maxTransforms?: number;
 
   /**
-   * Signature algorithms allowed during verification.
+   * Signature algorithm constructors allowed during verification.
+   * Each constructor's `getAlgorithmName()` is used as the lookup key.
    *
-   * @default {@link SignedXml.getDefaultAsymmetricSignatureAlgorithms()} {@link SignedXml.getDefaultSymmetricSignatureAlgorithms()}
+   * @default {@link XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms} or {@link XmlDSigVerifier.defaultSymmetricSignatureAlgorithms}
    */
-  signatureAlgorithms?: SignatureAlgorithmMap;
+  signatureAlgorithms?: Array<new () => SignatureAlgorithm>;
 
   /**
-   * Hash algorithms allowed during verification.
+   * Hash algorithm constructors allowed during verification.
+   * Each constructor's `getAlgorithmName()` is used as the lookup key.
    *
-   * @default {@link SignedXml.getDefaultHashAlgorithms()}
+   * @default {@link XmlDSigVerifier.defaultHashAlgorithms}
    */
-  hashAlgorithms?: HashAlgorithmMap;
+  hashAlgorithms?: Array<new () => HashAlgorithm>;
 
   /**
-   * Transform algorithms allowed during verification. (This must include canonicalization algorithms)
+   * Transform algorithm constructors allowed during verification.
+   * Must include any canonicalization algorithms used as transforms.
+   * Each constructor's `getAlgorithmName()` is used as the lookup key.
    *
-   * @default all algorithms in {@link SignedXml.getDefaultTransformAlgorithms()}
+   * @default {@link XmlDSigVerifier.defaultTransformAlgorithms}
    */
-  transformAlgorithms?: TransformAlgorithmMap;
+  transformAlgorithms?: Array<new () => TransformAlgorithm>;
 
   /**
-   * Canonicalization algorithms allowed during verification.
+   * Canonicalization algorithm constructors allowed during verification.
+   * Each constructor's `getAlgorithmName()` is used as the lookup key.
    *
-   * @default all algorithms in {@link SignedXml.getDefaultCanonicalizationAlgorithms()}
+   * @default {@link XmlDSigVerifier.defaultCanonicalizationAlgorithms}
    */
-  canonicalizationAlgorithms?: CanonicalizationAlgorithmMap;
+  canonicalizationAlgorithms?: Array<new () => CanonicalizationAlgorithm>;
 }
 
 export interface KeyInfoXmlDSigSecurityOptions extends XmlDSigVerifierSecurityOptions {
@@ -475,18 +455,3 @@ export type FailedXmlDsigVerificationResult = {
 export type XmlDsigVerificationResult =
   | SuccessfulXmlDsigVerificationResult
   | FailedXmlDsigVerificationResult;
-
-/**
- * @deprecated Use TransformAlgorithmOptions instead.
- */
-export type CanonicalizationOrTransformationAlgorithmProcessOptions = TransformAlgorithmOptions;
-
-/**
- * @deprecated Use SignatureAlgorithmURI instead.
- */
-export type SignatureAlgorithmType = SignatureAlgorithmURI;
-
-/**
- * @deprecated Use HashAlgorithmURI instead.
- */
-export type HashAlgorithmType = HashAlgorithmURI;

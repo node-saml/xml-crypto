@@ -1,10 +1,7 @@
 import * as fs from "fs";
 import { expect } from "chai";
-import { XmlDSigVerifier, SignedXml, ExclusiveCanonicalization } from "../src";
-import { RsaSha1 } from "../src/signature-algorithms";
-import { Sha1 } from "../src/hash-algorithms";
-import { EnvelopedSignature } from "../src/enveloped-signature";
-import { XMLDSIG_URIS, XmlDsigVerificationResult } from "../src/";
+import { XmlDSigVerifier, SignedXml, EnvelopedSignature, XMLDSIG_URIS } from "../src";
+import type { XmlDsigVerificationResult } from "../src/";
 
 import { X509Certificate } from "node:crypto";
 
@@ -160,9 +157,9 @@ describe("XmlDSigVerifier", function () {
           maxTransforms: 5,
           checkCertExpiration: true,
           truststore: [rootCert],
-          signatureAlgorithms: SignedXml.getDefaultAsymmetricSignatureAlgorithms(),
-          hashAlgorithms: SignedXml.getDefaultHashAlgorithms(),
-          transformAlgorithms: SignedXml.getDefaultTransformAlgorithms(),
+          signatureAlgorithms: XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms,
+          hashAlgorithms: XmlDSigVerifier.defaultHashAlgorithms,
+          transformAlgorithms: XmlDSigVerifier.defaultTransformAlgorithms,
         },
       });
       expect(verifier).to.be.instanceOf(XmlDSigVerifier);
@@ -732,7 +729,9 @@ describe("XmlDSigVerifier", function () {
         const signedXml = createSignedXml(xml);
         const verifier = new XmlDSigVerifier({
           keySelector: { publicCert },
-          security: { signatureAlgorithms: SignedXml.getDefaultAsymmetricSignatureAlgorithms() },
+          security: {
+            signatureAlgorithms: XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms,
+          },
         });
         expectValidResult(verifier.verifySignature(signedXml));
       });
@@ -741,7 +740,7 @@ describe("XmlDSigVerifier", function () {
         const signedXml = createSignedXml(xml);
         const verifier = new XmlDSigVerifier({
           keySelector: { publicCert },
-          security: { signatureAlgorithms: { foo: RsaSha1 } },
+          security: { signatureAlgorithms: [] },
         });
         expectInvalidResult(verifier.verifySignature(signedXml), "signature algorithm");
       });
@@ -752,7 +751,7 @@ describe("XmlDSigVerifier", function () {
         const signedXml = createSignedXml(xml);
         const verifier = new XmlDSigVerifier({
           keySelector: { publicCert },
-          security: { hashAlgorithms: SignedXml.getDefaultHashAlgorithms() },
+          security: { hashAlgorithms: XmlDSigVerifier.defaultHashAlgorithms },
         });
         expectValidResult(verifier.verifySignature(signedXml));
       });
@@ -761,7 +760,7 @@ describe("XmlDSigVerifier", function () {
         const signedXml = createSignedXml(xml);
         const verifier = new XmlDSigVerifier({
           keySelector: { publicCert },
-          security: { hashAlgorithms: { foo: Sha1 } },
+          security: { hashAlgorithms: [] },
         });
         expectInvalidResult(verifier.verifySignature(signedXml), "hash algorithm");
       });
@@ -772,7 +771,7 @@ describe("XmlDSigVerifier", function () {
         const signedXml = createSignedXml(xml);
         const verifier = new XmlDSigVerifier({
           keySelector: { publicCert },
-          security: { transformAlgorithms: SignedXml.getDefaultTransformAlgorithms() },
+          security: { transformAlgorithms: XmlDSigVerifier.defaultTransformAlgorithms },
         });
         expectValidResult(verifier.verifySignature(signedXml));
       });
@@ -781,7 +780,7 @@ describe("XmlDSigVerifier", function () {
         const signedXml = createSignedXml(xml);
         const verifier = new XmlDSigVerifier({
           keySelector: { publicCert },
-          security: { transformAlgorithms: { foo: EnvelopedSignature } },
+          security: { transformAlgorithms: [EnvelopedSignature] },
         });
         expectInvalidResult(verifier.verifySignature(signedXml), "transform algorithm");
       });
@@ -793,7 +792,7 @@ describe("XmlDSigVerifier", function () {
         const verifier = new XmlDSigVerifier({
           keySelector: { publicCert },
           security: {
-            canonicalizationAlgorithms: SignedXml.getDefaultCanonicalizationAlgorithms(),
+            canonicalizationAlgorithms: XmlDSigVerifier.defaultCanonicalizationAlgorithms,
           },
         });
         expectValidResult(verifier.verifySignature(signedXml));
@@ -803,7 +802,7 @@ describe("XmlDSigVerifier", function () {
         const signedXml = createSignedXml(xml);
         const verifier = new XmlDSigVerifier({
           keySelector: { publicCert },
-          security: { canonicalizationAlgorithms: { foo: ExclusiveCanonicalization } },
+          security: { canonicalizationAlgorithms: [] },
         });
         expectInvalidResult(verifier.verifySignature(signedXml), "canonicalization algorithm");
       });

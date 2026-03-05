@@ -14,8 +14,8 @@ import type {
   SignatureAlgorithmMap,
   CanonicalizationAlgorithmMap,
   TransformAlgorithmMap,
+  TransformAlgorithmURI,
   VerificationIdAttributeType,
-  CanonicalizationOrTransformAlgorithmType,
 } from "./types";
 
 import * as isDomNode from "@xmldom/is-dom-node";
@@ -79,8 +79,7 @@ export class SignedXml {
   };
 
   maxTransforms: number | null;
-  // eslint-disable-next-line deprecation/deprecation
-  implicitTransforms: ReadonlyArray<CanonicalizationOrTransformAlgorithmType> = []; // TODO: replace with TransformAlgorithmURI in next breaking change
+  implicitTransforms: ReadonlyArray<TransformAlgorithmURI> = [];
   keyInfoAttributes: { [attrName: string]: string } = {};
   getKeyInfoContent = SignedXml.getKeyInfoContent;
   getCertFromKeyInfo = SignedXml.getCertFromKeyInfo;
@@ -540,9 +539,7 @@ export class SignedXml {
     }
   }
 
-  // eslint-disable-next-line deprecation/deprecation
-  private findTransformAlgorithm(name: CanonicalizationOrTransformAlgorithmType) {
-    // TODO: replace with TransformAlgorithmURI in next breaking change
+  private findTransformAlgorithm(name: TransformAlgorithmURI) {
     // TODO: remove this fallback (breaking change)
     if (this.TransformAlgorithms == null) {
       return this.findCanonicalizationAlgorithm(name);

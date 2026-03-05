@@ -8,16 +8,26 @@ import {
   XmlDSigVerifierOptions,
   XmlDsigVerificationResult,
   TransformAlgorithmURI,
-  KeyInfoXmlDSigSecurityOptions,
   KeyInfoKeySelector,
   SharedSecretKeySelector,
   CertificateKeySelector,
-  XmlDSigVerifierSecurityOptions,
+  SignatureAlgorithmMap,
+  HashAlgorithmMap,
+  TransformAlgorithmMap,
+  CanonicalizationAlgorithmMap,
   KeyInfoXmlDSigVerifierOptions,
   SharedSecretXmlDSigVerifierOptions,
   PublicCertXmlDSigVerifierOptions,
 } from "./types";
 import { isArrayHasLength } from "./utils";
+import { Sha1, Sha256, Sha512 } from "./hash-algorithms";
+import { RsaSha1, RsaSha256, RsaSha256Mgf1, RsaSha512, HmacSha1 } from "./signature-algorithms";
+import { C14nCanonicalization, C14nCanonicalizationWithComments } from "./c14n-canonicalization";
+import {
+  ExclusiveCanonicalization,
+  ExclusiveCanonicalizationWithComments,
+} from "./exclusive-canonicalization";
+import { EnvelopedSignature } from "./enveloped-signature";
 
 type ResolvedXmlDSigVerifierOptionsBase = {
   idAttributes: VerificationIdAttributeType[];
@@ -25,22 +35,36 @@ type ResolvedXmlDSigVerifierOptionsBase = {
   throwOnError: boolean;
 };
 
+/** Resolved security options use maps (what SignedXml expects), not arrays. */
+type ResolvedSecurityOptions = {
+  maxTransforms: number;
+  signatureAlgorithms: SignatureAlgorithmMap;
+  hashAlgorithms: HashAlgorithmMap;
+  transformAlgorithms: TransformAlgorithmMap;
+  canonicalizationAlgorithms: CanonicalizationAlgorithmMap;
+};
+
+type ResolvedKeyInfoSecurityOptions = ResolvedSecurityOptions & {
+  checkCertExpiration: boolean;
+  truststore: Array<string | Buffer | X509Certificate>;
+};
+
 type ResolvedKeyInfoOptions = ResolvedXmlDSigVerifierOptionsBase & {
   optionsType: "keyinfo";
   keySelector: KeyInfoKeySelector;
-  security: Required<KeyInfoXmlDSigSecurityOptions>;
+  security: ResolvedKeyInfoSecurityOptions;
 };
 
 type ResolvedCertificateOptions = ResolvedXmlDSigVerifierOptionsBase & {
   optionsType: "certificate";
   keySelector: CertificateKeySelector;
-  security: Required<XmlDSigVerifierSecurityOptions>;
+  security: ResolvedSecurityOptions;
 };
 
 type ResolvedSharedSecretOptions = ResolvedXmlDSigVerifierOptionsBase & {
   optionsType: "sharedsecret";
   keySelector: SharedSecretKeySelector;
-  security: Required<XmlDSigVerifierSecurityOptions>;
+  security: ResolvedSecurityOptions;
 };
 
 type ResolvedXmlDsigVerifierOptions =
@@ -82,6 +106,36 @@ export class XmlDSigVerifier {
   public static readonly DEFAULT_MAX_TRANSFORMS = 4;
   public static readonly DEFAULT_CHECK_CERT_EXPIRATION = true;
   public static readonly DEFAULT_THROW_ON_ERROR = false;
+
+  static readonly defaultHashAlgorithms = [Sha1, Sha256, Sha512];
+  static readonly defaultAsymmetricSignatureAlgorithms = [
+    RsaSha1,
+    RsaSha256,
+    RsaSha256Mgf1,
+    RsaSha512,
+  ];
+  static readonly defaultSymmetricSignatureAlgorithms = [HmacSha1];
+  static readonly defaultCanonicalizationAlgorithms = [
+    C14nCanonicalization,
+    C14nCanonicalizationWithComments,
+    ExclusiveCanonicalization,
+    ExclusiveCanonicalizationWithComments,
+  ];
+  static readonly defaultTransformAlgorithms = [
+    ...XmlDSigVerifier.defaultCanonicalizationAlgorithms,
+    EnvelopedSignature,
+  ];
+
+  private static toAlgorithmMap<T extends { getAlgorithmName(): string }>(
+    constructors: Array<new () => T>,
+  ): Record<string, new () => T> {
+    const map: Record<string, new () => T> = {};
+    for (const Ctor of constructors) {
+      const instance = new Ctor();
+      map[instance.getAlgorithmName()] = Ctor;
+    }
+    return map;
+  }
 
   /**
    * Creates a new XmlDSigVerifier instance. The instance can be reused for multiple verifications.
@@ -171,13 +225,13 @@ export class XmlDSigVerifier {
       idAttributes: SignedXml.getDefaultIdAttributes(),
       maxTransforms: XmlDSigVerifier.DEFAULT_MAX_TRANSFORMS,
       checkCertExpiration: XmlDSigVerifier.DEFAULT_CHECK_CERT_EXPIRATION,
-      truststore: [],
+      truststore: [] as Array<string | Buffer | X509Certificate>,
       signatureAlgorithms: isSharedSecretSelector(options)
-        ? SignedXml.getDefaultSymmetricSignatureAlgorithms()
-        : SignedXml.getDefaultAsymmetricSignatureAlgorithms(),
-      hashAlgorithms: SignedXml.getDefaultHashAlgorithms(),
-      transformAlgorithms: SignedXml.getDefaultTransformAlgorithms(),
-      canonicalizationAlgorithms: SignedXml.getDefaultCanonicalizationAlgorithms(),
+        ? XmlDSigVerifier.defaultSymmetricSignatureAlgorithms
+        : XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms,
+      hashAlgorithms: XmlDSigVerifier.defaultHashAlgorithms,
+      transformAlgorithms: XmlDSigVerifier.defaultTransformAlgorithms,
+      canonicalizationAlgorithms: XmlDSigVerifier.defaultCanonicalizationAlgorithms,
     };
 
     const baseOptions = {
@@ -186,13 +240,20 @@ export class XmlDSigVerifier {
       throwOnError: options.throwOnError ?? XmlDSigVerifier.DEFAULT_THROW_ON_ERROR,
     };
 
-    const baseSecurity = {
+    const baseSecurity: ResolvedSecurityOptions = {
       maxTransforms: options.security?.maxTransforms ?? defaults.maxTransforms,
-      signatureAlgorithms: options.security?.signatureAlgorithms ?? defaults.signatureAlgorithms,
-      hashAlgorithms: options.security?.hashAlgorithms ?? defaults.hashAlgorithms,
-      transformAlgorithms: options.security?.transformAlgorithms ?? defaults.transformAlgorithms,
-      canonicalizationAlgorithms:
+      signatureAlgorithms: XmlDSigVerifier.toAlgorithmMap(
+        options.security?.signatureAlgorithms ?? defaults.signatureAlgorithms,
+      ),
+      hashAlgorithms: XmlDSigVerifier.toAlgorithmMap(
+        options.security?.hashAlgorithms ?? defaults.hashAlgorithms,
+      ),
+      transformAlgorithms: XmlDSigVerifier.toAlgorithmMap(
+        options.security?.transformAlgorithms ?? defaults.transformAlgorithms,
+      ),
+      canonicalizationAlgorithms: XmlDSigVerifier.toAlgorithmMap(
         options.security?.canonicalizationAlgorithms ?? defaults.canonicalizationAlgorithms,
+      ),
     };
 
     if (isKeyInfoSelector(options)) {

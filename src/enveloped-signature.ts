@@ -1,11 +1,7 @@
 import * as xpath from "xpath";
 import * as isDomNode from "@xmldom/is-dom-node";
 import { XMLDSIG_URIS } from "./xmldsig-uris";
-import type {
-  TransformAlgorithmOptions,
-  CanonicalizationOrTransformAlgorithmType,
-  TransformAlgorithm,
-} from "./types";
+import type { TransformAlgorithmOptions, TransformAlgorithmURI, TransformAlgorithm } from "./types";
 
 export class EnvelopedSignature implements TransformAlgorithm {
   protected includeComments = false;
@@ -55,9 +51,7 @@ export class EnvelopedSignature implements TransformAlgorithm {
     return node;
   }
 
-  // eslint-disable-next-line deprecation/deprecation
-  getAlgorithmName(): CanonicalizationOrTransformAlgorithmType {
-    // TODO: replace with TransformAlgorithmURI in next breaking change
+  getAlgorithmName(): TransformAlgorithmURI {
     return XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE;
   }
 }
