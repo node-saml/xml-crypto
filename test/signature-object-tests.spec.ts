@@ -203,7 +203,7 @@ describe("ds:Object support in XML signatures", function () {
     expect(objectNodesWithEmpty.length).to.equal(0);
   });
 
-  it("should handle Reference to Object", function () {
+  it("should serialize Reference to Object with expected URI/transform/digest fields", function () {
     const xml = "<root></root>";
 
     const sig = new SignedXml({

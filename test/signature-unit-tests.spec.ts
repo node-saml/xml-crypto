@@ -15,6 +15,7 @@ const signatureAlgorithms = [
   SIGNATURE_ALGORITHMS.RSA_SHA256_MGF1,
   SIGNATURE_ALGORITHMS.RSA_SHA512,
 ];
+// TODO: Revisit/expand the signature algorithm matrix when SHA1 is no longer the default in signing flows.
 
 describe("Signature unit tests", function () {
   describe("sign and verify", function () {
@@ -768,7 +769,7 @@ describe("Signature unit tests", function () {
     expect(expected, "wrong signature format").to.equal(signedXml);
   });
 
-  it("signer creates correct signature values using async callback", function () {
+  it("signer creates correct signature values using async callback", function (done) {
     class DummySignatureAlgorithm {
       verifySignature = function () {
         return true;
@@ -812,40 +813,49 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N;
-    sig.computeSignature(xml, function () {
-      const signedXml = sig.getSignedXml();
-      const expected =
-        '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z>' +
-        '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">' +
-        "<SignedInfo>" +
-        '<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
-        '<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>' +
-        '<Reference URI="#_0">' +
-        "<Transforms>" +
-        '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></Transforms>' +
-        '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
-        "<DigestValue>b5GCZ2xpP5T7tbLWBTkOl4CYupQ=</DigestValue>" +
-        "</Reference>" +
-        '<Reference URI="#_1">' +
-        "<Transforms>" +
-        '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
-        "</Transforms>" +
-        '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
-        "<DigestValue>4Pq/sBri+AyOtxtSFsPSOyylyzk=</DigestValue>" +
-        "</Reference>" +
-        '<Reference URI="#_2">' +
-        "<Transforms>" +
-        '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
-        "</Transforms>" +
-        '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
-        "<DigestValue>6I7SDu1iV2YOajTlf+iMLIBfLnE=</DigestValue>" +
-        "</Reference>" +
-        "</SignedInfo>" +
-        "<SignatureValue>NejzGB9MDUddKCt3GL2vJhEd5q6NBuhLdQc3W4bJI5q34hk7Hk6zBRoW3OliX+/f7Hpi9y0INYoqMSUfrsAVm3IuPzUETKlI6xiNZo07ULRj1DwxRo6cU66ar1EKUQLRuCZas795FjB8jvUI2lyhcax/00uMJ+Cjf4bwAQ+9gOQ=</SignatureValue>" +
-        "</Signature>" +
-        "</root>";
+    sig.computeSignature(xml, function (err) {
+      if (err) {
+        done(err);
+        return;
+      }
+      try {
+        const signedXml = sig.getSignedXml();
+        const expected =
+          '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z>' +
+          '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#">' +
+          "<SignedInfo>" +
+          '<CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
+          '<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>' +
+          '<Reference URI="#_0">' +
+          "<Transforms>" +
+          '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></Transforms>' +
+          '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
+          "<DigestValue>b5GCZ2xpP5T7tbLWBTkOl4CYupQ=</DigestValue>" +
+          "</Reference>" +
+          '<Reference URI="#_1">' +
+          "<Transforms>" +
+          '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
+          "</Transforms>" +
+          '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
+          "<DigestValue>4Pq/sBri+AyOtxtSFsPSOyylyzk=</DigestValue>" +
+          "</Reference>" +
+          '<Reference URI="#_2">' +
+          "<Transforms>" +
+          '<Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/>' +
+          "</Transforms>" +
+          '<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>' +
+          "<DigestValue>6I7SDu1iV2YOajTlf+iMLIBfLnE=</DigestValue>" +
+          "</Reference>" +
+          "</SignedInfo>" +
+          "<SignatureValue>NejzGB9MDUddKCt3GL2vJhEd5q6NBuhLdQc3W4bJI5q34hk7Hk6zBRoW3OliX+/f7Hpi9y0INYoqMSUfrsAVm3IuPzUETKlI6xiNZo07ULRj1DwxRo6cU66ar1EKUQLRuCZas795FjB8jvUI2lyhcax/00uMJ+Cjf4bwAQ+9gOQ=</SignatureValue>" +
+          "</Signature>" +
+          "</root>";
 
-      expect(expected, "wrong signature format").to.equal(signedXml);
+        expect(expected, "wrong signature format").to.equal(signedXml);
+        done();
+      } catch (assertionErr) {
+        done(assertionErr);
+      }
     });
   });
 
@@ -1182,7 +1192,7 @@ describe("Signature unit tests", function () {
     ).to.equal("prefix1 prefix2");
   });
 
-  it("does not create InclusiveNamespaces element when inclusiveNamespacesPrefixList is not set on Reference", function () {
+  it("does not create InclusiveNamespaces element when inclusiveNamespacesPrefixList is empty on Reference", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
