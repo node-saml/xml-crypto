@@ -154,7 +154,7 @@ interface XmlDSigVerifierOptions {
   // STRATEGY: Choose one of the following key selectors
   keySelector:
     | { publicCert: KeyLike } // Direct public key/cert
-    | { getCertFromKeyInfo: (node?: Node | null) => string | null } // Extract from XML
+    | { getCertFromKeyInfo: (node?: Node | null) => string | null } // Extract certificate from XML
     | { sharedSecretKey: KeyLike }; // HMAC shared secret
 
   // CONFIGURATION

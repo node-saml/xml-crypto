@@ -289,7 +289,11 @@ export type CertificateKeySelector = {
 };
 
 export type KeyInfoKeySelector = {
-  /** Function to extract the public key from KeyInfo element */
+  /** Function to extract the public certificate or key from the KeyInfo element.
+   * The returned string is passed to the signature algorithm's `verifySignature` as a `KeyLike`.
+   * When `checkCertExpiration` or `truststore` security options are enabled, it is also
+   * parsed as a certificate, so it must be valid certificate material in that case.
+   * @see {@link SignedXml.getCertFromKeyInfo} for a default implementation. */
   getCertFromKeyInfo: (keyInfo?: Node | null) => string | null;
 };
 

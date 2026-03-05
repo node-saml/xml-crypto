@@ -359,7 +359,7 @@ export class XmlDSigVerifier {
 
   private static handleError(error: unknown, throwOnError: boolean): XmlDsigVerificationResult {
     if (throwOnError) {
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
 
     const errorMessage =
