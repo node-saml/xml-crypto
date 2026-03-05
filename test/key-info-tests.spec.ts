@@ -1,4 +1,3 @@
-import * as xmldom from "@xmldom/xmldom";
 import * as fs from "fs";
 import * as xpath from "xpath";
 import { SignedXml, XMLDSIG_URIS } from "../src";

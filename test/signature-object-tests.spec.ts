@@ -1,7 +1,6 @@
 import * as fs from "fs";
 import { expect, assert } from "chai";
 import * as xpath from "xpath";
-import * as xmldom from "@xmldom/xmldom";
 import * as isDomNode from "@xmldom/is-dom-node";
 import { SignedXml, XMLDSIG_URIS } from "../src";
 import { Sha256 } from "../src/hash-algorithms";

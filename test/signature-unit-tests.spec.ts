@@ -1,5 +1,4 @@
 import * as xpath from "xpath";
-import * as xmldom from "@xmldom/xmldom";
 import { SignedXml, createOptionalCallbackFunction, XMLDSIG_URIS } from "../src";
 import * as fs from "fs";
 import * as crypto from "crypto";
@@ -67,9 +66,7 @@ describe("Signature unit tests", function () {
         isDomNode.assertIsElementNode(node);
         const targetElement = node as Element;
         targetElement.setAttribute("attr", "manipulatedValue");
-        const manipulatedXml = new xmldom.XMLSerializer().serializeToString(
-          doc as unknown as xmldom.Node,
-        );
+        const manipulatedXml = doc.toString();
 
         const sig = loadSignature(manipulatedXml);
         const res = sig.checkSignature(manipulatedXml);

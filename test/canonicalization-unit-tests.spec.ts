@@ -1,6 +1,5 @@
 import { expect } from "chai";
 
-import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import { SignedXml, ExclusiveCanonicalization, XMLDSIG_URIS } from "../src";
 import * as isDomNode from "@xmldom/is-dom-node";

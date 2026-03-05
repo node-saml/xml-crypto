@@ -1,6 +1,5 @@
 import { SignedXml, XMLDSIG_URIS } from "../src";
 import * as xpath from "xpath";
-import * as xmldom from "@xmldom/xmldom";
 import * as fs from "fs";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";

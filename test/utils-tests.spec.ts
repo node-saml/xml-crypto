@@ -1,7 +1,6 @@
 import * as fs from "fs";
 import * as utils from "../src/utils";
 import { expect } from "chai";
-import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import * as isDomNode from "@xmldom/is-dom-node";
 
@@ -99,7 +98,7 @@ describe("Utils tests", function () {
 
       expect(attr).to.not.be.null;
       expect(attr?.value).to.equal("value");
-      expect(attr?.namespaceURI).to.equal(null);
+      expect(attr?.namespaceURI).to.be.undefined;
     });
 
     it("should not find namespaced attribute when null is passed as namespace", function () {
@@ -134,7 +133,7 @@ describe("Utils tests", function () {
       const noNsAttr = utils.findAttr(rootElement, "testAttr", null);
       expect(noNsAttr).to.not.be.null;
       expect(noNsAttr?.value).to.equal("noNsValue");
-      expect(noNsAttr?.namespaceURI).to.equal(null);
+      expect(noNsAttr?.namespaceURI).to.be.undefined;
 
       // Find the namespaced attribute
       const nsAttr = utils.findAttr(rootElement, "testAttr", "http://example.com");

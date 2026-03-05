@@ -1,7 +1,6 @@
 import { expect } from "chai";
 
 import { ExclusiveCanonicalizationWithComments as c14nWithComments } from "../src/exclusive-canonicalization";
-import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import { SignedXml, XMLDSIG_URIS } from "../src";
 import * as isDomNode from "@xmldom/is-dom-node";

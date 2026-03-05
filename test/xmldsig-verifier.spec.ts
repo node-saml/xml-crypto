@@ -7,7 +7,6 @@ import * as utils from "../src/utils";
 import { X509Certificate } from "node:crypto";
 
 // Parse the XML and get both signature nodes
-import { DOMParser } from "@xmldom/xmldom";
 
 const { CANONICALIZATION_ALGORITHMS, HASH_ALGORITHMS, SIGNATURE_ALGORITHMS, TRANSFORM_ALGORITHMS } =
   XMLDSIG_URIS;
