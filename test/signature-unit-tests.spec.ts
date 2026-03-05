@@ -1,11 +1,12 @@
-import * as xpath from "xpath";
-import { SignedXml, createOptionalCallbackFunction } from "../src/index";
-import * as fs from "fs";
-import * as crypto from "crypto";
-import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
-import * as utils from "../src/utils";
 import * as xmldom from "@xmldom/xmldom";
+import { expect } from "chai";
+import * as crypto from "crypto";
+import * as fs from "fs";
+import * as xpath from "xpath";
+
+import { createOptionalCallbackFunction, SignedXml } from "../src/index";
+import * as utils from "../src/utils";
 
 const signatureAlgorithms = [
   "http://www.w3.org/2000/09/xmldsig#rsa-sha1",

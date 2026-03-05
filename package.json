@@ -57,6 +57,7 @@
     "ejs": "^4.0.1",
     "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
     "globals": "^17.4.0",
     "lcov": "^1.16.0",
     "mocha": "^11.7.5",

@@ -1,8 +1,9 @@
-import * as fs from "fs";
-import * as utils from "../src/utils";
-import { expect } from "chai";
-import * as xpath from "xpath";
 import * as isDomNode from "@xmldom/is-dom-node";
+import { expect } from "chai";
+import * as fs from "fs";
+import * as xpath from "xpath";
+
+import * as utils from "../src/utils";
 
 describe("Utils tests", function () {
   describe("derToPem", function () {

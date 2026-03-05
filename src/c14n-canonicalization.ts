@@ -1,3 +1,5 @@
+import * as isDomNode from "@xmldom/is-dom-node";
+
 import type {
   CanonicalizationOrTransformationAlgorithm,
   CanonicalizationOrTransformationAlgorithmProcessOptions,
@@ -5,7 +7,6 @@ import type {
   RenderedNamespace,
 } from "./types";
 import * as utils from "./utils";
-import * as isDomNode from "@xmldom/is-dom-node";
 
 export class C14nCanonicalization implements CanonicalizationOrTransformationAlgorithm {
   protected includeComments = false;

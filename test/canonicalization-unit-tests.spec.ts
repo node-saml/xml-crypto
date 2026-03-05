@@ -1,9 +1,9 @@
+import * as isDomNode from "@xmldom/is-dom-node";
 import { expect } from "chai";
+import * as xpath from "xpath";
 
 import { ExclusiveCanonicalization } from "../src/exclusive-canonicalization";
-import * as xpath from "xpath";
 import { SignedXml } from "../src/index";
-import * as isDomNode from "@xmldom/is-dom-node";
 import * as utils from "../src/utils";
 
 const compare = function (

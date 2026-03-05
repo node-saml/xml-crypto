@@ -1,6 +1,7 @@
 import * as isDomNode from "@xmldom/is-dom-node";
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
+
 import type { NamespacePrefix } from "./types";
 
 export function parseXml(xml: string): Document {

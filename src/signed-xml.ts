@@ -1,3 +1,13 @@
+import * as isDomNode from "@xmldom/is-dom-node";
+import * as crypto from "crypto";
+import { deprecate } from "util";
+import * as xpath from "xpath";
+
+import * as c14n from "./c14n-canonicalization";
+import * as envelopedSignatures from "./enveloped-signature";
+import * as execC14n from "./exclusive-canonicalization";
+import * as hashAlgorithms from "./hash-algorithms";
+import * as signatureAlgorithms from "./signature-algorithms";
 import type {
   CanonicalizationAlgorithmType,
   CanonicalizationOrTransformAlgorithmType,
@@ -14,16 +24,6 @@ import type {
   SignatureAlgorithmType,
   SignedXmlOptions,
 } from "./types";
-
-import * as isDomNode from "@xmldom/is-dom-node";
-import * as crypto from "crypto";
-import { deprecate } from "util";
-import * as xpath from "xpath";
-import * as c14n from "./c14n-canonicalization";
-import * as envelopedSignatures from "./enveloped-signature";
-import * as execC14n from "./exclusive-canonicalization";
-import * as hashAlgorithms from "./hash-algorithms";
-import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
 
 export class SignedXml {

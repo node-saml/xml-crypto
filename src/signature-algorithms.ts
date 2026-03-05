@@ -1,5 +1,6 @@
 import * as crypto from "crypto";
-import { type SignatureAlgorithm, createOptionalCallbackFunction } from "./types";
+
+import { createOptionalCallbackFunction, type SignatureAlgorithm } from "./types";
 
 export class RsaSha1 implements SignatureAlgorithm {
   getSignature = createOptionalCallbackFunction(

@@ -1,10 +1,11 @@
+import * as isDomNode from "@xmldom/is-dom-node";
+
 import type {
   CanonicalizationOrTransformationAlgorithm,
   CanonicalizationOrTransformationAlgorithmProcessOptions,
   NamespacePrefix,
 } from "./types";
 import * as utils from "./utils";
-import * as isDomNode from "@xmldom/is-dom-node";
 
 function isPrefixInScope(prefixesInScope, prefix, namespaceURI) {
   let ret = false;

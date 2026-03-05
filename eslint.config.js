@@ -2,12 +2,16 @@ const js = require("@eslint/js");
 const tseslint = require("typescript-eslint");
 const globals = require("globals");
 const prettierConfig = require("eslint-config-prettier");
+const simpleImportSort = require("eslint-plugin-simple-import-sort");
 
 module.exports = tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
     files: ["**/*.ts"],
+    plugins: {
+      "simple-import-sort": simpleImportSort,
+    },
     languageOptions: {
       parserOptions: {
         project: "./tsconfig.eslint.json",
@@ -28,6 +32,8 @@ module.exports = tseslint.config(
       },
     },
     rules: {
+      "simple-import-sort/imports": "error",
+      "simple-import-sort/exports": "error",
       "no-console": "error",
       "no-prototype-builtins": "error",
       "one-var": ["error", "never"],

@@ -1,8 +1,9 @@
-import { SignedXml } from "../src/index";
-import * as xpath from "xpath";
-import * as fs from "fs";
-import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
+import { expect } from "chai";
+import * as fs from "fs";
+import * as xpath from "xpath";
+
+import { SignedXml } from "../src/index";
 import * as utils from "../src/utils";
 
 describe("HMAC tests", function () {

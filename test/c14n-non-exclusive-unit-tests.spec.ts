@@ -1,9 +1,9 @@
+import * as isDomNode from "@xmldom/is-dom-node";
 import { expect } from "chai";
+import * as xpath from "xpath";
 
 import { C14nCanonicalization } from "../src/c14n-canonicalization";
-import * as xpath from "xpath";
 import * as utils from "../src/utils";
-import * as isDomNode from "@xmldom/is-dom-node";
 
 const test_C14nCanonicalization = function (xml, xpathArg, expected) {
   const doc = utils.parseXml(xml);

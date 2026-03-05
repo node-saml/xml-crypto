@@ -1,7 +1,8 @@
-import * as fs from "fs";
-import { expect, assert } from "chai";
-import * as xpath from "xpath";
 import * as isDomNode from "@xmldom/is-dom-node";
+import { assert, expect } from "chai";
+import * as fs from "fs";
+import * as xpath from "xpath";
+
 import { SignedXml } from "../src";
 import { Sha256 } from "../src/hash-algorithms";
 import * as utils from "../src/utils";
