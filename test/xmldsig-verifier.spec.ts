@@ -170,7 +170,9 @@ describe("XmlDSigVerifier", function () {
 
     it("constructs when all supported constructor options are provided", function () {
       const verifier = new XmlDSigVerifier({
-        keySelector: { publicCert },
+        keySelector: {
+          getCertFromKeyInfo: () => publicCert,
+        },
         idAttributes: ["customId"],
         implicitTransforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
         throwOnError: true,

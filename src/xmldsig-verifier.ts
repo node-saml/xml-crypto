@@ -223,6 +223,16 @@ export class XmlDSigVerifier {
   }
 
   private static resolveOptions(options: XmlDSigVerifierOptions): ResolvedXmlDsigVerifierOptions {
+    if (!isKeyInfoSelector(options)) {
+      const security = options.security as Record<string, unknown> | undefined;
+      if (security?.checkCertExpiration != null) {
+        throw new Error("checkCertExpiration is only supported with getCertFromKeyInfo");
+      }
+      if (security?.truststore != null) {
+        throw new Error("truststore is only supported with getCertFromKeyInfo");
+      }
+    }
+
     const defaults = {
       idAttributes: SignedXml.getDefaultIdAttributes(),
       maxTransforms: XmlDSigVerifier.DEFAULT_MAX_TRANSFORMS,
