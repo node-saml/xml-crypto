@@ -95,12 +95,15 @@ const isPublicCertSelector = (
   options: XmlDSigVerifierOptions,
 ): options is PublicCertXmlDSigVerifierOptions => "publicCert" in options.keySelector;
 
+type CertificateHolder = { value: X509Certificate | null };
+
 /**
  * A focused API for XML signature verification with enhanced security.
  */
 export class XmlDSigVerifier {
   private readonly signedXml: SignedXml;
   private readonly options: ResolvedXmlDsigVerifierOptions;
+  private readonly certificateHolder: CertificateHolder = { value: null };
 
   public static readonly DEFAULT_MAX_TRANSFORMS = 4;
   public static readonly DEFAULT_CHECK_CERT_EXPIRATION = true;
@@ -147,7 +150,7 @@ export class XmlDSigVerifier {
   constructor(options: XmlDSigVerifierOptions) {
     this.options = XmlDSigVerifier.resolveOptions(options);
 
-    this.signedXml = XmlDSigVerifier.createSignedXml(this.options);
+    this.signedXml = XmlDSigVerifier.createSignedXml(this.options, this.certificateHolder);
   }
 
   /**
@@ -180,6 +183,8 @@ export class XmlDSigVerifier {
    * @returns Verification result with signed references if successful
    */
   public verifySignature(xml: string, signatureNode?: Node): XmlDsigVerificationResult {
+    // Clear any certificate captured by a previous verification on this instance.
+    this.certificateHolder.value = null;
     try {
       // Load the signature node
       if (signatureNode) {
@@ -213,10 +218,14 @@ export class XmlDSigVerifier {
         throw new Error("Signature verification failed");
       }
 
-      return {
+      const result: XmlDsigVerificationResult = {
         success: isValid,
         signedReferences: this.signedXml.getSignedReferences(),
       };
+      if (this.certificateHolder.value != null) {
+        result.certificate = this.certificateHolder.value;
+      }
+      return result;
     } catch (error) {
       return XmlDSigVerifier.handleError(error, this.options.throwOnError);
     }
@@ -237,7 +246,6 @@ export class XmlDSigVerifier {
       idAttributes: SignedXml.getDefaultIdAttributes(),
       maxTransforms: XmlDSigVerifier.DEFAULT_MAX_TRANSFORMS,
       checkCertExpiration: XmlDSigVerifier.DEFAULT_CHECK_CERT_EXPIRATION,
-      truststore: [] as Array<string | Buffer | X509Certificate>,
       signatureAlgorithms: isSharedSecretSelector(options)
         ? XmlDSigVerifier.defaultSymmetricSignatureAlgorithms
         : XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms,
@@ -269,6 +277,21 @@ export class XmlDSigVerifier {
     };
 
     if (isKeyInfoSelector(options)) {
+      const truststore = options.security?.truststore;
+      if (truststore == null) {
+        throw new Error(
+          "XmlDSigVerifier: 'truststore' is required when verifying with getCertFromKeyInfo. " +
+            "Without a truststore, the verifier would trust whatever certificate the document " +
+            "claims to be signed with — which is attacker-controlled. Provide a non-empty array " +
+            "of trust anchors (PEM, DER, or X509Certificate).",
+        );
+      }
+      if (!isArrayHasLength(truststore)) {
+        throw new Error(
+          "XmlDSigVerifier: 'truststore' must contain at least one trusted certificate. " +
+            "An empty array is not a supported way to bypass trust validation.",
+        );
+      }
       return {
         optionsType: "keyinfo",
         ...baseOptions,
@@ -277,7 +300,7 @@ export class XmlDSigVerifier {
           ...baseSecurity,
           checkCertExpiration:
             options.security?.checkCertExpiration ?? defaults.checkCertExpiration,
-          truststore: options.security?.truststore ?? defaults.truststore,
+          truststore,
         },
       };
     } else if (isSharedSecretSelector(options)) {
@@ -299,7 +322,10 @@ export class XmlDSigVerifier {
     }
   }
 
-  private static createSignedXml(options: ResolvedXmlDsigVerifierOptions): SignedXml {
+  private static createSignedXml(
+    options: ResolvedXmlDsigVerifierOptions,
+    certificateHolder: CertificateHolder,
+  ): SignedXml {
     const signedXmlOptions: SignedXmlOptions = {
       publicCert: undefined as KeyLike | undefined,
       getCertFromKeyInfo: undefined as KeySelectorFunction | undefined,
@@ -335,29 +361,31 @@ export class XmlDSigVerifier {
           return null;
         }
 
-        if (checkCertExpiration || isArrayHasLength(truststore)) {
-          const x509 = new X509Certificate(certPem);
-          if (checkCertExpiration) {
-            const now = new Date();
-            if (x509.validTo && new Date(x509.validTo) < now) {
-              throw new Error("The certificate used to sign the XML has expired.");
-            }
-            if (x509.validFrom && new Date(x509.validFrom) > now) {
-              throw new Error("The certificate used to sign the XML is not yet valid.");
-            }
+        const x509 = new X509Certificate(certPem);
+        if (checkCertExpiration) {
+          const now = new Date();
+          if (x509.validTo && new Date(x509.validTo) < now) {
+            throw new Error("The certificate used to sign the XML has expired.");
           }
-          if (isArrayHasLength(truststore)) {
-            const isTrusted = truststore.some((trustedCert) => {
-              if (trustedCert.equals?.(x509.publicKey) || x509.verify(trustedCert)) {
-                return true;
-              }
-              return false;
-            });
-            if (!isTrusted) {
-              throw new Error("The certificate used to sign the XML is not trusted.");
-            }
+          if (x509.validFrom && new Date(x509.validFrom) > now) {
+            throw new Error("The certificate used to sign the XML is not yet valid.");
           }
         }
+        const isTrusted = truststore.some(
+          (trustedCert) => trustedCert.equals?.(x509.publicKey) || x509.verify(trustedCert),
+        );
+        if (!isTrusted) {
+          throw new Error(
+            `The certificate used to sign the XML is not trusted. ` +
+              `Subject="${x509.subject}", Issuer="${x509.issuer}". ` +
+              `xml-crypto uses a direct-trust model — the signing certificate must either ` +
+              `match a truststore entry by public key (cert pinning) or be directly signed by ` +
+              `a truststore entry (single-hop CA). Full PKIX path validation is not performed; ` +
+              `if you have a multi-hop chain, add the relevant intermediates to the truststore ` +
+              `or pre-validate the chain externally and pass the leaf certificate.`,
+          );
+        }
+        certificateHolder.value = x509;
         return certPem;
       };
     } else if (isResolvedPublicCertOptions(options)) {

@@ -157,6 +157,7 @@ describe("XmlDSigVerifier", function () {
         keySelector: {
           getCertFromKeyInfo: () => publicCert,
         },
+        security: { truststore: [publicCert] },
       });
       expect(verifier).to.be.instanceOf(XmlDSigVerifier);
     });
@@ -194,6 +195,7 @@ describe("XmlDSigVerifier", function () {
           keySelector: {
             getCertFromKeyInfo: undefined as never,
           },
+          security: { truststore: [publicCert] },
         });
       }).to.throw("XmlDSigVerifier requires a valid getCertFromKeyInfo function.");
     });
@@ -204,8 +206,26 @@ describe("XmlDSigVerifier", function () {
           keySelector: {
             getCertFromKeyInfo: publicCert as never,
           },
+          security: { truststore: [publicCert] },
         });
       }).to.throw("XmlDSigVerifier requires a valid getCertFromKeyInfo function.");
+    });
+
+    it("throws when truststore is omitted with getCertFromKeyInfo selector", function () {
+      expect(() => {
+        new XmlDSigVerifier({
+          keySelector: { getCertFromKeyInfo: () => publicCert },
+        });
+      }).to.throw(/'truststore' is required when verifying with getCertFromKeyInfo/);
+    });
+
+    it("throws when truststore is provided but empty", function () {
+      expect(() => {
+        new XmlDSigVerifier({
+          keySelector: { getCertFromKeyInfo: () => publicCert },
+          security: { truststore: [] },
+        });
+      }).to.throw(/'truststore' must contain at least one trusted certificate/);
     });
   });
 
@@ -216,7 +236,9 @@ describe("XmlDSigVerifier", function () {
       const verifier = new XmlDSigVerifier({
         keySelector: { publicCert },
       });
-      expectValidResult(verifier.verifySignature(signedXml));
+      const result = verifier.verifySignature(signedXml);
+      expectValidResult(result);
+      expect(result.certificate).to.be.undefined;
     });
 
     it("verifies a valid signature when keySelector.publicCert is provided as a Buffer", function () {
@@ -248,8 +270,24 @@ describe("XmlDSigVerifier", function () {
         keySelector: {
           getCertFromKeyInfo: () => publicCert,
         },
+        security: { truststore: [publicCert] },
       });
       expectValidResult(verifier.verifySignature(signedXml));
+    });
+
+    it("exposes the trusted certificate on a successful result", function () {
+      const signedXml = createSignedXml(xml);
+
+      const verifier = new XmlDSigVerifier({
+        keySelector: {
+          getCertFromKeyInfo: () => publicCert,
+        },
+        security: { truststore: [publicCert] },
+      });
+      const result = verifier.verifySignature(signedXml);
+      expect(result.success).to.be.true;
+      expect(result.certificate).to.be.instanceOf(X509Certificate);
+      expect(result.certificate?.subject).to.equal(new X509Certificate(publicCert).subject);
     });
 
     it("does not carry verification state between sequential verifySignature calls", function () {
@@ -260,11 +298,14 @@ describe("XmlDSigVerifier", function () {
         keySelector: {
           getCertFromKeyInfo: () => chainPublicCert,
         },
+        security: { truststore: [rootCert] },
         throwOnError: false,
       });
 
       expectValidResult(verifier.verifySignature(signedXml));
-      expectInvalidResult(verifier.verifySignature(tamperedXml), "verification failed");
+      const failed = verifier.verifySignature(tamperedXml);
+      expectInvalidResult(failed, "verification failed");
+      expect(failed.certificate).to.be.undefined;
     });
 
     it("returns an invalid result when callback cert does not match the signing key", function () {
@@ -274,6 +315,7 @@ describe("XmlDSigVerifier", function () {
         keySelector: {
           getCertFromKeyInfo: () => publicCert,
         },
+        security: { truststore: [publicCert] },
         throwOnError: false,
       });
 
@@ -287,6 +329,7 @@ describe("XmlDSigVerifier", function () {
         keySelector: {
           getCertFromKeyInfo: () => null,
         },
+        security: { truststore: [publicCert] },
         throwOnError: false,
       });
 
@@ -300,6 +343,7 @@ describe("XmlDSigVerifier", function () {
         keySelector: {
           getCertFromKeyInfo: () => "",
         },
+        security: { truststore: [publicCert] },
         throwOnError: false,
       });
 
@@ -315,7 +359,9 @@ describe("XmlDSigVerifier", function () {
         keySelector: { sharedSecretKey: hmacKey },
       });
 
-      expectValidResult(verifier.verifySignature(signedXml));
+      const result = verifier.verifySignature(signedXml);
+      expectValidResult(result);
+      expect(result.certificate).to.be.undefined;
     });
 
     it("returns an invalid result when sharedSecretKey does not match the signing key", function () {
@@ -715,7 +761,7 @@ describe("XmlDSigVerifier", function () {
         const signedXml = createExpiredSignedXml(xml);
         const verifier = new XmlDSigVerifier({
           keySelector: { getCertFromKeyInfo: () => expiredCert },
-          security: { checkCertExpiration: true },
+          security: { checkCertExpiration: true, truststore: [expiredCert] },
         });
         expectInvalidResult(verifier.verifySignature(signedXml), "expired");
       });
@@ -724,7 +770,7 @@ describe("XmlDSigVerifier", function () {
         const signedXml = createFutureSignedXml(xml);
         const verifier = new XmlDSigVerifier({
           keySelector: { getCertFromKeyInfo: () => futureCert },
-          security: { checkCertExpiration: true },
+          security: { checkCertExpiration: true, truststore: [futureCert] },
         });
         expectInvalidResult(verifier.verifySignature(signedXml), "not yet valid");
       });
@@ -789,7 +835,13 @@ describe("XmlDSigVerifier", function () {
           keySelector: { getCertFromKeyInfo: () => publicCert },
           security: { truststore: [rootCert] },
         });
-        expectInvalidResult(verifier.verifySignature(signedXml), "not trusted");
+        const result = verifier.verifySignature(signedXml);
+        expectInvalidResult(result, "not trusted");
+        // Trust-failure error should name the rejected cert's subject and issuer to
+        // help operators identify which CA is missing from the truststore.
+        const leaf = new X509Certificate(publicCert);
+        expect(result.error).to.contain(leaf.subject);
+        expect(result.error).to.contain(leaf.issuer);
       });
 
       it("should validate truststore even when checkCertExpiration is false", function () {
@@ -799,18 +851,6 @@ describe("XmlDSigVerifier", function () {
           security: {
             checkCertExpiration: false,
             truststore: [rootCert],
-          },
-        });
-        expectValidResult(verifier.verifySignature(signedXml));
-      });
-
-      it("should validate when checkCertExpiration is false and no truststore is provided", function () {
-        const signedXml = createSignedXml(xml);
-        const verifier = new XmlDSigVerifier({
-          keySelector: { getCertFromKeyInfo: () => publicCert },
-          security: {
-            checkCertExpiration: false,
-            truststore: [],
           },
         });
         expectValidResult(verifier.verifySignature(signedXml));
@@ -1083,6 +1123,7 @@ describe("XmlDSigVerifier", function () {
         keySelector: {
           getCertFromKeyInfo: null as never,
         },
+        security: { truststore: [publicCert] },
       });
 
       expectInvalidResult(result, "XmlDSigVerifier requires a valid getCertFromKeyInfo function.");

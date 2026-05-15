@@ -289,11 +289,18 @@ export type CertificateKeySelector = {
 };
 
 export type KeyInfoKeySelector = {
-  /** Function to extract the public certificate or key from the KeyInfo element.
-   * The returned string is passed to the signature algorithm's `verifySignature` as a `KeyLike`.
-   * When `checkCertExpiration` or `truststore` security options are enabled, it is also
-   * parsed as a certificate, so it must be valid certificate material in that case.
-   * @see {@link SignedXml.getCertFromKeyInfo} for a default implementation. */
+  /**
+   * Extracts the X.509 certificate from the `<KeyInfo>` element. The returned PEM/DER
+   * material is used both to verify the signature math AND to enforce the truststore
+   * and (optional) expiration checks — it MUST be parseable as an X.509 certificate,
+   * not a bare public key.
+   *
+   * Trust in the returned certificate is established by the configured `truststore`,
+   * which is required when this selector is used. xml-crypto uses a direct-trust model
+   * (cert pinning or single-hop CA); full PKIX path validation is not performed.
+   *
+   * @see {@link SignedXml.getCertFromKeyInfo} for a default implementation.
+   */
   getCertFromKeyInfo: (keyInfo?: Node | null) => string | null;
 };
 
@@ -378,9 +385,23 @@ export interface KeyInfoXmlDSigSecurityOptions extends XmlDSigVerifierSecurityOp
   checkCertExpiration?: boolean;
 
   /**
-   * Optional truststore of trusted certificates
-   * When provided, the certificate used to sign the XML must chain to one of these trusted certificates.
-   * These must be PEM or DER encoded X509 certificates
+   * Trust anchors for the certificate extracted from `<KeyInfo>`. **Required** when
+   * using `getCertFromKeyInfo`; verification fails fast at construction if omitted or
+   * empty. (Typed as optional only because it is shared with the base security
+   * options interface.)
+   *
+   * xml-crypto uses a **direct-trust** model — verification succeeds iff the extracted
+   * certificate either:
+   *   - matches a truststore entry by public key (cert pinning), or
+   *   - is directly signed by a truststore entry (single-hop CA).
+   *
+   * This is NOT full PKIX path validation. Multi-hop chains (root → intermediate → leaf)
+   * are NOT walked. If you have a multi-hop chain, you must either include every issuer
+   * on the path (intermediate AND root, or just the intermediate) in the truststore, OR
+   * pre-validate the chain with a dedicated PKIX library and pass only the validated
+   * leaf certificate here.
+   *
+   * Entries must be PEM- or DER-encoded X.509 certificates, or `X509Certificate` instances.
    */
   truststore?: Array<string | Buffer | X509Certificate>;
 }
@@ -446,6 +467,12 @@ export type SuccessfulXmlDsigVerificationResult = {
   error?: undefined;
   /** The canonicalized XML content that passed verification */
   signedReferences: string[];
+  /**
+   * The X.509 certificate that signed the XML and was accepted by the truststore.
+   * Only populated when verification used the `getCertFromKeyInfo` selector; absent for
+   * the `publicCert` and `sharedSecretKey` paths.
+   */
+  certificate?: X509Certificate;
 };
 
 export type FailedXmlDsigVerificationResult = {
@@ -454,6 +481,7 @@ export type FailedXmlDsigVerificationResult = {
   /** Error message if verification failed */
   error: string;
   signedReferences?: undefined;
+  certificate?: undefined;
 };
 
 export type XmlDsigVerificationResult =
