@@ -487,3 +487,68 @@ export type FailedXmlDsigVerificationResult = {
 export type XmlDsigVerificationResult =
   | SuccessfulXmlDsigVerificationResult
   | FailedXmlDsigVerificationResult;
+
+/*** Deferred-trust verification types ***/
+
+/**
+ * Configuration options for `XmlDSigVerifier.extractAndVerify`.
+ *
+ * Deliberately omits `truststore` and `checkCertExpiration`: deferred-trust
+ * verification performs the cryptographic signature check ONLY and hands the
+ * extracted certificate back to the caller for out-of-band trust validation
+ * (e.g. XAdES-LTV against an EU Trusted List, or a counterparty registry).
+ */
+export interface DeferredTrustVerifierOptions extends XmlDSigVerifierOptionsBase {
+  /**
+   * Function to extract the X.509 certificate from the `<KeyInfo>` element.
+   * The returned certificate is treated as ATTACKER-CONTROLLED and is surfaced
+   * unchanged via the result's `untrustedCertificate` field for the caller
+   * to validate.
+   */
+  keySelector: KeyInfoKeySelector;
+
+  /**
+   * Algorithm allow-lists and transform limits. Note: `truststore` and
+   * `checkCertExpiration` are not accepted here. Use the standard
+   * `XmlDSigVerifier` constructor / `verifySignature` if you need them.
+   */
+  security?: XmlDSigVerifierSecurityOptions;
+}
+
+/**
+ * Result of a deferred-trust verification.
+ *
+ * `signatureValid: true` ONLY means the XML's cryptographic signature matches
+ * the embedded certificate's public key. It does NOT mean the certificate is
+ * trusted. The caller MUST validate `untrustedCertificate` against a trust
+ * source (CA bundle, EU Trusted List, business-counterparty registry,
+ * certificate transparency, etc.) before treating any data in
+ * `signedReferences` as authentic.
+ *
+ * If an attacker controls the document, they also control the embedded
+ * certificate; a passing result with no follow-up trust check provides NO
+ * security guarantee.
+ */
+export type SuccessfulDeferredTrustVerificationResult = {
+  success: true;
+  signatureValid: true;
+  /**
+   * The X.509 certificate extracted from `<KeyInfo>`. Trust has NOT been
+   * established; treat as attacker-controlled until validated out-of-band.
+   */
+  untrustedCertificate: X509Certificate;
+  signedReferences: string[];
+  error?: undefined;
+};
+
+export type FailedDeferredTrustVerificationResult = {
+  success: false;
+  signatureValid: false;
+  untrustedCertificate?: undefined;
+  signedReferences?: undefined;
+  error: string;
+};
+
+export type DeferredTrustVerificationResult =
+  | SuccessfulDeferredTrustVerificationResult
+  | FailedDeferredTrustVerificationResult;

@@ -17,6 +17,8 @@ import {
   KeyInfoXmlDSigVerifierOptions,
   SharedSecretXmlDSigVerifierOptions,
   PublicCertXmlDSigVerifierOptions,
+  DeferredTrustVerifierOptions,
+  DeferredTrustVerificationResult,
 } from "./types";
 import { isArrayHasLength, parseXml } from "./utils";
 import { Sha1, Sha256, Sha512 } from "./hash-algorithms";
@@ -172,6 +174,92 @@ export class XmlDSigVerifier {
         error,
         options.throwOnError ?? XmlDSigVerifier.DEFAULT_THROW_ON_ERROR,
       );
+    }
+  }
+
+  /**
+   * Verifies the cryptographic signature against the certificate embedded in
+   * `<KeyInfo>` and returns that certificate WITHOUT establishing trust.
+   *
+   * Use this ONLY when trust will be established out-of-band, for example:
+   *   - XAdES-LTV / XAdES-A archival flows
+   *   - EU Trusted List (TSL) qualified-signature validation services
+   *   - UBL e-invoicing with a downstream counterparty registry
+   *   - Storing the cert for non-repudiation audit, validated later
+   *
+   * For SAML, SSO, or any flow where the signing identity must be authenticated
+   * at verification time, use {@link XmlDSigVerifier.verifySignature} with a
+   * truststore instead.
+   *
+   * SECURITY: The returned `untrustedCertificate` is attacker-controlled. A
+   * passing result with no follow-up trust check provides NO security
+   * guarantee. An attacker who can supply the document can sign it with their
+   * own keypair and the math will still verify.
+   *
+   * @param xml The signed XML document to verify
+   * @param options Configuration options (no truststore, no expiration check)
+   * @param signatureNode Optional specific Signature node to verify
+   */
+  public static extractAndVerify(
+    xml: string,
+    options: DeferredTrustVerifierOptions,
+    signatureNode?: Node,
+  ): DeferredTrustVerificationResult {
+    const throwOnError = options.throwOnError ?? XmlDSigVerifier.DEFAULT_THROW_ON_ERROR;
+    try {
+      if (typeof options.keySelector?.getCertFromKeyInfo !== "function") {
+        throw new Error(
+          "XmlDSigVerifier.extractAndVerify requires a valid getCertFromKeyInfo function.",
+        );
+      }
+
+      const certificateHolder: CertificateHolder = { value: null };
+      const signedXml = XmlDSigVerifier.createDeferredTrustSignedXml(options, certificateHolder);
+
+      if (signatureNode) {
+        signedXml.loadSignature(signatureNode);
+      } else {
+        const doc = parseXml(xml, "application/xml");
+        const signatureNodes = signedXml.findSignatures(doc);
+        if (signatureNodes.length === 0) {
+          return XmlDSigVerifier.handleDeferredTrustError(
+            "No Signature element found in the provided XML document.",
+            throwOnError,
+          );
+        }
+        if (signatureNodes.length > 1) {
+          return XmlDSigVerifier.handleDeferredTrustError(
+            "Multiple Signature elements found in the provided XML document. Please provide the specific signatureNode parameter to verify.",
+            throwOnError,
+          );
+        }
+        signedXml.loadSignature(signatureNodes[0]);
+      }
+
+      const isValid = signedXml.checkSignature(xml);
+      if (!isValid) {
+        throw new Error("Signature verification failed");
+      }
+
+      if (certificateHolder.value == null) {
+        // checkSignature succeeded, but the keyInfo callback never produced a
+        // certificate. This is structurally possible if a caller's
+        // getCertFromKeyInfo returns null and the signature still verifies via
+        // some other path; we refuse to claim success without a cert to hand
+        // back.
+        throw new Error(
+          "Signature math verified, but no certificate was extracted from <KeyInfo>; cannot return an untrustedCertificate.",
+        );
+      }
+
+      return {
+        success: true,
+        signatureValid: true,
+        untrustedCertificate: certificateHolder.value,
+        signedReferences: signedXml.getSignedReferences(),
+      };
+    } catch (error) {
+      return XmlDSigVerifier.handleDeferredTrustError(error, throwOnError);
     }
   }
 
@@ -397,6 +485,50 @@ export class XmlDSigVerifier {
     return new SignedXml(signedXmlOptions);
   }
 
+  private static createDeferredTrustSignedXml(
+    options: DeferredTrustVerifierOptions,
+    certificateHolder: CertificateHolder,
+  ): SignedXml {
+    const signatureAlgorithms = XmlDSigVerifier.toAlgorithmMap(
+      options.security?.signatureAlgorithms ?? XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms,
+    );
+    const hashAlgorithms = XmlDSigVerifier.toAlgorithmMap(
+      options.security?.hashAlgorithms ?? XmlDSigVerifier.defaultHashAlgorithms,
+    );
+    const transformAlgorithms = XmlDSigVerifier.toAlgorithmMap(
+      options.security?.transformAlgorithms ?? XmlDSigVerifier.defaultTransformAlgorithms,
+    );
+    const canonicalizationAlgorithms = XmlDSigVerifier.toAlgorithmMap(
+      options.security?.canonicalizationAlgorithms ??
+        XmlDSigVerifier.defaultCanonicalizationAlgorithms,
+    );
+
+    const getCertFromKeyInfo = options.keySelector.getCertFromKeyInfo;
+
+    const signedXmlOptions: SignedXmlOptions = {
+      idAttributes: options.idAttributes ?? SignedXml.getDefaultIdAttributes(),
+      maxTransforms: options.security?.maxTransforms ?? XmlDSigVerifier.DEFAULT_MAX_TRANSFORMS,
+      implicitTransforms: options.implicitTransforms,
+      allowedSignatureAlgorithms: signatureAlgorithms,
+      allowedHashAlgorithms: hashAlgorithms,
+      allowedTransformAlgorithms: transformAlgorithms,
+      allowedCanonicalizationAlgorithms: canonicalizationAlgorithms,
+      getCertFromKeyInfo: (keyInfo?: Node | null): string | null => {
+        const certPem = getCertFromKeyInfo(keyInfo);
+        if (!certPem) {
+          return null;
+        }
+        // Math-only path: parse the cert so we can surface it on the result,
+        // but DO NOT check expiration or consult any truststore. Trust is the
+        // caller's responsibility.
+        certificateHolder.value = new X509Certificate(certPem);
+        return certPem;
+      },
+    };
+
+    return new SignedXml(signedXmlOptions);
+  }
+
   private static handleError(error: unknown, throwOnError: boolean): XmlDsigVerificationResult {
     if (throwOnError) {
       throw error instanceof Error ? error : new Error(String(error));
@@ -407,6 +539,24 @@ export class XmlDSigVerifier {
 
     return {
       success: false,
+      error: errorMessage,
+    };
+  }
+
+  private static handleDeferredTrustError(
+    error: unknown,
+    throwOnError: boolean,
+  ): DeferredTrustVerificationResult {
+    if (throwOnError) {
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+
+    const errorMessage =
+      error instanceof Error ? error.message : `Verification error occurred: ${String(error)}`;
+
+    return {
+      success: false,
+      signatureValid: false,
       error: errorMessage,
     };
   }
