@@ -12,33 +12,57 @@ export function isArrayHasLength(array: unknown): array is unknown[] {
   return Array.isArray(array) && array.length > 0;
 }
 
+/**
+ * Match an attribute by local name, with three namespace modes:
+ *   - `namespace: string`    → attribute must be in this namespace URI
+ *   - `namespace: null`      → attribute must have no namespace
+ *   - `namespace: undefined` → match regardless of namespace
+ */
 function attrEqualsExplicitly(attr: Attr, localName: string, namespace?: string | null) {
-  if (namespace === null) {
-    return attr.localName === localName && !attr.namespaceURI;
+  if (attr.localName !== localName) {
+    return false;
   }
-  return attr.localName === localName && (attr.namespaceURI === namespace || namespace == null);
+  if (namespace === undefined) {
+    return true;
+  }
+  if (namespace === null) {
+    return !attr.namespaceURI;
+  }
+  return attr.namespaceURI === namespace;
 }
 
+/**
+ * Same three-way namespace contract as {@link attrEqualsExplicitly}, but for the
+ * implicit case: an unnamespaced attribute is treated as inheriting its
+ * element's default namespace.
+ */
 function attrEqualsImplicitly(
   attr: Attr,
   localName: string,
   namespace?: string | null,
   node?: Element,
 ) {
-  if (namespace === null) {
-    return attr.localName === localName && !attr.namespaceURI;
+  if (attr.localName !== localName) {
+    return false;
   }
-  return (
-    attr.localName === localName &&
-    ((!attr.namespaceURI && node?.namespaceURI === namespace) || namespace == null)
-  );
+  if (namespace === undefined) {
+    return true;
+  }
+  if (namespace === null) {
+    return !attr.namespaceURI;
+  }
+  return !attr.namespaceURI && node?.namespaceURI === namespace;
 }
 
-export function findAttr(
-  element: Element,
-  localName: string,
-  namespace?: string | null | undefined,
-) {
+/**
+ * Find an attribute on `element` by local name. The `namespace` parameter has
+ * three modes:
+ *   - `string`    → attribute must be in this namespace URI (explicitly, or
+ *                   implicitly via the element's default namespace)
+ *   - `null`      → attribute must have no namespace
+ *   - `undefined` → match regardless of namespace (default)
+ */
+export function findAttr(element: Element, localName: string, namespace?: string | null) {
   for (let i = 0; i < element.attributes.length; i++) {
     const attr = element.attributes[i];
 
@@ -60,7 +84,7 @@ export function findChildren(node: Node | Document, localName: string, namespace
     if (
       isDomNode.isElementNode(child) &&
       child.localName === localName &&
-      (child.namespaceURI === namespace || namespace == null)
+      (namespace === undefined || child.namespaceURI === namespace)
     ) {
       res.push(child);
     }
