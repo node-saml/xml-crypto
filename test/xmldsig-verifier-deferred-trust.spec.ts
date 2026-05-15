@@ -2,7 +2,7 @@ import * as fs from "fs";
 import { expect } from "chai";
 import { X509Certificate } from "node:crypto";
 
-import { XmlDSigVerifier, SignedXml, XMLDSIG_URIS } from "../src";
+import { XmlDSigVerifier, SignedXml, XMLDSIG_URIS, HmacSha1 } from "../src";
 import type { DeferredTrustVerificationResult } from "../src/";
 
 const { CANONICALIZATION_ALGORITHMS, HASH_ALGORITHMS, SIGNATURE_ALGORITHMS } = XMLDSIG_URIS;
@@ -152,6 +152,41 @@ describe("XmlDSigVerifier.extractAndVerify", function () {
     });
     // No throw; failure surfaces as a result object.
     expectFailure(result);
+  });
+
+  it("rejects HMAC signature algorithms to prevent key confusion", function () {
+    const signedXml = createSignedXml(xml);
+    const result = XmlDSigVerifier.extractAndVerify(signedXml, {
+      keySelector: {
+        getCertFromKeyInfo: (keyInfo) => SignedXml.getCertFromKeyInfo(keyInfo),
+      },
+      security: { signatureAlgorithms: [HmacSha1] },
+    });
+    expectFailure(result, "does not support symmetric signature algorithms");
+  });
+
+  it("accepts non-symmetric custom signatureAlgorithms without complaint", function () {
+    // Sanity: the HMAC guard does not over-reject. An asymmetric-only override
+    // (RsaSha256, used by createSignedXml under the hood) must still succeed.
+    const signedXml = createSignedXml(xml);
+    const result = XmlDSigVerifier.extractAndVerify(signedXml, {
+      keySelector: {
+        getCertFromKeyInfo: (keyInfo) => SignedXml.getCertFromKeyInfo(keyInfo),
+      },
+      security: { signatureAlgorithms: [...XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms] },
+    });
+    expectSuccess(result);
+  });
+
+  it("throws when idAttributes is provided but empty", function () {
+    const signedXml = createSignedXml(xml);
+    const result = XmlDSigVerifier.extractAndVerify(signedXml, {
+      keySelector: {
+        getCertFromKeyInfo: (keyInfo) => SignedXml.getCertFromKeyInfo(keyInfo),
+      },
+      idAttributes: [],
+    });
+    expectFailure(result, "'idAttributes' must contain at least one entry");
   });
 
   it("rejects truststore at the type level (regression guard)", function () {

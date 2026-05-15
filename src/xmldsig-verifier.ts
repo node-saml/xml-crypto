@@ -19,6 +19,8 @@ import {
   PublicCertXmlDSigVerifierOptions,
   DeferredTrustVerifierOptions,
   DeferredTrustVerificationResult,
+  XmlDSigVerifierSecurityOptions,
+  SignatureAlgorithm,
 } from "./types";
 import { isArrayHasLength, parseXml } from "./utils";
 import { Sha1, Sha256, Sha512 } from "./hash-algorithms";
@@ -145,6 +147,32 @@ export class XmlDSigVerifier {
   }
 
   /**
+   * Build the algorithm-map portion of the resolved security options. Shared by
+   * the strict (`resolveOptions`) and deferred-trust (`createDeferredTrustSignedXml`)
+   * paths so the four allowed-algorithm maps don't drift between them.
+   */
+  private static resolveBaseSecurityOptions(
+    security: XmlDSigVerifierSecurityOptions | undefined,
+    defaultSignatureAlgorithms: Array<new () => SignatureAlgorithm>,
+  ): ResolvedSecurityOptions {
+    return {
+      maxTransforms: security?.maxTransforms ?? XmlDSigVerifier.DEFAULT_MAX_TRANSFORMS,
+      signatureAlgorithms: XmlDSigVerifier.toAlgorithmMap(
+        security?.signatureAlgorithms ?? defaultSignatureAlgorithms,
+      ),
+      hashAlgorithms: XmlDSigVerifier.toAlgorithmMap(
+        security?.hashAlgorithms ?? XmlDSigVerifier.defaultHashAlgorithms,
+      ),
+      transformAlgorithms: XmlDSigVerifier.toAlgorithmMap(
+        security?.transformAlgorithms ?? XmlDSigVerifier.defaultTransformAlgorithms,
+      ),
+      canonicalizationAlgorithms: XmlDSigVerifier.toAlgorithmMap(
+        security?.canonicalizationAlgorithms ?? XmlDSigVerifier.defaultCanonicalizationAlgorithms,
+      ),
+    };
+  }
+
+  /**
    * Creates a new XmlDSigVerifier instance. The instance can be reused for multiple verifications.
    *
    * @param options Configuration options for verification
@@ -212,6 +240,12 @@ export class XmlDSigVerifier {
           "XmlDSigVerifier.extractAndVerify requires a valid getCertFromKeyInfo function.",
         );
       }
+      if (options.idAttributes != null && !isArrayHasLength(options.idAttributes)) {
+        throw new Error(
+          "XmlDSigVerifier.extractAndVerify: 'idAttributes' must contain at least one entry. " +
+            "An empty array means no reference URIs can be resolved and verification would always fail.",
+        );
+      }
 
       const certificateHolder: CertificateHolder = { value: null };
       const signedXml = XmlDSigVerifier.createDeferredTrustSignedXml(options, certificateHolder);
@@ -219,7 +253,7 @@ export class XmlDSigVerifier {
       if (signatureNode) {
         signedXml.loadSignature(signatureNode);
       } else {
-        const doc = parseXml(xml, "application/xml");
+        const doc = parseXml(xml);
         const signatureNodes = signedXml.findSignatures(doc);
         if (signatureNodes.length === 0) {
           return XmlDSigVerifier.handleDeferredTrustError(
@@ -280,7 +314,7 @@ export class XmlDSigVerifier {
         this.signedXml.loadSignature(signatureNode);
       } else {
         // Auto-detect signature if exactly one signature is found in the document
-        const doc = parseXml(xml, "application/xml");
+        const doc = parseXml(xml);
         const signatureNodes = this.signedXml.findSignatures(doc);
 
         if (signatureNodes.length === 0) {
@@ -330,39 +364,28 @@ export class XmlDSigVerifier {
       }
     }
 
-    const defaults = {
-      idAttributes: SignedXml.getDefaultIdAttributes(),
-      maxTransforms: XmlDSigVerifier.DEFAULT_MAX_TRANSFORMS,
-      checkCertExpiration: XmlDSigVerifier.DEFAULT_CHECK_CERT_EXPIRATION,
-      signatureAlgorithms: isSharedSecretSelector(options)
-        ? XmlDSigVerifier.defaultSymmetricSignatureAlgorithms
-        : XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms,
-      hashAlgorithms: XmlDSigVerifier.defaultHashAlgorithms,
-      transformAlgorithms: XmlDSigVerifier.defaultTransformAlgorithms,
-      canonicalizationAlgorithms: XmlDSigVerifier.defaultCanonicalizationAlgorithms,
-    };
+    if (options.idAttributes != null && !isArrayHasLength(options.idAttributes)) {
+      throw new Error(
+        "XmlDSigVerifier: 'idAttributes' must contain at least one entry. " +
+          "An empty array means no reference URIs can be resolved and verification " +
+          "would always fail. Omit the option to use the default (['Id', 'ID', 'id']).",
+      );
+    }
+
+    const defaultSignatureAlgorithms = isSharedSecretSelector(options)
+      ? XmlDSigVerifier.defaultSymmetricSignatureAlgorithms
+      : XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms;
 
     const baseOptions = {
-      idAttributes: options.idAttributes ?? defaults.idAttributes,
+      idAttributes: options.idAttributes ?? SignedXml.getDefaultIdAttributes(),
       implicitTransforms: options.implicitTransforms,
       throwOnError: options.throwOnError ?? XmlDSigVerifier.DEFAULT_THROW_ON_ERROR,
     };
 
-    const baseSecurity: ResolvedSecurityOptions = {
-      maxTransforms: options.security?.maxTransforms ?? defaults.maxTransforms,
-      signatureAlgorithms: XmlDSigVerifier.toAlgorithmMap(
-        options.security?.signatureAlgorithms ?? defaults.signatureAlgorithms,
-      ),
-      hashAlgorithms: XmlDSigVerifier.toAlgorithmMap(
-        options.security?.hashAlgorithms ?? defaults.hashAlgorithms,
-      ),
-      transformAlgorithms: XmlDSigVerifier.toAlgorithmMap(
-        options.security?.transformAlgorithms ?? defaults.transformAlgorithms,
-      ),
-      canonicalizationAlgorithms: XmlDSigVerifier.toAlgorithmMap(
-        options.security?.canonicalizationAlgorithms ?? defaults.canonicalizationAlgorithms,
-      ),
-    };
+    const baseSecurity: ResolvedSecurityOptions = XmlDSigVerifier.resolveBaseSecurityOptions(
+      options.security,
+      defaultSignatureAlgorithms,
+    );
 
     if (isKeyInfoSelector(options)) {
       const truststore = options.security?.truststore;
@@ -387,7 +410,7 @@ export class XmlDSigVerifier {
         security: {
           ...baseSecurity,
           checkCertExpiration:
-            options.security?.checkCertExpiration ?? defaults.checkCertExpiration,
+            options.security?.checkCertExpiration ?? XmlDSigVerifier.DEFAULT_CHECK_CERT_EXPIRATION,
           truststore,
         },
       };
@@ -460,7 +483,7 @@ export class XmlDSigVerifier {
           }
         }
         const isTrusted = truststore.some(
-          (trustedCert) => trustedCert.equals?.(x509.publicKey) || x509.verify(trustedCert),
+          (trustedCert) => trustedCert.equals(x509.publicKey) || x509.verify(trustedCert),
         );
         if (!isTrusted) {
           throw new Error(
@@ -489,30 +512,40 @@ export class XmlDSigVerifier {
     options: DeferredTrustVerifierOptions,
     certificateHolder: CertificateHolder,
   ): SignedXml {
-    const signatureAlgorithms = XmlDSigVerifier.toAlgorithmMap(
-      options.security?.signatureAlgorithms ?? XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms,
+    const baseSecurity = XmlDSigVerifier.resolveBaseSecurityOptions(
+      options.security,
+      XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms,
     );
-    const hashAlgorithms = XmlDSigVerifier.toAlgorithmMap(
-      options.security?.hashAlgorithms ?? XmlDSigVerifier.defaultHashAlgorithms,
+
+    // Key-confusion guard: deferred-trust verifies against the public key
+    // extracted from the X.509 cert in <KeyInfo>. Allowing an HMAC algorithm
+    // here would let an attacker present an HMAC signature that the verifier
+    // checks against a public key value, which is the classic key-confusion
+    // footgun blocked by SignedXml.enableHMAC() on the strict path.
+    const symmetricURIs = new Set<string>(
+      XmlDSigVerifier.defaultSymmetricSignatureAlgorithms.map((Ctor) =>
+        new Ctor().getAlgorithmName(),
+      ),
     );
-    const transformAlgorithms = XmlDSigVerifier.toAlgorithmMap(
-      options.security?.transformAlgorithms ?? XmlDSigVerifier.defaultTransformAlgorithms,
-    );
-    const canonicalizationAlgorithms = XmlDSigVerifier.toAlgorithmMap(
-      options.security?.canonicalizationAlgorithms ??
-        XmlDSigVerifier.defaultCanonicalizationAlgorithms,
-    );
+    for (const uri of Object.keys(baseSecurity.signatureAlgorithms)) {
+      if (symmetricURIs.has(uri)) {
+        throw new Error(
+          `XmlDSigVerifier.extractAndVerify does not support symmetric signature algorithms (got '${uri}'). ` +
+            "Deferred-trust verification uses the public key from the X.509 certificate; allowing HMAC here would be a key-confusion footgun.",
+        );
+      }
+    }
 
     const getCertFromKeyInfo = options.keySelector.getCertFromKeyInfo;
 
     const signedXmlOptions: SignedXmlOptions = {
       idAttributes: options.idAttributes ?? SignedXml.getDefaultIdAttributes(),
-      maxTransforms: options.security?.maxTransforms ?? XmlDSigVerifier.DEFAULT_MAX_TRANSFORMS,
+      maxTransforms: baseSecurity.maxTransforms,
       implicitTransforms: options.implicitTransforms,
-      allowedSignatureAlgorithms: signatureAlgorithms,
-      allowedHashAlgorithms: hashAlgorithms,
-      allowedTransformAlgorithms: transformAlgorithms,
-      allowedCanonicalizationAlgorithms: canonicalizationAlgorithms,
+      allowedSignatureAlgorithms: baseSecurity.signatureAlgorithms,
+      allowedHashAlgorithms: baseSecurity.hashAlgorithms,
+      allowedTransformAlgorithms: baseSecurity.transformAlgorithms,
+      allowedCanonicalizationAlgorithms: baseSecurity.canonicalizationAlgorithms,
       getCertFromKeyInfo: (keyInfo?: Node | null): string | null => {
         const certPem = getCertFromKeyInfo(keyInfo);
         if (!certPem) {

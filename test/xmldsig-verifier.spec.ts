@@ -227,6 +227,15 @@ describe("XmlDSigVerifier", function () {
         });
       }).to.throw(/'truststore' must contain at least one trusted certificate/);
     });
+
+    it("throws when idAttributes is provided but empty", function () {
+      expect(() => {
+        new XmlDSigVerifier({
+          keySelector: { publicCert },
+          idAttributes: [],
+        });
+      }).to.throw(/'idAttributes' must contain at least one entry/);
+    });
   });
 
   describe("publicCert selector", function () {
