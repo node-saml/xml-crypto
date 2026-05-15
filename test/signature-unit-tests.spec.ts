@@ -1467,4 +1467,22 @@ describe("Signature unit tests", function () {
       /prefix is required when namespaceUri is provided/,
     );
   });
+
+  it("should throw a clear error when computeSignature would need to auto-generate an Id but idAttributes is empty", () => {
+    const xml = "<root><x/></root>";
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      signatureAlgorithm: SIGNATURE_ALGORITHMS.RSA_SHA1,
+      idAttributes: [],
+    });
+
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: HASH_ALGORITHMS.SHA1,
+      transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
+    });
+
+    expect(() => sig.computeSignature(xml)).to.throw(/`idAttributes` is empty/);
+  });
 });

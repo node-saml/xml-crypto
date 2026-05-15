@@ -1422,27 +1422,32 @@ export class SignedXml {
     } else {
       // Use the first idAttribute to set the new ID
       const firstIdAttr = this.idAttributes[0];
+      if (firstIdAttr === undefined) {
+        throw new Error(
+          "Cannot auto-generate an Id attribute: `idAttributes` is empty. " +
+            'Provide at least one entry (e.g. "Id") or assign Id attributes ' +
+            "to all signed elements before calling computeSignature().",
+        );
+      }
       if (typeof firstIdAttr === "string") {
         node.setAttribute(firstIdAttr, id);
+      } else if ("prefix" in firstIdAttr && firstIdAttr.prefix) {
+        node.setAttributeNS(
+          NAMESPACES.xmlns,
+          `xmlns:${firstIdAttr.prefix}`,
+          firstIdAttr.namespaceUri,
+        );
+        node.setAttributeNS(
+          firstIdAttr.namespaceUri,
+          `${firstIdAttr.prefix}:${firstIdAttr.localName}`,
+          id,
+        );
+      } else if (typeof firstIdAttr.namespaceUri === "string") {
+        throw new Error(
+          `Invalid idAttributes[0]: prefix is required when namespaceUri is provided (${firstIdAttr.localName}).`,
+        );
       } else {
-        if ("prefix" in firstIdAttr && firstIdAttr.prefix) {
-          node.setAttributeNS(
-            NAMESPACES.xmlns,
-            `xmlns:${firstIdAttr.prefix}`,
-            firstIdAttr.namespaceUri,
-          );
-          node.setAttributeNS(
-            firstIdAttr.namespaceUri,
-            `${firstIdAttr.prefix}:${firstIdAttr.localName}`,
-            id,
-          );
-        } else if (typeof firstIdAttr.namespaceUri === "string") {
-          throw new Error(
-            `Invalid idAttributes[0]: prefix is required when namespaceUri is provided (${firstIdAttr.localName}).`,
-          );
-        } else {
-          node.setAttribute(firstIdAttr.localName, id);
-        }
+        node.setAttribute(firstIdAttr.localName, id);
       }
     }
 
