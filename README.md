@@ -232,6 +232,11 @@ if (result.success) {
 }
 ```
 
+The verifier exposes two trust modes:
+
+- `verifySignature` — strict. When using `getCertFromKeyInfo`, a non-empty `truststore` is required; trust is direct only (cert pinning or single-hop CA, not full PKIX chain walking).
+- `extractAndVerify` — deferred trust. Performs signature math against the embedded certificate and returns it as `untrustedCertificate` for the caller to validate out-of-band (XAdES-LTV, EU Trusted List, e-invoicing archival, etc.). Use only when trust will be established by an external authority.
+
 For detailed usage instructions, see [XMLDSIG_VERIFIER.md](./XMLDSIG_VERIFIER.md).
 
 ### Caring for Implicit transform

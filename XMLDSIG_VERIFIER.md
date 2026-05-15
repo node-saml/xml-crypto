@@ -9,6 +9,7 @@
 - **Algorithm Allow-Lists:** Restrict which signature, hash, transform, and canonicalization algorithms are accepted.
 - **Flexible Error Handling:** Choose between throwing errors or returning a result object.
 - **Reusable Instances:** Create a verifier once and use it to verify multiple documents.
+- **Two Trust Modes:** A strict path (`verifySignature`) that requires a truststore, and a deferred-trust path (`extractAndVerify`) for XAdES-LTV / archival flows where trust is established out-of-band.
 
 ## Installation
 
@@ -41,6 +42,8 @@ import {
   // Types (optional, for TypeScript users)
   type XmlDSigVerifierOptions,
   type XmlDsigVerificationResult,
+  type DeferredTrustVerifierOptions,
+  type DeferredTrustVerificationResult,
 } from "xml-crypto";
 ```
 
@@ -53,6 +56,49 @@ XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N; // "http://www.w3.org/2
 XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE; // "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
 XMLDSIG_URIS.NAMESPACES.ds; // "http://www.w3.org/2000/09/xmldsig#"
 ```
+
+## Trust Model
+
+`XmlDSigVerifier` exposes two verification paths with very different security
+contracts. Pick one deliberately.
+
+### Strict verification: `verifySignature`
+
+Use when the signing identity must be authenticated at verification time (SAML
+assertions, SSO responses, any flow where a verified signature implies a
+trusted signer).
+
+- The certificate extracted from `<KeyInfo>` is checked against a **required**
+  `truststore`. Construction throws if `truststore` is omitted or empty when
+  using `getCertFromKeyInfo`.
+- Trust is **direct-trust** only: the extracted certificate must either
+  - match a truststore entry by public key (cert pinning), or
+  - be directly signed by a truststore entry (single-hop CA).
+- Full PKIX path validation is **not** performed. Multi-hop chains
+  (`root → intermediate → leaf`) are not walked. To handle a multi-hop chain
+  either include every issuer on the path in the truststore, or pre-validate
+  the chain with a dedicated PKIX library and pass only the validated leaf
+  certificate.
+- On failure, the error message includes the rejected certificate's `subject`
+  and `issuer` to help operators identify which CA is missing from the
+  truststore.
+
+### Deferred-trust verification: `extractAndVerify`
+
+Use only when trust will be established **out-of-band**: XAdES-LTV / XAdES-A
+archival, EU Trusted List (TSL) qualified-signature validation services, UBL
+e-invoicing with a counterparty registry, non-repudiation audit logs validated
+later, etc.
+
+- Performs cryptographic signature verification **only**.
+- Does not accept a `truststore` and does not check expiration.
+- Returns the extracted certificate as `untrustedCertificate` on success. The
+  caller MUST validate that certificate against some external trust source
+  before treating the signed content as authentic.
+
+**Security warning:** a passing `extractAndVerify` result with no follow-up
+trust check provides **no security guarantee**. An attacker who can supply the
+document can sign it with their own keypair and the math will still verify.
 
 ## Quick Start
 
@@ -82,14 +128,16 @@ if (result.success) {
 
 ### 2. Verifying using KeyInfo (with Truststore)
 
-When the XML document contains the certificate in a `<KeyInfo>` element, you can verify it while ensuring the certificate is trusted and valid.
+When the XML document contains the certificate in a `<KeyInfo>` element, the
+verifier extracts it and checks it against your truststore. The `truststore`
+option is **required** in this mode (see [Trust Model](#trust-model)).
 
 ```typescript
 import { XmlDSigVerifier, SignedXml } from "xml-crypto";
 import * as fs from "fs";
 
 const xml = fs.readFileSync("signed_with_keyinfo.xml", "utf-8");
-const trustedRootCert = fs.readFileSync("root_ca.pem", "utf-8");
+const trustedCert = fs.readFileSync("trusted_ca.pem", "utf-8");
 
 const result = XmlDSigVerifier.verifySignature(xml, {
   keySelector: {
@@ -97,19 +145,28 @@ const result = XmlDSigVerifier.verifySignature(xml, {
     getCertFromKeyInfo: (keyInfo) => SignedXml.getCertFromKeyInfo(keyInfo),
   },
   security: {
-    // Ensure the certificate is trusted by your root CA
-    truststore: [trustedRootCert],
-    // Automatically check if the certificate is expired
+    // REQUIRED: the extracted certificate must match an entry here, or be
+    // directly signed by an entry here. Direct trust only, no PKIX chain
+    // walking; include intermediates if your chain has more than one hop.
+    truststore: [trustedCert],
+    // Automatically check NotBefore / NotAfter on the extracted certificate.
     checkCertExpiration: true,
   },
 });
 
 if (result.success) {
   console.log("Signature is valid and trusted.");
+  // The accepted certificate is also surfaced for logging / auditing.
+  console.log("Signed by:", result.certificate?.subject);
 } else {
   console.log("Verification failed:", result.error);
 }
 ```
+
+Omitting `truststore`, or passing `truststore: []`, throws at construction
+time. Empty arrays are not a supported way to bypass trust validation; if you
+want signature math without trust, use
+[`extractAndVerify`](#4-deferred-trust-verification-extractandverify) instead.
 
 ### 3. Verifying with a Shared Secret (HMAC)
 
@@ -128,6 +185,52 @@ if (result.success) {
 ```
 
 Note: When using `sharedSecretKey`, HMAC signature algorithms are enabled and asymmetric algorithms are disabled by default to prevent key confusion attacks.
+
+### 4. Deferred-trust Verification (`extractAndVerify`)
+
+For XAdES-LTV, EU TSL validation, e-invoicing archival, and similar flows
+where trust is established by an external authority after signature
+verification. The method performs the cryptographic check and returns the
+embedded certificate **without** consulting a truststore. The result names the
+field `untrustedCertificate` so the trust gap is visible at every call site.
+
+> **Security warning.** A passing result here means only that the math
+> verifies against the certificate the document claims to be signed with. It
+> does NOT mean the signer is authenticated. If you forget the follow-up
+> trust check, an attacker who controls the document can replace the
+> certificate and signature together and your application will believe it.
+
+```typescript
+import { XmlDSigVerifier, SignedXml } from "xml-crypto";
+
+const result = XmlDSigVerifier.extractAndVerify(xml, {
+  keySelector: {
+    getCertFromKeyInfo: (keyInfo) => SignedXml.getCertFromKeyInfo(keyInfo),
+  },
+});
+
+if (!result.success) {
+  throw new Error(`Signature math failed: ${result.error}`);
+}
+
+// result.signatureValid === true, but no trust has been established yet.
+// The TypeScript types force you to handle result.untrustedCertificate
+// before you can do anything with result.signedReferences.
+
+const isTrusted = await myTrustedListClient.isQualifiedCertificate(result.untrustedCertificate);
+if (!isTrusted) {
+  throw new Error("Signature is mathematically valid but the signer is not trusted.");
+}
+
+// Only now is it safe to treat result.signedReferences as authentic.
+processSignedDocument(result.signedReferences);
+```
+
+Notes:
+
+- The method is **static-only**; there is no `new XmlDSigVerifier(...).extractAndVerify(...)`. This keeps the deferred path easy to grep for in security review.
+- `security.truststore` and `security.checkCertExpiration` are **not** accepted in `DeferredTrustVerifierOptions`. If you need either, use the strict `verifySignature` path.
+- `throwOnError` works the same as on `verifySignature`.
 
 ## Advanced Usage
 
@@ -170,12 +273,16 @@ interface XmlDSigVerifierOptions {
     transformAlgorithms?: Array<new () => TransformAlgorithm>; // Allowed transform algorithms
     canonicalizationAlgorithms?: Array<new () => CanonicalizationAlgorithm>; // Allowed canonicalization algorithms
 
-    // KeyInfo-only options (only available with getCertFromKeyInfo selector):
+    // KeyInfo-only options (only valid with getCertFromKeyInfo selector):
     checkCertExpiration?: boolean; // Check NotBefore/NotAfter. Default: true
-    truststore?: Array<string | Buffer | X509Certificate>; // Trusted CA certificates
+    truststore?: Array<string | Buffer | X509Certificate>; // REQUIRED non-empty; direct-trust anchors.
   };
 }
 ```
+
+When using `getCertFromKeyInfo`, `truststore` is required and must contain at
+least one entry. Omitting it or passing `truststore: []` throws at construction
+time. See [Trust Model](#trust-model) for the direct-trust contract.
 
 #### Extending Defaults with Custom Algorithms
 
@@ -238,19 +345,49 @@ try {
 
 ### Result Types
 
-The verification result is a discriminated union:
+#### `verifySignature` — `XmlDsigVerificationResult`
+
+A discriminated union:
 
 ```typescript
 // On success
 {
   success: true,
-  signedReferences: string[]  // Canonicalized XML content that was signed
+  signedReferences: string[],          // Canonicalized XML content that was signed
+  certificate?: X509Certificate        // The accepted signing cert (KeyInfo path only)
 }
 
 // On failure (when throwOnError is false)
 {
   success: false,
-  error: string  // Description of what went wrong
+  error: string                        // Description of what went wrong
+}
+```
+
+The optional `certificate` field is populated on the `getCertFromKeyInfo` path
+after the truststore check passes. It is `undefined` for the `publicCert` and
+`sharedSecretKey` paths.
+
+#### `extractAndVerify` — `DeferredTrustVerificationResult`
+
+Structurally distinct from `XmlDsigVerificationResult`. The success branch
+exposes `untrustedCertificate`, not `certificate`, because trust has NOT been
+established:
+
+```typescript
+// On success: signature math verified, but the certificate is NOT trusted yet
+{
+  success: true,
+  signatureValid: true,
+  untrustedCertificate: X509Certificate,  // Validate this against a trust source!
+  signedReferences: string[]
+}
+
+// On failure (when throwOnError is false)
+{
+  success: false,
+  signatureValid: false,
+  error: string
 }
 ```
 
