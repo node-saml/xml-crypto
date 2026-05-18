@@ -497,7 +497,12 @@ export class XmlDSigVerifier {
           );
         }
         certificateHolder.value = x509;
-        return certPem;
+        // Return the normalized PEM of the cert we just parsed and verified
+        // instead of the original certPem string. The user-supplied PEM can
+        // contain multiple certificates or other surprises; downstream signature
+        // verification re-parses whatever we return, and we want that re-parse
+        // to yield the same cert we validated against the truststore.
+        return x509.toString();
       };
     } else if (isResolvedPublicCertOptions(options)) {
       signedXmlOptions.publicCert = options.keySelector.publicCert;
@@ -554,8 +559,13 @@ export class XmlDSigVerifier {
         // Math-only path: parse the cert so we can surface it on the result,
         // but DO NOT check expiration or consult any truststore. Trust is the
         // caller's responsibility.
-        certificateHolder.value = new X509Certificate(certPem);
-        return certPem;
+        const x509 = new X509Certificate(certPem);
+        certificateHolder.value = x509;
+        // Return the normalized PEM of the parsed cert (not the original
+        // certPem) so the cert surfaced as `untrustedCertificate` is exactly
+        // the one downstream signature verification re-parses. A multi-cert
+        // PEM string would otherwise let the two diverge.
+        return x509.toString();
       },
     };
 
