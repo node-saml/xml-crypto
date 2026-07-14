@@ -4,6 +4,7 @@ import { X509Certificate } from "node:crypto";
 
 import { XmlDSigVerifier, SignedXml, XMLDSIG_URIS, HmacSha1 } from "../src";
 import type { DeferredTrustVerificationResult } from "../src/";
+import * as utils from "../src/utils";
 
 const { CANONICALIZATION_ALGORITHMS, HASH_ALGORITHMS, SIGNATURE_ALGORITHMS } = XMLDSIG_URIS;
 
@@ -189,7 +190,7 @@ describe("XmlDSigVerifier.extractAndVerify", function () {
     expectFailure(result, "'idAttributes' must contain at least one entry");
   });
 
-  it("rejects truststore at the type level (regression guard)", function () {
+  it("rejects truststore at runtime (silently ignoring it would fake trust enforcement)", function () {
     const signedXml = createSignedXml(xml);
     const result = XmlDSigVerifier.extractAndVerify(signedXml, {
       keySelector: {
@@ -198,8 +199,53 @@ describe("XmlDSigVerifier.extractAndVerify", function () {
       // @ts-expect-error -- DeferredTrustVerifierOptions does not accept truststore
       security: { truststore: [publicCert] },
     });
-    // Even at runtime the unknown field is ignored: signature math still runs
-    // and the cert is returned untrusted.
+    expectFailure(result, "does not support 'truststore'");
+  });
+
+  it("rejects checkCertExpiration at runtime", function () {
+    const signedXml = createSignedXml(xml);
+    const result = XmlDSigVerifier.extractAndVerify(signedXml, {
+      keySelector: {
+        getCertFromKeyInfo: (keyInfo) => SignedXml.getCertFromKeyInfo(keyInfo),
+      },
+      // @ts-expect-error -- DeferredTrustVerifierOptions does not accept checkCertExpiration
+      security: { checkCertExpiration: true },
+    });
+    expectFailure(result, "does not support 'checkCertExpiration'");
+  });
+
+  it("returns failure when the document contains multiple Signature elements and no signatureNode is given", function () {
+    const signedOnce = createSignedXml(xml);
+    // Splice a second (bogus but well-formed) ds:Signature into the document.
+    const secondSignature = signedOnce.substring(
+      signedOnce.indexOf("<Signature"),
+      signedOnce.indexOf("</Signature>") + "</Signature>".length,
+    );
+    const doubled = signedOnce.replace("</root>", `${secondSignature}</root>`);
+
+    const result = XmlDSigVerifier.extractAndVerify(doubled, {
+      keySelector: {
+        getCertFromKeyInfo: (keyInfo) => SignedXml.getCertFromKeyInfo(keyInfo),
+      },
+    });
+    expectFailure(result, "multiple signature elements");
+  });
+
+  it("verifies when an explicit signatureNode is provided", function () {
+    const signedXml = createSignedXml(xml);
+    const doc = utils.parseXml(signedXml);
+    const signatureNode = doc.getElementsByTagNameNS(XMLDSIG_URIS.NAMESPACES.ds, "Signature")[0];
+
+    const result = XmlDSigVerifier.extractAndVerify(
+      signedXml,
+      {
+        keySelector: {
+          getCertFromKeyInfo: (keyInfo) => SignedXml.getCertFromKeyInfo(keyInfo),
+        },
+      },
+      signatureNode,
+    );
     expectSuccess(result);
+    expect(result.signedReferences).to.have.length(1);
   });
 });

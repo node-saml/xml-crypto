@@ -9,7 +9,7 @@
 - **Algorithm Allow-Lists:** Restrict which signature, hash, transform, and canonicalization algorithms are accepted.
 - **Flexible Error Handling:** Choose between throwing errors or returning a result object.
 - **Reusable Instances:** Create a verifier once and use it to verify multiple documents.
-- **Two Trust Modes:** A strict path (`verifySignature`) that requires a truststore, and a deferred-trust path (`extractAndVerify`) for XAdES-LTV / archival flows where trust is established out-of-band.
+- **Two Trust Modes:** A strict path (`verifySignature`) that requires a truststore whenever the certificate is extracted from the document (`getCertFromKeyInfo`), and a deferred-trust path (`extractAndVerify`) for XAdES-LTV / archival flows where trust is established out-of-band.
 
 ## Installation
 
@@ -184,7 +184,7 @@ if (result.success) {
 }
 ```
 
-Note: When using `sharedSecretKey`, HMAC signature algorithms are enabled and asymmetric algorithms are disabled by default to prevent key confusion attacks.
+Note: When using `sharedSecretKey`, only HMAC signature algorithms are accepted — passing an asymmetric algorithm in `security.signatureAlgorithms` throws at construction. Conversely, the `publicCert` and `getCertFromKeyInfo` selectors reject HMAC algorithms. This prevents key confusion attacks.
 
 ### 4. Deferred-trust Verification (`extractAndVerify`)
 
@@ -214,8 +214,9 @@ if (!result.success) {
 }
 
 // result.signatureValid === true, but no trust has been established yet.
-// The TypeScript types force you to handle result.untrustedCertificate
-// before you can do anything with result.signedReferences.
+// The certificate is surfaced as result.untrustedCertificate to make the
+// pending trust decision explicit — nothing enforces that you validate it.
+// Treat result.signedReferences as untrusted until you do.
 
 const isTrusted = await myTrustedListClient.isQualifiedCertificate(result.untrustedCertificate);
 if (!isTrusted) {
@@ -229,7 +230,7 @@ processSignedDocument(result.signedReferences);
 Notes:
 
 - The method is **static-only**; there is no `new XmlDSigVerifier(...).extractAndVerify(...)`. This keeps the deferred path easy to grep for in security review.
-- `security.truststore` and `security.checkCertExpiration` are **not** accepted in `DeferredTrustVerifierOptions`. If you need either, use the strict `verifySignature` path.
+- `security.truststore` and `security.checkCertExpiration` are **not** accepted in `DeferredTrustVerifierOptions` — the types exclude them and passing them anyway fails at runtime rather than being silently ignored. If you need either, use the strict `verifySignature` path.
 - `throwOnError` works the same as on `verifySignature`.
 
 ## Advanced Usage
@@ -268,10 +269,12 @@ interface XmlDSigVerifierOptions {
   // SECURITY
   security?: {
     maxTransforms?: number; // Limit transforms per reference (DoS protection). Default: 4
-    signatureAlgorithms?: Array<new () => SignatureAlgorithm>; // Allowed signature algorithms
-    hashAlgorithms?: Array<new () => HashAlgorithm>; // Allowed hash algorithms
-    transformAlgorithms?: Array<new () => TransformAlgorithm>; // Allowed transform algorithms
-    canonicalizationAlgorithms?: Array<new () => CanonicalizationAlgorithm>; // Allowed canonicalization algorithms
+    // Note: the implicit canonicalization appended when a reference's transform
+    // list is empty or ends with enveloped-signature counts toward the limit.
+    signatureAlgorithms?: ReadonlyArray<new () => SignatureAlgorithm>; // Allowed signature algorithms
+    hashAlgorithms?: ReadonlyArray<new () => HashAlgorithm>; // Allowed hash algorithms
+    transformAlgorithms?: ReadonlyArray<new () => TransformAlgorithm>; // Allowed transform algorithms
+    canonicalizationAlgorithms?: ReadonlyArray<new () => CanonicalizationAlgorithm>; // Allowed canonicalization algorithms
 
     // KeyInfo-only options (only valid with getCertFromKeyInfo selector):
     checkCertExpiration?: boolean; // Check NotBefore/NotAfter. Default: true

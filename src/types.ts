@@ -141,6 +141,12 @@ export interface SignedXmlOptions {
   signatureAlgorithm?: SignatureAlgorithmURI;
   canonicalizationAlgorithm?: CanonicalizationAlgorithmURI;
   inclusiveNamespacesPrefixList?: string | string[];
+  /**
+   * Maximum number of transforms allowed per Reference element, or `null` for
+   * no limit. The implicit canonicalization transform appended when a
+   * Reference's transform list is empty or ends with enveloped-signature
+   * counts toward this limit.
+   */
   maxTransforms?: number | null;
   implicitTransforms?: ReadonlyArray<TransformAlgorithmURI>;
   keyInfoAttributes?: Record<string, string>;
@@ -337,6 +343,10 @@ export interface XmlDSigVerifierSecurityOptions {
   /**
    * Maximum number of transforms allowed per Reference element.
    * Limits complexity to prevent denial-of-service attacks.
+   *
+   * Note: the implicit canonicalization transform that is appended when a
+   * Reference's transform list is empty or ends with enveloped-signature
+   * counts toward this limit.
    * @default {@link XmlDSigVerifier.DEFAULT_MAX_TRANSFORMS}
    */
   maxTransforms?: number;
@@ -347,7 +357,7 @@ export interface XmlDSigVerifierSecurityOptions {
    *
    * @default {@link XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms} or {@link XmlDSigVerifier.defaultSymmetricSignatureAlgorithms}
    */
-  signatureAlgorithms?: Array<new () => SignatureAlgorithm>;
+  signatureAlgorithms?: ReadonlyArray<new () => SignatureAlgorithm>;
 
   /**
    * Hash algorithm constructors allowed during verification.
@@ -355,7 +365,7 @@ export interface XmlDSigVerifierSecurityOptions {
    *
    * @default {@link XmlDSigVerifier.defaultHashAlgorithms}
    */
-  hashAlgorithms?: Array<new () => HashAlgorithm>;
+  hashAlgorithms?: ReadonlyArray<new () => HashAlgorithm>;
 
   /**
    * Transform algorithm constructors allowed during verification.
@@ -364,7 +374,7 @@ export interface XmlDSigVerifierSecurityOptions {
    *
    * @default {@link XmlDSigVerifier.defaultTransformAlgorithms}
    */
-  transformAlgorithms?: Array<new () => TransformAlgorithm>;
+  transformAlgorithms?: ReadonlyArray<new () => TransformAlgorithm>;
 
   /**
    * Canonicalization algorithm constructors allowed during verification.
@@ -372,7 +382,7 @@ export interface XmlDSigVerifierSecurityOptions {
    *
    * @default {@link XmlDSigVerifier.defaultCanonicalizationAlgorithms}
    */
-  canonicalizationAlgorithms?: Array<new () => CanonicalizationAlgorithm>;
+  canonicalizationAlgorithms?: ReadonlyArray<new () => CanonicalizationAlgorithm>;
 }
 
 export interface KeyInfoXmlDSigSecurityOptions extends XmlDSigVerifierSecurityOptions {

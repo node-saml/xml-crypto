@@ -200,7 +200,8 @@ export class SignedXml {
 
     // Options
     this.idMode = idMode;
-    this.idAttributes = idAttributes ?? SignedXml.getDefaultIdAttributes();
+    // Copy so that unshifting `idAttribute` below never mutates a caller-supplied array
+    this.idAttributes = [...(idAttributes ?? SignedXml.getDefaultIdAttributes())];
     if (idAttribute) {
       this.idAttributes.unshift(idAttribute);
     }
@@ -233,7 +234,6 @@ export class SignedXml {
    * This enables HMAC and disables other signing algorithms.
    */
   enableHMAC(): void {
-    // eslint-disable-next-line deprecation/deprecation
     this.SignatureAlgorithms = SignedXml.getDefaultSymmetricSignatureAlgorithms();
     this.getKeyInfoContent = SignedXml.noop;
   }
@@ -325,6 +325,10 @@ export class SignedXml {
 
     // Reset the references as only references from our re-parsed signedInfo node can be trusted
     this.references = [];
+    // Reset signed references from any previous verification on this instance,
+    // otherwise reusing a SignedXml across documents accumulates content from
+    // earlier documents into the current result.
+    this.signedReferences = [];
 
     const unverifiedSignedInfoCanon = this.getCanonSignedInfoXml(doc);
     if (!unverifiedSignedInfoCanon) {
@@ -715,11 +719,9 @@ export class SignedXml {
     if (isDomNode.isAttributeNode(node)) {
       this.canonicalizationAlgorithm = node.value as CanonicalizationAlgorithmURI;
 
-      if (!this.findCanonicalizationAlgorithm(this.canonicalizationAlgorithm)) {
-        throw new Error(
-          `unsupported canonicalization algorithm: ${this.canonicalizationAlgorithm}`,
-        );
-      }
+      // Throws if the algorithm is not in the allow-list, so an unsupported
+      // canonicalization fails here rather than mid-verification.
+      this.findCanonicalizationAlgorithm(this.canonicalizationAlgorithm);
     }
 
     const signatureAlgorithm = xpath.select1(

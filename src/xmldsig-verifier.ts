@@ -113,30 +113,39 @@ export class XmlDSigVerifier {
   public static readonly DEFAULT_CHECK_CERT_EXPIRATION = true;
   public static readonly DEFAULT_THROW_ON_ERROR = false;
 
+  // The default arrays are frozen: they are security allow-lists, and mutating
+  // them would silently change the defaults for every verifier in the process.
+  // To extend them, spread into a new array: [...XmlDSigVerifier.defaultHashAlgorithms, MyCustom]
   // TODO(v7): remove SHA-1 from default hash algorithms.
-  static readonly defaultHashAlgorithms = [Sha1, Sha256, Sha512];
-  static readonly defaultAsymmetricSignatureAlgorithms = [
+  static readonly defaultHashAlgorithms = Object.freeze([Sha1, Sha256, Sha512]);
+  static readonly defaultAsymmetricSignatureAlgorithms = Object.freeze([
     // TODO(v7): remove RSA-SHA1 from default signature algorithms.
     RsaSha1,
     RsaSha256,
     RsaSha256Mgf1,
     RsaSha512,
-  ];
+  ]);
   // TODO: add HMAC-SHA256 support and make it the default instead of HMAC-SHA1.
-  static readonly defaultSymmetricSignatureAlgorithms = [HmacSha1];
-  static readonly defaultCanonicalizationAlgorithms = [
+  static readonly defaultSymmetricSignatureAlgorithms = Object.freeze([HmacSha1]);
+  static readonly defaultCanonicalizationAlgorithms = Object.freeze([
     C14nCanonicalization,
     C14nCanonicalizationWithComments,
     ExclusiveCanonicalization,
     ExclusiveCanonicalizationWithComments,
-  ];
-  static readonly defaultTransformAlgorithms = [
+  ]);
+  static readonly defaultTransformAlgorithms = Object.freeze([
     ...XmlDSigVerifier.defaultCanonicalizationAlgorithms,
     EnvelopedSignature,
-  ];
+  ]);
+
+  private static readonly symmetricSignatureAlgorithmURIs = new Set<string>(
+    XmlDSigVerifier.defaultSymmetricSignatureAlgorithms.map((Ctor) =>
+      new Ctor().getAlgorithmName(),
+    ),
+  );
 
   private static toAlgorithmMap<T extends { getAlgorithmName(): string }>(
-    constructors: Array<new () => T>,
+    constructors: ReadonlyArray<new () => T>,
   ): Record<string, new () => T> {
     const map: Record<string, new () => T> = {};
     for (const Ctor of constructors) {
@@ -151,9 +160,43 @@ export class XmlDSigVerifier {
    * the strict (`resolveOptions`) and deferred-trust (`createDeferredTrustSignedXml`)
    * paths so the four allowed-algorithm maps don't drift between them.
    */
+  /**
+   * Key-confusion guard shared by the strict and deferred-trust paths.
+   *
+   * Verifying an HMAC signature against public certificate material is forgeable
+   * by anyone who knows the (public) certificate, so symmetric algorithms are
+   * only allowed with the `sharedSecretKey` selector — and there, asymmetric
+   * algorithms are rejected so the two families can never be enabled together.
+   * Detection is by the known symmetric URIs (HMAC); custom algorithms outside
+   * that set are assumed asymmetric.
+   */
+  private static assertNoSignatureAlgorithmKeyConfusion(
+    signatureAlgorithms: SignatureAlgorithmMap,
+    expectSymmetric: boolean,
+    context: string,
+  ): void {
+    for (const uri of Object.keys(signatureAlgorithms)) {
+      const isSymmetric = XmlDSigVerifier.symmetricSignatureAlgorithmURIs.has(uri);
+      if (isSymmetric && !expectSymmetric) {
+        throw new Error(
+          `${context} does not support symmetric signature algorithms (got '${uri}'). ` +
+            "Verifying an HMAC signature against public certificate material is a key-confusion " +
+            "vulnerability; use the sharedSecretKey key selector for HMAC.",
+        );
+      }
+      if (!isSymmetric && expectSymmetric) {
+        throw new Error(
+          `${context} only supports symmetric (HMAC) signature algorithms (got '${uri}'). ` +
+            "Enabling asymmetric algorithms alongside a shared secret is a key-confusion footgun; " +
+            "use the publicCert or getCertFromKeyInfo key selector for asymmetric signatures.",
+        );
+      }
+    }
+  }
+
   private static resolveBaseSecurityOptions(
     security: XmlDSigVerifierSecurityOptions | undefined,
-    defaultSignatureAlgorithms: Array<new () => SignatureAlgorithm>,
+    defaultSignatureAlgorithms: ReadonlyArray<new () => SignatureAlgorithm>,
   ): ResolvedSecurityOptions {
     return {
       maxTransforms: security?.maxTransforms ?? XmlDSigVerifier.DEFAULT_MAX_TRANSFORMS,
@@ -244,6 +287,25 @@ export class XmlDSigVerifier {
         throw new Error(
           "XmlDSigVerifier.extractAndVerify: 'idAttributes' must contain at least one entry. " +
             "An empty array means no reference URIs can be resolved and verification would always fail.",
+        );
+      }
+
+      // Reject trust-related options at runtime too (the types already exclude
+      // them): silently ignoring a truststore here would let callers believe
+      // trust was enforced when it was not.
+      const security = options.security as Record<string, unknown> | undefined;
+      if (security?.truststore != null) {
+        throw new Error(
+          "XmlDSigVerifier.extractAndVerify does not support 'truststore'. Deferred-trust " +
+            "verification performs no trust check; use verifySignature with getCertFromKeyInfo " +
+            "to enforce a truststore.",
+        );
+      }
+      if (security?.checkCertExpiration != null) {
+        throw new Error(
+          "XmlDSigVerifier.extractAndVerify does not support 'checkCertExpiration'. Deferred-trust " +
+            "verification performs no certificate validation; use verifySignature with " +
+            "getCertFromKeyInfo to check expiration.",
         );
       }
 
@@ -354,6 +416,23 @@ export class XmlDSigVerifier {
   }
 
   private static resolveOptions(options: XmlDSigVerifierOptions): ResolvedXmlDsigVerifierOptions {
+    const keySelector: unknown = options.keySelector;
+    if (keySelector == null || typeof keySelector !== "object") {
+      throw new Error("XmlDSigVerifier requires a valid keySelector option.");
+    }
+    const providedSelectors = ["publicCert", "getCertFromKeyInfo", "sharedSecretKey"].filter(
+      (key) => key in keySelector,
+    );
+    if (providedSelectors.length === 0) {
+      throw new Error("XmlDSigVerifier requires a valid keySelector option.");
+    }
+    if (providedSelectors.length > 1) {
+      throw new Error(
+        "XmlDSigVerifier: keySelector must contain exactly one of 'publicCert', " +
+          `'getCertFromKeyInfo', or 'sharedSecretKey' — got ${providedSelectors.join(" and ")}.`,
+      );
+    }
+
     if (!isKeyInfoSelector(options)) {
       const security = options.security as Record<string, unknown> | undefined;
       if (security?.checkCertExpiration != null) {
@@ -385,6 +464,14 @@ export class XmlDSigVerifier {
     const baseSecurity: ResolvedSecurityOptions = XmlDSigVerifier.resolveBaseSecurityOptions(
       options.security,
       defaultSignatureAlgorithms,
+    );
+
+    XmlDSigVerifier.assertNoSignatureAlgorithmKeyConfusion(
+      baseSecurity.signatureAlgorithms,
+      isSharedSecretSelector(options),
+      isSharedSecretSelector(options)
+        ? "XmlDSigVerifier with the sharedSecretKey key selector"
+        : "XmlDSigVerifier with an asymmetric key selector",
     );
 
     if (isKeyInfoSelector(options)) {
@@ -522,24 +609,13 @@ export class XmlDSigVerifier {
       XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms,
     );
 
-    // Key-confusion guard: deferred-trust verifies against the public key
-    // extracted from the X.509 cert in <KeyInfo>. Allowing an HMAC algorithm
-    // here would let an attacker present an HMAC signature that the verifier
-    // checks against a public key value, which is the classic key-confusion
-    // footgun blocked by SignedXml.enableHMAC() on the strict path.
-    const symmetricURIs = new Set<string>(
-      XmlDSigVerifier.defaultSymmetricSignatureAlgorithms.map((Ctor) =>
-        new Ctor().getAlgorithmName(),
-      ),
+    // Deferred-trust verifies against the public key extracted from the X.509
+    // cert in <KeyInfo>, so symmetric algorithms must be rejected.
+    XmlDSigVerifier.assertNoSignatureAlgorithmKeyConfusion(
+      baseSecurity.signatureAlgorithms,
+      false,
+      "XmlDSigVerifier.extractAndVerify",
     );
-    for (const uri of Object.keys(baseSecurity.signatureAlgorithms)) {
-      if (symmetricURIs.has(uri)) {
-        throw new Error(
-          `XmlDSigVerifier.extractAndVerify does not support symmetric signature algorithms (got '${uri}'). ` +
-            "Deferred-trust verification uses the public key from the X.509 certificate; allowing HMAC here would be a key-confusion footgun.",
-        );
-      }
-    }
 
     const getCertFromKeyInfo = options.keySelector.getCertFromKeyInfo;
 
