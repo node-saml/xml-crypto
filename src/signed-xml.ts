@@ -702,6 +702,16 @@ export class SignedXml {
    * @param signatureNode The XML node or string representing the signature.
    */
   loadSignature(signatureNode: Node | string): void {
+    // Reset all per-signature state before parsing. The fields below are only
+    // assigned when the corresponding node exists in the new signature, so
+    // without this reset a reused instance would silently inherit values
+    // (algorithm, signature value, key material) from a previously loaded
+    // signature when the new one omits them.
+    this.signatureAlgorithm = undefined;
+    this.canonicalizationAlgorithm = undefined;
+    this.signatureValue = "";
+    this.keyInfo = null;
+
     const signatureNodeParsed =
       typeof signatureNode === "string" ? utils.parseXml(signatureNode) : signatureNode;
     this.signatureNode = signatureNodeParsed;

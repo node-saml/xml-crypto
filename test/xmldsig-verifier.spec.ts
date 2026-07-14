@@ -405,6 +405,28 @@ describe("XmlDSigVerifier", function () {
       expectValidResult(verifier.verifySignature(signedXml), 1);
     });
 
+    it("does not reuse the previous document's SignatureValue when the next document omits it", function () {
+      const signedXml = createChainSignedXml(xml);
+      // Same document, but with an emptied <SignatureValue>. A verifier that
+      // leaks state would fall back to the value loaded on the previous call
+      // and wrongly report success.
+      const stripped = signedXml.replace(
+        /<SignatureValue>[^<]*<\/SignatureValue>/,
+        "<SignatureValue></SignatureValue>",
+      );
+      expect(stripped).to.not.equal(signedXml);
+
+      const verifier = new XmlDSigVerifier({
+        keySelector: {
+          getCertFromKeyInfo: () => chainPublicCert,
+        },
+        security: { truststore: [rootCert] },
+      });
+
+      expectValidResult(verifier.verifySignature(signedXml));
+      expectInvalidResult(verifier.verifySignature(stripped), "invalid signature");
+    });
+
     it("verifies using a certificate actually extracted from the document's KeyInfo", function () {
       // Unlike the constant-callback tests above, this exercises the real
       // extraction path: the cert comes out of <KeyInfo>, not the test closure.
