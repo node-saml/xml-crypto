@@ -145,7 +145,9 @@ export interface Reference {
   xpath?: string;
 
   // An array of transforms to be applied to the data before signing.
-  transforms: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>;
+  // When absent or empty, no Transforms element is emitted and the referenced
+  // node is digested directly (after C14N, per the XMLDSig processing model).
+  transforms?: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>;
 
   // The algorithm used to calculate the digest value of the data.
   digestAlgorithm: HashAlgorithmType;

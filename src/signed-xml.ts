@@ -615,9 +615,7 @@ export class SignedXml {
     /**
      * Search for ancestor namespaces before canonicalization.
      */
-    if (Array.isArray(ref.transforms)) {
-      ref.ancestorNamespaces = utils.findAncestorNs(doc, ref.xpath, this.namespaceResolver);
-    }
+    ref.ancestorNamespaces = utils.findAncestorNs(doc, ref.xpath, this.namespaceResolver);
 
     const c14nOptions = {
       ancestorNamespaces: ref.ancestorNamespaces,
@@ -636,7 +634,7 @@ export class SignedXml {
   // Signing gives the reference's current list to the exclusive canonicalization transforms, the
   // ones createReferences writes it under, so the digest matches the Transforms it serializes.
   private getSigningPrefixLists(ref: Reference): string[][] {
-    return ref.transforms.map((transform) =>
+    return (ref.transforms ?? []).map((transform) =>
       isExclusiveC14n(this.findCanonicalizationAlgorithm(transform).getAlgorithmName())
         ? ref.inclusiveNamespacesPrefixList
         : [],
@@ -1041,10 +1039,6 @@ export class SignedXml {
   }: Partial<Reference> & Pick<Reference, "xpath">): void {
     if (digestAlgorithm == null) {
       throw new Error("digestAlgorithm is required");
-    }
-
-    if (!utils.isArrayHasLength(transforms)) {
-      throw new Error("transforms must contain at least one transform algorithm");
     }
 
     this.references.push({
@@ -1500,35 +1494,39 @@ export class SignedXml {
           referenceElem.setAttribute("Type", ref.type);
         }
 
-        const transformsElem = signatureDoc.createElementNS(
-          signatureNamespace,
-          `${currentPrefix}Transforms`,
-        );
-
-        for (const trans of ref.transforms || []) {
-          const transform = this.findCanonicalizationAlgorithm(trans);
-          const transformElem = signatureDoc.createElementNS(
+        if (utils.isArrayHasLength(ref.transforms)) {
+          const transformsElem = signatureDoc.createElementNS(
             signatureNamespace,
-            `${currentPrefix}Transform`,
+            `${currentPrefix}Transforms`,
           );
-          transformElem.setAttribute("Algorithm", transform.getAlgorithmName());
 
-          if (
-            utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList) &&
-            isExclusiveC14n(transform.getAlgorithmName())
-          ) {
-            const inclusiveNamespacesElem = signatureDoc.createElementNS(
-              exclusiveC14nNamespace,
-              "InclusiveNamespaces",
+          for (const trans of ref.transforms) {
+            const transform = this.findCanonicalizationAlgorithm(trans);
+            const transformElem = signatureDoc.createElementNS(
+              signatureNamespace,
+              `${currentPrefix}Transform`,
             );
-            inclusiveNamespacesElem.setAttribute(
-              "PrefixList",
-              ref.inclusiveNamespacesPrefixList.join(" "),
-            );
-            transformElem.appendChild(inclusiveNamespacesElem);
+            transformElem.setAttribute("Algorithm", transform.getAlgorithmName());
+
+            if (
+              utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList) &&
+              isExclusiveC14n(transform.getAlgorithmName())
+            ) {
+              const inclusiveNamespacesElem = signatureDoc.createElementNS(
+                exclusiveC14nNamespace,
+                "InclusiveNamespaces",
+              );
+              inclusiveNamespacesElem.setAttribute(
+                "PrefixList",
+                ref.inclusiveNamespacesPrefixList.join(" "),
+              );
+              transformElem.appendChild(inclusiveNamespacesElem);
+            }
+
+            transformsElem.appendChild(transformElem);
           }
 
-          transformsElem.appendChild(transformElem);
+          referenceElem.appendChild(transformsElem);
         }
 
         const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
@@ -1545,7 +1543,6 @@ export class SignedXml {
         );
         digestValueElem.textContent = digestValue ?? this.calculateReferenceDigest(ref, node);
 
-        referenceElem.appendChild(transformsElem);
         referenceElem.appendChild(digestMethodElem);
         referenceElem.appendChild(digestValueElem);
 
@@ -1628,9 +1625,13 @@ export class SignedXml {
       options.ancestorXmlAttributes ?? utils.findAncestorXmlAttributes(node);
     options.signatureNode = this.signatureNode;
 
+    // transforms is now optional on Reference (see addReference) — empty/no transforms is a
+    // valid, SMPTE-required state, not an error. Treat it as an empty list everywhere below.
+    const effectiveTransforms = transforms ?? [];
+
     const canonXml = node.cloneNode(true); // Deep clone
     const preserveDocument = isDomNode.isDocumentNode(node);
-    if (transforms.includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
+    if (effectiveTransforms.includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
       const signaturePath: number[] = [];
       let signatureAncestor = this.findLoadedSignature(node);
       while (signatureAncestor?.parentNode && signatureAncestor !== node) {
@@ -1656,7 +1657,10 @@ export class SignedXml {
 
     // Octets are parsed into a node-set for the next transform, and a node-set left at the end is
     // converted to octets with C14N: https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
-    for (const [index, transformName] of transforms.entries()) {
+    // (When effectiveTransforms is empty this loop simply doesn't run, and the isNodeLike check
+    // below applies plain C14N to the untransformed node-set — exactly the SMPTE-required
+    // no-transforms case, so no separate empty-transforms branch is needed here.)
+    for (const [index, transformName] of effectiveTransforms.entries()) {
       if (!isDomNode.isNodeLike(transformedXml)) {
         transformedXml = this.parseTransformInput(transformedXml, transformName, preserveDocument);
         // The parsed octets are a new document, so the referenced node's ancestors are gone.
@@ -1693,6 +1697,11 @@ export class SignedXml {
       ).process(transformedXml, transformOptions);
     }
 
+    // No separate empty-transforms case needed here: the isNodeLike check above already
+    // applies C14N to any remaining node-set, which is exactly what happens when
+    // effectiveTransforms is empty (the for loop above never ran) — the SMPTE-required
+    // no-transforms case is just the simplest instance of the same general rule upstream
+    // already enforces for "a node-set left at the end of the transforms" (see #581).
     return transformedXml.toString();
   }
 

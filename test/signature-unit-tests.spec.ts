@@ -1001,8 +1001,8 @@ describe("Signature unit tests", function () {
             ref.uri,
             `wrong uri for index ${i}. expected: ${expectedUri} actual: ${ref.uri}`,
           ).to.equal(expectedUri);
-          expect(ref.transforms.length).to.equal(1);
-          expect(ref.transforms[0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
+          expect(ref.transforms!.length).to.equal(1);
+          expect(ref.transforms![0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
           expect(ref.digestValue).to.equal(digests[i]);
           expect(ref.digestAlgorithm).to.equal("http://www.w3.org/2000/09/xmldsig#sha1");
         }
@@ -1229,6 +1229,87 @@ describe("Signature unit tests", function () {
     const URI = xpath.select1("//*[local-name(.)='Reference']/@URI", doc);
     isDomNode.assertIsAttributeNode(URI);
     expect(URI.value, `uri should be empty but instead was ${URI.value}`).to.equal("");
+  });
+
+  it("omits Transforms element when no transforms are specified", function () {
+    const xml = "<root><x Id='ref1'/></root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      uri: "#ref1",
+      digestValue: "",
+      inclusiveNamespacesPrefixList: [],
+      isEmptyUri: false,
+    });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const transforms = xpath.select(
+      "//*[local-name(.)='Transforms']",
+      doc,
+    );
+    expect(transforms, "Transforms element should be absent when no transforms specified").to.have
+      .length(0);
+  });
+
+  it("signs and verifies correctly with no transforms (round-trip)", function () {
+    const xml = "<root><x Id='ref1'/></root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      uri: "#ref1",
+      digestValue: "",
+      inclusiveNamespacesPrefixList: [],
+      isEmptyUri: false,
+    });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const sigNode = xpath.select1(
+      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc,
+    );
+    isDomNode.assertIsNodeLike(sigNode);
+
+    const verifySig = new SignedXml();
+    verifySig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    verifySig.loadSignature(sigNode);
+    const result = verifySig.checkSignature(signedXml);
+    expect(result, "expected signature to verify successfully").to.be.true;
+  });
+
+  it("signer appends signature to a non-existing reference node", function () {
+    const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
+    const sig = new SignedXml();
+
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference({
+      xpath: "//*[local-name(.)='repository']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    try {
+      sig.computeSignature(xml, {
+        location: {
+          reference: "/root/foobar",
+          action: "append",
+        },
+      });
+      expect.fail("Expected an error to be thrown");
+    } catch (err) {
+      expect(err).not.to.be.an.instanceof(TypeError);
+    }
   });
 
   it("signer adds existing prefixes", function () {
