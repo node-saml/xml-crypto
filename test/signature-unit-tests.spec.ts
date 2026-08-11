@@ -1001,8 +1001,7 @@ describe("Signature unit tests", function () {
             ref.uri,
             `wrong uri for index ${i}. expected: ${expectedUri} actual: ${ref.uri}`,
           ).to.equal(expectedUri);
-          expect(ref.transforms!.length).to.equal(1);
-          expect(ref.transforms![0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
+          expect(ref.transforms).to.deep.equal(["http://www.w3.org/2001/10/xml-exc-c14n#"]);
           expect(ref.digestValue).to.equal(digests[i]);
           expect(ref.digestAlgorithm).to.equal("http://www.w3.org/2000/09/xmldsig#sha1");
         }
