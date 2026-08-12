@@ -1230,30 +1230,33 @@ describe("Signature unit tests", function () {
     expect(URI.value, `uri should be empty but instead was ${URI.value}`).to.equal("");
   });
 
-  it("omits Transforms element when no transforms are specified", function () {
-    const xml = "<root><x Id='ref1'/></root>";
-    const sig = new SignedXml();
-    sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.addReference({
-      xpath: "//*[local-name(.)='x']",
-      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
-      uri: "#ref1",
-      digestValue: "",
-      inclusiveNamespacesPrefixList: [],
-      isEmptyUri: false,
+  for (const { label, transforms } of [
+    { label: "omitted transforms property", transforms: undefined },
+    { label: "empty transforms array", transforms: [] as string[] },
+  ]) {
+    it(`omits Transforms element when no transforms are specified (${label})`, function () {
+      const xml = "<root><x Id='ref1'/></root>";
+      const sig = new SignedXml();
+      sig.privateKey = fs.readFileSync("./test/static/client.pem");
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        uri: "#ref1",
+        digestValue: "",
+        inclusiveNamespacesPrefixList: [],
+        isEmptyUri: false,
+        ...(transforms !== undefined ? { transforms } : {}),
+      });
+      sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+      sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+      sig.computeSignature(xml);
+      const signedXml = sig.getSignedXml();
+      const doc = new xmldom.DOMParser().parseFromString(signedXml);
+      const transformNodes = xpath.select("//*[local-name(.)='Transforms']", doc);
+      expect(transformNodes, "Transforms element should be absent when no transforms specified").to
+        .have.length(0);
     });
-    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
-    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
-    const transforms = xpath.select(
-      "//*[local-name(.)='Transforms']",
-      doc,
-    );
-    expect(transforms, "Transforms element should be absent when no transforms specified").to.have
-      .length(0);
-  });
+  }
 
   it("signs and verifies correctly with no transforms (round-trip)", function () {
     const xml = "<root><x Id='ref1'/></root>";
