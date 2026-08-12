@@ -1290,6 +1290,48 @@ describe("Signature unit tests", function () {
     expect(result, "expected signature to verify successfully").to.be.true;
   });
 
+  it("correctly canonicalizes no-transform references under different ancestor namespace scopes", function () {
+    // Two <item> elements live under different namespace scopes. Without the
+    // fix, findAncestorNs(doc, ref.xpath) always uses the first XPath match
+    // (item1's scope), so item2 is digested with the wrong ancestor namespaces
+    // and verification fails.
+    const xml =
+      "<root>" +
+      "<section xmlns:ns1='http://ns1.example.com'><item Id='item1'>one</item></section>" +
+      "<section xmlns:ns2='http://ns2.example.com'><item Id='item2'>two</item></section>" +
+      "</root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    for (const id of ["item1", "item2"]) {
+      sig.addReference({
+        xpath: `//*[@Id='${id}']`,
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        uri: `#${id}`,
+        digestValue: "",
+        inclusiveNamespacesPrefixList: [],
+        isEmptyUri: false,
+      });
+    }
+    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const sigNode = xpath.select1(
+      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc,
+    );
+    isDomNode.assertIsNodeLike(sigNode);
+
+    const verifySig = new SignedXml();
+    verifySig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    verifySig.loadSignature(sigNode);
+    const result = verifySig.checkSignature(signedXml);
+    expect(result, "expected signature to verify successfully").to.be.true;
+  });
+
   it("signer appends signature to a non-existing reference node", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
     const sig = new SignedXml();

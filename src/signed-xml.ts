@@ -611,11 +611,19 @@ export class SignedXml {
     };
   }
 
-  private getCanonReferenceXml(doc: Document, ref: Reference, node: Node) {
+  private getCanonReferenceXml(_doc: Document, ref: Reference, node: Node) {
     /**
-     * Search for ancestor namespaces before canonicalization.
+     * Derive ancestor namespaces from the specific node being digested, not by
+     * re-running ref.xpath. findAncestorNs uses only the first XPath match, so
+     * when multiple references are created for the same xpath pattern (e.g. via
+     * addAllReferences), references beyond the first are digested with the wrong
+     * ancestor namespace scope. findAncestorNsForElement (added upstream for
+     * findSignedInfoAncestorContext, above) already solves exactly this for a
+     * known element, so reuse it here instead of re-running the xpath.
      */
-    ref.ancestorNamespaces = utils.findAncestorNs(doc, ref.xpath, this.namespaceResolver);
+    if (isDomNode.isElementNode(node)) {
+      ref.ancestorNamespaces = utils.findAncestorNsForElement(node);
+    }
 
     const c14nOptions = {
       ancestorNamespaces: ref.ancestorNamespaces,
