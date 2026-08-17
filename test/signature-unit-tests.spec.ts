@@ -1253,8 +1253,10 @@ describe("Signature unit tests", function () {
       const signedXml = sig.getSignedXml();
       const doc = new xmldom.DOMParser().parseFromString(signedXml);
       const transformNodes = xpath.select("//*[local-name(.)='Transforms']", doc);
-      expect(transformNodes, "Transforms element should be absent when no transforms specified").to
-        .have.length(0);
+      expect(
+        transformNodes,
+        "Transforms element should be absent when no transforms specified",
+      ).to.have.length(0);
     });
   }
 
