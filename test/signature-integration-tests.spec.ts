@@ -86,6 +86,70 @@ describe("Signature integration tests", function () {
     expect(sig.getSignedReferences().length).to.equal(1);
   });
 
+  it("removes only the containing signature during an enveloped transform", function () {
+    // Adding an outer signature to an already signed payload must preserve the valid inner signature.
+    // XMLDSig 1.1 §6.6.4: https://www.w3.org/TR/xmldsig-core/#sec-EnvelopedSignature
+    const privateKey = fs.readFileSync("./test/static/client.pem");
+    const publicCert = fs.readFileSync("./test/static/client_public.pem");
+    const innerSigner = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      signatureAlgorithm: XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA256,
+    });
+    innerSigner.addReference({
+      xpath: "//*[local-name(.)='payload']",
+      digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA256,
+      transforms: [
+        XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE,
+        XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      ],
+    });
+    innerSigner.computeSignature('<root Id="outer"><payload Id="inner">content</payload></root>', {
+      location: { reference: "//*[local-name(.)='payload']", action: "append" },
+    });
+
+    const outerSigner = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      signatureAlgorithm: XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA256,
+    });
+    outerSigner.addReference({
+      xpath: "/*",
+      digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA256,
+      transforms: [
+        XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE,
+        XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      ],
+    });
+    outerSigner.computeSignature(innerSigner.getSignedXml());
+
+    const signedXml = outerSigner.getSignedXml();
+    const doc = utils.parseXml(signedXml);
+    const payload = xpath.select1("//*[local-name(.)='payload']", doc);
+    isDomNode.assertIsElementNode(payload);
+    const innerSignatures = utils.findChildren(payload, "Signature");
+    const outerSignatures = utils.findChildren(doc.documentElement, "Signature");
+    expect(innerSignatures).to.have.length(1);
+    expect(outerSignatures).to.have.length(1);
+    const innerSignature = innerSignatures[0];
+    const outerSignature = outerSignatures[0];
+
+    const innerVerifier = new SignedXml({ publicCert });
+    innerVerifier.loadSignature(innerSignature);
+    expect(innerVerifier.checkSignature(signedXml)).to.be.true;
+
+    const outerVerifier = new SignedXml({ publicCert });
+    outerVerifier.loadSignature(outerSignature);
+    expect(outerVerifier.checkSignature(signedXml)).to.be.true;
+
+    // The outer digest covers the inner signature, so deleting it must invalidate the outer signature.
+    payload.removeChild(innerSignature);
+    const tamperedXml = doc.toString();
+    const tamperVerifier = new SignedXml({ publicCert });
+    tamperVerifier.loadSignature(outerSignature);
+    expect(tamperVerifier.checkSignature(tamperedXml)).to.be.false;
+  });
+
   it("add canonicalization if output of transforms will be a node-set rather than an octet stream", function () {
     let xml = fs.readFileSync("./test/static/windows_store_signature.xml", "utf-8");
 

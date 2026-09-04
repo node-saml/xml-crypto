@@ -9,11 +9,12 @@ import {
   RsaSha256,
   Sha256,
   C14nCanonicalization,
+  createOptionalCallbackFunction,
 } from "../src";
-import type { XmlDsigVerificationResult } from "../src/";
+import type { SignatureAlgorithm, XmlDsigVerificationResult } from "../src/";
 import * as utils from "../src/utils";
 
-import { X509Certificate } from "node:crypto";
+import { createHmac, timingSafeEqual, X509Certificate, type KeyLike } from "node:crypto";
 
 // Parse the XML and get both signature nodes
 
@@ -40,6 +41,23 @@ const futureCert = fs.readFileSync("./test/static/future_certificate.crt.pem", "
 // Shared-secret keys for HMAC verification testing
 const hmacKey = fs.readFileSync("./test/static/hmac.key");
 const wrongHmacKey = fs.readFileSync("./test/static/hmac-foobar.key");
+
+class CustomHmacSha256 implements SignatureAlgorithm {
+  getSignature = createOptionalCallbackFunction(
+    (signedInfo: Buffer | string, key: KeyLike): string =>
+      createHmac("sha256", key).update(signedInfo).digest("base64"),
+  );
+
+  verifySignature = createOptionalCallbackFunction(
+    (material: string, key: KeyLike, signatureValue: string): boolean => {
+      const actual = Buffer.from(this.getSignature(material, key), "base64");
+      const expected = Buffer.from(signatureValue, "base64");
+      return actual.length === expected.length && timingSafeEqual(actual, expected);
+    },
+  );
+
+  getAlgorithmName = () => "http://www.w3.org/2001/04/xmldsig-more#hmac-sha256";
+}
 
 // Helper function to create a signed XML document
 function createSignedXml(
@@ -257,6 +275,31 @@ describe("XmlDSigVerifier", function () {
   });
 
   describe("key confusion protection", function () {
+    it("rejects a custom HMAC signature forged with public certificate bytes", function () {
+      // Public certificate bytes cannot authenticate a MAC because anyone can use them as the HMAC key.
+      // XMLDSig 1.1 §6.3: https://www.w3.org/TR/xmldsig-core/#sec-MACs
+      const signatureAlgorithm = new CustomHmacSha256().getAlgorithmName();
+      const signer = new SignedXml({
+        privateKey: publicCert,
+        canonicalizationAlgorithm: CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+        signatureAlgorithm,
+        allowedSignatureAlgorithms: { [signatureAlgorithm]: CustomHmacSha256 },
+      });
+      signer.addReference({
+        xpath: "//*[local-name(.)='test']",
+        digestAlgorithm: HASH_ALGORITHMS.SHA256,
+        transforms: [CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
+      });
+      signer.computeSignature(xml);
+
+      const result = XmlDSigVerifier.verifySignature(signer.getSignedXml(), {
+        keySelector: { publicCert },
+        security: { signatureAlgorithms: [CustomHmacSha256] },
+      });
+
+      expectInvalidResult(result, "symmetric signature algorithms");
+    });
+
     it("throws when an HMAC algorithm is allowed with the publicCert selector", function () {
       expect(() => {
         new XmlDSigVerifier({
