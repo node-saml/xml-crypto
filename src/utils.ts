@@ -359,6 +359,29 @@ export function validateDigestValue(digest, expectedDigest) {
   return true;
 }
 
+/**
+ * Given `clone`, a deep clone of `original`, return the node in `clone` that
+ * corresponds to `target` in `original`. Returns `null` when `target` is not
+ * `original` or one of its descendants.
+ */
+export function findClonedNode(original: Node, clone: Node, target: Node | null): Node | null {
+  const path: number[] = [];
+  let current = target;
+  while (current !== original) {
+    const parent = current?.parentNode;
+    if (parent == null) {
+      return null;
+    }
+    path.unshift(Array.prototype.indexOf.call(parent.childNodes, current));
+    current = parent;
+  }
+  let result = clone;
+  for (const index of path) {
+    result = result.childNodes[index];
+  }
+  return result;
+}
+
 // Check if the given node is descendant of the given parent node
 export function isDescendantOf(node: Node, parent: Node): boolean {
   if (!node || !parent) {

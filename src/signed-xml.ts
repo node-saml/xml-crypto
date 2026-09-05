@@ -1159,10 +1159,13 @@ export class SignedXml {
       referenceNode.parentNode.insertBefore(signatureElem, referenceNode.nextSibling);
     }
 
+    // Record the signature being created before computing digests, so the enveloped
+    // transform removes this signature and not a pre-existing one (e.g. a countersignature).
+    this.signatureNode = signatureElem;
+
     // Now add all references (including any to the signature itself)
     this.addAllReferences(doc, signatureElem, prefix);
 
-    this.signatureNode = signatureElem;
     const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
     if (signedInfoNodes.length === 0) {
       const err3 = new Error("could not find SignedInfo element in the message");
@@ -1378,9 +1381,14 @@ export class SignedXml {
     options: TransformAlgorithmOptions = {},
   ) {
     options.defaultNsForPrefix = options.defaultNsForPrefix ?? SignedXml.defaultNsForPrefix;
-    options.signatureNode = this.signatureNode;
 
     const canonXml = node.cloneNode(true); // Deep clone
+    // When signing, `this.signatureNode` is the signature under construction and lives inside
+    // `node`; it has no SignatureValue yet, so hand the enveloped transform its counterpart in
+    // the clone to remove by identity. When verifying, the loaded signature comes from a separate
+    // parse and is passed through as-is for SignatureValue matching.
+    options.signatureNode =
+      utils.findClonedNode(node, canonXml, this.signatureNode) ?? this.signatureNode;
     let transformedXml: Node | string = canonXml;
 
     transforms.forEach((transformName) => {

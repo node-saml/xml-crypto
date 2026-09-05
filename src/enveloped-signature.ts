@@ -1,6 +1,7 @@
 import * as xpath from "xpath";
 import * as isDomNode from "@xmldom/is-dom-node";
 import { XMLDSIG_URIS } from "./xmldsig-uris";
+import * as utils from "./utils";
 import type { TransformAlgorithmOptions, TransformAlgorithmURI, TransformAlgorithm } from "./types";
 
 export class EnvelopedSignature implements TransformAlgorithm {
@@ -22,6 +23,14 @@ export class EnvelopedSignature implements TransformAlgorithm {
       return node;
     }
     const signatureNode = options.signatureNode;
+    // Signing: `signatureNode` is the signature under construction, already resolved into this
+    // subtree. It has no SignatureValue yet, so remove exactly that element.
+    if (utils.isDescendantOf(signatureNode, node) && signatureNode.parentNode) {
+      signatureNode.parentNode.removeChild(signatureNode);
+      return node;
+    }
+    // Verifying: `signatureNode` was loaded from a separate parse, so find the matching
+    // signature in this subtree by its SignatureValue.
     const expectedSignatureValue = xpath.select1(
       ".//*[local-name(.)='SignatureValue']/text()",
       signatureNode,
