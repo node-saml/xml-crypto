@@ -39,6 +39,8 @@ import {
   C14nCanonicalizationWithComments,
   ExclusiveCanonicalization,
   ExclusiveCanonicalizationWithComments,
+  // Key type constants (for custom signature algorithms)
+  KeyType,
   // Types (optional, for TypeScript users)
   type XmlDSigVerifierOptions,
   type XmlDsigVerificationResult,
@@ -184,7 +186,7 @@ if (result.success) {
 }
 ```
 
-Note: When using `sharedSecretKey`, only HMAC signature algorithms are accepted — passing an asymmetric algorithm in `security.signatureAlgorithms` throws at construction. Conversely, the `publicCert` and `getCertFromKeyInfo` selectors reject HMAC algorithms. This prevents key confusion attacks.
+Note: When using `sharedSecretKey`, only symmetric signature algorithms are accepted — passing an asymmetric algorithm in `security.signatureAlgorithms` throws at construction. Conversely, the `publicCert` and `getCertFromKeyInfo` selectors reject symmetric algorithms. Every `SignatureAlgorithm` declares its family through `getKeyType()` (`KeyType.SYMMETRIC` or `KeyType.ASYMMETRIC`), and an algorithm that does not declare one is rejected. This prevents key confusion attacks, where an HMAC would otherwise be verified with public certificate bytes that anyone can obtain.
 
 ### 4. Deferred-trust Verification (`extractAndVerify`)
 
@@ -301,6 +303,17 @@ const result = XmlDSigVerifier.verifySignature(xml, {
     hashAlgorithms: [...XmlDSigVerifier.defaultHashAlgorithms, MyCustomHashAlgorithm],
   },
 });
+```
+
+Custom signature algorithms must also implement `getKeyType()`, returning `KeyType.SYMMETRIC` for MACs such as HMAC or `KeyType.ASYMMETRIC` for public-key signatures. `XmlDSigVerifier` uses this to enforce the key-confusion rules described above and rejects any signature algorithm that does not declare its key type.
+
+```typescript
+import { KeyType, type SignatureAlgorithm } from "xml-crypto";
+
+class MyHmacAlgorithm implements SignatureAlgorithm {
+  // ...getSignature, verifySignature, getAlgorithmName...
+  getKeyType = () => KeyType.SYMMETRIC;
+}
 ```
 
 ### ID Attributes

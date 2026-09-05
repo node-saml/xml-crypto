@@ -365,6 +365,12 @@ function MySignatureAlgorithm() {
   this.getAlgorithmName = function () {
     return "http://mySigningAlgorithm";
   };
+
+  /*declare whether the key is a shared secret ("symmetric") or a key pair ("asymmetric");
+    XmlDSigVerifier refuses signature algorithms that do not declare this*/
+  this.getKeyType = function () {
+    return "asymmetric";
+  };
 }
 ```
 
@@ -465,6 +471,9 @@ function AsyncSignatureAlgorithm() {
   };
   this.getAlgorithmName = function () {
     return "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+  };
+  this.getKeyType = function () {
+    return "asymmetric";
   };
 }
 

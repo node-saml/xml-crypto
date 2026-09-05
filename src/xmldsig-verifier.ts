@@ -21,6 +21,7 @@ import {
   DeferredTrustVerificationResult,
   XmlDSigVerifierSecurityOptions,
   SignatureAlgorithm,
+  KeyType,
 } from "./types";
 import { isArrayHasLength, parseXml } from "./utils";
 import { Sha1, Sha256, Sha512 } from "./hash-algorithms";
@@ -138,12 +139,6 @@ export class XmlDSigVerifier {
     EnvelopedSignature,
   ]);
 
-  private static readonly symmetricSignatureAlgorithmURIs = new Set<string>(
-    XmlDSigVerifier.defaultSymmetricSignatureAlgorithms.map((Ctor) =>
-      new Ctor().getAlgorithmName(),
-    ),
-  );
-
   private static toAlgorithmMap<T extends { getAlgorithmName(): string }>(
     constructors: ReadonlyArray<new () => T>,
   ): Record<string, new () => T> {
@@ -167,16 +162,24 @@ export class XmlDSigVerifier {
    * by anyone who knows the (public) certificate, so symmetric algorithms are
    * only allowed with the `sharedSecretKey` selector — and there, asymmetric
    * algorithms are rejected so the two families can never be enabled together.
-   * Detection is by the known symmetric URIs (HMAC); custom algorithms outside
-   * that set are assumed asymmetric.
+   * Each algorithm declares its family via `getKeyType()`; one that does not is
+   * rejected outright rather than assumed to be asymmetric.
    */
   private static assertNoSignatureAlgorithmKeyConfusion(
     signatureAlgorithms: SignatureAlgorithmMap,
     expectSymmetric: boolean,
     context: string,
   ): void {
-    for (const uri of Object.keys(signatureAlgorithms)) {
-      const isSymmetric = XmlDSigVerifier.symmetricSignatureAlgorithmURIs.has(uri);
+    for (const [uri, Ctor] of Object.entries(signatureAlgorithms)) {
+      // Optional call: a JavaScript caller or a pre-7.x custom algorithm may not implement it.
+      const keyType: unknown = new Ctor().getKeyType?.();
+      if (keyType !== KeyType.SYMMETRIC && keyType !== KeyType.ASYMMETRIC) {
+        throw new Error(
+          `${context}: signature algorithm '${uri}' does not declare its key type. ` +
+            "Implement getKeyType() returning KeyType.SYMMETRIC or KeyType.ASYMMETRIC.",
+        );
+      }
+      const isSymmetric = keyType === KeyType.SYMMETRIC;
       if (isSymmetric && !expectSymmetric) {
         throw new Error(
           `${context} does not support symmetric signature algorithms (got '${uri}'). ` +

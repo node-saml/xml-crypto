@@ -10,6 +10,7 @@ import {
   Sha256,
   C14nCanonicalization,
   createOptionalCallbackFunction,
+  KeyType,
 } from "../src";
 import type { SignatureAlgorithm, XmlDsigVerificationResult } from "../src/";
 import * as utils from "../src/utils";
@@ -57,6 +58,8 @@ class CustomHmacSha256 implements SignatureAlgorithm {
   );
 
   getAlgorithmName = () => "http://www.w3.org/2001/04/xmldsig-more#hmac-sha256";
+
+  getKeyType = () => KeyType.SYMMETRIC;
 }
 
 // Helper function to create a signed XML document
@@ -325,6 +328,20 @@ describe("XmlDSigVerifier", function () {
           security: { signatureAlgorithms: [HmacSha1, RsaSha256] },
         });
       }).to.throw(/only supports symmetric \(HMAC\) signature algorithms/);
+    });
+
+    it("throws when a signature algorithm does not declare its key type", function () {
+      // A JavaScript caller or a pre-7.x custom algorithm may omit getKeyType(); the guard
+      // must fail closed rather than guess which family the algorithm belongs to.
+      class UndeclaredKeyTypeAlgorithm extends RsaSha256 {
+        getKeyType = undefined as unknown as RsaSha256["getKeyType"];
+      }
+      expect(() => {
+        new XmlDSigVerifier({
+          keySelector: { publicCert },
+          security: { signatureAlgorithms: [UndeclaredKeyTypeAlgorithm] },
+        });
+      }).to.throw(/does not declare its key type/);
     });
 
     it("rejects an HMAC-signed document when verifying with publicCert defaults", function () {

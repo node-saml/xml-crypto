@@ -1,5 +1,5 @@
 import * as xpath from "xpath";
-import { SignedXml, createOptionalCallbackFunction, XMLDSIG_URIS } from "../src";
+import { SignedXml, createOptionalCallbackFunction, XMLDSIG_URIS, KeyType } from "../src";
 import * as fs from "fs";
 import * as crypto from "crypto";
 import { expect } from "chai";
@@ -409,6 +409,10 @@ describe("Signature unit tests", function () {
       getAlgorithmName = function () {
         return "dummy algorithm";
       };
+
+      getKeyType = function () {
+        return KeyType.ASYMMETRIC;
+      };
     }
 
     class DummyTransformation {
@@ -569,6 +573,10 @@ describe("Signature unit tests", function () {
 
       getAlgorithmName = function () {
         return "dummy algorithm";
+      };
+
+      getKeyType = function () {
+        return KeyType.ASYMMETRIC;
       };
     }
 
@@ -786,6 +794,10 @@ describe("Signature unit tests", function () {
 
       getAlgorithmName = function () {
         return SIGNATURE_ALGORITHMS.RSA_SHA1;
+      };
+
+      getKeyType = function () {
+        return KeyType.ASYMMETRIC;
       };
     }
 

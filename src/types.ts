@@ -67,6 +67,20 @@ export type SignatureAlgorithmURI =
   | (typeof SIGNATURE_ALGORITHMS)[keyof typeof SIGNATURE_ALGORITHMS]
   | string;
 
+/**
+ * The kind of key a {@link SignatureAlgorithm} consumes.
+ *
+ * - `SYMMETRIC`: a MAC such as HMAC. The same shared secret both produces and verifies
+ *   the signature, so it must never be verified against public key material.
+ * - `ASYMMETRIC`: a public-key signature such as RSA. A private key signs and the
+ *   matching public key or certificate verifies.
+ */
+export const KeyType = {
+  SYMMETRIC: "symmetric",
+  ASYMMETRIC: "asymmetric",
+} as const;
+export type KeyType = (typeof KeyType)[keyof typeof KeyType];
+
 /** Extend this to create a new SignatureAlgorithm */
 export interface SignatureAlgorithm {
   /**
@@ -92,6 +106,13 @@ export interface SignatureAlgorithm {
   ): void;
 
   getAlgorithmName(): SignatureAlgorithmURI;
+
+  /**
+   * Whether this algorithm is keyed with a shared secret ({@link KeyType.SYMMETRIC}) or a
+   * public/private key pair ({@link KeyType.ASYMMETRIC}). {@link XmlDSigVerifier} uses this
+   * to refuse configurations where a MAC would be verified against public certificate material.
+   */
+  getKeyType(): KeyType;
 }
 export type SignatureAlgorithmMap = Record<SignatureAlgorithmURI, new () => SignatureAlgorithm>;
 

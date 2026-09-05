@@ -1,5 +1,5 @@
 import * as crypto from "crypto";
-import { type SignatureAlgorithm, createOptionalCallbackFunction } from "./types";
+import { type SignatureAlgorithm, KeyType, createOptionalCallbackFunction } from "./types";
 import { XMLDSIG_URIS } from "./xmldsig-uris";
 
 export class RsaSha1 implements SignatureAlgorithm {
@@ -26,6 +26,8 @@ export class RsaSha1 implements SignatureAlgorithm {
   getAlgorithmName = () => {
     return XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA1;
   };
+
+  getKeyType = () => KeyType.ASYMMETRIC;
 }
 
 export class RsaSha256 implements SignatureAlgorithm {
@@ -52,6 +54,8 @@ export class RsaSha256 implements SignatureAlgorithm {
   getAlgorithmName = () => {
     return XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA256;
   };
+
+  getKeyType = () => KeyType.ASYMMETRIC;
 }
 
 export class RsaSha256Mgf1 implements SignatureAlgorithm {
@@ -99,6 +103,8 @@ export class RsaSha256Mgf1 implements SignatureAlgorithm {
   getAlgorithmName = () => {
     return XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA256_MGF1;
   };
+
+  getKeyType = () => KeyType.ASYMMETRIC;
 }
 
 export class RsaSha512 implements SignatureAlgorithm {
@@ -125,6 +131,8 @@ export class RsaSha512 implements SignatureAlgorithm {
   getAlgorithmName = () => {
     return XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA512;
   };
+
+  getKeyType = () => KeyType.ASYMMETRIC;
 }
 
 export class HmacSha1 implements SignatureAlgorithm {
@@ -161,4 +169,6 @@ export class HmacSha1 implements SignatureAlgorithm {
   getAlgorithmName = () => {
     return XMLDSIG_URIS.SIGNATURE_ALGORITHMS.HMAC_SHA1;
   };
+
+  getKeyType = () => KeyType.SYMMETRIC;
 }
