@@ -112,7 +112,7 @@ prompted the code are all worth writing down.
 
 The constant-time comparison in `src/signature-algorithms.ts` is the model:
 
-```
+```javascript
 // Use constant-time comparison to prevent timing attacks (CWE-208)
 // See: https://github.com/node-saml/xml-crypto/issues/522
 
