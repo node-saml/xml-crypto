@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        node-version: [16, 18, 20]
+        node-version: [16, 18, 20, 22, 24]
         experimental: [false]
         include:
           - os: ubuntu-latest
@@ -25,9 +25,9 @@ jobs:
     continue-on-error: ${{ matrix.experimental }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Use Node.js ${{ matrix.node-version }} on ${{ matrix.os }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
@@ -36,7 +36,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - name: Codecov
-        uses: codecov/codecov-action@v3.1.4
+        uses: codecov/codecov-action@v7
         with:
           verbose: true
 
@@ -46,8 +46,8 @@ jobs:
       CI: true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "lts/*"
       - run: |

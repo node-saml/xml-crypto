@@ -43,7 +43,7 @@
     "xpath": "^0.0.33"
   },
   "devDependencies": {
-    "@cjbarth/github-release-notes": "^4.2.0",
+    "@cjbarth/github-release-notes": "~4.2.0",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@prettier/plugin-xml": "^3.4.2",
     "@types/chai": "^4.3.20",
@@ -53,7 +53,6 @@
     "@typescript-eslint/parser": "^6.21.0",
     "chai": "^4.5.0",
     "choma": "^1.2.1",
-    "ejs": "^3.1.10",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-deprecation": "^3.0.0",
