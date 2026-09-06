@@ -7,33 +7,22 @@
 /// <reference types="node" />
 
 import * as crypto from "crypto";
+import { XMLDSIG_URIS } from "./xmldsig-uris";
+import { KeyLike, X509Certificate } from "node:crypto";
+const { SIGNATURE_ALGORITHMS, HASH_ALGORITHMS, TRANSFORM_ALGORITHMS, CANONICALIZATION_ALGORITHMS } =
+  XMLDSIG_URIS;
 
 export type ErrorFirstCallback<T> = (err: Error | null, result?: T) => void;
 
-export type CanonicalizationAlgorithmType =
-  | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
-  | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
-  | "http://www.w3.org/2001/10/xml-exc-c14n#"
-  | "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"
-  | string;
+export type SignatureIdAttributeType =
+  | string
+  | { prefix?: undefined; localName: string; namespaceUri?: null }
+  | { prefix: string; localName: string; namespaceUri: string };
 
-export type CanonicalizationOrTransformAlgorithmType =
-  | CanonicalizationAlgorithmType
-  | "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
-
-export type HashAlgorithmType =
-  | "http://www.w3.org/2000/09/xmldsig#sha1"
-  | "http://www.w3.org/2001/04/xmlenc#sha256"
-  | "http://www.w3.org/2001/04/xmlenc#sha512"
-  | string;
-
-export type SignatureAlgorithmType =
-  | "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
-  | "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
-  | "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1"
-  | "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"
-  | "http://www.w3.org/2000/09/xmldsig#hmac-sha1"
-  | string;
+export type VerificationIdAttributeType =
+  | string
+  | { localName: string; namespaceUri?: string | null };
+export type IdAttributeType = SignatureIdAttributeType | VerificationIdAttributeType;
 
 /**
  * @param cert the certificate as a string or array of strings (@see https://www.w3.org/TR/2008/REC-xmldsig-core-20080610/#sec-X509Data)
@@ -59,40 +48,141 @@ export interface ObjectAttributes {
   [key: string]: string | undefined;
 }
 
-/**
- * Options for the SignedXml constructor.
- */
-export interface SignedXmlOptions {
-  idMode?: "wssecurity";
-  idAttribute?: string;
-  privateKey?: crypto.KeyLike;
-  publicCert?: crypto.KeyLike;
-  signatureAlgorithm?: SignatureAlgorithmType;
-  canonicalizationAlgorithm?: CanonicalizationAlgorithmType;
-  inclusiveNamespacesPrefixList?: string | string[];
-  implicitTransforms?: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>;
-  keyInfoAttributes?: Record<string, string>;
-  getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
-  getCertFromKeyInfo?(keyInfo?: Node | null): string | null;
-  objects?: Array<{ content: string; attributes?: ObjectAttributes }>;
-}
+export type KeySelectorFunction = (keyInfo?: Node | null) => string | null;
 
 export interface NamespacePrefix {
   prefix: string;
   namespaceURI: string;
 }
 
-export interface RenderedNamespace {
-  rendered: string;
-  newDefaultNs: string;
-}
-
-export interface CanonicalizationOrTransformationAlgorithmProcessOptions {
+export interface TransformAlgorithmOptions {
   defaultNs?: string;
   defaultNsForPrefix?: Record<string, string>;
   ancestorNamespaces?: NamespacePrefix[];
   signatureNode?: Node | null;
   inclusiveNamespacesPrefixList?: string[];
+}
+
+export type SignatureAlgorithmURI =
+  | (typeof SIGNATURE_ALGORITHMS)[keyof typeof SIGNATURE_ALGORITHMS]
+  | string;
+
+/**
+ * The kind of key a {@link SignatureAlgorithm} consumes.
+ *
+ * - `SYMMETRIC`: a MAC such as HMAC. The same shared secret both produces and verifies
+ *   the signature, so it must never be verified against public key material.
+ * - `ASYMMETRIC`: a public-key signature such as RSA. A private key signs and the
+ *   matching public key or certificate verifies.
+ */
+export const KeyType = {
+  SYMMETRIC: "symmetric",
+  ASYMMETRIC: "asymmetric",
+} as const;
+export type KeyType = (typeof KeyType)[keyof typeof KeyType];
+
+/** Extend this to create a new SignatureAlgorithm */
+export interface SignatureAlgorithm {
+  /**
+   * Sign the given string using the given key
+   */
+  getSignature(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string;
+  getSignature(
+    signedInfo: crypto.BinaryLike,
+    privateKey: crypto.KeyLike,
+    callback?: ErrorFirstCallback<string>,
+  ): void;
+  /**
+   * Verify the given signature of the given string using key
+   *
+   * @param key a public cert, public key, or private key can be passed here
+   */
+  verifySignature(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
+  verifySignature(
+    material: string,
+    key: crypto.KeyLike,
+    signatureValue: string,
+    callback?: ErrorFirstCallback<boolean>,
+  ): void;
+
+  getAlgorithmName(): SignatureAlgorithmURI;
+
+  /**
+   * Whether this algorithm is keyed with a shared secret ({@link KeyType.SYMMETRIC}) or a
+   * public/private key pair ({@link KeyType.ASYMMETRIC}). {@link XmlDSigVerifier} uses this
+   * to refuse configurations where a MAC would be verified against public certificate material.
+   */
+  getKeyType(): KeyType;
+}
+export type SignatureAlgorithmMap = Record<SignatureAlgorithmURI, new () => SignatureAlgorithm>;
+
+export type HashAlgorithmURI = (typeof HASH_ALGORITHMS)[keyof typeof HASH_ALGORITHMS] | string;
+/** Implement this to create a new HashAlgorithm */
+export interface HashAlgorithm {
+  getAlgorithmName(): HashAlgorithmURI;
+
+  getHash(xml: string): string;
+}
+export type HashAlgorithmMap = Record<HashAlgorithmURI, new () => HashAlgorithm>;
+
+export type TransformAlgorithmURI =
+  | (typeof TRANSFORM_ALGORITHMS)[keyof typeof TRANSFORM_ALGORITHMS]
+  | string;
+/** Implement this to create a new TransformAlgorithm */
+export interface TransformAlgorithm {
+  getAlgorithmName(): TransformAlgorithmURI;
+
+  process(node: Node, options: TransformAlgorithmOptions): string | Node;
+}
+export type CanonicalizationAlgorithmURI =
+  | (typeof CANONICALIZATION_ALGORITHMS)[keyof typeof CANONICALIZATION_ALGORITHMS]
+  | string;
+/** Implement this to create a new CanonicalizationAlgorithm */
+export interface CanonicalizationAlgorithm extends TransformAlgorithm {
+  getAlgorithmName(): CanonicalizationAlgorithmURI;
+
+  // TODO: after  canonicalization algorithms algorithms are separated from transform algorithms,
+  //       set process to return string only
+  process(node: Node, options: TransformAlgorithmOptions): string | Node;
+}
+export type CanonicalizationAlgorithmMap = Record<
+  CanonicalizationAlgorithmURI,
+  new () => CanonicalizationAlgorithm
+>;
+export type TransformAlgorithmMap = Record<TransformAlgorithmURI, new () => TransformAlgorithm>;
+/**
+ * Options for the SignedXml constructor.
+ */
+export interface SignedXmlOptions {
+  idMode?: "wssecurity";
+  idAttribute?: SignatureIdAttributeType;
+  idAttributes?: VerificationIdAttributeType[];
+  privateKey?: crypto.KeyLike;
+  publicCert?: crypto.KeyLike;
+  signatureAlgorithm?: SignatureAlgorithmURI;
+  canonicalizationAlgorithm?: CanonicalizationAlgorithmURI;
+  inclusiveNamespacesPrefixList?: string | string[];
+  /**
+   * Maximum number of transforms allowed per Reference element, or `null` for
+   * no limit. The implicit canonicalization transform appended when a
+   * Reference's transform list is empty or ends with enveloped-signature
+   * counts toward this limit.
+   */
+  maxTransforms?: number | null;
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmURI>;
+  keyInfoAttributes?: Record<string, string>;
+  getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
+  getCertFromKeyInfo?: KeySelectorFunction;
+  objects?: Array<{ content: string; attributes?: ObjectAttributes }>;
+  allowedSignatureAlgorithms?: SignatureAlgorithmMap;
+  allowedHashAlgorithms?: HashAlgorithmMap;
+  allowedCanonicalizationAlgorithms?: CanonicalizationAlgorithmMap;
+  allowedTransformAlgorithms?: TransformAlgorithmMap;
+}
+
+export interface RenderedNamespace {
+  rendered: string;
+  newDefaultNs: string;
 }
 
 export interface ComputeSignatureOptionsLocation {
@@ -127,10 +217,10 @@ export interface Reference {
   xpath?: string;
 
   // An array of transforms to be applied to the data before signing.
-  transforms: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>;
+  transforms: ReadonlyArray<TransformAlgorithmURI>;
 
   // The algorithm used to calculate the digest value of the data.
-  digestAlgorithm: HashAlgorithmType;
+  digestAlgorithm: HashAlgorithmURI;
 
   // The URI that identifies the data to be signed.
   uri: string;
@@ -158,57 +248,6 @@ export interface Reference {
   getValidatedNode(xpathSelector?: string): Node | null;
 
   signedReference?: string;
-}
-
-/** Implement this to create a new CanonicalizationOrTransformationAlgorithm */
-export interface CanonicalizationOrTransformationAlgorithm {
-  process(
-    node: Node,
-    options: CanonicalizationOrTransformationAlgorithmProcessOptions,
-  ): Node | string;
-
-  getAlgorithmName(): CanonicalizationOrTransformAlgorithmType;
-}
-
-/** Implement this to create a new HashAlgorithm */
-export interface HashAlgorithm {
-  getAlgorithmName(): HashAlgorithmType;
-
-  getHash(xml: string): string;
-}
-
-/** Extend this to create a new SignatureAlgorithm */
-export interface SignatureAlgorithm {
-  /**
-   * Sign the given string using the given key
-   */
-  getSignature(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string;
-  getSignature(
-    signedInfo: crypto.BinaryLike,
-    privateKey: crypto.KeyLike,
-    callback?: ErrorFirstCallback<string>,
-  ): void;
-  /**
-   * Verify the given signature of the given string using key
-   *
-   * @param key a public cert, public key, or private key can be passed here
-   */
-  verifySignature(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
-  verifySignature(
-    material: string,
-    key: crypto.KeyLike,
-    signatureValue: string,
-    callback?: ErrorFirstCallback<boolean>,
-  ): void;
-
-  getAlgorithmName(): SignatureAlgorithmType;
-}
-
-/** Implement this to create a new TransformAlgorithm */
-export interface TransformAlgorithm {
-  getAlgorithmName(): CanonicalizationOrTransformAlgorithmType;
-
-  process(node: Node): string;
 }
 
 /**
@@ -268,3 +307,279 @@ export function createOptionalCallbackFunction<T, A extends unknown[]>(
     (...args: [...A, ErrorFirstCallback<T>]): void;
   };
 }
+
+/*** XmlDSigVerifier types ***/
+
+export type CertificateKeySelector = {
+  /** Public certificate or key to use for verification */
+  publicCert: KeyLike;
+};
+
+export type KeyInfoKeySelector = {
+  /**
+   * Extracts the X.509 certificate from the `<KeyInfo>` element. The returned PEM/DER
+   * material is used both to verify the signature math AND to enforce the truststore
+   * and (optional) expiration checks — it MUST be parseable as an X.509 certificate,
+   * not a bare public key.
+   *
+   * Trust in the returned certificate is established by the configured `truststore`,
+   * which is required when this selector is used. xml-crypto uses a direct-trust model
+   * (cert pinning or single-hop CA); full PKIX path validation is not performed.
+   *
+   * @see {@link SignedXml.getCertFromKeyInfo} for a default implementation.
+   */
+  getCertFromKeyInfo: (keyInfo?: Node | null) => string | null;
+};
+
+export type SharedSecretKeySelector = {
+  /** Shared secret key to use for HMAC verification */
+  sharedSecretKey: KeyLike;
+};
+
+export type KeySelector = CertificateKeySelector | KeyInfoKeySelector | SharedSecretKeySelector;
+
+/**
+ * Common configuration options for XML-DSig verification (Base).
+ */
+export interface XmlDSigVerifierOptionsBase {
+  /**
+   * Names of XML attributes to treat as element identifiers.
+   * @default {@link SignedXml.getDefaultIdAttributes()}
+   */
+  idAttributes?: VerificationIdAttributeType[];
+
+  /**
+   * Transforms to apply implicitly during canonicalization.
+   */
+  implicitTransforms?: ReadonlyArray<TransformAlgorithmURI>;
+
+  /**
+   * Whether to throw an exception on verification failure.
+   * @default false
+   */
+  throwOnError?: boolean;
+}
+
+export interface XmlDSigVerifierSecurityOptions {
+  /**
+   * Maximum number of transforms allowed per Reference element.
+   * Limits complexity to prevent denial-of-service attacks.
+   *
+   * Note: the implicit canonicalization transform that is appended when a
+   * Reference's transform list is empty or ends with enveloped-signature
+   * counts toward this limit.
+   * @default {@link XmlDSigVerifier.DEFAULT_MAX_TRANSFORMS}
+   */
+  maxTransforms?: number;
+
+  /**
+   * Signature algorithm constructors allowed during verification.
+   * Each constructor's `getAlgorithmName()` is used as the lookup key.
+   *
+   * @default {@link XmlDSigVerifier.defaultAsymmetricSignatureAlgorithms} or {@link XmlDSigVerifier.defaultSymmetricSignatureAlgorithms}
+   */
+  signatureAlgorithms?: ReadonlyArray<new () => SignatureAlgorithm>;
+
+  /**
+   * Hash algorithm constructors allowed during verification.
+   * Each constructor's `getAlgorithmName()` is used as the lookup key.
+   *
+   * @default {@link XmlDSigVerifier.defaultHashAlgorithms}
+   */
+  hashAlgorithms?: ReadonlyArray<new () => HashAlgorithm>;
+
+  /**
+   * Transform algorithm constructors allowed during verification.
+   * Must include any canonicalization algorithms used as transforms.
+   * Each constructor's `getAlgorithmName()` is used as the lookup key.
+   *
+   * @default {@link XmlDSigVerifier.defaultTransformAlgorithms}
+   */
+  transformAlgorithms?: ReadonlyArray<new () => TransformAlgorithm>;
+
+  /**
+   * Canonicalization algorithm constructors allowed during verification.
+   * Each constructor's `getAlgorithmName()` is used as the lookup key.
+   *
+   * @default {@link XmlDSigVerifier.defaultCanonicalizationAlgorithms}
+   */
+  canonicalizationAlgorithms?: ReadonlyArray<new () => CanonicalizationAlgorithm>;
+}
+
+export interface KeyInfoXmlDSigSecurityOptions extends XmlDSigVerifierSecurityOptions {
+  /**
+   * Check certificate expiration dates during verification.
+   * If true, signatures with expired certificates will be considered invalid.
+   * This only applies when using KeyInfoKeySelector
+   * @default true
+   */
+  checkCertExpiration?: boolean;
+
+  /**
+   * Trust anchors for the certificate extracted from `<KeyInfo>`. **Required** when
+   * using `getCertFromKeyInfo`; verification fails fast at construction if omitted or
+   * empty. (Typed as optional only because it is shared with the base security
+   * options interface.)
+   *
+   * xml-crypto uses a **direct-trust** model — verification succeeds iff the extracted
+   * certificate either:
+   *   - matches a truststore entry by public key (cert pinning), or
+   *   - is directly signed by a truststore entry (single-hop CA).
+   *
+   * This is NOT full PKIX path validation. Multi-hop chains (root → intermediate → leaf)
+   * are NOT walked. If you have a multi-hop chain, you must either include every issuer
+   * on the path (intermediate AND root, or just the intermediate) in the truststore, OR
+   * pre-validate the chain with a dedicated PKIX library and pass only the validated
+   * leaf certificate here.
+   *
+   * Entries must be PEM- or DER-encoded X.509 certificates, or `X509Certificate` instances.
+   */
+  truststore?: Array<string | Buffer | X509Certificate>;
+}
+
+/**
+ * Configuration options for verification using KeyInfo.
+ * Allows advanced security options for cert validation.
+ */
+export type KeyInfoXmlDSigVerifierOptions = XmlDSigVerifierOptionsBase & {
+  /**
+   * Function to extract the public key from KeyInfo element.
+   */
+  keySelector: KeyInfoKeySelector;
+
+  /**
+   * Security options for KeyInfo verification.
+   */
+  security?: KeyInfoXmlDSigSecurityOptions;
+};
+
+/**
+ * Configuration options for verification using a provided public certificate.
+ * Certificate validation options (e.g., expiration) are not applicable here.
+ */
+export type PublicCertXmlDSigVerifierOptions = XmlDSigVerifierOptionsBase & {
+  /**
+   * Public certificate or key to use for verification.
+   */
+  keySelector: CertificateKeySelector;
+
+  /**
+   * Basic security options for verification.
+   */
+  security?: XmlDSigVerifierSecurityOptions;
+};
+
+/**
+ * Configuration options for verification using a shared secret (HMAC).
+ */
+export type SharedSecretXmlDSigVerifierOptions = XmlDSigVerifierOptionsBase & {
+  /**
+   * Shared secret key to use for HMAC verification.
+   */
+  keySelector: SharedSecretKeySelector;
+
+  /**
+   * Basic security options for verification.
+   */
+  security?: XmlDSigVerifierSecurityOptions;
+};
+
+export type XmlDSigVerifierOptions =
+  | KeyInfoXmlDSigVerifierOptions
+  | PublicCertXmlDSigVerifierOptions
+  | SharedSecretXmlDSigVerifierOptions;
+
+/**
+ * Verification result containing the outcome and signed content.
+ */
+export type SuccessfulXmlDsigVerificationResult = {
+  /** Whether the signature was successfully verified */
+  success: true;
+  error?: undefined;
+  /** The canonicalized XML content that passed verification */
+  signedReferences: string[];
+  /**
+   * The X.509 certificate that signed the XML and was accepted by the truststore.
+   * Only populated when verification used the `getCertFromKeyInfo` selector; absent for
+   * the `publicCert` and `sharedSecretKey` paths.
+   */
+  certificate?: X509Certificate;
+};
+
+export type FailedXmlDsigVerificationResult = {
+  /** Whether the signature was successfully verified */
+  success: false;
+  /** Error message if verification failed */
+  error: string;
+  signedReferences?: undefined;
+  certificate?: undefined;
+};
+
+export type XmlDsigVerificationResult =
+  | SuccessfulXmlDsigVerificationResult
+  | FailedXmlDsigVerificationResult;
+
+/*** Deferred-trust verification types ***/
+
+/**
+ * Configuration options for `XmlDSigVerifier.extractAndVerify`.
+ *
+ * Deliberately omits `truststore` and `checkCertExpiration`: deferred-trust
+ * verification performs the cryptographic signature check ONLY and hands the
+ * extracted certificate back to the caller for out-of-band trust validation
+ * (e.g. XAdES-LTV against an EU Trusted List, or a counterparty registry).
+ */
+export interface DeferredTrustVerifierOptions extends XmlDSigVerifierOptionsBase {
+  /**
+   * Function to extract the X.509 certificate from the `<KeyInfo>` element.
+   * The returned certificate is treated as ATTACKER-CONTROLLED and is surfaced
+   * unchanged via the result's `untrustedCertificate` field for the caller
+   * to validate.
+   */
+  keySelector: KeyInfoKeySelector;
+
+  /**
+   * Algorithm allow-lists and transform limits. Note: `truststore` and
+   * `checkCertExpiration` are not accepted here. Use the standard
+   * `XmlDSigVerifier` constructor / `verifySignature` if you need them.
+   */
+  security?: XmlDSigVerifierSecurityOptions;
+}
+
+/**
+ * Result of a deferred-trust verification.
+ *
+ * `signatureValid: true` ONLY means the XML's cryptographic signature matches
+ * the embedded certificate's public key. It does NOT mean the certificate is
+ * trusted. The caller MUST validate `untrustedCertificate` against a trust
+ * source (CA bundle, EU Trusted List, business-counterparty registry,
+ * certificate transparency, etc.) before treating any data in
+ * `signedReferences` as authentic.
+ *
+ * If an attacker controls the document, they also control the embedded
+ * certificate; a passing result with no follow-up trust check provides NO
+ * security guarantee.
+ */
+export type SuccessfulDeferredTrustVerificationResult = {
+  success: true;
+  signatureValid: true;
+  /**
+   * The X.509 certificate extracted from `<KeyInfo>`. Trust has NOT been
+   * established; treat as attacker-controlled until validated out-of-band.
+   */
+  untrustedCertificate: X509Certificate;
+  signedReferences: string[];
+  error?: undefined;
+};
+
+export type FailedDeferredTrustVerificationResult = {
+  success: false;
+  signatureValid: false;
+  untrustedCertificate?: undefined;
+  signedReferences?: undefined;
+  error: string;
+};
+
+export type DeferredTrustVerificationResult =
+  | SuccessfulDeferredTrustVerificationResult
+  | FailedDeferredTrustVerificationResult;

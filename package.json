@@ -40,7 +40,7 @@
   "dependencies": {
     "@xmldom/is-dom-node": "^1.0.1",
     "@xmldom/xmldom": "^0.8.10",
-    "xpath": "^0.0.33"
+    "xpath": "^0.0.34"
   },
   "devDependencies": {
     "@cjbarth/github-release-notes": "^4.2.0",
@@ -68,6 +68,6 @@
     "typescript": "^5.3.2"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=16.15"
   }
 }

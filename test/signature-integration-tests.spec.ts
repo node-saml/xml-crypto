@@ -1,25 +1,25 @@
 import * as xpath from "xpath";
-import * as xmldom from "@xmldom/xmldom";
-import { SignedXml } from "../src/index";
+import { SignedXml, XMLDSIG_URIS } from "../src";
 import * as fs from "fs";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
+import * as utils from "../src/utils";
 
 describe("Signature integration tests", function () {
-  function verifySignature(xml, expected, xpath, canonicalizationAlgorithm) {
+  function verifySignature(xml, expected, xpathQueries, canonicalizationAlgorithm) {
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
 
-    xpath.map(function (n) {
+    xpathQueries.forEach(function (n) {
       sig.addReference({
         xpath: n,
-        digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+        digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA1,
+        transforms: [XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
       });
     });
 
     sig.canonicalizationAlgorithm = canonicalizationAlgorithm;
-    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    sig.signatureAlgorithm = XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA1;
     sig.computeSignature(xml);
     const signed = sig.getSignedXml();
 
@@ -34,7 +34,7 @@ describe("Signature integration tests", function () {
       xml,
       "./test/static/integration/expectedVerify.xml",
       ["//*[local-name(.)='x']", "//*[local-name(.)='y']", "//*[local-name(.)='w']"],
-      "http://www.w3.org/2001/10/xml-exc-c14n#",
+      XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
     );
   });
 
@@ -54,7 +54,7 @@ describe("Signature integration tests", function () {
       xml,
       "./test/static/integration/expectedVerifyComplex.xml",
       ["//*[local-name(.)='book']"],
-      "http://www.w3.org/2001/10/xml-exc-c14n#",
+      XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
     );
   });
 
@@ -86,6 +86,148 @@ describe("Signature integration tests", function () {
     expect(sig.getSignedReferences().length).to.equal(1);
   });
 
+  it("removes only the containing signature during an enveloped transform", function () {
+    // Adding an outer signature to an already signed payload must preserve the valid inner signature.
+    // XMLDSig 1.1 §6.6.4: https://www.w3.org/TR/xmldsig-core/#sec-EnvelopedSignature
+    const privateKey = fs.readFileSync("./test/static/client.pem");
+    const publicCert = fs.readFileSync("./test/static/client_public.pem");
+    const innerSigner = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      signatureAlgorithm: XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA256,
+    });
+    innerSigner.addReference({
+      xpath: "//*[local-name(.)='payload']",
+      digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA256,
+      transforms: [
+        XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE,
+        XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      ],
+    });
+    innerSigner.computeSignature('<root Id="outer"><payload Id="inner">content</payload></root>', {
+      location: { reference: "//*[local-name(.)='payload']", action: "append" },
+    });
+
+    const outerSigner = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      signatureAlgorithm: XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA256,
+    });
+    outerSigner.addReference({
+      xpath: "/*",
+      digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA256,
+      transforms: [
+        XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE,
+        XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      ],
+    });
+    outerSigner.computeSignature(innerSigner.getSignedXml());
+
+    const signedXml = outerSigner.getSignedXml();
+    const doc = utils.parseXml(signedXml);
+    const payload = xpath.select1("//*[local-name(.)='payload']", doc);
+    isDomNode.assertIsElementNode(payload);
+    const innerSignatures = utils.findChildren(payload, "Signature");
+    const outerSignatures = utils.findChildren(doc.documentElement, "Signature");
+    expect(innerSignatures).to.have.length(1);
+    expect(outerSignatures).to.have.length(1);
+    const innerSignature = innerSignatures[0];
+    const outerSignature = outerSignatures[0];
+
+    const innerVerifier = new SignedXml({ publicCert });
+    innerVerifier.loadSignature(innerSignature);
+    expect(innerVerifier.checkSignature(signedXml)).to.be.true;
+
+    const outerVerifier = new SignedXml({ publicCert });
+    outerVerifier.loadSignature(outerSignature);
+    expect(outerVerifier.checkSignature(signedXml)).to.be.true;
+
+    // The outer digest covers the inner signature, so deleting it must invalidate the outer signature.
+    payload.removeChild(innerSignature);
+    const tamperedXml = doc.toString();
+    const tamperVerifier = new SignedXml({ publicCert });
+    tamperVerifier.loadSignature(outerSignature);
+    expect(tamperVerifier.checkSignature(tamperedXml)).to.be.false;
+  });
+
+  it("removes the enveloped signature when it is nested below the referenced node", function () {
+    // https://github.com/node-saml/xml-crypto/issues/525
+    const privateKey = fs.readFileSync("./test/static/client.pem");
+    const publicCert = fs.readFileSync("./test/static/client_public.pem");
+    const sig = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      signatureAlgorithm: XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA256,
+    });
+    sig.addReference({
+      xpath: "/*",
+      digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA256,
+      transforms: [
+        XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE,
+        XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      ],
+    });
+    sig.computeSignature("<root><SignatureInformation/></root>", {
+      location: { reference: "//*[local-name(.)='SignatureInformation']", action: "append" },
+    });
+
+    const signedXml = sig.getSignedXml();
+    const doc = utils.parseXml(signedXml);
+    const signature = xpath.select1("//*[local-name(.)='Signature']", doc);
+    isDomNode.assertIsElementNode(signature);
+    expect(signature.parentNode).to.have.property("localName", "SignatureInformation");
+
+    const verifier = new SignedXml({ publicCert });
+    verifier.loadSignature(signature);
+    expect(verifier.checkSignature(signedXml)).to.be.true;
+  });
+
+  it("rejects multiple Signature elements sharing a SignatureValue during an enveloped transform", function () {
+    // The signer removed exactly one Signature element. A copied ds:Signature wrapper with the same
+    // SignatureValue inserted after signing must not be silently stripped from the digested content.
+    const privateKey = fs.readFileSync("./test/static/client.pem");
+    const publicCert = fs.readFileSync("./test/static/client_public.pem");
+    const sig = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      signatureAlgorithm: XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA256,
+    });
+    sig.addReference({
+      xpath: "/*",
+      digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA256,
+      transforms: [
+        XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE,
+        XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      ],
+    });
+    sig.computeSignature("<root><payload>content</payload></root>");
+
+    const signedXml = sig.getSignedXml();
+    const doc = utils.parseXml(signedXml);
+    const signature = xpath.select1("//*[local-name(.)='Signature']", doc);
+    isDomNode.assertIsElementNode(signature);
+    const signatureValue = xpath.select1("//*[local-name(.)='SignatureValue']/text()", doc);
+    isDomNode.assertIsTextNode(signatureValue);
+
+    const payload = xpath.select1("//*[local-name(.)='payload']", doc);
+    isDomNode.assertIsElementNode(payload);
+    payload.appendChild(
+      utils.parseXml(
+        `<ds:Signature xmlns:ds="${XMLDSIG_URIS.NAMESPACES.ds}">` +
+          `<ds:SignatureValue>${signatureValue.data}</ds:SignatureValue>` +
+          `<injected>unsigned</injected>` +
+          `</ds:Signature>`,
+      ).documentElement,
+    );
+    const tamperedXml = doc.toString();
+
+    const verifier = new SignedXml({ publicCert });
+    verifier.loadSignature(signature);
+    expect(() => verifier.checkSignature(tamperedXml)).to.throw(
+      /multiple Signature elements with the same SignatureValue/,
+    );
+  });
+
   it("add canonicalization if output of transforms will be a node-set rather than an octet stream", function () {
     let xml = fs.readFileSync("./test/static/windows_store_signature.xml", "utf-8");
 
@@ -97,11 +239,11 @@ describe("Signature integration tests", function () {
      */
     xml = xml.replace(/>\s*</g, "><");
 
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
-      "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -116,11 +258,11 @@ describe("Signature integration tests", function () {
 
   it("signature with inclusive namespaces", function () {
     const xml = fs.readFileSync("./test/static/signature_with_inclusivenamespaces.xml", "utf-8");
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
-      "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -138,11 +280,11 @@ describe("Signature integration tests", function () {
       "./test/static/signature_with_inclusivenamespaces_lines.xml",
       "utf-8",
     );
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
-      "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -160,11 +302,11 @@ describe("Signature integration tests", function () {
       "./test/static/signature_with_inclusivenamespaces_lines_windows.xml",
       "utf-8",
     );
-    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const doc = utils.parseXml(xml);
     const childXml = doc.firstChild?.toString();
 
     const signature = xpath.select1(
-      "//*//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      `//*//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
       doc,
     );
     isDomNode.assertIsNodeLike(signature);
@@ -183,17 +325,17 @@ describe("Signature integration tests", function () {
     const sig = new SignedXml();
     sig.addReference({
       xpath: "//*[local-name(.)='book']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA1,
+      transforms: [XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N],
     });
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    sig.canonicalizationAlgorithm = XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N;
+    sig.signatureAlgorithm = XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA1;
     sig.computeSignature(xml);
 
     const signed = sig.getSignedXml();
 
-    const doc = new xmldom.DOMParser().parseFromString(signed);
+    const doc = utils.parseXml(signed);
 
     /*
         Expecting this structure:
