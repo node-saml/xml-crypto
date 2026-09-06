@@ -42,19 +42,28 @@ export class EnvelopedSignature implements TransformAlgorithm {
         `.//*[local-name(.)='Signature' and namespace-uri(.)='${XMLDSIG_URIS.NAMESPACES.ds}']`,
         node,
       );
-      for (const nodeSignature of Array.isArray(signatures) ? signatures : []) {
+      const matches = (Array.isArray(signatures) ? signatures : []).filter((nodeSignature) => {
         const signatureValue = xpath.select1(
           ".//*[local-name(.)='SignatureValue']/text()",
           nodeSignature,
         );
-        if (isDomNode.isTextNode(signatureValue)) {
-          const signatureValueData = signatureValue.data;
-          if (expectedSignatureValueData === signatureValueData) {
-            if (nodeSignature.parentNode) {
-              nodeSignature.parentNode.removeChild(nodeSignature);
-            }
-          }
-        }
+        return (
+          isDomNode.isTextNode(signatureValue) && signatureValue.data === expectedSignatureValueData
+        );
+      });
+      // The signer removed exactly one element. Several matches means a copy of the signature
+      // was inserted after signing; removing all of them would strip that unsigned content from
+      // the digested data, so refuse rather than guess which one to remove.
+      if (matches.length > 1) {
+        throw new Error(
+          "Cannot validate a document which contains multiple Signature elements with the " +
+            "same SignatureValue within the enveloped-signature transform, in order to " +
+            "prevent signature wrapping attack.",
+        );
+      }
+      const match = matches[0];
+      if (match?.parentNode) {
+        match.parentNode.removeChild(match);
       }
     }
     return node;

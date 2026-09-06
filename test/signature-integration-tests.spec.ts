@@ -182,6 +182,52 @@ describe("Signature integration tests", function () {
     expect(verifier.checkSignature(signedXml)).to.be.true;
   });
 
+  it("rejects multiple Signature elements sharing a SignatureValue during an enveloped transform", function () {
+    // The signer removed exactly one Signature element. A copied ds:Signature wrapper with the same
+    // SignatureValue inserted after signing must not be silently stripped from the digested content.
+    const privateKey = fs.readFileSync("./test/static/client.pem");
+    const publicCert = fs.readFileSync("./test/static/client_public.pem");
+    const sig = new SignedXml({
+      privateKey,
+      canonicalizationAlgorithm: XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      signatureAlgorithm: XMLDSIG_URIS.SIGNATURE_ALGORITHMS.RSA_SHA256,
+    });
+    sig.addReference({
+      xpath: "/*",
+      digestAlgorithm: XMLDSIG_URIS.HASH_ALGORITHMS.SHA256,
+      transforms: [
+        XMLDSIG_URIS.TRANSFORM_ALGORITHMS.ENVELOPED_SIGNATURE,
+        XMLDSIG_URIS.CANONICALIZATION_ALGORITHMS.EXCLUSIVE_C14N,
+      ],
+    });
+    sig.computeSignature("<root><payload>content</payload></root>");
+
+    const signedXml = sig.getSignedXml();
+    const doc = utils.parseXml(signedXml);
+    const signature = xpath.select1("//*[local-name(.)='Signature']", doc);
+    isDomNode.assertIsElementNode(signature);
+    const signatureValue = xpath.select1("//*[local-name(.)='SignatureValue']/text()", doc);
+    isDomNode.assertIsTextNode(signatureValue);
+
+    const payload = xpath.select1("//*[local-name(.)='payload']", doc);
+    isDomNode.assertIsElementNode(payload);
+    payload.appendChild(
+      utils.parseXml(
+        `<ds:Signature xmlns:ds="${XMLDSIG_URIS.NAMESPACES.ds}">` +
+          `<ds:SignatureValue>${signatureValue.data}</ds:SignatureValue>` +
+          `<injected>unsigned</injected>` +
+          `</ds:Signature>`,
+      ).documentElement,
+    );
+    const tamperedXml = doc.toString();
+
+    const verifier = new SignedXml({ publicCert });
+    verifier.loadSignature(signature);
+    expect(() => verifier.checkSignature(tamperedXml)).to.throw(
+      /multiple Signature elements with the same SignatureValue/,
+    );
+  });
+
   it("add canonicalization if output of transforms will be a node-set rather than an octet stream", function () {
     let xml = fs.readFileSync("./test/static/windows_store_signature.xml", "utf-8");
 
