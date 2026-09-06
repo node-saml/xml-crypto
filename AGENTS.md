@@ -107,21 +107,8 @@ stale the first time someone edits the line below it.
 
 Comment only what the code cannot say: _why_ something is done, what would break if it
 were done the obvious way, and which non-obvious constraint is being satisfied.
-Exceptions, gotchas, threat-model reasoning, spec quirks, and a link to the issue that
+Exceptions, gotchas, threat-model reasoning, spec quirks, and a link to the issue or spec that
 prompted the code are all worth writing down.
-
-The constant-time comparison in `src/signature-algorithms.ts` is the model:
-
-```javascript
-// Use constant-time comparison to prevent timing attacks (CWE-208)
-// See: https://github.com/node-saml/xml-crypto/issues/522
-
-// timingSafeEqual throws if buffer lengths don't match
-```
-
-None of that repeats the code. The first two lines say why the comparison has to be
-constant-time and where the requirement came from; the third flags behavior of
-`timingSafeEqual` that the call site doesn't reveal.
 
 A comment reading "loop over the references" above a loop over references, or one
 restating a field's name as a sentence, earns nothing and costs a review every time the
