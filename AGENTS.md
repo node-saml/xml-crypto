@@ -99,6 +99,38 @@ internal and the observable behavior is the same.
   is an error, so no `!` assertions.
 - Prettier owns formatting (`printWidth: 100`). Don't hand-format.
 
+## Comments
+
+Code describes itself. Name things well and keep functions small enough that the _what_
+and the _how_ are readable from the code, then don't restate them in prose that goes
+stale the first time someone edits the line below it.
+
+Comment only what the code cannot say: _why_ something is done, what would break if it
+were done the obvious way, and which non-obvious constraint is being satisfied.
+Exceptions, gotchas, threat-model reasoning, spec quirks, and a link to the issue that
+prompted the code are all worth writing down.
+
+The constant-time comparison in `src/signature-algorithms.ts` is the model:
+
+```
+// Use constant-time comparison to prevent timing attacks (CWE-208)
+// See: https://github.com/node-saml/xml-crypto/issues/522
+
+// timingSafeEqual throws if buffer lengths don't match
+```
+
+None of that repeats the code. The first two lines say why the comparison has to be
+constant-time and where the requirement came from; the third flags behavior of
+`timingSafeEqual` that the call site doesn't reveal.
+
+A comment reading "loop over the references" above a loop over references, or one
+restating a field's name as a sentence, earns nothing and costs a review every time the
+code beneath it changes. Delete those rather than update them.
+
+JSDoc on exported API is a separate thing and is welcome: it documents the contract for
+consumers and surfaces in their editor. Keep it about the contract — parameters, return
+values, what throws, what is deprecated — not about the implementation.
+
 ## Conventions
 
 - Keep changes minimal and focused; use modern semantic coding practices.
