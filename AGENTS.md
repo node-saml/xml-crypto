@@ -40,11 +40,6 @@ directories — keep it that way, and never run a formatter over them.
 Read both rather than assuming; they change. Development tooling has to install and run
 on the _oldest_ entry, not just the newest.
 
-A package's declared `engines` is advisory — npm only warns — so it predicts neither
-direction reliably. Some tools declaring a newer Node still run fine on the floor;
-others crash on a feature they never declared. Verify by actually running on the oldest
-supported version.
-
 ### The public API is semver-bound
 
 Changing or removing anything re-exported from `src/index.ts`, or altering types in
@@ -59,6 +54,43 @@ tests, CI, or tooling are not.
   do not broaden what a reference is able to select.
 - Prefer an explicit error over silently accepting a malformed document.
 
+## API design
+
+Prefer removing footguns over adding convenience. A default that makes a security
+decision on the caller's behalf is a footgun: the caller lives with the consequence
+without ever having made the choice.
+
+- Don't add a default for anything security-relevant. Throw instead: the errors
+  `signatureAlgorithm is required` and `digestAlgorithm is required` exist so that
+  nobody silently inherits SHA-1.
+- Where guessing at an extension point would be dangerous, ship an inert default rather
+  than a working one. `getCertFromKeyInfo` defaults to `SignedXml.noop`, not to "trust
+  the certificate embedded in the document" — that default would let an attacker supply
+  the key that verifies their own signature.
+- Keep dangerous-but-legitimate features off until asked for. HMAC is supported, but the
+  caller has to call `enableHMAC()`.
+- A choice is only real if it is documented. When you require the implementer to decide,
+  list the sensible options and their trade-offs in `README.md` so they can choose
+  knowingly.
+
+## Tests
+
+The suite is not here to cover the code. It is here to pin down the things a signature
+library has to get right, which is a much smaller set:
+
+- **Attack vectors** — the ways a crafted document could get a bad signature accepted.
+  `describe("Signature self-reference prevention")` in
+  `test/signature-object-tests.spec.ts` is the model: it asserts that a `Reference`
+  cannot point at `SignedInfo` or at the `Signature` itself.
+- **Spec compliance and interoperability** — canonicalization, digests and transforms
+  behaving as the specs require, and documents produced by other implementations still
+  verifying. That is what the SAML, WS-Fed and Java validator fixtures are for.
+
+Don't test internal implementation details. A test that pins a private method or simply
+restates the code catches nothing, and it makes future refactoring expensive. Add a test
+when a change alters what the library accepts or rejects; skip it when the change is
+internal and the observable behavior is the same.
+
 ## Style
 
 - Strict TypeScript (`strict: true`), CommonJS, target ES2020.
@@ -66,12 +98,9 @@ tests, CI, or tooling are not.
   deprecated API fails lint even when it works; `@typescript-eslint/no-non-null-assertion`
   is an error, so no `!` assertions.
 - Prettier owns formatting (`printWidth: 100`). Don't hand-format.
-- Prettier 3 does not auto-load plugins. A plugin in `devDependencies` does nothing
-  unless it is also listed under `plugins` in `.prettierrc.json`.
 
 ## Conventions
 
-- Keep changes minimal and focused; match the surrounding style.
+- Keep changes minimal and focused; use modern semantic coding practices.
 - Work in `src/` and `test/` unless asked otherwise.
 - Never edit `node_modules/` or `lib/`.
-- Add a test for any behaviour change. The suite is the safety net for a security library.
