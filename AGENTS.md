@@ -75,21 +75,33 @@ without ever having made the choice.
 
 ## Tests
 
-The suite is not here to cover the code. It is here to pin down the things a signature
-library has to get right, which is a much smaller set:
+The suite is not here to cover the code. It exists to catch two specific failures, and a
+test that is not chasing one of them probably should not exist.
 
-- **Attack vectors** — the ways a crafted document could get a bad signature accepted.
-  `describe("Signature self-reference prevention")` in
-  `test/signature-object-tests.spec.ts` is the model: it asserts that a `Reference`
-  cannot point at `SignedInfo` or at the `Signature` itself.
-- **Spec compliance and interoperability** — canonicalization, digests and transforms
-  behaving as the specs require, and documents produced by other implementations still
-  verifying. That is what the SAML, WS-Fed and Java validator fixtures are for.
+Every test has the same shape. Give the library:
 
-Don't test internal implementation details. A test that pins a private method or simply
-restates the code catches nothing, and it makes future refactoring expensive. Add a test
-when a change alters what the library accepts or rejects; skip it when the change is
-internal and the observable behavior is the same.
+- **XML** — a document crafted to exercise the case.
+- **A configuration a JavaScript caller could actually pass.** The types only protect
+  TypeScript users. If a configuration is reachable from plain JavaScript then it is
+  reachable in production, whether or not `tsc` would have rejected it, so write the test
+  for what JavaScript allows rather than for what the types permit. When the point of the
+  test is that a JavaScript caller can reach that state, casting away the type error is
+  correct; use `as`, since `!` assertions fail lint.
+
+Then assert that the library does neither of these:
+
+1. **Returns improper data.** Output that violates the specs, fails to interoperate with
+   documents other implementations produce, or ignores an established best practice.
+2. **Claims something is secure or trusted when it is not.** Reports a signature as
+   valid, or data as trustworthy, when the document does not justify it. This is the
+   attack-vector case, and the worse of the two, because the caller has no way to detect
+   the lie.
+
+Nothing else is likely to earn a test. Don't pin internal implementation details: a test
+asserting how a private method behaves, or one that restates the code, catches nothing
+and makes refactoring expensive. Add a test when a change alters what the library
+accepts, rejects, or emits; skip it when the change is internal and the observable
+behavior is identical.
 
 ## Style
 
