@@ -173,6 +173,9 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
 
         if (!alreadyListed) {
           nsListToRender.push(ancestorNamespace);
+          if (!ancestorNamespace.prefix) {
+            newDefaultNs = ancestorNamespace.namespaceURI;
+          }
         }
       }
     }

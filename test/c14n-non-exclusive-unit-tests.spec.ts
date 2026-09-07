@@ -317,6 +317,17 @@ describe("C14N non-exclusive canonicalization tests", function () {
         );
       });
 
+      it("omits a descendant default namespace already hoisted onto the subset root", function () {
+        // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+        test_C14nCanonicalization(
+          '<root xmlns="urn:default" xmlns:p="urn:p">' +
+            '<p:target><p:child xmlns="urn:default"/></p:target></root>',
+          "//*[local-name()='target']",
+          '<p:target xmlns="urn:default" xmlns:p="urn:p"><p:child></p:child></p:target>',
+          new Canonicalization(),
+        );
+      });
+
       it("does not restore a default namespace explicitly cleared on a prefixed root", function () {
         // An empty default declaration removes the inherited binding; no reset is needed at the apex.
         // https://www.w3.org/TR/REC-xml-names/#defaulting
