@@ -1,5 +1,6 @@
 import * as xpath from "xpath";
 import * as isDomNode from "@xmldom/is-dom-node";
+import { findChildren, isDescendantOf } from "./utils";
 
 import type {
   CanonicalizationOrTransformationAlgorithm,
@@ -26,10 +27,13 @@ export class EnvelopedSignature implements CanonicalizationOrTransformationAlgor
       return node;
     }
     const signatureNode = options.signatureNode;
-    const expectedSignatureValue = xpath.select1(
-      ".//*[local-name(.)='SignatureValue']/text()",
-      signatureNode,
-    );
+    if (isDescendantOf(signatureNode, node) && signatureNode.parentNode) {
+      signatureNode.parentNode.removeChild(signatureNode);
+      return node;
+    }
+    const signatureValueNode = findChildren(signatureNode, "SignatureValue")[0];
+    const expectedSignatureValue =
+      signatureValueNode && xpath.select1("text()", signatureValueNode);
     if (isDomNode.isTextNode(expectedSignatureValue)) {
       const expectedSignatureValueData = expectedSignatureValue.data;
 
