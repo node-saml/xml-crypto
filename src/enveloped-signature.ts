@@ -18,7 +18,7 @@ export class EnvelopedSignature implements CanonicalizationOrTransformationAlgor
   process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions): Node {
     if (null == options.signatureNode) {
       const signature = xpath.select1(
-        ".//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+        "./*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
         node,
       );
       if (isDomNode.isNodeLike(signature) && signature.parentNode) {

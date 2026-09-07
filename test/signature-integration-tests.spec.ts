@@ -257,6 +257,26 @@ describe("Signature integration tests", function () {
     expect(verifier.checkSignature(signedXml)).to.be.true;
   });
 
+  it("should still verify a loaded signature after signing another document fails", function () {
+    const signedXml = fs.readFileSync("./test/static/valid_signature.xml", "utf8");
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const signature = xpath.select1(
+      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc,
+    );
+    isDomNode.assertIsNodeLike(signature);
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      publicCert: fs.readFileSync("./test/static/client_public.pem"),
+    });
+    sig.loadSignature(signature);
+    expect(sig.checkSignature(signedXml)).to.be.true;
+
+    expect(() => sig.computeSignature("<other/>")).to.throw();
+
+    expect(sig.checkSignature(signedXml)).to.be.true;
+  });
+
   for (const location of ["/root", "/root/container"]) {
     describe(`when appending a parent signature to ${location}`, function () {
       const privateKey = fs.readFileSync("./test/static/client.pem");

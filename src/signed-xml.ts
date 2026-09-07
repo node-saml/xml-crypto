@@ -1048,8 +1048,14 @@ export class SignedXml {
       referenceNode.parentNode.insertBefore(signatureElem, referenceNode.nextSibling);
     }
 
+    const previousSignatureNode = this.signatureNode;
     this.signatureNode = signatureElem;
-    this.addAllReferences(doc, signatureElem, prefix);
+    try {
+      this.addAllReferences(doc, signatureElem, prefix);
+    } catch (error) {
+      this.signatureNode = previousSignatureNode;
+      throw error;
+    }
 
     const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
     if (signedInfoNodes.length === 0) {
