@@ -103,6 +103,11 @@ and makes refactoring expensive. Add a test when a change alters what the librar
 accepts, rejects, or emits; skip it when the change is internal and the observable
 behavior is identical.
 
+For a bug fix, watch the test fail first. A regression test nobody observed failing — for
+the reported reason, not an unrelated one — proves nothing about the fix. A branch that
+only reproduces a bug is legitimately red; say so rather than skipping the test to get
+green.
+
 ## Style
 
 - Strict TypeScript (`strict: true`), CommonJS, target ES2020.
