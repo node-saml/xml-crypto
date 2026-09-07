@@ -118,9 +118,12 @@ and the _how_ are readable from the code, then don't restate them in prose that 
 stale the first time someone edits the line below it.
 
 Comment only what the code cannot say: _why_ something is done, what would break if it
-were done the obvious way, and which non-obvious constraint is being satisfied.
-Exceptions, gotchas, threat-model reasoning, spec quirks, and a link to the issue or spec that
-prompted the code are all worth writing down.
+were done the obvious way, and which non-obvious constraint is being satisfied. Link the
+issue or spec that prompted the code.
+
+If a comment is needed at all, keep it DRY. The `it()` name plus a spec link is often the
+whole comment. Cite, don't quote: prefer a section number and a URL over the sentence they
+contain. Keep it to a line or two.
 
 A comment reading "loop over the references" above a loop over references, or one
 restating a field's name as a sentence, earns nothing and costs a review every time the
@@ -128,7 +131,8 @@ code beneath it changes. Delete those rather than update them.
 
 JSDoc on exported API is a separate thing and is welcome: it documents the contract for
 consumers and surfaces in their editor. Keep it about the contract — parameters, return
-values, what throws, what is deprecated — not about the implementation.
+values, what throws, what is deprecated — not about the implementation. Reserve the `/** */`
+form for that; on internal code and tests it advertises a contract that isn't there.
 
 ## Conventions
 
