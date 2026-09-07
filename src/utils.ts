@@ -221,21 +221,6 @@ function collectAncestorNamespaces(
   return collectAncestorNamespaces(parent, nsArray);
 }
 
-/**
- * Collect all namespace prefixes declared directly on a subset element.
- *
- * This includes every `xmlns:*` attribute on the element as well as the
- * element's own namespace prefix (or `""` for the default namespace). The
- * result is used by {@link findAncestorNs} to decide which ancestor namespace
- * declarations are already in scope and therefore must not be hoisted onto the
- * subset root during non-exclusive C14N.
- *
- * The previous single-return implementation (`findNSPrefix`) stopped at the
- * *first* `xmlns:*` attribute, so elements that declare more than one
- * namespace (e.g. `<Body xmlns:enc="…">` in the default namespace) caused the
- * inherited default namespace to be hoisted even though the C14N serializer
- * already renders it, producing a duplicate `xmlns="…"` declaration.
- */
 function findSubsetNSPrefixes(subset: Element): Set<string> {
   const prefixes = new Set<string>();
   const subsetAttributes = subset.attributes;
@@ -245,9 +230,8 @@ function findSubsetNSPrefixes(subset: Element): Set<string> {
       prefixes.add(nodeName.replace(/^xmlns:?/, ""));
     }
   }
-  // Always include the element's own prefix (empty string for the default
-  // namespace) so that the C14N serializer's own rendering of that namespace
-  // is not duplicated by hoisting.
+  // C14N already renders the element's own namespace; hoisting it would duplicate the declaration.
+  // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
   prefixes.add(subset.prefix || "");
   return prefixes;
 }
@@ -284,7 +268,6 @@ export function findAncestorNs(
     throw new Error("Document subset must be list of elements");
   }
 
-  // Remove duplicate on ancestor namespace
   const ancestorNs = collectAncestorNamespaces(docSubset[0]);
   const ancestorNsWithoutDuplicate: NamespacePrefix[] = [];
   for (const ns of ancestorNs) {
@@ -294,7 +277,6 @@ export function findAncestorNs(
     }
   }
 
-  // Remove namespaces which are already declared in the subset with the same prefix
   const returningNs: NamespacePrefix[] = [];
   const subsetNsPrefixes = findSubsetNSPrefixes(docSubset[0]);
   for (const ancestorNs of ancestorNsWithoutDuplicate) {

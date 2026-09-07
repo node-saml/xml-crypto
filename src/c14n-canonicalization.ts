@@ -96,7 +96,6 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     const nsListToRender: { prefix: string; namespaceURI: string }[] = [];
     const currNs = node.namespaceURI || "";
 
-    //handle the namespace of the node itself
     if (node.prefix && prefixesInScope.indexOf(node.prefix) === -1) {
       nsListToRender.push({
         prefix: node.prefix,
@@ -105,10 +104,8 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       prefixesInScope.push(node.prefix);
     }
 
-    //xmldom reports `xmlns="..."` as an attribute with no prefix, and a prefixed element's
-    //`namespaceURI` is its own namespace rather than the default one, so the declaration
-    //cannot be recovered from the node and has to be read off its attributes.
-    //https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+    // The default namespace is independent of a prefixed element's namespaceURI.
+    // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
     let localDefaultNs: string | null = null;
     if (node.attributes) {
       for (i = 0; i < node.attributes.length; ++i) {
