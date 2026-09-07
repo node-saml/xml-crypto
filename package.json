@@ -43,7 +43,7 @@
     "xpath": "^0.0.33"
   },
   "devDependencies": {
-    "@cjbarth/github-release-notes": "~4.2.0",
+    "@cjbarth/github-release-notes": "^5.0.0",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@prettier/plugin-xml": "^3.4.2",
     "@types/chai": "^4.3.20",
