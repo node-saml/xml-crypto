@@ -97,17 +97,38 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     const currNs = node.namespaceURI || "";
 
     //handle the namespace of the node itself
-    if (node.prefix) {
-      if (prefixesInScope.indexOf(node.prefix) === -1) {
-        nsListToRender.push({
-          prefix: node.prefix,
-          namespaceURI: node.namespaceURI || defaultNsForPrefix[node.prefix],
-        });
-        prefixesInScope.push(node.prefix);
+    if (node.prefix && prefixesInScope.indexOf(node.prefix) === -1) {
+      nsListToRender.push({
+        prefix: node.prefix,
+        namespaceURI: node.namespaceURI || defaultNsForPrefix[node.prefix],
+      });
+      prefixesInScope.push(node.prefix);
+    }
+
+    //xmldom reports `xmlns="..."` as an attribute with no prefix, and a prefixed element's
+    //`namespaceURI` is its own namespace rather than the default one, so the declaration
+    //cannot be recovered from the node and has to be read off its attributes.
+    //https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+    let localDefaultNs: string | null = null;
+    if (node.attributes) {
+      for (i = 0; i < node.attributes.length; ++i) {
+        if (node.attributes[i].name === "xmlns") {
+          localDefaultNs = node.attributes[i].value;
+        }
       }
-    } else if (defaultNs !== currNs) {
-      //new default ns
-      newDefaultNs = node.namespaceURI || "";
+    }
+
+    let nodeDefaultNs: string;
+    if (localDefaultNs !== null) {
+      nodeDefaultNs = localDefaultNs;
+    } else if (node.prefix) {
+      nodeDefaultNs = defaultNs;
+    } else {
+      nodeDefaultNs = currNs;
+    }
+
+    if (nodeDefaultNs !== defaultNs) {
+      newDefaultNs = nodeDefaultNs;
       res.push(' xmlns="', newDefaultNs, '"');
     }
 
