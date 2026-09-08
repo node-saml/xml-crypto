@@ -240,14 +240,6 @@ function isElementSubset(docSubset: Node[]): docSubset is Element[] {
   return docSubset.every((node) => isDomNode.isElementNode(node));
 }
 
-/**
- * Collect, deduplicate, and filter ancestor namespace declarations for a given element.
- * Namespaces already declared directly on the element are excluded from the result
- * to avoid double-emission during C14N serialization.
- *
- * @param element - The element whose ancestor namespace declarations to process
- * @returns Deduplicated array of ancestor namespace prefixes not already declared on the element
- */
 function buildAncestorNsForElement(element: Element): NamespacePrefix[] {
   const ancestorNs = collectAncestorNamespaces(element);
   const ancestorNsWithoutDuplicate: NamespacePrefix[] = [];

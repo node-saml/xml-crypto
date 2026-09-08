@@ -433,14 +433,10 @@ export class SignedXml {
     return this.getCanonXml([this.canonicalizationAlgorithm], signedInfo[0], c14nOptions);
   }
 
-  private getCanonReferenceXml(_doc: Document, ref: Reference, node: Node) {
-    /**
-     * Derive ancestor namespaces from the specific node being digested, not by
-     * re-running ref.xpath. findAncestorNs uses only the first XPath match, so
-     * when multiple references are created for the same xpath pattern (e.g. via
-     * addAllReferences), references beyond the first are digested with the wrong
-     * ancestor namespace scope.
-     */
+  private getCanonReferenceXml(ref: Reference, node: Node) {
+    // Derive the scope from the node being digested: findAncestorNs re-runs
+    // ref.xpath and keeps only the first match, which digests every reference
+    // addAllReferences() created from that xpath in the first match's scope.
     if (isDomNode.isElementNode(node)) {
       ref.ancestorNamespaces = utils.findAncestorNsForNode(node);
     }
@@ -520,7 +516,7 @@ export class SignedXml {
         }
       }
 
-      const canonXml = this.getCanonReferenceXml(doc, ref, elem);
+      const canonXml = this.getCanonReferenceXml(ref, elem);
       const hash = this.findHashAlgorithm(ref.digestAlgorithm);
       const digest = hash.getHash(canonXml);
 
@@ -580,7 +576,7 @@ export class SignedXml {
       return false;
     }
 
-    const canonXml = this.getCanonReferenceXml(doc, ref, elem);
+    const canonXml = this.getCanonReferenceXml(ref, elem);
     const hash = this.findHashAlgorithm(ref.digestAlgorithm);
     const digest = hash.getHash(canonXml);
 
@@ -831,7 +827,7 @@ export class SignedXml {
 
     this.references.push({
       xpath,
-      transforms,
+      transforms: transforms ?? [],
       digestAlgorithm,
       uri,
       digestValue,
@@ -1199,7 +1195,7 @@ export class SignedXml {
         }
 
         // Get the canonicalized XML
-        const canonXml = this.getCanonReferenceXml(doc, ref, node);
+        const canonXml = this.getCanonReferenceXml(ref, node);
 
         // Get the digest algorithm and compute the digest value
         const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
@@ -1284,7 +1280,7 @@ export class SignedXml {
     options.signatureNode = this.signatureNode;
 
     const canonXml = node.cloneNode(true); // Deep clone
-    if ((transforms ?? []).includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
+    if (transforms.includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
       const signaturePath: number[] = [];
       let signatureAncestor = this.signatureNode;
       while (signatureAncestor?.parentNode && signatureAncestor !== node) {
@@ -1301,7 +1297,7 @@ export class SignedXml {
     }
     let transformedXml: Node | string = canonXml;
 
-    (transforms ?? []).forEach((transformName) => {
+    transforms.forEach((transformName) => {
       if (isDomNode.isNodeLike(transformedXml)) {
         // If, after processing, `transformedNode` is a string, we can't do anymore transforms on it
         const transform = this.findCanonicalizationAlgorithm(transformName);
@@ -1316,20 +1312,14 @@ export class SignedXml {
       //if only y is the node to sign then a string would be <p:y/> without the definition of the p namespace. probably xmldom toString() should have added it.
     });
 
-    // When the transform chain produces a DOM node (including the no-transform
-    // case), apply C14N so that the digest is computed over a canonical byte
-    // sequence. This mirrors what loadReference does on the verification side:
-    // it appends C14N when the transform list is empty or ends with
-    // enveloped-signature, ensuring signing and verification agree on the bytes.
     if (typeof transformedXml === "string") {
       return transformedXml;
     }
 
-    // When there are no transforms, the XMLDSig processing model requires the
-    // node-set to be serialized via C14N before digesting. This mirrors what
-    // loadReference already does on the verification side (it appends C14N when
-    // the transform list is empty), so that signing and verification compute the
-    // same digest.
+    // A same-document reference dereferences to a node-set, which must be
+    // canonicalized to an octet stream before digesting. `loadReference` appends
+    // the same C14N on the verification side, so both sides digest equal bytes.
+    // https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
     if (!utils.isArrayHasLength(transforms)) {
       const c14n = this.findCanonicalizationAlgorithm(
         "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",

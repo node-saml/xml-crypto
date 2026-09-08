@@ -1150,11 +1150,11 @@ describe("Signature unit tests", function () {
     expect(result, "expected signature to verify successfully").to.be.true;
   });
 
-  it("correctly canonicalizes no-transform references under different ancestor namespace scopes", function () {
-    // Two <item> elements live under different namespace scopes. Without the
-    // fix, findAncestorNs(doc, ref.xpath) always uses the first XPath match
-    // (item1's scope), so item2 is digested with the wrong ancestor namespaces
-    // and verification fails.
+  it("derives ancestor namespaces per referenced node when one xpath matches several", function () {
+    // Transforms are specified explicitly so this exercises only the ancestor
+    // namespace derivation: findAncestorNs(doc, ref.xpath) used the first XPath
+    // match (item1's scope) for every reference, so item2 was digested with the
+    // wrong ancestor namespaces and verification failed.
     const xml =
       "<root>" +
       "<section xmlns:ns1='http://ns1.example.com'><item Id='item1'>one</item></section>" +
@@ -1163,12 +1163,12 @@ describe("Signature unit tests", function () {
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
-    // Single addReference() call so addAllReferences() matches both <item>
-    // elements from the same ref.xpath — this is what exercises the
-    // first-match regression; two separate addReference() calls (each with
-    // its own single-match xpath) would pass even without the fix.
+    // One addReference() call, so addAllReferences() matches both <item>
+    // elements from the same ref.xpath. Two separate calls, each with its own
+    // single-match xpath, would pass even without the fix.
     sig.addReference({
       xpath: "//*[local-name(.)='item']",
+      transforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"],
       digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
     });
     sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
