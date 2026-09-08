@@ -240,7 +240,15 @@ function isElementSubset(docSubset: Node[]): docSubset is Element[] {
   return docSubset.every((node) => isDomNode.isElementNode(node));
 }
 
-function buildAncestorNsForElement(element: Element): NamespacePrefix[] {
+/**
+ * Extract ancestor namespaces for an element that is already resolved.
+ * Prefer this over `findAncestorNs` when the target element is known, since
+ * `findAncestorNs` re-executes an XPath and uses only the first match.
+ *
+ * @param element - The element whose ancestor namespace declarations to collect
+ * @returns i.e. [{prefix: "saml", namespaceURI: "urn:oasis:names:tc:SAML:2.0:assertion"}]
+ */
+export function findAncestorNsForNode(element: Element): NamespacePrefix[] {
   const ancestorNs = collectAncestorNamespaces(element);
   const ancestorNsWithoutDuplicate: NamespacePrefix[] = [];
   for (const ns of ancestorNs) {
@@ -260,19 +268,6 @@ function buildAncestorNsForElement(element: Element): NamespacePrefix[] {
   }
 
   return returningNs;
-}
-
-/**
- * Extract ancestor namespaces for a specific element node.
- * Prefer this over `findAncestorNs` when the target element is already known,
- * since `findAncestorNs` re-executes an XPath and uses the first match —
- * which is incorrect when multiple nodes are referenced individually.
- *
- * @param element - The element whose ancestor namespace declarations to collect
- * @returns i.e. [{prefix: "saml", namespaceURI: "urn:oasis:names:tc:SAML:2.0:assertion"}]
- */
-export function findAncestorNsForNode(element: Element): NamespacePrefix[] {
-  return buildAncestorNsForElement(element);
 }
 
 /**
@@ -303,7 +298,7 @@ export function findAncestorNs(
     throw new Error("Document subset must be list of elements");
   }
 
-  return buildAncestorNsForElement(docSubset[0]);
+  return findAncestorNsForNode(docSubset[0]);
 }
 
 export function validateDigestValue(digest, expectedDigest) {
