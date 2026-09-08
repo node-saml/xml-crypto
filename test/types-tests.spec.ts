@@ -1,52 +1,28 @@
-/// <reference lib="dom" />
-import * as types from "../src/types";
+import { SignedXml, type ErrorFirstCallback } from "../src/index";
+import * as fs from "fs";
 import { expect } from "chai";
 
-describe("createOptionalCallbackFunction", function () {
-  it("should not execute callback twice when callback throws unhandled exception", function (done) {
-    const syncFn = (a: number, b: number) => a + b;
-    const flexibleFn = types.createOptionalCallbackFunction(syncFn);
-
-    let callbackExecutionCount = 0;
-
-    // Store and remove existing unhandled exception listeners
-    const existingListeners = process.rawListeners("uncaughtException");
-    process.removeAllListeners("uncaughtException");
-
-    process.once("uncaughtException", (err) => {
-      // Restore unhandled exception listeners
-      existingListeners.forEach((listener) => {
-        process.on("uncaughtException", listener as NodeJS.UncaughtExceptionListener);
-      });
-
-      expect(err.message).to.equal("Callback threw an error");
-      expect(callbackExecutionCount).to.equal(1);
-      done();
+describe("Callback invocation", function () {
+  // https://github.com/node-saml/xml-crypto/issues/527
+  it("invokes the callback once when the callback throws", function () {
+    const xml = `<x xmlns:wsu='http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd' Id='_1'></x>`;
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 
-    flexibleFn(2, 3, (err, result) => {
-      callbackExecutionCount++;
-      expect(err).to.be.null;
-      expect(result).to.equal(5);
+    const errorsSeen: (string | null)[] = [];
+    const callback: ErrorFirstCallback<SignedXml> = (err) => {
+      errorsSeen.push(err ? err.message : null);
+      throw new Error("Error Thrown");
+    };
 
-      throw new Error("Callback threw an error");
-    });
-  });
-
-  it("should defer callback execution in success case", function (done) {
-    const syncFn = (a: number, b: number) => a + b;
-    const flexibleFn = types.createOptionalCallbackFunction(syncFn);
-
-    let callbackExecuted = false;
-
-    flexibleFn(2, 3, (err, result) => {
-      callbackExecuted = true;
-      expect(err).to.be.null;
-      expect(result).to.equal(5);
-      done();
-    });
-
-    // Callback should be asynchronously deferred
-    expect(callbackExecuted).to.be.false;
+    expect(() => sig.computeSignature(xml, callback)).to.throw("Error Thrown");
+    expect(errorsSeen).to.deep.equal([null]);
   });
 });
