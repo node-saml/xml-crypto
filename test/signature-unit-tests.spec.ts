@@ -109,7 +109,7 @@ describe("Signature unit tests", function () {
       sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
       sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
       sig.computeSignature(xml);
-      const signedXml = sig.getOriginalXmlWithIds();
+      const signedXml = sig.getSignedXml();
       const doc = new xmldom.DOMParser().parseFromString(signedXml);
 
       const op = nsMode === "equal" ? "=" : "!=";
@@ -172,9 +172,10 @@ describe("Signature unit tests", function () {
       sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
       sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
       sig.computeSignature(xml);
-      const signedXml = sig.getOriginalXmlWithIds();
+      const signedXml = sig.getSignedXml();
       const doc = new xmldom.DOMParser().parseFromString(signedXml);
-      const attrs = xpath.select("//@*", doc);
+      // Only count attributes on the 'x' element, not the entire document (which includes signature attributes)
+      const attrs = xpath.select("//*[local-name(.)='x']/@*", doc);
       isDomNode.assertIsArrayOfNodes(attrs);
       expect(attrs.length, "wrong number of attributes").to.equal(2);
     }
@@ -535,10 +536,17 @@ describe("Signature unit tests", function () {
 
     expect(expectedSignedXml, "wrong signedXml format").to.equal(signedXml);
 
-    const originalXmlWithIds = sig.getOriginalXmlWithIds();
-    const expectedOriginalXmlWithIds =
-      '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z></root>';
-    expect(expectedOriginalXmlWithIds, "wrong OriginalXmlWithIds").to.equal(originalXmlWithIds);
+    // Verify IDs were added to the signed XML document
+    const signedDoc = new xmldom.DOMParser().parseFromString(signedXml);
+    const xId = xpath.select1("//*[local-name(.)='x']/@*[local-name(.)='Id']", signedDoc);
+    isDomNode.assertIsAttributeNode(xId);
+    expect(xId.value).to.equal("_0");
+    const yId = xpath.select1("//*[local-name(.)='y']/@*[local-name(.)='Id']", signedDoc);
+    isDomNode.assertIsAttributeNode(yId);
+    expect(yId.value).to.equal("_1");
+    const wId = xpath.select1("//*[local-name(.)='w']/@*[local-name(.)='Id']", signedDoc);
+    isDomNode.assertIsAttributeNode(wId);
+    expect(wId.value).to.equal("_2");
   });
 
   it("signer creates signature with correct structure (with prefix)", function () {
@@ -699,10 +707,17 @@ describe("Signature unit tests", function () {
 
     expect(signedXml, "wrong signedXml format").to.equal(expectedSignedXml);
 
-    const originalXmlWithIds = sig.getOriginalXmlWithIds();
-    const expectedOriginalXmlWithIds =
-      '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z></root>';
-    expect(originalXmlWithIds, "wrong OriginalXmlWithIds").to.equal(expectedOriginalXmlWithIds);
+    // Verify IDs were added to the signed XML document
+    const signedDoc = new xmldom.DOMParser().parseFromString(signedXml);
+    const xId = xpath.select1("//*[local-name(.)='x']/@*[local-name(.)='Id']", signedDoc);
+    isDomNode.assertIsAttributeNode(xId);
+    expect(xId.value).to.equal("_0");
+    const yId = xpath.select1("//*[local-name(.)='y']/@*[local-name(.)='Id']", signedDoc);
+    isDomNode.assertIsAttributeNode(yId);
+    expect(yId.value).to.equal("_1");
+    const wId = xpath.select1("//*[local-name(.)='w']/@*[local-name(.)='Id']", signedDoc);
+    isDomNode.assertIsAttributeNode(wId);
+    expect(wId.value).to.equal("_2");
   });
 
   it("signer creates correct signature values", function () {

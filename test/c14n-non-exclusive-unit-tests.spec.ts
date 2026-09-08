@@ -1,15 +1,22 @@
 import { expect } from "chai";
 
-import { C14nCanonicalization } from "../src/c14n-canonicalization";
+import {
+  C14nCanonicalization,
+  C14nCanonicalizationWithComments,
+} from "../src/c14n-canonicalization";
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
 import * as utils from "../src/utils";
 import * as isDomNode from "@xmldom/is-dom-node";
 
-const test_C14nCanonicalization = function (xml, xpathArg, expected) {
+const test_C14nCanonicalization = function (
+  xml: string,
+  xpathArg: string,
+  expected: string,
+  can = new C14nCanonicalization(),
+) {
   const doc = new xmldom.DOMParser().parseFromString(xml);
   const node = xpath.select1(xpathArg, doc);
-  const can = new C14nCanonicalization();
 
   isDomNode.assertIsNodeLike(node);
   const result = can
@@ -117,6 +124,37 @@ describe("C14N non-exclusive canonicalization tests", function () {
     test_findAncestorNs(xml, xpath, expected);
   });
 
+  it("findAncestorNs: Should not hoist default namespace when subset also declares a prefixed namespace", function () {
+    // The element's own default namespace must be rendered only once.
+    // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+    const xml = '<root xmlns="urn:default"><child1><child2 xmlns:enc="urn:enc"/></child1></root>';
+    const xpath = "//*[local-name()='child2']";
+    const expected = [];
+
+    test_findAncestorNs(xml, xpath, expected);
+  });
+
+  it("findAncestorNs: Should hoist non-default ancestor namespaces when subset is in default namespace", function () {
+    // Inclusive C14N retains ancestor bindings even when the subset does not visibly use them.
+    // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#DataModel
+    const xml =
+      '<root xmlns="urn:default" xmlns:aaa="urn:aaa"><child1><child2 xmlns:enc="urn:enc"/></child1></root>';
+    const xpath = "//*[local-name()='child2']";
+    const expected = [{ prefix: "aaa", namespaceURI: "urn:aaa" }];
+
+    test_findAncestorNs(xml, xpath, expected);
+  });
+
+  it("findAncestorNs: Should not suppress ancestor namespace for non-namespace attribute starting with 'xmlns'", function () {
+    // Only xmlns and xmlns:* declare namespaces; xmlnsfoo must not hide an inherited binding.
+    // https://www.w3.org/TR/REC-xml-names/#ns-decl
+    const xml = '<root xmlns:foo="urn:foo"><child1><child2 xmlnsfoo="bar"/></child1></root>';
+    const xpath = "//*[local-name()='child2']";
+    const expected = [{ prefix: "foo", namespaceURI: "urn:foo" }];
+
+    test_findAncestorNs(xml, xpath, expected);
+  });
+
   // Tests for c14nCanonicalization
   it("C14n: Correctly picks up root ancestor namespace", function () {
     const xml = "<root xmlns:aaa='bbb'><child1><child2></child2></child1></root>";
@@ -210,4 +248,97 @@ describe("C14N non-exclusive canonicalization tests", function () {
 
     test_C14nCanonicalization(xml, xpath, expected);
   });
+
+  for (const Canonicalization of [C14nCanonicalization, C14nCanonicalizationWithComments]) {
+    describe(`${Canonicalization.name}: subset namespace declarations`, function () {
+      it("does not duplicate the default namespace when the subset declares a prefixed namespace", function () {
+        // Render the inherited default namespace exactly once on the subset root.
+        // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+        test_C14nCanonicalization(
+          '<root xmlns="urn:default"><child1><child2 xmlns:enc="urn:enc"/></child1></root>',
+          "//*[local-name()='child2']",
+          '<child2 xmlns="urn:default" xmlns:enc="urn:enc"></child2>',
+          new Canonicalization(),
+        );
+      });
+
+      it("does not duplicate the default namespace for the reported #538 document", function () {
+        // Literal reproduction from https://github.com/node-saml/xml-crypto/issues/538:
+        // a subset root inheriting a default namespace while declaring a prefixed one,
+        // with a prefixed child that must resolve against the local declaration.
+        // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+        test_C14nCanonicalization(
+          '<Root xmlns="http://example.com/root">' +
+            '<Body Id="B" xmlns:enc="http://www.w3.org/2001/04/xmlenc#">' +
+            "<enc:CipherValue>x</enc:CipherValue></Body></Root>",
+          "//*[local-name()='Body']",
+          '<Body xmlns="http://example.com/root" xmlns:enc="http://www.w3.org/2001/04/xmlenc#" Id="B">' +
+            "<enc:CipherValue>x</enc:CipherValue></Body>",
+          new Canonicalization(),
+        );
+      });
+
+      it("retains unused ancestor prefixes alongside the default and local namespaces", function () {
+        // Inclusive C14N preserves every in-scope namespace, including unused ancestor bindings.
+        // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#DataModel
+        test_C14nCanonicalization(
+          '<root xmlns="urn:default" xmlns:aaa="urn:aaa"><child2 xmlns:enc="urn:enc"/></root>',
+          "//*[local-name()='child2']",
+          '<child2 xmlns="urn:default" xmlns:aaa="urn:aaa" xmlns:enc="urn:enc"></child2>',
+          new Canonicalization(),
+        );
+      });
+
+      for (const declarations of [
+        'xmlns:a="urn:local-a" xmlns:b="urn:local-b"',
+        'xmlns:b="urn:local-b" xmlns:a="urn:local-a"',
+      ]) {
+        it(`uses both local prefix bindings with ${declarations}`, function () {
+          // Local declarations override ancestor bindings regardless of declaration order.
+          // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#DataModel
+          test_C14nCanonicalization(
+            '<root xmlns:a="urn:ancestor-a" xmlns:b="urn:ancestor-b">' +
+              `<child2 ${declarations}><a:item/><b:item/></child2></root>`,
+            "//*[local-name()='child2']",
+            '<child2 xmlns:a="urn:local-a" xmlns:b="urn:local-b"><a:item></a:item><b:item></b:item></child2>',
+            new Canonicalization(),
+          );
+        });
+      }
+
+      it("renders the default namespace on a prefixed apex that redeclares it", function () {
+        // Every namespace in scope at the apex is rendered there, including the default one.
+        // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+        test_C14nCanonicalization(
+          '<root xmlns="urn:default"><p:child2 xmlns:p="urn:p" xmlns="urn:default"/></root>',
+          "//*[local-name()='child2']",
+          '<p:child2 xmlns="urn:default" xmlns:p="urn:p"></p:child2>',
+          new Canonicalization(),
+        );
+      });
+
+      it("omits a descendant default namespace already hoisted onto the subset root", function () {
+        // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+        test_C14nCanonicalization(
+          '<root xmlns="urn:default" xmlns:p="urn:p">' +
+            '<p:target><p:child xmlns="urn:default"/></p:target></root>',
+          "//*[local-name()='target']",
+          '<p:target xmlns="urn:default" xmlns:p="urn:p"><p:child></p:child></p:target>',
+          new Canonicalization(),
+        );
+      });
+
+      it("does not restore a default namespace explicitly cleared on a prefixed root", function () {
+        // An empty default declaration removes the inherited binding; no reset is needed at the apex.
+        // https://www.w3.org/TR/REC-xml-names/#defaulting
+        // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+        test_C14nCanonicalization(
+          '<root xmlns="urn:ancestor"><p:child2 xmlns:p="urn:p" xmlns=""><item/></p:child2></root>',
+          "//*[local-name()='child2']",
+          '<p:child2 xmlns:p="urn:p"><item></item></p:child2>',
+          new Canonicalization(),
+        );
+      });
+    });
+  }
 });
