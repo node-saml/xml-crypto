@@ -611,16 +611,11 @@ export class SignedXml {
     };
   }
 
-  private getCanonReferenceXml(_doc: Document, ref: Reference, node: Node) {
-    /**
-     * Derive ancestor namespaces from the specific node being digested, not by
-     * re-running ref.xpath. findAncestorNs uses only the first XPath match, so
-     * when multiple references are created for the same xpath pattern (e.g. via
-     * addAllReferences), references beyond the first are digested with the wrong
-     * ancestor namespace scope. findAncestorNsForElement (added upstream for
-     * findSignedInfoAncestorContext, above) already solves exactly this for a
-     * known element, so reuse it here instead of re-running the xpath.
-     */
+  private getCanonReferenceXml(ref: Reference, node: Node) {
+    // Derive the scope from the node being digested: findAncestorNs re-runs ref.xpath and
+    // keeps only the first match, which digests every reference addAllReferences() created
+    // from that xpath in the first match's scope. findAncestorNsForElement (above) already
+    // takes a known element instead, so reuse it here.
     if (isDomNode.isElementNode(node)) {
       ref.ancestorNamespaces = utils.findAncestorNsForElement(node);
     }
@@ -642,7 +637,7 @@ export class SignedXml {
   // Signing gives the reference's current list to the exclusive canonicalization transforms, the
   // ones createReferences writes it under, so the digest matches the Transforms it serializes.
   private getSigningPrefixLists(ref: Reference): string[][] {
-    return (ref.transforms ?? []).map((transform) =>
+    return ref.transforms.map((transform) =>
       isExclusiveC14n(this.findCanonicalizationAlgorithm(transform).getAlgorithmName())
         ? ref.inclusiveNamespacesPrefixList
         : [],
@@ -742,7 +737,7 @@ export class SignedXml {
         }
       }
 
-      const canonXml = this.getCanonReferenceXml(doc, ref, elem);
+      const canonXml = this.getCanonReferenceXml(ref, elem);
       const hash = this.findHashAlgorithm(ref.digestAlgorithm);
       const digest = hash.getHash(canonXml);
 
@@ -808,7 +803,7 @@ export class SignedXml {
       return undefined;
     }
 
-    const canonXml = this.getCanonReferenceXml(doc, ref, elem);
+    const canonXml = this.getCanonReferenceXml(ref, elem);
     const hash = this.findHashAlgorithm(ref.digestAlgorithm);
     const digest = hash.getHash(canonXml);
 
@@ -1051,7 +1046,7 @@ export class SignedXml {
 
     this.references.push({
       xpath,
-      transforms,
+      transforms: transforms ?? [],
       digestAlgorithm,
       uri,
       digestValue,
@@ -1633,13 +1628,9 @@ export class SignedXml {
       options.ancestorXmlAttributes ?? utils.findAncestorXmlAttributes(node);
     options.signatureNode = this.signatureNode;
 
-    // transforms is now optional on Reference (see addReference) — empty/no transforms is a
-    // valid, SMPTE-required state, not an error. Treat it as an empty list everywhere below.
-    const effectiveTransforms = transforms ?? [];
-
     const canonXml = node.cloneNode(true); // Deep clone
     const preserveDocument = isDomNode.isDocumentNode(node);
-    if (effectiveTransforms.includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
+    if (transforms.includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
       const signaturePath: number[] = [];
       let signatureAncestor = this.findLoadedSignature(node);
       while (signatureAncestor?.parentNode && signatureAncestor !== node) {
@@ -1665,10 +1656,10 @@ export class SignedXml {
 
     // Octets are parsed into a node-set for the next transform, and a node-set left at the end is
     // converted to octets with C14N: https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
-    // (When effectiveTransforms is empty this loop simply doesn't run, and the isNodeLike check
+    // (When transforms is empty this loop simply doesn't run, and the isNodeLike check
     // below applies plain C14N to the untransformed node-set — exactly the SMPTE-required
     // no-transforms case, so no separate empty-transforms branch is needed here.)
-    for (const [index, transformName] of effectiveTransforms.entries()) {
+    for (const [index, transformName] of transforms.entries()) {
       if (!isDomNode.isNodeLike(transformedXml)) {
         transformedXml = this.parseTransformInput(transformedXml, transformName, preserveDocument);
         // The parsed octets are a new document, so the referenced node's ancestors are gone.
@@ -1697,6 +1688,10 @@ export class SignedXml {
           ? { ...transformOptions, inclusiveNamespacesPrefixList: prefixLists[index] ?? [] }
           : transformOptions,
       );
+    }
+
+    if (typeof transformedXml === "string") {
+      return transformedXml;
     }
 
     if (isDomNode.isNodeLike(transformedXml)) {
