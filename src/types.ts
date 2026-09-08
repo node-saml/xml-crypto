@@ -18,8 +18,7 @@ export type CanonicalizationAlgorithmType =
   | string;
 
 export type CanonicalizationOrTransformAlgorithmType =
-  | CanonicalizationAlgorithmType
-  | "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
+  CanonicalizationAlgorithmType | "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
 
 export type HashAlgorithmType =
   | "http://www.w3.org/2000/09/xmldsig#sha1"
