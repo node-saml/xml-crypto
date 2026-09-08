@@ -1,9 +1,12 @@
 import { expect } from "chai";
 
-import { ExclusiveCanonicalization } from "../src/exclusive-canonicalization";
+import {
+  ExclusiveCanonicalization,
+  ExclusiveCanonicalizationWithComments,
+} from "../src/exclusive-canonicalization";
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
-import { SignedXml } from "../src/index";
+import { findAncestorNs, SignedXml } from "../src/index";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 const compare = function (
@@ -28,6 +31,50 @@ const compare = function (
 };
 
 describe("Canonicalization unit tests", function () {
+  for (const Canonicalization of [
+    ExclusiveCanonicalization,
+    ExclusiveCanonicalizationWithComments,
+  ]) {
+    describe(`${Canonicalization.name}: configured inclusive namespaces`, function () {
+      const xml =
+        '<root xmlns:b="urn:ancestor" xmlns:c="urn:inherited">' +
+        '<target xmlns:a="urn:a" xmlns:b="urn:local" type="b:Kind"/></root>';
+      const selector = "//*[local-name()='target']";
+
+      it("retains local and inherited bindings requested by the caller", function () {
+        // PrefixList includes QName-value bindings without replacing local declarations with ancestors.
+        // https://www.w3.org/TR/xml-exc-c14n/#sec-Specification
+        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const node = xpath.select1(selector, doc);
+        isDomNode.assertIsElementNode(node);
+
+        const result = new Canonicalization().process(node, {
+          ancestorNamespaces: findAncestorNs(doc, selector),
+          inclusiveNamespacesPrefixList: ["b", "c"],
+        });
+
+        expect(result).to.equal(
+          '<target xmlns:b="urn:local" xmlns:c="urn:inherited" type="b:Kind"></target>',
+        );
+      });
+
+      it("omits non-visible bindings when the caller supplies an empty PrefixList", function () {
+        // Prefixes used only in attribute values are not visibly utilized in exclusive C14N.
+        // https://www.w3.org/TR/xml-exc-c14n/#def-visibly-utilizes
+        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const node = xpath.select1(selector, doc);
+        isDomNode.assertIsElementNode(node);
+
+        const result = new Canonicalization().process(node, {
+          ancestorNamespaces: findAncestorNs(doc, selector),
+          inclusiveNamespacesPrefixList: [],
+        });
+
+        expect(result).to.equal('<target type="b:Kind"></target>');
+      });
+    });
+  }
+
   it("Exclusive canonicalization works on xml with no namespaces", function () {
     compare("<root><child>123</child></root>", "//*", "<root><child>123</child></root>");
   });
