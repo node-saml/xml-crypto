@@ -155,6 +155,23 @@ describe("C14N non-exclusive canonicalization tests", function () {
     test_findAncestorNs(xml, xpath, expected);
   });
 
+  for (const { label, subsetXpath } of [
+    { label: "attributes", subsetXpath: "//@attr" },
+    { label: "text nodes", subsetXpath: "//*[local-name()='child']/text()" },
+  ]) {
+    it(`findAncestorNs: Should reject a document subset of ${label}`, function () {
+      // Only elements carry namespace declarations. Without this check the
+      // non-element reaches findSubsetNSPrefixes, whose `.attributes` is null
+      // there, and the caller gets a TypeError instead of a usable message.
+      const xml = "<root xmlns:anc='urn:ancestor'><child attr='value'>text</child></root>";
+      const doc = new xmldom.DOMParser().parseFromString(xml);
+
+      expect(() => utils.findAncestorNs(doc, subsetXpath)).to.throw(
+        "Document subset must be list of elements",
+      );
+    });
+  }
+
   // Tests for c14nCanonicalization
   it("C14n: Correctly picks up root ancestor namespace", function () {
     const xml = "<root xmlns:aaa='bbb'><child1><child2></child2></child1></root>";
