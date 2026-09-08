@@ -27,6 +27,12 @@ import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
 
+const warnOriginalXmlWithIds = deprecate(
+  () => {},
+  "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`.",
+  "XML_CRYPTO_GET_ORIGINAL_XML_WITH_IDS",
+);
+
 export class SignedXml {
   idMode?: "wssecurity";
   idAttributes: string[];
@@ -1423,11 +1429,14 @@ export class SignedXml {
   }
 
   /**
-   * Returns the original xml with Id attributes added on relevant elements (required for validation), must be called only after {@link computeSignature}
+   * Returns the original xml with Id attributes added on relevant elements, must be called only after {@link computeSignature}
    *
    * @returns The original XML with IDs.
+   * @deprecated Will be removed in a future version. Use the `location` option of
+   * {@link computeSignature} to place the signature, then {@link getSignedXml}.
    */
   getOriginalXmlWithIds(): string {
+    warnOriginalXmlWithIds();
     return this.originalXmlWithIds;
   }
 
