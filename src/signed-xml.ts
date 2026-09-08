@@ -10,6 +10,7 @@ import type {
   HashAlgorithmType,
   ObjectAttributes,
   Reference,
+  AttachmentReference,
   SignatureAlgorithm,
   SignatureAlgorithmType,
   SignedXmlOptions,
@@ -79,6 +80,11 @@ export class SignedXml {
    * @see {@link Reference}
    */
   private references: Reference[] = [];
+  /**
+   * Contains the attachment references that were signed.
+   * @see {@link Reference}
+   */
+  private attachmentReferences: AttachmentReference[] = [];
 
   /**
    * Contains the canonicalized XML of the references that were validly signed.
@@ -848,6 +854,56 @@ export class SignedXml {
   }
 
   /**
+   * Adds an attachment reference to the signature.
+   *
+   * @param attachment The attachment to be referenced.
+   * @param transforms An array of transform algorithms to be applied to the selected nodes.
+   * @param digestAlgorithm The digest algorithm to use for computing the digest value.
+   * @param uri The URI identifier for the reference. If empty, an empty URI will be used.
+   * @param digestValue The expected digest value for the reference.
+   * @param inclusiveNamespacesPrefixList The prefix list for inclusive namespace canonicalization.
+   * @param isEmptyUri Indicates whether the URI is empty. Defaults to `false`.
+   * @param id An optional `Id` attribute for the reference.
+   * @param type An optional `Type` attribute for the reference.
+   */
+  addAttachmentReference({
+    attachment,
+    transforms,
+    digestAlgorithm,
+    uri = "",
+    digestValue,
+    inclusiveNamespacesPrefixList = [],
+    isEmptyUri = false,
+    id = undefined,
+    type = undefined,
+  }: Partial<Reference> & Pick<AttachmentReference, "attachment">): void {
+    if (digestAlgorithm == null) {
+      throw new Error("digestAlgorithm is required");
+    }
+
+    if (!utils.isArrayHasLength(transforms)) {
+      throw new Error("transforms must contain at least one transform algorithm");
+    }
+
+    this.attachmentReferences.push({
+      attachment,
+      transforms,
+      digestAlgorithm,
+      uri,
+      digestValue,
+      inclusiveNamespacesPrefixList,
+      isEmptyUri,
+      id,
+      type,
+      getValidatedNode: () => {
+        throw new Error(
+          "Reference has not been validated yet; Did you call `sig.checkSignature()`?",
+        );
+      },
+    });
+  }
+
+  /**
    * Returns the list of references.
    */
   getReferences() {
@@ -859,6 +915,20 @@ export class SignedXml {
     */
 
     return this.references;
+  }
+
+  /**
+   * Returns the list of attachment references.
+   */
+  getAttachmentReferences() {
+    // TODO: Refactor once `getValidatedNode` is removed
+    /* Once we completely remove the deprecated `getValidatedNode()` method,
+    we can change this to return a clone to prevent accidental mutations,
+    e.g.:
+    return [...this.attachmentReferences];
+    */
+
+    return this.attachmentReferences;
   }
 
   getSignedReferences() {
@@ -1219,6 +1289,82 @@ export class SignedXml {
         // Append the reference element to SignedInfo
         signedInfoNode.appendChild(referenceElem);
       }
+    }
+
+    // Process each attachment reference
+    for (const ref of this.getAttachmentReferences()) {
+      // Compute the target URI
+      let targetUri: string;
+      if (ref.isEmptyUri) {
+        targetUri = "";
+      } else {
+        targetUri = `${ref.uri}`;
+      }
+
+      // Create the reference element directly using DOM methods to avoid namespace issues
+      const referenceElem = signatureDoc.createElementNS(
+        signatureNamespace,
+        `${currentPrefix}Reference`,
+      );
+      referenceElem.setAttribute("URI", targetUri);
+
+      if (ref.id) {
+        referenceElem.setAttribute("Id", ref.id);
+      }
+
+      if (ref.type) {
+        referenceElem.setAttribute("Type", ref.type);
+      }
+
+      const transformsElem = signatureDoc.createElementNS(
+        signatureNamespace,
+        `${currentPrefix}Transforms`,
+      );
+
+      for (const trans of ref.transforms || []) {
+        const transform = this.findCanonicalizationAlgorithm(trans);
+        const transformElem = signatureDoc.createElementNS(
+          signatureNamespace,
+          `${currentPrefix}Transform`,
+        );
+        transformElem.setAttribute("Algorithm", transform.getAlgorithmName());
+
+        if (utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList)) {
+          const inclusiveNamespacesElem = signatureDoc.createElementNS(
+            transform.getAlgorithmName(),
+            "InclusiveNamespaces",
+          );
+          inclusiveNamespacesElem.setAttribute(
+            "PrefixList",
+            ref.inclusiveNamespacesPrefixList.join(" "),
+          );
+          transformElem.appendChild(inclusiveNamespacesElem);
+        }
+
+        transformsElem.appendChild(transformElem);
+      }
+
+      // Get the digest algorithm and compute the digest value
+      const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
+
+      const digestMethodElem = signatureDoc.createElementNS(
+        signatureNamespace,
+        `${currentPrefix}DigestMethod`,
+      );
+      digestMethodElem.setAttribute("Algorithm", digestAlgorithm.getAlgorithmName());
+
+      const digestValueElem = signatureDoc.createElementNS(
+        signatureNamespace,
+        `${currentPrefix}DigestValue`,
+      );
+      digestValueElem.textContent = digestAlgorithm.getHash(ref.attachment);
+
+      referenceElem.appendChild(transformsElem);
+      referenceElem.appendChild(digestMethodElem);
+      referenceElem.appendChild(digestValueElem);
+
+      // Append the reference element to SignedInfo
+      signedInfoNode.appendChild(referenceElem);
     }
   }
 

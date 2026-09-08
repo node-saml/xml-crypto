@@ -160,6 +160,47 @@ export interface Reference {
   signedReference?: string;
 }
 
+/**
+ * Represents an attachment reference node for XML digital signature.
+ */
+export interface AttachmentReference {
+  // The attachment data to be signed.
+  attachment: Buffer;
+
+  // An array of transforms to be applied to the data before signing.
+  transforms: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>;
+
+  // The algorithm used to calculate the digest value of the data.
+  digestAlgorithm: HashAlgorithmType;
+
+  // The URI that identifies the data to be signed.
+  uri: string;
+
+  // Optional. The digest value of the referenced data.
+  digestValue?: unknown;
+
+  // A list of namespace prefixes to be treated as "inclusive" during canonicalization.
+  inclusiveNamespacesPrefixList: string[];
+
+  // Optional. Indicates whether the URI is empty.
+  isEmptyUri: boolean;
+
+  // Optional. The `Id` attribute of the reference node.
+  id?: string;
+
+  // Optional. The `Type` attribute of the reference node.
+  type?: string;
+
+  // Optional. The type of the reference node.
+  ancestorNamespaces?: NamespacePrefix[];
+
+  validationError?: Error;
+
+  getValidatedNode(xpathSelector?: string): Node | null;
+
+  signedReference?: string;
+}
+
 /** Implement this to create a new CanonicalizationOrTransformationAlgorithm */
 export interface CanonicalizationOrTransformationAlgorithm {
   process(
@@ -174,7 +215,7 @@ export interface CanonicalizationOrTransformationAlgorithm {
 export interface HashAlgorithm {
   getAlgorithmName(): HashAlgorithmType;
 
-  getHash(xml: string): string;
+  getHash(data: string | Buffer): string;
 }
 
 /** Extend this to create a new SignatureAlgorithm */
