@@ -221,15 +221,19 @@ function collectAncestorNamespaces(
   return collectAncestorNamespaces(parent, nsArray);
 }
 
-function findNSPrefix(subset) {
+function findSubsetNSPrefixes(subset: Element): Set<string> {
+  const prefixes = new Set<string>();
   const subsetAttributes = subset.attributes;
   for (let k = 0; k < subsetAttributes.length; k++) {
     const nodeName = subsetAttributes[k].nodeName;
-    if (nodeName.search(/^xmlns:?/) !== -1) {
-      return nodeName.replace(/^xmlns:?/, "");
+    if (nodeName === "xmlns" || nodeName.startsWith("xmlns:")) {
+      prefixes.add(nodeName.replace(/^xmlns:?/, ""));
     }
   }
-  return subset.prefix || "";
+  // C14N already renders the element's own namespace; hoisting it would duplicate the declaration.
+  // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+  prefixes.add(subset.prefix || "");
+  return prefixes;
 }
 
 function isElementSubset(docSubset: Node[]): docSubset is Element[] {
@@ -264,28 +268,19 @@ export function findAncestorNs(
     throw new Error("Document subset must be list of elements");
   }
 
-  // Remove duplicate on ancestor namespace
   const ancestorNs = collectAncestorNamespaces(docSubset[0]);
   const ancestorNsWithoutDuplicate: NamespacePrefix[] = [];
-  for (let i = 0; i < ancestorNs.length; i++) {
-    let notOnTheList = true;
-    for (const v in ancestorNsWithoutDuplicate) {
-      if (ancestorNsWithoutDuplicate[v].prefix === ancestorNs[i].prefix) {
-        notOnTheList = false;
-        break;
-      }
-    }
-
-    if (notOnTheList) {
-      ancestorNsWithoutDuplicate.push(ancestorNs[i]);
+  for (const ns of ancestorNs) {
+    const isDuplicate = ancestorNsWithoutDuplicate.some((seen) => seen.prefix === ns.prefix);
+    if (!isDuplicate) {
+      ancestorNsWithoutDuplicate.push(ns);
     }
   }
 
-  // Remove namespaces which are already declared in the subset with the same prefix
   const returningNs: NamespacePrefix[] = [];
-  const subsetNsPrefix = findNSPrefix(docSubset[0]);
+  const subsetNsPrefixes = findSubsetNSPrefixes(docSubset[0]);
   for (const ancestorNs of ancestorNsWithoutDuplicate) {
-    if (ancestorNs.prefix !== subsetNsPrefix) {
+    if (!subsetNsPrefixes.has(ancestorNs.prefix)) {
       returningNs.push(ancestorNs);
     }
   }
