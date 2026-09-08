@@ -1284,7 +1284,7 @@ export class SignedXml {
     options.signatureNode = this.signatureNode;
 
     const canonXml = node.cloneNode(true); // Deep clone
-    if (transforms.includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
+    if ((transforms ?? []).includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
       const signaturePath: number[] = [];
       let signatureAncestor = this.signatureNode;
       while (signatureAncestor?.parentNode && signatureAncestor !== node) {
