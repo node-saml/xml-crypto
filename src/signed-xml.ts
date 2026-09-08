@@ -27,6 +27,12 @@ import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
 
+const warnOriginalXmlWithIds = deprecate(
+  () => {},
+  "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`.",
+  "XML_CRYPTO_GET_ORIGINAL_XML_WITH_IDS",
+);
+
 export class SignedXml {
   idMode?: "wssecurity";
   idAttributes: string[];
@@ -1048,10 +1054,15 @@ export class SignedXml {
       referenceNode.parentNode.insertBefore(signatureElem, referenceNode.nextSibling);
     }
 
-    // Now add all references (including any to the signature itself)
-    this.addAllReferences(doc, signatureElem, prefix);
-
+    const previousSignatureNode = this.signatureNode;
     this.signatureNode = signatureElem;
+    try {
+      this.addAllReferences(doc, signatureElem, prefix);
+    } catch (error) {
+      this.signatureNode = previousSignatureNode;
+      throw error;
+    }
+
     const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
     if (signedInfoNodes.length === 0) {
       const err3 = new Error("could not find SignedInfo element in the message");
@@ -1273,6 +1284,21 @@ export class SignedXml {
     options.signatureNode = this.signatureNode;
 
     const canonXml = node.cloneNode(true); // Deep clone
+    if (transforms.includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
+      const signaturePath: number[] = [];
+      let signatureAncestor = this.signatureNode;
+      while (signatureAncestor?.parentNode && signatureAncestor !== node) {
+        signaturePath.push(
+          Array.from<Node>(signatureAncestor.parentNode.childNodes).indexOf(signatureAncestor),
+        );
+        signatureAncestor = signatureAncestor.parentNode;
+      }
+      if (signatureAncestor === node) {
+        options.signatureNode = signaturePath
+          .reverse()
+          .reduce((clonedNode, index) => clonedNode.childNodes[index], canonXml);
+      }
+    }
     let transformedXml: Node | string = canonXml;
 
     (transforms ?? []).forEach((transformName) => {
@@ -1427,11 +1453,14 @@ export class SignedXml {
   }
 
   /**
-   * Returns the original xml with Id attributes added on relevant elements (required for validation), must be called only after {@link computeSignature}
+   * Returns the original xml with Id attributes added on relevant elements, must be called only after {@link computeSignature}
    *
    * @returns The original XML with IDs.
+   * @deprecated Will be removed in a future version. Use the `location` option of
+   * {@link computeSignature} to place the signature, then {@link getSignedXml}.
    */
   getOriginalXmlWithIds(): string {
+    warnOriginalXmlWithIds();
     return this.originalXmlWithIds;
   }
 
