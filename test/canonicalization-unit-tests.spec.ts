@@ -502,6 +502,26 @@ describe("Canonicalization unit tests", function () {
     expect(res).to.equal("<y/>");
   });
 
+  it("Enveloped-signature canonicalization preserves nested signatures when removing a direct child", function () {
+    const xml =
+      '<x xmlns:ds="http://www.w3.org/2000/09/xmldsig#"><y><z><ds:Signature>NESTED</ds:Signature></z><ds:Signature>ENVELOPING</ds:Signature></y></x>';
+    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const node = xpath.select1("/x/y", doc);
+    isDomNode.assertIsNodeLike(node);
+
+    const sig = new SignedXml();
+    const res = sig.getCanonXml(
+      [
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        "http://www.w3.org/2001/10/xml-exc-c14n#",
+      ],
+      node,
+    );
+    expect(res).to.equal(
+      '<y><z><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">NESTED</ds:Signature></z></y>',
+    );
+  });
+
   it("The XML canonicalization method processes a node-set by imposing the following additional document order rules on the namespace and attribute nodes of each element: \
     - An element's namespace and attribute nodes have a document order position greater than the element but less than any child node of the element. \
       Namespace nodes have a lesser document order position than attribute nodes. \
