@@ -1163,16 +1163,14 @@ describe("Signature unit tests", function () {
     const sig = new SignedXml();
     sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
-    for (const id of ["item1", "item2"]) {
-      sig.addReference({
-        xpath: `//*[@Id='${id}']`,
-        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
-        uri: `#${id}`,
-        digestValue: "",
-        inclusiveNamespacesPrefixList: [],
-        isEmptyUri: false,
-      });
-    }
+    // Single addReference() call so addAllReferences() matches both <item>
+    // elements from the same ref.xpath — this is what exercises the
+    // first-match regression; two separate addReference() calls (each with
+    // its own single-match xpath) would pass even without the fix.
+    sig.addReference({
+      xpath: "//*[local-name(.)='item']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
     sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
     sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
     sig.computeSignature(xml);
