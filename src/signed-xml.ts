@@ -1054,10 +1054,15 @@ export class SignedXml {
       referenceNode.parentNode.insertBefore(signatureElem, referenceNode.nextSibling);
     }
 
-    // Now add all references (including any to the signature itself)
-    this.addAllReferences(doc, signatureElem, prefix);
-
+    const previousSignatureNode = this.signatureNode;
     this.signatureNode = signatureElem;
+    try {
+      this.addAllReferences(doc, signatureElem, prefix);
+    } catch (error) {
+      this.signatureNode = previousSignatureNode;
+      throw error;
+    }
+
     const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
     if (signedInfoNodes.length === 0) {
       const err3 = new Error("could not find SignedInfo element in the message");
@@ -1276,6 +1281,21 @@ export class SignedXml {
     options.signatureNode = this.signatureNode;
 
     const canonXml = node.cloneNode(true); // Deep clone
+    if (transforms.includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
+      const signaturePath: number[] = [];
+      let signatureAncestor = this.signatureNode;
+      while (signatureAncestor?.parentNode && signatureAncestor !== node) {
+        signaturePath.push(
+          Array.from<Node>(signatureAncestor.parentNode.childNodes).indexOf(signatureAncestor),
+        );
+        signatureAncestor = signatureAncestor.parentNode;
+      }
+      if (signatureAncestor === node) {
+        options.signatureNode = signaturePath
+          .reverse()
+          .reduce((clonedNode, index) => clonedNode.childNodes[index], canonXml);
+      }
+    }
     let transformedXml: Node | string = canonXml;
 
     transforms.forEach((transformName) => {
