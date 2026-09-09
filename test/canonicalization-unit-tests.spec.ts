@@ -1,9 +1,12 @@
 import { expect } from "chai";
 
-import { ExclusiveCanonicalization } from "../src/exclusive-canonicalization";
+import {
+  ExclusiveCanonicalization,
+  ExclusiveCanonicalizationWithComments,
+} from "../src/exclusive-canonicalization";
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
-import { SignedXml } from "../src/index";
+import { findAncestorNs, SignedXml } from "../src/index";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 const compare = function (
@@ -28,6 +31,50 @@ const compare = function (
 };
 
 describe("Canonicalization unit tests", function () {
+  for (const Canonicalization of [
+    ExclusiveCanonicalization,
+    ExclusiveCanonicalizationWithComments,
+  ]) {
+    describe(`${Canonicalization.name}: configured inclusive namespaces`, function () {
+      const xml =
+        '<root xmlns:b="urn:ancestor" xmlns:c="urn:inherited">' +
+        '<target xmlns:a="urn:a" xmlns:b="urn:local" type="b:Kind"/></root>';
+      const selector = "//*[local-name()='target']";
+
+      it("retains local and inherited bindings requested by the caller", function () {
+        // PrefixList includes QName-value bindings without replacing local declarations with ancestors.
+        // https://www.w3.org/TR/xml-exc-c14n/#sec-Specification
+        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const node = xpath.select1(selector, doc);
+        isDomNode.assertIsElementNode(node);
+
+        const result = new Canonicalization().process(node, {
+          ancestorNamespaces: findAncestorNs(doc, selector),
+          inclusiveNamespacesPrefixList: ["b", "c"],
+        });
+
+        expect(result).to.equal(
+          '<target xmlns:b="urn:local" xmlns:c="urn:inherited" type="b:Kind"></target>',
+        );
+      });
+
+      it("omits non-visible bindings when the caller supplies an empty PrefixList", function () {
+        // Prefixes used only in attribute values are not visibly utilized in exclusive C14N.
+        // https://www.w3.org/TR/xml-exc-c14n/#def-visibly-utilizes
+        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const node = xpath.select1(selector, doc);
+        isDomNode.assertIsElementNode(node);
+
+        const result = new Canonicalization().process(node, {
+          ancestorNamespaces: findAncestorNs(doc, selector),
+          inclusiveNamespacesPrefixList: [],
+        });
+
+        expect(result).to.equal('<target type="b:Kind"></target>');
+      });
+    });
+  }
+
   it("Exclusive canonicalization works on xml with no namespaces", function () {
     compare("<root><child>123</child></root>", "//*", "<root><child>123</child></root>");
   });
@@ -319,83 +366,84 @@ describe("Canonicalization unit tests", function () {
     );
   });
 
-  (it("SignedInfo canonization", function () {
+  it("SignedInfo canonization", function () {
     compare(
       '<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:wsa="http://schemas.xmlsoap.org/ws/2004/03/addressing" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"><soap:Header><wsa:Action wsu:Id="Id-fbcf79b7-9c1b-4e51-b3da-7d6c237be1ec">http://stockservice.contoso.com/wse/samples/2003/06/StockQuoteRequest</wsa:Action><wsa:MessageID wsu:Id="Id-02b76fe1-945c-4e26-a8a5-6650285bbd4c">uuid:6250c037-bcde-40ab-82b3-3a08efc86cdc</wsa:MessageID><wsa:ReplyTo wsu:Id="Id-ccc937f4-8ec8-416a-b97b-0b612a69b040"><wsa:Address>http://schemas.xmlsoap.org/ws/2004/03/addressing/role/anonymous</wsa:Address></wsa:ReplyTo><wsa:To wsu:Id="Id-fa48ae82-88bb-4bf1-9c0d-4eb1de66c4fc">http://localhost:8889/</wsa:To><wsse:Security soap:mustUnderstand="1"><wsu:Timestamp wsu:Id="Timestamp-4d2cce4a-39fb-4d7d-b0d5-17d583255ef5"><wsu:Created>2008-09-01T17:44:21Z</wsu:Created><wsu:Expires>2008-09-01T17:49:21Z</wsu:Expires></wsu:Timestamp><wsse:BinarySecurityToken ValueType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" wsu:Id="SecurityToken-d68c34d4-be89-4a29-aecc-971bce003ed3">MIIBxDCCAW6gAwIBAgIQxUSXFzWJYYtOZnmmuOMKkjANBgkqhkiG9w0BAQQFADAWMRQwEgYDVQQDEwtSb290IEFnZW5jeTAeFw0wMzA3MDgxODQ3NTlaFw0zOTEyMzEyMzU5NTlaMB8xHTAbBgNVBAMTFFdTRTJRdWlja1N0YXJ0Q2xpZW50MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC+L6aB9x928noY4+0QBsXnxkQE4quJl7c3PUPdVu7k9A02hRG481XIfWhrDY5i7OEB7KGW7qFJotLLeMec/UkKUwCgv3VvJrs2nE9xO3SSWIdNzADukYh+Cxt+FUU6tUkDeqg7dqwivOXhuOTRyOI3HqbWTbumaLdc8jufz2LhaQIDAQABo0swSTBHBgNVHQEEQDA+gBAS5AktBh0dTwCNYSHcFmRjoRgwFjEUMBIGA1UEAxMLUm9vdCBBZ2VuY3mCEAY3bACqAGSKEc+41KpcNfQwDQYJKoZIhvcNAQEEBQADQQAfIbnMPVYkNNfX1tG1F+qfLhHwJdfDUZuPyRPucWF5qkh6sSdWVBY5sT/txBnVJGziyO8DPYdu2fPMER8ajJfl</wsse:BinarySecurityToken><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" /><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" /><Reference URI="#Id-fbcf79b7-9c1b-4e51-b3da-7d6c237be1ec"><Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>+465BlJx5xOfHsIFezQt0MS1vZQ=</DigestValue></Reference><Reference URI="#Id-02b76fe1-945c-4e26-a8a5-6650285bbd4c"><Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>jEe8rnaaqBWZQe+xHBQXriVG99o=</DigestValue></Reference><Reference URI="#Id-ccc937f4-8ec8-416a-b97b-0b612a69b040"><Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>W45ginYdBVqOqEaqPI2piZMPReA=</DigestValue></Reference><Reference URI="#Id-fa48ae82-88bb-4bf1-9c0d-4eb1de66c4fc"><Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>m2VlWz/ZDTWL7FREHK+wpKhvjJM=</DigestValue></Reference><Reference URI="#Timestamp-4d2cce4a-39fb-4d7d-b0d5-17d583255ef5"><Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>Qws229qmAzSTZ4OKmAUWgl0PWWo=</DigestValue></Reference><Reference URI="#Id-0175a715-4db3-4886-8af1-991b1472e7f4"><Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" /></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" /><DigestValue>iEazGnkPY5caCWVZOHyR87CZ1h0=</DigestValue></Reference></SignedInfo><SignatureValue>Fkm7AbwiJCiOzY8ldfuA9pTW1G+EtE+UX4Cv7SoMIqeUdfWRDVHZpJAQyf7aoQnlpJNV/3k9L1PT6rJbfV478CkULJENPLm1m0fmDeLzhIHDEANuzp/AirC60tMD5jCARb4B4Nr/6bTmoyDQsTY8VLRiiINng7Mpweg1FZvd8a0=</SignatureValue><KeyInfo><wsse:SecurityTokenReference><wsse:Reference URI="#SecurityToken-d68c34d4-be89-4a29-aecc-971bce003ed3" ValueType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3" /></wsse:SecurityTokenReference></KeyInfo></Signature></wsse:Security></soap:Header><soap:Body wsu:Id="Id-0175a715-4db3-4886-8af1-991b1472e7f4"><StockQuoteRequest xmlns="http://stockservice.contoso.com/wse/samples/2003/06"><symbols><Symbol>FABRIKAM</Symbol></symbols></StockQuoteRequest></soap:Body></soap:Envelope>',
       "//*[local-name(.)='SignedInfo']",
       '<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#"><ds:CanonicalizationMethod xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></ds:CanonicalizationMethod><SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"></SignatureMethod><Reference URI="#Id-fbcf79b7-9c1b-4e51-b3da-7d6c237be1ec"><Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></Transform></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></DigestMethod><DigestValue>+465BlJx5xOfHsIFezQt0MS1vZQ=</DigestValue></Reference><Reference URI="#Id-02b76fe1-945c-4e26-a8a5-6650285bbd4c"><Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></Transform></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></DigestMethod><DigestValue>jEe8rnaaqBWZQe+xHBQXriVG99o=</DigestValue></Reference><Reference URI="#Id-ccc937f4-8ec8-416a-b97b-0b612a69b040"><Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></Transform></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></DigestMethod><DigestValue>W45ginYdBVqOqEaqPI2piZMPReA=</DigestValue></Reference><Reference URI="#Id-fa48ae82-88bb-4bf1-9c0d-4eb1de66c4fc"><Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></Transform></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></DigestMethod><DigestValue>m2VlWz/ZDTWL7FREHK+wpKhvjJM=</DigestValue></Reference><Reference URI="#Timestamp-4d2cce4a-39fb-4d7d-b0d5-17d583255ef5"><Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></Transform></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></DigestMethod><DigestValue>Qws229qmAzSTZ4OKmAUWgl0PWWo=</DigestValue></Reference><Reference URI="#Id-0175a715-4db3-4886-8af1-991b1472e7f4"><Transforms><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"></Transform></Transforms><DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></DigestMethod><DigestValue>iEazGnkPY5caCWVZOHyR87CZ1h0=</DigestValue></Reference></SignedInfo>',
     );
-  }),
-    it("Exclusive canonicalization works on complex xml", function () {
-      compare(
-        '<?xml version="1.0" encoding="utf-8"?>\n' +
-          '<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">\n' +
-          "  <Body>\n" +
-          '    <ACORD xmlns="http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/">\n' +
-          "      <SignonRq>\n" +
-          "        <SessKey />\n" +
-          "        <ClientDt />\n" +
-          "        <CustLangPref />\n" +
-          "        <ClientApp>\n" +
-          '          <Org p6:type="AssignedIdentifier" id="wewe" xmlns:p6="http://www.w3.org/2001/XMLSchema-instance" />\n' +
-          "          <Name />\n" +
-          "          <Version />\n" +
-          "        </ClientApp>\n" +
-          "        <ProxyClient>\n" +
-          '          <Org p6:type="AssignedIdentifier" id="erer" xmlns:p6="http://www.w3.org/2001/XMLSchema-instance" />\n' +
-          "          <Name>ererer</Name>\n" +
-          "          <Version>dfdf</Version>\n" +
-          "        </ProxyClient>\n" +
-          "      </SignonRq>\n" +
-          "      <InsuranceSvcRq>\n" +
-          "        <RqUID />\n" +
-          '        <SPName id="rter" />\n' +
-          '        <QuickHit xmlns="urn:com.thehartford.bi.acord-extensions">\n' +
-          '          <StateProvCd CodeListRef="dfdf" xmlns="http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/" />\n' +
-          "        </QuickHit>\n" +
-          "        <WorkCompPolicyQuoteInqRq>\n" +
-          "          <RqUID>erer</RqUID>\n" +
-          '          <TransactionRequestDt id="erer" />\n' +
-          "          <CurCd />\n" +
-          '          <BroadLOBCd id="erer" />\n' +
-          "          <InsuredOrPrincipal>\n" +
-          "            <ItemIdInfo>\n" +
-          '              <AgencyId id="3434" />\n' +
-          "              <OtherIdentifier>\n" +
-          '                <CommercialName id="3434" />\n' +
-          "                <ContractTerm>\n" +
-          '                  <EffectiveDt id="3434" />\n' +
-          '                  <StartTime id="3434" />\n' +
-          "                </ContractTerm>\n" +
-          "              </OtherIdentifier>\n" +
-          "            </ItemIdInfo>\n" +
-          "          </InsuredOrPrincipal>\n" +
-          "          <InsuredOrPrincipal>\n" +
-          "          </InsuredOrPrincipal>\n" +
-          "          <CommlPolicy>\n" +
-          '            <PolicyNumber id="3434" />\n' +
-          "            <LOBCd />\n" +
-          "          </CommlPolicy>\n" +
-          "          <WorkCompLineBusiness>\n" +
-          "            <LOBCd />\n" +
-          "            <WorkCompRateState>\n" +
-          "              <WorkCompLocInfo>\r" +
-          "              </WorkCompLocInfo>\n" +
-          "            </WorkCompRateState>\n" +
-          "          </WorkCompLineBusiness>\n" +
-          '          <RemarkText IdRef="">\n' +
-          "          </RemarkText>\n" +
-          '          <RemarkText IdRef="2323" id="3434">\n' +
-          "          </RemarkText>\n" +
-          "        </WorkCompPolicyQuoteInqRq>\n" +
-          "      </InsuranceSvcRq>\n" +
-          "    </ACORD>\n" +
-          "  </Body>\n" +
-          "</Envelope>",
-        "//*[local-name(.)='Body']",
-        '<Body xmlns="http://schemas.xmlsoap.org/soap/envelope/">\n    <ACORD xmlns="http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/">\n      <SignonRq>\n        <SessKey></SessKey>\n        <ClientDt></ClientDt>\n        <CustLangPref></CustLangPref>\n        <ClientApp>\n          <Org xmlns:p6="http://www.w3.org/2001/XMLSchema-instance" id="wewe" p6:type="AssignedIdentifier"></Org>\n          <Name></Name>\n          <Version></Version>\n        </ClientApp>\n        <ProxyClient>\n          <Org xmlns:p6="http://www.w3.org/2001/XMLSchema-instance" id="erer" p6:type="AssignedIdentifier"></Org>\n          <Name>ererer</Name>\n          <Version>dfdf</Version>\n        </ProxyClient>\n      </SignonRq>\n      <InsuranceSvcRq>\n        <RqUID></RqUID>\n        <SPName id="rter"></SPName>\n        <QuickHit xmlns="urn:com.thehartford.bi.acord-extensions">\n          <StateProvCd xmlns="http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/" CodeListRef="dfdf"></StateProvCd>\n        </QuickHit>\n        <WorkCompPolicyQuoteInqRq>\n          <RqUID>erer</RqUID>\n          <TransactionRequestDt id="erer"></TransactionRequestDt>\n          <CurCd></CurCd>\n          <BroadLOBCd id="erer"></BroadLOBCd>\n          <InsuredOrPrincipal>\n            <ItemIdInfo>\n              <AgencyId id="3434"></AgencyId>\n              <OtherIdentifier>\n                <CommercialName id="3434"></CommercialName>\n                <ContractTerm>\n                  <EffectiveDt id="3434"></EffectiveDt>\n                  <StartTime id="3434"></StartTime>\n                </ContractTerm>\n              </OtherIdentifier>\n            </ItemIdInfo>\n          </InsuredOrPrincipal>\n          <InsuredOrPrincipal>\n          </InsuredOrPrincipal>\n          <CommlPolicy>\n            <PolicyNumber id="3434"></PolicyNumber>\n            <LOBCd></LOBCd>\n          </CommlPolicy>\n          <WorkCompLineBusiness>\n            <LOBCd></LOBCd>\n            <WorkCompRateState>\n              <WorkCompLocInfo>\n              </WorkCompLocInfo>\n            </WorkCompRateState>\n          </WorkCompLineBusiness>\n          <RemarkText IdRef="">\n          </RemarkText>\n          <RemarkText IdRef="2323" id="3434">\n          </RemarkText>\n        </WorkCompPolicyQuoteInqRq>\n      </InsuranceSvcRq>\n    </ACORD>\n  </Body>',
-      );
-    }));
+  });
+
+  it("Exclusive canonicalization works on complex xml", function () {
+    compare(
+      '<?xml version="1.0" encoding="utf-8"?>\n' +
+        '<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">\n' +
+        "  <Body>\n" +
+        '    <ACORD xmlns="http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/">\n' +
+        "      <SignonRq>\n" +
+        "        <SessKey />\n" +
+        "        <ClientDt />\n" +
+        "        <CustLangPref />\n" +
+        "        <ClientApp>\n" +
+        '          <Org p6:type="AssignedIdentifier" id="wewe" xmlns:p6="http://www.w3.org/2001/XMLSchema-instance" />\n' +
+        "          <Name />\n" +
+        "          <Version />\n" +
+        "        </ClientApp>\n" +
+        "        <ProxyClient>\n" +
+        '          <Org p6:type="AssignedIdentifier" id="erer" xmlns:p6="http://www.w3.org/2001/XMLSchema-instance" />\n' +
+        "          <Name>ererer</Name>\n" +
+        "          <Version>dfdf</Version>\n" +
+        "        </ProxyClient>\n" +
+        "      </SignonRq>\n" +
+        "      <InsuranceSvcRq>\n" +
+        "        <RqUID />\n" +
+        '        <SPName id="rter" />\n' +
+        '        <QuickHit xmlns="urn:com.thehartford.bi.acord-extensions">\n' +
+        '          <StateProvCd CodeListRef="dfdf" xmlns="http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/" />\n' +
+        "        </QuickHit>\n" +
+        "        <WorkCompPolicyQuoteInqRq>\n" +
+        "          <RqUID>erer</RqUID>\n" +
+        '          <TransactionRequestDt id="erer" />\n' +
+        "          <CurCd />\n" +
+        '          <BroadLOBCd id="erer" />\n' +
+        "          <InsuredOrPrincipal>\n" +
+        "            <ItemIdInfo>\n" +
+        '              <AgencyId id="3434" />\n' +
+        "              <OtherIdentifier>\n" +
+        '                <CommercialName id="3434" />\n' +
+        "                <ContractTerm>\n" +
+        '                  <EffectiveDt id="3434" />\n' +
+        '                  <StartTime id="3434" />\n' +
+        "                </ContractTerm>\n" +
+        "              </OtherIdentifier>\n" +
+        "            </ItemIdInfo>\n" +
+        "          </InsuredOrPrincipal>\n" +
+        "          <InsuredOrPrincipal>\n" +
+        "          </InsuredOrPrincipal>\n" +
+        "          <CommlPolicy>\n" +
+        '            <PolicyNumber id="3434" />\n' +
+        "            <LOBCd />\n" +
+        "          </CommlPolicy>\n" +
+        "          <WorkCompLineBusiness>\n" +
+        "            <LOBCd />\n" +
+        "            <WorkCompRateState>\n" +
+        "              <WorkCompLocInfo>\r" +
+        "              </WorkCompLocInfo>\n" +
+        "            </WorkCompRateState>\n" +
+        "          </WorkCompLineBusiness>\n" +
+        '          <RemarkText IdRef="">\n' +
+        "          </RemarkText>\n" +
+        '          <RemarkText IdRef="2323" id="3434">\n' +
+        "          </RemarkText>\n" +
+        "        </WorkCompPolicyQuoteInqRq>\n" +
+        "      </InsuranceSvcRq>\n" +
+        "    </ACORD>\n" +
+        "  </Body>\n" +
+        "</Envelope>",
+      "//*[local-name(.)='Body']",
+      '<Body xmlns="http://schemas.xmlsoap.org/soap/envelope/">\n    <ACORD xmlns="http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/">\n      <SignonRq>\n        <SessKey></SessKey>\n        <ClientDt></ClientDt>\n        <CustLangPref></CustLangPref>\n        <ClientApp>\n          <Org xmlns:p6="http://www.w3.org/2001/XMLSchema-instance" id="wewe" p6:type="AssignedIdentifier"></Org>\n          <Name></Name>\n          <Version></Version>\n        </ClientApp>\n        <ProxyClient>\n          <Org xmlns:p6="http://www.w3.org/2001/XMLSchema-instance" id="erer" p6:type="AssignedIdentifier"></Org>\n          <Name>ererer</Name>\n          <Version>dfdf</Version>\n        </ProxyClient>\n      </SignonRq>\n      <InsuranceSvcRq>\n        <RqUID></RqUID>\n        <SPName id="rter"></SPName>\n        <QuickHit xmlns="urn:com.thehartford.bi.acord-extensions">\n          <StateProvCd xmlns="http://www.ACORD.org/standards/PC_Surety/ACORD1.10.0/xml/" CodeListRef="dfdf"></StateProvCd>\n        </QuickHit>\n        <WorkCompPolicyQuoteInqRq>\n          <RqUID>erer</RqUID>\n          <TransactionRequestDt id="erer"></TransactionRequestDt>\n          <CurCd></CurCd>\n          <BroadLOBCd id="erer"></BroadLOBCd>\n          <InsuredOrPrincipal>\n            <ItemIdInfo>\n              <AgencyId id="3434"></AgencyId>\n              <OtherIdentifier>\n                <CommercialName id="3434"></CommercialName>\n                <ContractTerm>\n                  <EffectiveDt id="3434"></EffectiveDt>\n                  <StartTime id="3434"></StartTime>\n                </ContractTerm>\n              </OtherIdentifier>\n            </ItemIdInfo>\n          </InsuredOrPrincipal>\n          <InsuredOrPrincipal>\n          </InsuredOrPrincipal>\n          <CommlPolicy>\n            <PolicyNumber id="3434"></PolicyNumber>\n            <LOBCd></LOBCd>\n          </CommlPolicy>\n          <WorkCompLineBusiness>\n            <LOBCd></LOBCd>\n            <WorkCompRateState>\n              <WorkCompLocInfo>\n              </WorkCompLocInfo>\n            </WorkCompRateState>\n          </WorkCompLineBusiness>\n          <RemarkText IdRef="">\n          </RemarkText>\n          <RemarkText IdRef="2323" id="3434">\n          </RemarkText>\n        </WorkCompPolicyQuoteInqRq>\n      </InsuranceSvcRq>\n    </ACORD>\n  </Body>',
+    );
+  });
 
   it("Multiple Canonicalization with namespace definition outside of signed element", function () {
     const doc = new xmldom.DOMParser().parseFromString(
