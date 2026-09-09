@@ -169,6 +169,18 @@ export interface CanonicalizationOrTransformationAlgorithm {
   ): Node | string;
 
   getAlgorithmName(): CanonicalizationOrTransformAlgorithmType;
+
+  /**
+   * Whether this algorithm can drop nodes from the node-set it is given, rather
+   * than only re-serializing it. Canonicalization algorithms set this to `false`;
+   * the enveloped-signature transform sets it to `true`.
+   *
+   * `computeSignature()` reads it to decide whether a reference that encloses the
+   * signature can ever verify: if every transform on that reference declares
+   * `false`, the `Signature` provably survives into the digest and the reference
+   * is rejected. Leave it undefined and that check defers to you.
+   */
+  removesNodes?: boolean;
 }
 
 /** Implement this to create a new HashAlgorithm */
