@@ -1190,6 +1190,40 @@ describe("Signature unit tests", function () {
     expect(result, "expected signature to verify successfully").to.be.true;
   });
 
+  it("refuses to digest a non-element node passed to validateElementAgainstReferences", function () {
+    // `idAttributes` is public and mutable, so a JavaScript caller can empty it
+    // and reach the digest path with a node that never sees `getAttribute()`.
+    // Only elements carry namespace declarations, so this has to be refused
+    // outright rather than canonicalized into a digest nobody can interpret.
+    const xml = "<root><x Id='ref1'>hello</x></root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      transforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      uri: "#ref1",
+    });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const sigNode = xpath.select1("//*[local-name(.)='Signature']", doc);
+    isDomNode.assertIsNodeLike(sigNode);
+
+    const verifySig = new SignedXml();
+    verifySig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    verifySig.loadSignature(sigNode);
+    verifySig.idAttributes = [];
+
+    const textNode = xpath.select1("//*[local-name(.)='x']/text()", doc);
+    expect(() =>
+      verifySig.validateElementAgainstReferences(textNode as unknown as Element, doc),
+    ).to.throw("Value is not of type ELEMENT_NODE");
+  });
+
   it("signer appends signature to a non-existing reference node", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
     const sig = new SignedXml();

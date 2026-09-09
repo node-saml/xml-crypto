@@ -437,9 +437,8 @@ export class SignedXml {
     // Derive the scope from the node being digested: findAncestorNs re-runs
     // ref.xpath and keeps only the first match, which digests every reference
     // addAllReferences() created from that xpath in the first match's scope.
-    if (isDomNode.isElementNode(node)) {
-      ref.ancestorNamespaces = utils.findAncestorNsForNode(node);
-    }
+    isDomNode.assertIsElementNode(node);
+    ref.ancestorNamespaces = utils.findAncestorNsForNode(node);
 
     const c14nOptions = {
       inclusiveNamespacesPrefixList: ref.inclusiveNamespacesPrefixList,
