@@ -140,7 +140,10 @@ describe("ds:Object support in XML signatures", function () {
     sig.addReference({
       xpath: "/*",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      transforms: [
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        "http://www.w3.org/2001/10/xml-exc-c14n#",
+      ],
     });
 
     // When we add a prefix to the signature, there is no default namespace
@@ -167,7 +170,10 @@ describe("ds:Object support in XML signatures", function () {
     sigWithNull.addReference({
       xpath: "/*",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      transforms: [
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        "http://www.w3.org/2001/10/xml-exc-c14n#",
+      ],
     });
 
     sigWithNull.computeSignature(xml);
@@ -190,7 +196,10 @@ describe("ds:Object support in XML signatures", function () {
     sigWithEmpty.addReference({
       xpath: "/*",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      transforms: [
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        "http://www.w3.org/2001/10/xml-exc-c14n#",
+      ],
     });
 
     sigWithEmpty.computeSignature(xml);
@@ -628,7 +637,10 @@ describe("Signature self-reference prevention", function () {
     sig.addReference({
       xpath: "/*",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      transforms: [
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+        "http://www.w3.org/2001/10/xml-exc-c14n#",
+      ],
     });
 
     sig.addReference({

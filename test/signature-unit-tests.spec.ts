@@ -167,7 +167,10 @@ describe("Signature unit tests", function () {
       sig.addReference({
         xpath: "//*[local-name(.)='x']",
         digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+        transforms: [
+          "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+          "http://www.w3.org/2001/10/xml-exc-c14n#",
+        ],
       });
       sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
       sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
@@ -1224,6 +1227,29 @@ describe("Signature unit tests", function () {
       "a non-element must never be reported as covered by a validated reference",
     ).to.throw();
   });
+
+  for (const { label, transforms } of [
+    { label: "no transforms", transforms: undefined },
+    { label: "canonicalization alone", transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"] },
+  ]) {
+    it(`refuses to sign a reference that encloses the signature, given ${label}`, function () {
+      // The signature is appended into <root>, so this reference covers it, and
+      // nothing in the chain can take it back out. Signing would emit a digest
+      // over an unfinished Signature that can never be reproduced on verification.
+      const xml = "<root><x>hello</x></root>";
+      const sig = new SignedXml();
+      sig.privateKey = fs.readFileSync("./test/static/client.pem");
+      sig.addReference({
+        xpath: "/*",
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        ...(transforms !== undefined ? { transforms } : {}),
+      });
+      sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+      sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+
+      expect(() => sig.computeSignature(xml)).to.throw(/enveloped-signature transform/);
+    });
+  }
 
   it("signer appends signature to a non-existing reference node", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";

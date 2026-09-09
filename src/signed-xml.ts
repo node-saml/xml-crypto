@@ -33,6 +33,16 @@ const warnOriginalXmlWithIds = deprecate(
   "XML_CRYPTO_GET_ORIGINAL_XML_WITH_IDS",
 );
 
+// Canonicalization renders the node-set it is given; only a transform that drops
+// nodes can take the Signature back out. An unrecognised transform might do that,
+// so a chain built purely from these is the one case where we can prove it cannot.
+const CANONICALIZATION_ONLY_TRANSFORMS: ReadonlySet<string> = new Set([
+  "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+  "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments",
+  "http://www.w3.org/2001/10/xml-exc-c14n#",
+  "http://www.w3.org/2001/10/xml-exc-c14n#WithComments",
+]);
+
 export class SignedXml {
   idMode?: "wssecurity";
   idAttributes: string[];
@@ -1133,6 +1143,22 @@ export class SignedXml {
         ) {
           throw new Error(
             `Cannot sign a reference to the Signature or SignedInfo element itself: ${ref.xpath}`,
+          );
+        }
+
+        // The Signature is already in the document, and its SignatureValue is still
+        // empty, so digesting content that encloses it can never match on verification.
+        // https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature
+        if (
+          utils.isDescendantOf(signatureElem, node) &&
+          (ref.transforms ?? []).every((transform) =>
+            CANONICALIZATION_ONLY_TRANSFORMS.has(transform),
+          )
+        ) {
+          throw new Error(
+            `The reference ${ref.xpath} encloses the signature, so it requires the ` +
+              "http://www.w3.org/2000/09/xmldsig#enveloped-signature transform. " +
+              "Without it the signature cannot be verified.",
           );
         }
 

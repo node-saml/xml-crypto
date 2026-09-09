@@ -269,7 +269,7 @@ To sign xml documents:
   - `xpath` - a string containing a XPath expression referencing a xml element
   - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array.
     Omit it, or pass an empty array, to emit no `Transforms` element; the referenced element is then digested after canonicalization alone.
-    Note that an enveloped signature needs `http://www.w3.org/2000/09/xmldsig#enveloped-signature` in this array — without it the `Signature` element is digested along with the content it signs, and the result will not verify.
+    If the referenced element encloses the signature, this array has to include `http://www.w3.org/2000/09/xmldsig#enveloped-signature`, which removes the `Signature` before digesting; `computeSignature()` rejects the reference otherwise rather than emit a signature that cannot verify. Supply your own transform and that check defers to it, since only you know whether it removes the `Signature`.
   - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing-algorithms)
   - `id` - an optional `Id` attribute to add to the reference element
   - `type` - the optional `Type` attribute to add to the reference element (represented as a URI)
