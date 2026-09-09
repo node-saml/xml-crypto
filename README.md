@@ -359,7 +359,7 @@ function MyTransformation() {
 }
 ```
 
-Declare `removesNodes = false` only if the algorithm returns the node-set it was given. If it filters nodes at all, declare `true`. `computeSignature()` reads this to decide whether a reference enclosing the signature can ever verify, so a wrong `false` there turns a signature it should have rejected into one nobody can verify.
+Declare `removesNodes = false` if the algorithm returns the node-set it was given, and `true` if it filters nodes at all. `computeSignature()` reads this to decide whether a reference enclosing the signature can ever verify, and the two mistakes cost you different things: declaring `true` when the algorithm actually preserves everything skips that check, so you can sign a reference nobody can verify, while declaring `false` when it actually filters makes the check reject a reference that would have worked.
 
 Custom canonicalization is actually the same as custom transformation. It is applied on the SignedInfo rather than on references.
 

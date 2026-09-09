@@ -1,6 +1,10 @@
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
-import { SignedXml, createOptionalCallbackFunction } from "../src/index";
+import {
+  SignedXml,
+  createOptionalCallbackFunction,
+  type CanonicalizationOrTransformationAlgorithm,
+} from "../src/index";
 import * as fs from "fs";
 import * as crypto from "crypto";
 import { expect } from "chai";
@@ -1256,6 +1260,44 @@ describe("Signature unit tests", function () {
       sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
 
       expect(() => sig.computeSignature(xml)).to.throw(/enveloped-signature transform/);
+    });
+  }
+
+  for (const { label, declared } of [
+    { label: "omits removesNodes", declared: undefined },
+    { label: "declares a non-boolean removesNodes", declared: "false" },
+  ]) {
+    it(`refuses to sign with a registered algorithm that ${label}`, function () {
+      // Registering an algorithm is reachable from JavaScript, where the required
+      // type is no help. An undeclared value must not quietly skip the check on a
+      // reference that encloses the signature.
+      class UndeclaredAlgorithm {
+        process() {
+          return "<root></root>";
+        }
+        getAlgorithmName() {
+          return "http://Undeclared";
+        }
+      }
+      if (declared !== undefined) {
+        Object.assign(UndeclaredAlgorithm.prototype, { removesNodes: declared });
+      }
+
+      const sig = new SignedXml();
+      sig.CanonicalizationAlgorithms["http://Undeclared"] =
+        UndeclaredAlgorithm as unknown as new () => CanonicalizationOrTransformationAlgorithm;
+      sig.privateKey = fs.readFileSync("./test/static/client.pem");
+      sig.addReference({
+        xpath: "/*",
+        transforms: ["http://Undeclared"],
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      });
+      sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+      sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+
+      expect(() => sig.computeSignature("<root><x>hi</x></root>")).to.throw(
+        /must declare a boolean 'removesNodes'/,
+      );
     });
   }
 

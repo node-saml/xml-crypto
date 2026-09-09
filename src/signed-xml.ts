@@ -473,12 +473,23 @@ export class SignedXml {
     }
   }
 
-  // Registering an algorithm is reachable from JavaScript, so `removesNodes` can
-  // still arrive undefined despite being required; only an explicit `false` proves
-  // the node-set survives, and anything else defers rather than reject wrongly.
+  // Registering an algorithm is reachable from JavaScript, where the required type
+  // buys nothing, so the declaration is checked here. Treating an undeclared value
+  // as "might remove nodes" would silently reinstate the opt-out the contract exists
+  // to remove, and sign references that cannot verify.
   private preservesEveryNode(name: CanonicalizationOrTransformAlgorithmType): boolean {
     const algo = this.CanonicalizationAlgorithms[name];
-    return algo != null && new algo().removesNodes === false;
+    if (algo == null) {
+      // Unregistered; findCanonicalizationAlgorithm reports it with a better message.
+      return false;
+    }
+
+    const { removesNodes } = new algo();
+    if (typeof removesNodes !== "boolean") {
+      throw new Error(`canonicalization algorithm '${name}' must declare a boolean 'removesNodes'`);
+    }
+
+    return !removesNodes;
   }
 
   private findCanonicalizationAlgorithm(name: CanonicalizationOrTransformAlgorithmType) {

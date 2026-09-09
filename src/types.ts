@@ -180,8 +180,10 @@ export interface CanonicalizationOrTransformationAlgorithm {
    * `false`, the `Signature` provably survives into the digest, so the reference
    * is rejected rather than signed into something unverifiable.
    *
-   * Declare `false` only if the algorithm returns the node-set it was given. If it
-   * filters nodes at all, declare `true`, which is also the conservative answer.
+   * Declare `false` if the algorithm returns the node-set it was given, `true` if it
+   * filters nodes at all. Declaring `true` when it actually preserves everything
+   * skips the check above and can sign a reference nobody can verify; declaring
+   * `false` when it actually filters can reject a reference that would have worked.
    */
   removesNodes: boolean;
 }
