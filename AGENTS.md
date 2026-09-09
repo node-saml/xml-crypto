@@ -75,38 +75,25 @@ without ever having made the choice.
 
 ## Tests
 
-The suite is not here to cover the code. It exists to catch two specific failures, and a
-test that is not chasing one of them probably should not exist.
+Tests should protect observable behavior rather than implementation details. Favor tests
+that establish what the library accepts, rejects, emits, or considers trustworthy.
+Security regressions are especially important: a test should ensure that malformed or
+adversarial XML cannot cause the library to report untrusted data as valid.
 
-Every test has the same shape. Give the library:
-
-- **XML** — a document crafted to exercise the case.
-- **A configuration a JavaScript caller could actually pass.** The types only protect
-  TypeScript users. If a configuration is reachable from plain JavaScript then it is
-  reachable in production, whether or not `tsc` would have rejected it, so write the test
-  for what JavaScript allows rather than for what the types permit. When the point of the
-  test is that a JavaScript caller can reach that state, casting away the type error is
-  correct; use `as`, since `!` assertions fail lint.
-
-Then assert that the library does neither of these:
-
-1. **Returns improper data.** Output that violates the specs, fails to interoperate with
-   documents other implementations produce, or ignores an established best practice.
-2. **Claims something is secure or trusted when it is not.** Reports a signature as
-   valid, or data as trustworthy, when the document does not justify it. This is the
-   attack-vector case, and the worse of the two, because the caller has no way to detect
-   the lie.
-
-Nothing else is likely to earn a test. Don't pin internal implementation details: a test
-asserting how a private method behaves, or one that restates the code, catches nothing
-and makes refactoring expensive. Add a test when a change alters what the library
-accepts, rejects, or emits; skip it when the change is internal and the observable
-behavior is identical.
-
-For a bug fix, watch the test fail first. A regression test nobody observed failing — for
-the reported reason, not an unrelated one — proves nothing about the fix. A branch that
-only reproduces a bug is legitimately red; say so rather than skipping the test to get
-green.
+- Test at a public boundary for the behavior being changed.
+- Where possible, start with XML and a configuration a JavaScript caller could actually
+  provide, then exercise the public API.
+- Test an algorithm or utility directly only when it has an independently defined
+  observable contract, such as canonicalization or exported encoding utilities. Assert its
+  externally meaningful input/output behavior rather than its private implementation.
+- Do not unit-test private methods merely to increase coverage or mirror their
+  implementation. Good public-boundary tests naturally exercise meaningful code paths.
+  Uncovered code indicates either inadequately tested public behavior or code that may be
+  unnecessary; determine which rather than adding private-method tests to raise coverage.
+- Add a test when a change alters what the library accepts, rejects, emits, or considers
+  trustworthy.
+- For a bug fix, observe the regression test failing for the reported reason before
+  applying the fix.
 
 ## Style
 
@@ -144,3 +131,7 @@ form for that; on internal code and tests it advertises a contract that isn't th
 - Keep changes minimal and focused; use modern semantic coding practices.
 - Work in `src/` and `test/` unless asked otherwise.
 - Never edit `node_modules/` or `lib/`.
+- Before changing behavior, read the relevant implementation, tests, and public API. Do
+  not infer behavior from names or issue descriptions when the repository can answer the
+  question. Keep the change scoped to the requested problem; do not combine bug fixes with
+  unrelated refactoring or cleanup.
