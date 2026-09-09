@@ -473,8 +473,9 @@ export class SignedXml {
     }
   }
 
-  /** An algorithm that has not declared itself might drop the `Signature`, so only a
-   *  declared `false` proves the node-set survives the transform intact. */
+  // Registering an algorithm is reachable from JavaScript, so `removesNodes` can
+  // still arrive undefined despite being required; only an explicit `false` proves
+  // the node-set survives, and anything else defers rather than reject wrongly.
   private preservesEveryNode(name: CanonicalizationOrTransformAlgorithmType): boolean {
     const algo = this.CanonicalizationAlgorithms[name];
     return algo != null && new algo().removesNodes === false;
