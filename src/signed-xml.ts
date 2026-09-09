@@ -473,30 +473,21 @@ export class SignedXml {
     }
   }
 
-  // Registering an algorithm is reachable from JavaScript, where the required type
-  // buys nothing, so the declaration is checked here. Treating an undeclared value
-  // as "might remove nodes" would silently reinstate the opt-out the contract exists
-  // to remove, and sign references that cannot verify.
-  private preservesEveryNode(name: CanonicalizationOrTransformAlgorithmType): boolean {
-    const algo = this.CanonicalizationAlgorithms[name];
-    if (algo == null) {
-      // Unregistered; findCanonicalizationAlgorithm reports it with a better message.
-      return false;
-    }
-
-    const { removesNodes } = new algo();
-    if (typeof removesNodes !== "boolean") {
-      throw new Error(`canonicalization algorithm '${name}' must declare a boolean 'removesNodes'`);
-    }
-
-    return !removesNodes;
-  }
-
   private findCanonicalizationAlgorithm(name: CanonicalizationOrTransformAlgorithmType) {
     if (name != null) {
       const algo = this.CanonicalizationAlgorithms[name];
       if (algo) {
-        return new algo();
+        const instance = new algo();
+        // Registering is reachable from JavaScript, where the required type buys
+        // nothing. Checking here covers every algorithm we instantiate, rather than
+        // only the ones a particular caller happens to look at.
+        if (typeof instance.removesNodes !== "boolean") {
+          throw new Error(
+            `canonicalization algorithm '${name}' must declare a boolean 'removesNodes'`,
+          );
+        }
+
+        return instance;
       }
     }
 
@@ -1160,7 +1151,9 @@ export class SignedXml {
         // https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature
         if (
           utils.isDescendantOf(signatureElem, node) &&
-          (ref.transforms ?? []).every((transform) => this.preservesEveryNode(transform))
+          (ref.transforms ?? [])
+            .map((transform) => this.findCanonicalizationAlgorithm(transform))
+            .every((algorithm) => !algorithm.removesNodes)
         ) {
           throw new Error(
             `The reference ${ref.xpath} encloses the signature, so it requires the ` +

@@ -1301,6 +1301,36 @@ describe("Signature unit tests", function () {
     });
   }
 
+  it("validates a transform declaration wherever it sits in the chain", function () {
+    // The enclosing-reference check stops at the first transform that removes
+    // nodes, so an undeclared algorithm sitting after enveloped-signature must
+    // still be rejected rather than skipped.
+    class UndeclaredAlgorithm {
+      process(node: Node) {
+        return node;
+      }
+      getAlgorithmName() {
+        return "http://Undeclared";
+      }
+    }
+
+    const sig = new SignedXml();
+    sig.CanonicalizationAlgorithms["http://Undeclared"] =
+      UndeclaredAlgorithm as unknown as new () => CanonicalizationOrTransformationAlgorithm;
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference({
+      xpath: "/*",
+      transforms: ["http://www.w3.org/2000/09/xmldsig#enveloped-signature", "http://Undeclared"],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+
+    expect(() => sig.computeSignature("<root><x>hi</x></root>")).to.throw(
+      /must declare a boolean 'removesNodes'/,
+    );
+  });
+
   it("signer appends signature to a non-existing reference node", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
     const sig = new SignedXml();
