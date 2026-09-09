@@ -47,7 +47,10 @@ export function findChildren(node: Node | Document, localName: string, namespace
   return res;
 }
 
-/** @deprecated */
+/**
+ * @deprecated Will be removed in 7.0. Use {@link findChildren} instead; the signature and
+ *   behaviour are identical.
+ */
 export function findChilds(node: Node | Document, localName: string, namespace?: string) {
   return findChildren(node, localName, namespace);
 }
