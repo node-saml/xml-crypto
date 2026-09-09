@@ -1,26 +1,22 @@
 import * as crypto from "crypto";
-import { type SignatureAlgorithm, createOptionalCallbackFunction } from "./types";
+import type { SignatureAlgorithm } from "./types";
 
 export class RsaSha1 implements SignatureAlgorithm {
-  getSignature = createOptionalCallbackFunction(
-    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
-      const signer = crypto.createSign("RSA-SHA1");
-      signer.update(signedInfo);
-      const res = signer.sign(privateKey, "base64");
+  getSignature = (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+    const signer = crypto.createSign("RSA-SHA1");
+    signer.update(signedInfo);
+    const res = signer.sign(privateKey, "base64");
 
-      return res;
-    },
-  );
+    return res;
+  };
 
-  verifySignature = createOptionalCallbackFunction(
-    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
-      const verifier = crypto.createVerify("RSA-SHA1");
-      verifier.update(material);
-      const res = verifier.verify(key, signatureValue, "base64");
+  verifySignature = (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+    const verifier = crypto.createVerify("RSA-SHA1");
+    verifier.update(material);
+    const res = verifier.verify(key, signatureValue, "base64");
 
-      return res;
-    },
-  );
+    return res;
+  };
 
   getAlgorithmName = () => {
     return "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
@@ -28,25 +24,21 @@ export class RsaSha1 implements SignatureAlgorithm {
 }
 
 export class RsaSha256 implements SignatureAlgorithm {
-  getSignature = createOptionalCallbackFunction(
-    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
-      const signer = crypto.createSign("RSA-SHA256");
-      signer.update(signedInfo);
-      const res = signer.sign(privateKey, "base64");
+  getSignature = (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+    const signer = crypto.createSign("RSA-SHA256");
+    signer.update(signedInfo);
+    const res = signer.sign(privateKey, "base64");
 
-      return res;
-    },
-  );
+    return res;
+  };
 
-  verifySignature = createOptionalCallbackFunction(
-    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
-      const verifier = crypto.createVerify("RSA-SHA256");
-      verifier.update(material);
-      const res = verifier.verify(key, signatureValue, "base64");
+  verifySignature = (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+    const verifier = crypto.createVerify("RSA-SHA256");
+    verifier.update(material);
+    const res = verifier.verify(key, signatureValue, "base64");
 
-      return res;
-    },
-  );
+    return res;
+  };
 
   getAlgorithmName = () => {
     return "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
@@ -54,46 +46,42 @@ export class RsaSha256 implements SignatureAlgorithm {
 }
 
 export class RsaSha256Mgf1 implements SignatureAlgorithm {
-  getSignature = createOptionalCallbackFunction(
-    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
-      if (!(typeof privateKey === "string" || Buffer.isBuffer(privateKey))) {
-        throw new Error("keys must be strings or buffers");
-      }
-      const signer = crypto.createSign("RSA-SHA256");
-      signer.update(signedInfo);
-      const res = signer.sign(
-        {
-          key: privateKey,
-          padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
-        },
-        "base64",
-      );
+  getSignature = (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+    if (!(typeof privateKey === "string" || Buffer.isBuffer(privateKey))) {
+      throw new Error("keys must be strings or buffers");
+    }
+    const signer = crypto.createSign("RSA-SHA256");
+    signer.update(signedInfo);
+    const res = signer.sign(
+      {
+        key: privateKey,
+        padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+        saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
+      },
+      "base64",
+    );
 
-      return res;
-    },
-  );
+    return res;
+  };
 
-  verifySignature = createOptionalCallbackFunction(
-    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
-      if (!(typeof key === "string" || Buffer.isBuffer(key))) {
-        throw new Error("keys must be strings or buffers");
-      }
-      const verifier = crypto.createVerify("RSA-SHA256");
-      verifier.update(material);
-      const res = verifier.verify(
-        {
-          key: key,
-          padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-          saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
-        },
-        signatureValue,
-        "base64",
-      );
+  verifySignature = (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+    if (!(typeof key === "string" || Buffer.isBuffer(key))) {
+      throw new Error("keys must be strings or buffers");
+    }
+    const verifier = crypto.createVerify("RSA-SHA256");
+    verifier.update(material);
+    const res = verifier.verify(
+      {
+        key: key,
+        padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+        saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
+      },
+      signatureValue,
+      "base64",
+    );
 
-      return res;
-    },
-  );
+    return res;
+  };
 
   getAlgorithmName = () => {
     return "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1";
@@ -101,25 +89,21 @@ export class RsaSha256Mgf1 implements SignatureAlgorithm {
 }
 
 export class RsaSha512 implements SignatureAlgorithm {
-  getSignature = createOptionalCallbackFunction(
-    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
-      const signer = crypto.createSign("RSA-SHA512");
-      signer.update(signedInfo);
-      const res = signer.sign(privateKey, "base64");
+  getSignature = (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+    const signer = crypto.createSign("RSA-SHA512");
+    signer.update(signedInfo);
+    const res = signer.sign(privateKey, "base64");
 
-      return res;
-    },
-  );
+    return res;
+  };
 
-  verifySignature = createOptionalCallbackFunction(
-    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
-      const verifier = crypto.createVerify("RSA-SHA512");
-      verifier.update(material);
-      const res = verifier.verify(key, signatureValue, "base64");
+  verifySignature = (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+    const verifier = crypto.createVerify("RSA-SHA512");
+    verifier.update(material);
+    const res = verifier.verify(key, signatureValue, "base64");
 
-      return res;
-    },
-  );
+    return res;
+  };
 
   getAlgorithmName = () => {
     return "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512";
@@ -127,35 +111,31 @@ export class RsaSha512 implements SignatureAlgorithm {
 }
 
 export class HmacSha1 implements SignatureAlgorithm {
-  getSignature = createOptionalCallbackFunction(
-    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
-      const signer = crypto.createHmac("SHA1", privateKey);
-      signer.update(signedInfo);
-      const res = signer.digest("base64");
+  getSignature = (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+    const signer = crypto.createHmac("SHA1", privateKey);
+    signer.update(signedInfo);
+    const res = signer.digest("base64");
 
-      return res;
-    },
-  );
+    return res;
+  };
 
-  verifySignature = createOptionalCallbackFunction(
-    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
-      const verifier = crypto.createHmac("SHA1", key);
-      verifier.update(material);
-      const res = verifier.digest("base64");
+  verifySignature = (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+    const verifier = crypto.createHmac("SHA1", key);
+    verifier.update(material);
+    const res = verifier.digest("base64");
 
-      // Use constant-time comparison to prevent timing attacks (CWE-208)
-      // See: https://github.com/node-saml/xml-crypto/issues/522
-      try {
-        return crypto.timingSafeEqual(
-          Buffer.from(res, "base64"),
-          Buffer.from(signatureValue, "base64"),
-        );
-      } catch (e) {
-        // timingSafeEqual throws if buffer lengths don't match
-        return false;
-      }
-    },
-  );
+    // Use constant-time comparison to prevent timing attacks (CWE-208)
+    // See: https://github.com/node-saml/xml-crypto/issues/522
+    try {
+      return crypto.timingSafeEqual(
+        Buffer.from(res, "base64"),
+        Buffer.from(signatureValue, "base64"),
+      );
+    } catch (e) {
+      // timingSafeEqual throws if buffer lengths don't match
+      return false;
+    }
+  };
 
   getAlgorithmName = () => {
     return "http://www.w3.org/2000/09/xmldsig#hmac-sha1";
