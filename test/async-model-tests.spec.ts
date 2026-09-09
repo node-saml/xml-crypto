@@ -29,6 +29,10 @@ class NeitherFormSha256 {
   getAlgorithmName = () => SHA256;
 }
 
+class NeitherFormRsaSha256 {
+  getAlgorithmName = () => RSA_SHA256;
+}
+
 const signatureAlgorithms = [
   "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
   RSA_SHA256,
@@ -225,5 +229,107 @@ describe("Synchronous and asynchronous entry points", function () {
     expect(rejection, "should not have thrown before the promise settled").to.be.undefined;
     await promise;
     expect(rejection?.message).to.equal("signatureAlgorithm is required");
+  });
+
+  describe("validateElementAgainstReferencesAsync", function () {
+    async function loadedVerifier(): Promise<{ sig: SignedXml; doc: Document; signed: string }> {
+      const sig = signer();
+      sig.computeSignature(xml);
+      const signed = sig.getSignedXml();
+
+      const check = verifier(signed);
+      expect(await check.checkSignatureAsync(signed)).to.be.true;
+
+      return { sig: check, doc: new xmldom.DOMParser().parseFromString(signed), signed };
+    }
+
+    it("finds the reference whose digest matches the element", async function () {
+      const { sig, doc } = await loadedVerifier();
+      const element = xpath.select1("//*[local-name(.)='x']", doc);
+      isDomNode.assertIsElementNode(element);
+
+      const matched = await sig.validateElementAgainstReferencesAsync(element, doc);
+
+      expect(matched.uri).to.equal("#_0");
+    });
+
+    it("uses an async-only digest algorithm", async function () {
+      const { sig, doc } = await loadedVerifier();
+      sig.HashAlgorithms[SHA256] = AsyncOnlySha256;
+      const element = xpath.select1("//*[local-name(.)='x']", doc);
+      isDomNode.assertIsElementNode(element);
+
+      expect((await sig.validateElementAgainstReferencesAsync(element, doc)).uri).to.equal("#_0");
+    });
+
+    it("rejects when no reference matches the element", async function () {
+      const { sig, doc } = await loadedVerifier();
+      const unsigned = xpath.select1("//*[local-name(.)='Signature']", doc);
+      isDomNode.assertIsElementNode(unsigned);
+
+      let rejection: Error | undefined;
+      try {
+        await sig.validateElementAgainstReferencesAsync(unsigned, doc);
+      } catch (error) {
+        rejection = error as Error;
+      }
+
+      expect(rejection?.message).to.equal("No references passed validation");
+    });
+  });
+
+  it("reports a reference it cannot resolve as invalid, asynchronously", async function () {
+    const sig = signer();
+    sig.computeSignature(xml);
+    const signed = sig.getSignedXml();
+    // Break the element the reference points at, leaving the reference itself intact.
+    const tampered = signed.replace('Id="_0"', 'Id="_9"');
+
+    expect(await verifier(tampered).checkSignatureAsync(tampered)).to.be.false;
+  });
+
+  it("names computeSignatureAsync when only the signature algorithm is async-only", function () {
+    const sig = signer();
+    sig.SignatureAlgorithms[RSA_SHA256] = AsyncOnlyRsaSha256;
+
+    expect(() => sig.computeSignature(xml)).to.throw(
+      "AsyncOnlyRsaSha256 is async-only; use computeSignatureAsync()",
+    );
+  });
+
+  it("rejects when the signature algorithm implements neither form", async function () {
+    const sig = signer();
+    sig.SignatureAlgorithms[RSA_SHA256] = NeitherFormRsaSha256;
+
+    let rejection: Error | undefined;
+    try {
+      await sig.computeSignatureAsync(xml);
+    } catch (error) {
+      rejection = error as Error;
+    }
+
+    expect(rejection?.message).to.equal(
+      "NeitherFormRsaSha256 implements neither getSignature() nor getSignatureAsync()",
+    );
+  });
+
+  it("rejects when the verification algorithm implements neither form", async function () {
+    const sig = signer();
+    sig.computeSignature(xml);
+    const signed = sig.getSignedXml();
+
+    const check = verifier(signed);
+    check.SignatureAlgorithms[RSA_SHA256] = NeitherFormRsaSha256;
+
+    let rejection: Error | undefined;
+    try {
+      await check.checkSignatureAsync(signed);
+    } catch (error) {
+      rejection = error as Error;
+    }
+
+    expect(rejection?.message).to.equal(
+      "NeitherFormRsaSha256 implements neither verifySignature() nor verifySignatureAsync()",
+    );
   });
 });
