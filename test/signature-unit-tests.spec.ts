@@ -1331,6 +1331,66 @@ describe("Signature unit tests", function () {
     );
   });
 
+  it("refuses to verify with a registered algorithm that omits removesNodes", function () {
+    // The declaration is part of the contract on both sides, so a verifier whose
+    // own registry is misconfigured must refuse rather than canonicalize with an
+    // algorithm that never said what it does.
+    const custom = "http://Custom";
+    class DeclaredTransform {
+      removesNodes = false;
+      process(node: Node) {
+        return node.toString();
+      }
+      getAlgorithmName() {
+        return custom;
+      }
+    }
+    class UndeclaredTransform {
+      process(node: Node) {
+        return node.toString();
+      }
+      getAlgorithmName() {
+        return custom;
+      }
+    }
+    const register = (target: SignedXml, algorithm: unknown) => {
+      target.CanonicalizationAlgorithms[custom] =
+        algorithm as new () => CanonicalizationOrTransformationAlgorithm;
+    };
+
+    const sig = new SignedXml();
+    register(sig, DeclaredTransform);
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      transforms: [custom],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    sig.computeSignature("<root><x Id='ref1'>hi</x></root>");
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const sigNode = xpath.select1("//*[local-name(.)='Signature']", doc);
+    isDomNode.assertIsNodeLike(sigNode);
+
+    // The document itself is sound: a correctly declared verifier accepts it.
+    const declaredVerifier = new SignedXml();
+    register(declaredVerifier, DeclaredTransform);
+    declaredVerifier.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    declaredVerifier.loadSignature(sigNode);
+    expect(declaredVerifier.checkSignature(signedXml), "document should be valid").to.be.true;
+
+    const undeclaredVerifier = new SignedXml();
+    register(undeclaredVerifier, UndeclaredTransform);
+    undeclaredVerifier.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    undeclaredVerifier.loadSignature(sigNode);
+    expect(() => undeclaredVerifier.checkSignature(signedXml)).to.throw(
+      /must declare a boolean 'removesNodes'/,
+    );
+  });
+
   it("signer appends signature to a non-existing reference node", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
     const sig = new SignedXml();

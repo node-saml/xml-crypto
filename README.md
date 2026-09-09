@@ -359,7 +359,9 @@ function MyTransformation() {
 }
 ```
 
-Declare `removesNodes = false` if the algorithm returns the node-set it was given, and `true` if it filters nodes at all. `computeSignature()` reads this to decide whether a reference enclosing the signature can ever verify, and the two mistakes cost you different things: declaring `true` when the algorithm actually preserves everything skips that check, so you can sign a reference nobody can verify, while declaring `false` when it actually filters makes the check reject a reference that would have worked.
+`removesNodes` is required on every canonicalization and transformation algorithm, including ones written in plain JavaScript. It is checked as the algorithm is instantiated, so a missing or non-boolean value throws from `checkSignature()` just as it does from `computeSignature()` — a verifier whose own registry is misconfigured refuses rather than canonicalizing with an algorithm that never said what it does. Registrations you never use are not checked.
+
+Declare `false` if the algorithm returns the node-set it was given, and `true` if it filters nodes at all. `computeSignature()` also reads this to decide whether a reference enclosing the signature can ever verify, and the two mistakes cost you different things: declaring `true` when the algorithm actually preserves everything skips that check, so you can sign a reference nobody can verify, while declaring `false` when it actually filters makes the check reject a reference that would have worked.
 
 Custom canonicalization is actually the same as custom transformation. It is applied on the SignedInfo rather than on references.
 

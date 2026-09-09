@@ -175,10 +175,16 @@ export interface CanonicalizationOrTransformationAlgorithm {
    * than only re-serializing it. Canonicalization algorithms declare `false`;
    * the enveloped-signature transform declares `true`.
    *
-   * `computeSignature()` reads it to decide whether a reference that encloses the
-   * signature can ever verify: if every transform on that reference declares
-   * `false`, the `Signature` provably survives into the digest, so the reference
-   * is rejected rather than signed into something unverifiable.
+   * Required, and enforced on both sides: every algorithm is checked as it is
+   * instantiated, so a missing or non-boolean value throws from `computeSignature()`
+   * and from `checkSignature()` alike. That covers algorithms registered from
+   * JavaScript, which this type cannot reach. Registrations that are never used are
+   * not checked.
+   *
+   * `computeSignature()` also reads the value to decide whether a reference that
+   * encloses the signature can ever verify: if every transform on that reference
+   * declares `false`, the `Signature` provably survives into the digest, so the
+   * reference is rejected rather than signed into something unverifiable.
    *
    * Declare `false` if the algorithm returns the node-set it was given, `true` if it
    * filters nodes at all. Declaring `true` when it actually preserves everything
