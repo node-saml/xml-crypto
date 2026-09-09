@@ -615,10 +615,10 @@ export class SignedXml {
     // Derive the scope from the node being digested: findAncestorNs re-runs ref.xpath and
     // keeps only the first match, which digests every reference addAllReferences() created
     // from that xpath in the first match's scope. findAncestorNsForElement (above) already
-    // takes a known element instead, so reuse it here.
-    if (isDomNode.isElementNode(node)) {
-      ref.ancestorNamespaces = utils.findAncestorNsForElement(node);
-    }
+    // takes a known element instead, so reuse it here. All call sites already establish
+    // element-ness, so assert it rather than silently skipping.
+    isDomNode.assertIsElementNode(node);
+    ref.ancestorNamespaces = utils.findAncestorNsForElement(node);
 
     const c14nOptions = {
       ancestorNamespaces: ref.ancestorNamespaces,

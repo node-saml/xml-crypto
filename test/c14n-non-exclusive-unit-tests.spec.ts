@@ -183,7 +183,7 @@ describe("C14N non-exclusive canonicalization tests", function () {
       const xml = "<root xmlns:anc='urn:ancestor'><child attr='value'>text</child></root>";
       const doc = new xmldom.DOMParser().parseFromString(xml);
 
-      expect(() => utils.findAncestorNs(doc, subsetXpath)).to.throw(
+      expect(() => findAncestorNs(doc, subsetXpath)).to.throw(
         "Document subset must be list of elements",
       );
     });
