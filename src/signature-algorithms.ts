@@ -1,22 +1,58 @@
 import * as crypto from "crypto";
-import { type SignatureAlgorithm, createOptionalCallbackFunction } from "./types";
+import {
+  type BinaryLike,
+  type KeyLike,
+  type SignatureAlgorithm,
+  createOptionalCallbackFunction,
+} from "./types";
 
-export class RsaSha1 implements SignatureAlgorithm {
+/**
+ * `node:crypto` takes any `ArrayBufferView` but not a bare `ArrayBuffer`, which is what Web
+ * Crypto produces. Wrap rather than copy: `Buffer.from` over the three arguments is a view.
+ */
+function toNodeData(data: BinaryLike): crypto.BinaryLike {
+  return data instanceof ArrayBuffer ? Buffer.from(data) : data;
+}
+
+/**
+ * The signature algorithm is looked up by a URI read from the document under inspection, so a
+ * JavaScript caller can pair any key representation with any algorithm and the compiler never
+ * sees it. Handed a `CryptoKey`, Node does not fail: it accepts it through the DEP0203 shim,
+ * so the signature appears to verify against a key this algorithm never really supported.
+ * Reject it here instead.
+ *
+ * @see https://github.com/node-saml/xml-crypto/issues/545
+ */
+function toNodeKey(key: KeyLike, algorithmName: string): crypto.KeyLike {
+  if (typeof key === "string" || Buffer.isBuffer(key) || key instanceof crypto.KeyObject) {
+    return key;
+  }
+
+  if (key instanceof Uint8Array) {
+    return Buffer.from(key.buffer, key.byteOffset, key.byteLength);
+  }
+
+  throw new Error(
+    `${algorithmName} needs a key that node:crypto accepts: a string, a Buffer, a Uint8Array, or a KeyObject`,
+  );
+}
+
+export class RsaSha1 implements SignatureAlgorithm<crypto.KeyLike | Uint8Array> {
   getSignature = createOptionalCallbackFunction(
-    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+    (signedInfo: BinaryLike, privateKey: crypto.KeyLike | Uint8Array): string => {
       const signer = crypto.createSign("RSA-SHA1");
-      signer.update(signedInfo);
-      const res = signer.sign(privateKey, "base64");
+      signer.update(toNodeData(signedInfo));
+      const res = signer.sign(toNodeKey(privateKey, "RsaSha1"), "base64");
 
       return res;
     },
   );
 
   verifySignature = createOptionalCallbackFunction(
-    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+    (material: string, key: crypto.KeyLike | Uint8Array, signatureValue: string): boolean => {
       const verifier = crypto.createVerify("RSA-SHA1");
       verifier.update(material);
-      const res = verifier.verify(key, signatureValue, "base64");
+      const res = verifier.verify(toNodeKey(key, "RsaSha1"), signatureValue, "base64");
 
       return res;
     },
@@ -27,22 +63,22 @@ export class RsaSha1 implements SignatureAlgorithm {
   };
 }
 
-export class RsaSha256 implements SignatureAlgorithm {
+export class RsaSha256 implements SignatureAlgorithm<crypto.KeyLike | Uint8Array> {
   getSignature = createOptionalCallbackFunction(
-    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+    (signedInfo: BinaryLike, privateKey: crypto.KeyLike | Uint8Array): string => {
       const signer = crypto.createSign("RSA-SHA256");
-      signer.update(signedInfo);
-      const res = signer.sign(privateKey, "base64");
+      signer.update(toNodeData(signedInfo));
+      const res = signer.sign(toNodeKey(privateKey, "RsaSha256"), "base64");
 
       return res;
     },
   );
 
   verifySignature = createOptionalCallbackFunction(
-    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+    (material: string, key: crypto.KeyLike | Uint8Array, signatureValue: string): boolean => {
       const verifier = crypto.createVerify("RSA-SHA256");
       verifier.update(material);
-      const res = verifier.verify(key, signatureValue, "base64");
+      const res = verifier.verify(toNodeKey(key, "RsaSha256"), signatureValue, "base64");
 
       return res;
     },
@@ -53,14 +89,14 @@ export class RsaSha256 implements SignatureAlgorithm {
   };
 }
 
-export class RsaSha256Mgf1 implements SignatureAlgorithm {
+export class RsaSha256Mgf1 implements SignatureAlgorithm<string | Buffer> {
   getSignature = createOptionalCallbackFunction(
-    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+    (signedInfo: BinaryLike, privateKey: string | Buffer): string => {
       if (!(typeof privateKey === "string" || Buffer.isBuffer(privateKey))) {
         throw new Error("keys must be strings or buffers");
       }
       const signer = crypto.createSign("RSA-SHA256");
-      signer.update(signedInfo);
+      signer.update(toNodeData(signedInfo));
       const res = signer.sign(
         {
           key: privateKey,
@@ -75,7 +111,7 @@ export class RsaSha256Mgf1 implements SignatureAlgorithm {
   );
 
   verifySignature = createOptionalCallbackFunction(
-    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+    (material: string, key: string | Buffer, signatureValue: string): boolean => {
       if (!(typeof key === "string" || Buffer.isBuffer(key))) {
         throw new Error("keys must be strings or buffers");
       }
@@ -100,22 +136,22 @@ export class RsaSha256Mgf1 implements SignatureAlgorithm {
   };
 }
 
-export class RsaSha512 implements SignatureAlgorithm {
+export class RsaSha512 implements SignatureAlgorithm<crypto.KeyLike | Uint8Array> {
   getSignature = createOptionalCallbackFunction(
-    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+    (signedInfo: BinaryLike, privateKey: crypto.KeyLike | Uint8Array): string => {
       const signer = crypto.createSign("RSA-SHA512");
-      signer.update(signedInfo);
-      const res = signer.sign(privateKey, "base64");
+      signer.update(toNodeData(signedInfo));
+      const res = signer.sign(toNodeKey(privateKey, "RsaSha512"), "base64");
 
       return res;
     },
   );
 
   verifySignature = createOptionalCallbackFunction(
-    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+    (material: string, key: crypto.KeyLike | Uint8Array, signatureValue: string): boolean => {
       const verifier = crypto.createVerify("RSA-SHA512");
       verifier.update(material);
-      const res = verifier.verify(key, signatureValue, "base64");
+      const res = verifier.verify(toNodeKey(key, "RsaSha512"), signatureValue, "base64");
 
       return res;
     },
@@ -126,11 +162,11 @@ export class RsaSha512 implements SignatureAlgorithm {
   };
 }
 
-export class HmacSha1 implements SignatureAlgorithm {
+export class HmacSha1 implements SignatureAlgorithm<crypto.KeyLike | Uint8Array> {
   getSignature = createOptionalCallbackFunction(
-    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
-      const signer = crypto.createHmac("SHA1", privateKey);
-      signer.update(signedInfo);
+    (signedInfo: BinaryLike, privateKey: crypto.KeyLike | Uint8Array): string => {
+      const signer = crypto.createHmac("SHA1", toNodeKey(privateKey, "HmacSha1"));
+      signer.update(toNodeData(signedInfo));
       const res = signer.digest("base64");
 
       return res;
@@ -138,8 +174,8 @@ export class HmacSha1 implements SignatureAlgorithm {
   );
 
   verifySignature = createOptionalCallbackFunction(
-    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
-      const verifier = crypto.createHmac("SHA1", key);
+    (material: string, key: crypto.KeyLike | Uint8Array, signatureValue: string): boolean => {
+      const verifier = crypto.createHmac("SHA1", toNodeKey(key, "HmacSha1"));
       verifier.update(material);
       const res = verifier.digest("base64");
 

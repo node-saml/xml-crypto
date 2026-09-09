@@ -10,6 +10,28 @@ import * as crypto from "crypto";
 
 export type ErrorFirstCallback<T> = (err: Error | null, result?: T) => void;
 
+/**
+ * Data that can be signed or verified, expressed without assuming a Node runtime.
+ *
+ * `node:crypto` accepts a string or any `ArrayBufferView`. A bare `ArrayBuffer` is included
+ * here because that is what the Web Crypto API produces; an implementation that ends up in
+ * `node:crypto` has to view it as a `Buffer` first.
+ */
+export type BinaryLike = crypto.BinaryLike | ArrayBuffer;
+
+/**
+ * Key material a {@link SignatureAlgorithm} may accept, expressed without assuming a Node
+ * runtime. `CryptoKey` is the only key representation the Web Crypto API produces, so it has
+ * to be nameable here even though no bundled algorithm can use one.
+ *
+ * This is the widest set, not a promise that any given algorithm handles all of it. An
+ * implementation declares the subset it can actually use — see {@link SignatureAlgorithm}.
+ *
+ * The Web Crypto type is spelled `crypto.webcrypto.CryptoKey` so that it resolves without
+ * `lib.dom`; a global or DOM `CryptoKey` is structurally identical and assignable to it.
+ */
+export type KeyLike = crypto.KeyLike | crypto.webcrypto.CryptoKey | Uint8Array;
+
 export type CanonicalizationAlgorithmType =
   | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
   | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
@@ -39,7 +61,7 @@ export type SignatureAlgorithmType =
  * @param prefix an optional namespace alias to be used for the generated XML
  */
 export interface GetKeyInfoContentArgs {
-  publicCert?: crypto.KeyLike;
+  publicCert?: KeyLike;
   prefix?: string | null;
 }
 
@@ -64,8 +86,8 @@ export interface ObjectAttributes {
 export interface SignedXmlOptions {
   idMode?: "wssecurity";
   idAttribute?: string;
-  privateKey?: crypto.KeyLike;
-  publicCert?: crypto.KeyLike;
+  privateKey?: KeyLike;
+  publicCert?: KeyLike;
   signatureAlgorithm?: SignatureAlgorithmType;
   canonicalizationAlgorithm?: CanonicalizationAlgorithmType;
   inclusiveNamespacesPrefixList?: string | string[];
@@ -176,15 +198,23 @@ export interface HashAlgorithm {
   getHash(xml: string): string;
 }
 
-/** Extend this to create a new SignatureAlgorithm */
-export interface SignatureAlgorithm {
+/**
+ * Extend this to create a new SignatureAlgorithm.
+ *
+ * `TKey` is the key material the implementation accepts. Declare the narrowest type that
+ * actually works rather than leaving it at {@link KeyLike}: a `node:crypto`-backed algorithm
+ * cannot use a Web Crypto `CryptoKey`, and saying `KeyLike` would claim that it can.
+ *
+ * @see https://github.com/node-saml/xml-crypto/issues/545
+ */
+export interface SignatureAlgorithm<TKey extends KeyLike = KeyLike> {
   /**
    * Sign the given string using the given key
    */
-  getSignature(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string;
+  getSignature(signedInfo: BinaryLike, privateKey: TKey): string;
   getSignature(
-    signedInfo: crypto.BinaryLike,
-    privateKey: crypto.KeyLike,
+    signedInfo: BinaryLike,
+    privateKey: TKey,
     callback?: ErrorFirstCallback<string>,
   ): void;
   /**
@@ -192,10 +222,10 @@ export interface SignatureAlgorithm {
    *
    * @param key a public cert, public key, or private key can be passed here
    */
-  verifySignature(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
+  verifySignature(material: string, key: TKey, signatureValue: string): boolean;
   verifySignature(
     material: string,
-    key: crypto.KeyLike,
+    key: TKey,
     signatureValue: string,
     callback?: ErrorFirstCallback<boolean>,
   ): void;
