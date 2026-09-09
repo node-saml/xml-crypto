@@ -997,7 +997,11 @@ describe("Signature integration tests", function () {
             });
             signer.addReference({
               xpath: reference,
-              transforms: detached ? [canonicalization] : [enveloped, canonicalization],
+              // A detached reference's digest is still computed before the signature is
+              // inserted, and the verified document never has one embedded either, so this
+              // transform is a no-op either way — included so a whole-document reference
+              // never has to special-case whether its signature ends up detached.
+              transforms: [enveloped, canonicalization],
               digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
             });
 
