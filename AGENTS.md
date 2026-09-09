@@ -87,9 +87,9 @@ adversarial XML cannot cause the library to report untrusted data as valid.
   observable contract, such as canonicalization or exported encoding utilities. Assert its
   externally meaningful input/output behavior rather than its private implementation.
 - Do not unit-test private methods merely to increase coverage or mirror their
-  implementation. Good public-boundary tests naturally exercise meaningful code paths.
-  Uncovered code indicates either inadequately tested public behavior or code that may be
-  unnecessary; determine which rather than adding private-method tests to raise coverage.
+  implementation. Uncovered code indicates either inadequately tested public behavior or
+  code that may be unnecessary; determine which rather than adding private-method tests
+  merely to increase coverage.
 - Add a test when a change alters what the library accepts, rejects, emits, or considers
   trustworthy.
 - For a bug fix, observe the regression test failing for the reported reason before
