@@ -12,6 +12,8 @@ type C14nOptionsWithXmlAttributes = CanonicalizationOrTransformationAlgorithmPro
 };
 
 export class C14nCanonicalization implements CanonicalizationOrTransformationAlgorithm {
+  readonly removesNodes = false;
+
   protected includeComments = false;
 
   constructor() {

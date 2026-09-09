@@ -133,16 +133,6 @@ const warnEnvelopedSignatureAfterCanonicalization = deprecate(
   "XML_CRYPTO_ENVELOPED_SIGNATURE_AFTER_CANONICALIZATION",
 );
 
-// Canonicalization renders the node-set it is given; only a transform that drops
-// nodes can take the Signature back out. An unrecognised transform might do that,
-// so a chain built purely from these is the one case where we can prove it cannot.
-const CANONICALIZATION_ONLY_TRANSFORMS: ReadonlySet<string> = new Set([
-  "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
-  "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments",
-  "http://www.w3.org/2001/10/xml-exc-c14n#",
-  "http://www.w3.org/2001/10/xml-exc-c14n#WithComments",
-]);
-
 export class SignedXml {
   idMode?: "wssecurity";
   idAttributes: string[];
@@ -702,6 +692,13 @@ export class SignedXml {
     } else {
       throw new Error(`signature algorithm '${name}' is not supported`);
     }
+  }
+
+  /** An algorithm that has not declared itself might drop the `Signature`, so only a
+   *  declared `false` proves the node-set survives the transform intact. */
+  private preservesEveryNode(name: CanonicalizationOrTransformAlgorithmType): boolean {
+    const algo = this.CanonicalizationAlgorithms[name];
+    return algo != null && new algo().removesNodes === false;
   }
 
   private findCanonicalizationAlgorithm(name: CanonicalizationOrTransformAlgorithmType) {
@@ -1488,7 +1485,7 @@ export class SignedXml {
         // https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature
         if (
           utils.isDescendantOf(signatureElem, node) &&
-          ref.transforms.every((transform) => CANONICALIZATION_ONLY_TRANSFORMS.has(transform))
+          ref.transforms.every((transform) => this.preservesEveryNode(transform))
         ) {
           throw new Error(
             `The reference ${ref.xpath} encloses the signature, so it requires the ` +
