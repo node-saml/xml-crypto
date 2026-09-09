@@ -258,7 +258,6 @@ export function findAncestorNsForNode(element: Element): NamespacePrefix[] {
     }
   }
 
-  // Remove namespaces which are already declared in the subset with the same prefix
   const returningNs: NamespacePrefix[] = [];
   const subsetNsPrefixes = findSubsetNSPrefixes(element);
   for (const ns of ancestorNsWithoutDuplicate) {

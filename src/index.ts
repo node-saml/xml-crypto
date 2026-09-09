@@ -42,7 +42,7 @@ export {
   findAttr,
   findChildren,
   // Deprecated alias of `findChildren`, still published because `export *` did.
-  // Dropping it is part of thinning this list, not of making the list explicit.
+  // Removal tracked in https://github.com/node-saml/xml-crypto/issues/550
   // eslint-disable-next-line deprecation/deprecation
   findChilds,
   isArrayHasLength,

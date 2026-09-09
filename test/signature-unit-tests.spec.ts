@@ -1219,9 +1219,10 @@ describe("Signature unit tests", function () {
     verifySig.idAttributes = [];
 
     const textNode = xpath.select1("//*[local-name(.)='x']/text()", doc);
-    expect(() =>
-      verifySig.validateElementAgainstReferences(textNode as unknown as Element, doc),
-    ).to.throw("Value is not of type ELEMENT_NODE");
+    expect(
+      () => verifySig.validateElementAgainstReferences(textNode as unknown as Element, doc),
+      "a non-element must never be reported as covered by a validated reference",
+    ).to.throw();
   });
 
   it("signer appends signature to a non-existing reference node", function () {
