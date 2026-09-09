@@ -19,7 +19,15 @@
     "LoneRifle <LoneRifle@users.noreply.github.com>",
     "Chris Barth <chrisjbarth@hotmail.com>"
   ],
-  "main": "./lib",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
   "files": [
     "lib",
     "LICENSE",
