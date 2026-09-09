@@ -21,7 +21,7 @@ export function warnUnlessExclusiveC14nNamespace(inclusiveNamespaces: Element): 
 }
 
 export class ExclusiveCanonicalization implements CanonicalizationOrTransformationAlgorithm {
-  readonly removesNodes = false;
+  readonly removesNodes: boolean = false;
 
   protected includeComments = false;
 
