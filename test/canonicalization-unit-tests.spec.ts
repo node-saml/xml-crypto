@@ -505,6 +505,9 @@ describe("Canonicalization unit tests", function () {
 
     const sig = new SignedXml();
     sig.CanonicalizationAlgorithms["urn:test:malformed"] = class {
+      // Returns a fixed string rather than the node-set it was given.
+      removesNodes = true;
+
       process() {
         return "<y>";
       }

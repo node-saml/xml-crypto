@@ -518,6 +518,9 @@ Custom transformation algorithm.
 
 ```javascript
 class MyTransformation {
+  // Whether this drops nodes from the node-set, rather than only re-serializing it.
+  removesNodes = false;
+
   // Given a node (from the xmldom module), return its canonical representation as a string.
   process(node) {
     // You should apply your transformation before returning.
@@ -530,10 +533,14 @@ class MyTransformation {
 }
 ```
 
+Declare `removesNodes = false` only if the algorithm returns the node-set it was given. If it filters nodes at all, declare `true`. `computeSignature()` reads this to decide whether a reference enclosing the signature can ever verify, so a wrong `false` there turns a signature it should have rejected into one nobody can verify.
+
 Custom canonicalization is actually the same as custom transformation. It is applied on the SignedInfo rather than on references.
 
 ```javascript
 class MyCanonicalization {
+  removesNodes = false;
+
   // Given a node (from the xmldom module), return its canonical representation as a string.
   process(node) {
     // You should apply your canonicalization before returning.

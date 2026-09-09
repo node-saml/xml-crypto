@@ -484,6 +484,8 @@ describe("Signature unit tests", function () {
 
     class DummyTransformation {
       includeComments = false;
+      // Returns a fixed string rather than the node-set it was given.
+      removesNodes = true;
       process = function () {
         return "< x/>";
       };
@@ -495,6 +497,8 @@ describe("Signature unit tests", function () {
 
     class DummyCanonicalization {
       includeComments = false;
+      // Returns a fixed string rather than the node-set it was given.
+      removesNodes = true;
       process = function () {
         return "< x/>";
       };
@@ -652,6 +656,8 @@ describe("Signature unit tests", function () {
 
     class DummyTransformation {
       includeComments = false;
+      // Returns a fixed string rather than the node-set it was given.
+      removesNodes = true;
       process = function () {
         return "< x/>";
       };
@@ -663,6 +669,8 @@ describe("Signature unit tests", function () {
 
     class DummyCanonicalization {
       includeComments = false;
+      // Returns a fixed string rather than the node-set it was given.
+      removesNodes = true;
       process = function () {
         return "< x/>";
       };
