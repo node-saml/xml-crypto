@@ -53,13 +53,13 @@ export const findChildren = deprecate(
 );
 
 /**
- * @deprecated Will be removed in 7.0. Use {@link findChildren} instead; the signature and
- *   behaviour are identical.
+ * @deprecated Will be removed in 7.0. This is an internal DOM helper with no replacement; use a
+ *   DOM API or the `xpath` package.
  */
 export const findChilds = deprecate(
   /* eslint-disable-next-line deprecation/deprecation */
   utils.findChilds,
-  "`findChilds()` is deprecated and will be removed in version 7.0. Use `findChildren()` instead.",
+  "`findChilds()` is deprecated and will be removed in version 7.0. Use a DOM API or the `xpath` package instead.",
   "XML_CRYPTO_FIND_CHILDS",
 );
 

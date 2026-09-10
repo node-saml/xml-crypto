@@ -77,6 +77,14 @@ describe("Deprecated exports", function () {
       expect(warnings[0].code).to.equal(code);
       expect(warnings[0].message).to.contain("will be removed in version 7.0");
       expect(warnings[0].message).to.contain("instead");
+      for (const [other] of DEPRECATED_FUNCTIONS) {
+        if (other !== name) {
+          expect(
+            warnings[0].message,
+            `${name}() points at ${other}(), which is going away too`,
+          ).to.not.match(new RegExp(`\\b${other}\\b`));
+        }
+      }
     });
   });
 
