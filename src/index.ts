@@ -74,22 +74,24 @@ export const isDescendantOf = deprecate(
 );
 
 /**
- * @deprecated Will be removed in 7.0. This implements c14n special-character normalization for
- *   this package; an XML serializer escapes attribute values for you.
+ * @deprecated Will be removed in 7.0. This is the attribute-escaping step of this package's
+ *   canonicalizers; use `C14nCanonicalization` or `ExclusiveCanonicalization` instead. A custom
+ *   canonicalizer must apply C14N escaping itself: https://www.w3.org/TR/xml-c14n#ProcessingModel
  */
 export const encodeSpecialCharactersInAttribute = deprecate(
   utils.encodeSpecialCharactersInAttribute,
-  "`encodeSpecialCharactersInAttribute()` is deprecated and will be removed in version 7.0. Use an XML serializer instead.",
+  "`encodeSpecialCharactersInAttribute()` is deprecated and will be removed in version 7.0. Use `C14nCanonicalization` or `ExclusiveCanonicalization` instead.",
   "XML_CRYPTO_ENCODE_SPECIAL_CHARACTERS_IN_ATTRIBUTE",
 );
 
 /**
- * @deprecated Will be removed in 7.0. This implements c14n special-character normalization for
- *   this package; an XML serializer escapes text content for you.
+ * @deprecated Will be removed in 7.0. This is the text-escaping step of this package's
+ *   canonicalizers; use `C14nCanonicalization` or `ExclusiveCanonicalization` instead. A custom
+ *   canonicalizer must apply C14N escaping itself: https://www.w3.org/TR/xml-c14n#ProcessingModel
  */
 export const encodeSpecialCharactersInText = deprecate(
   utils.encodeSpecialCharactersInText,
-  "`encodeSpecialCharactersInText()` is deprecated and will be removed in version 7.0. Use an XML serializer instead.",
+  "`encodeSpecialCharactersInText()` is deprecated and will be removed in version 7.0. Use `C14nCanonicalization` or `ExclusiveCanonicalization` instead.",
   "XML_CRYPTO_ENCODE_SPECIAL_CHARACTERS_IN_TEXT",
 );
 

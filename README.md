@@ -21,13 +21,13 @@ The package used to re-export everything in its internal `utils` module, so help
 `signed-xml.ts` became public API by accident. These are deprecated as of this release and will
 be removed in 7.0:
 
-| Deprecated                                                            | Instead                                                                                                                                             |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `findAttr`, `findChildren`, `findChilds`, `isDescendantOf`            | use a DOM API, or [xpath](https://github.com/goto100/xpath)                                                                                         |
-| `encodeSpecialCharactersInAttribute`, `encodeSpecialCharactersInText` | these implement [c14n special-character normalization](https://www.w3.org/TR/xml-c14n#ProcessingModel); an XML serializer escapes for you           |
-| `isArrayHasLength`                                                    | `Array.isArray(x) && x.length > 0`                                                                                                                  |
-| `validateDigestValue`                                                 | `crypto.timingSafeEqual(Buffer.from(a, "base64"), Buffer.from(b, "base64"))` — it throws on a length mismatch, which counts as unequal. Never `===` |
-| `BASE64_REGEX`, `EXTRACT_X509_CERTS`, `PEM_FORMAT_REGEX`              | no replacement; these are internal parsing details                                                                                                  |
+| Deprecated                                                            | Instead                                                                                                                                                                                                       |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `findAttr`, `findChildren`, `findChilds`, `isDescendantOf`            | use a DOM API, or [xpath](https://github.com/goto100/xpath)                                                                                                                                                   |
+| `encodeSpecialCharactersInAttribute`, `encodeSpecialCharactersInText` | these are the escaping step of `C14nCanonicalization` and `ExclusiveCanonicalization`, so use those; a custom canonicalizer must apply [C14N escaping](https://www.w3.org/TR/xml-c14n#ProcessingModel) itself |
+| `isArrayHasLength`                                                    | `Array.isArray(x) && x.length > 0`                                                                                                                                                                            |
+| `validateDigestValue`                                                 | `crypto.timingSafeEqual(Buffer.from(a, "base64"), Buffer.from(b, "base64"))` — it throws on a length mismatch, which counts as unequal. Never `===`                                                           |
+| `BASE64_REGEX`, `EXTRACT_X509_CERTS`, `PEM_FORMAT_REGEX`              | no replacement; these are internal parsing details                                                                                                                                                            |
 
 Calling one prints a `DeprecationWarning` naming its replacement. The three regexes cannot warn —
 `util.deprecate` needs a call to intercept — so TypeScript users see the `@deprecated` tag and
