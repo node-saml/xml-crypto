@@ -18,7 +18,6 @@ describe("Callback invocation", function () {
     return sig;
   }
 
-  // https://github.com/node-saml/xml-crypto/issues/527
   it("invokes the callback once when the callback throws", function () {
     const sig = createSigner(fs.readFileSync("./test/static/client.pem"));
 
