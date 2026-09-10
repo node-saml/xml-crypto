@@ -253,12 +253,14 @@ export function createOptionalCallbackFunction<T, A extends unknown[]>(
   return ((...args: A | [...A, ErrorFirstCallback<T>]) => {
     const possibleCallback = args[args.length - 1];
     if (isErrorFirstCallback(possibleCallback)) {
+      let result: T;
       try {
-        const result = syncVersion(...(args.slice(0, -1) as A));
-        possibleCallback(null, result);
+        result = syncVersion(...(args.slice(0, -1) as A));
       } catch (err) {
         possibleCallback(err instanceof Error ? err : new Error("Unknown error"));
+        return;
       }
+      possibleCallback(null, result);
     } else {
       return syncVersion(...(args as A));
     }
