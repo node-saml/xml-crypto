@@ -15,6 +15,23 @@
 
 ## Upgrading
 
+### Upgrading to 7.0
+
+Key material and data types no longer name `node:crypto` in the public API. `privateKey`,
+`publicCert` and the `SignatureAlgorithm` key arguments are now `KeyLike`, and the data to
+be signed is `BinaryLike`; both are exported from this package.
+
+This is source-compatible for callers. It is a break for anyone who **implements**
+`SignatureAlgorithm`: the interface now takes the accepted key type as a parameter, so an
+implementation should declare it — `implements SignatureAlgorithm<crypto.KeyLike>` for a
+`node:crypto`-backed one. See
+[declaring the key material your algorithm accepts](#declaring-the-key-material-your-algorithm-accepts).
+
+The bundled algorithms now throw when handed key material `node:crypto` cannot use, instead
+of letting a `CryptoKey` through Node's DEP0203 shim as if it were supported.
+
+### Upgrading to 6.0
+
 The `.getReferences()` AND the `.references` APIs are deprecated.
 Please do not attempt to access them. The content in them should be treated as unsigned.
 
@@ -61,8 +78,8 @@ signature algorithms enabled at same time.
 
 When signing a xml document you can pass the following options to the `SignedXml` constructor to customize the signature process:
 
-- `privateKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
-- `publicCert` - **[optional]** a `Buffer` or pem encoded `String` containing your public key
+- `privateKey` - **[required]** your private key, as a pem encoded `String`, a `Buffer`, a `Uint8Array`, or a `KeyObject`. Typed [`KeyLike`](#declaring-the-key-material-your-algorithm-accepts), which is wider than any one algorithm accepts
+- `publicCert` - **[optional]** your public certificate, in the same forms
 - `signatureAlgorithm` - **[required]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
 - `canonicalizationAlgorithm` - **[required]** one of the supported [canonicalization algorithms](#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
 
@@ -138,6 +155,8 @@ When verifying a xml document you can pass the following options to the `SignedX
 
 - `publicCert` - **[optional]** your certificate as a string, a string of multiple certs in PEM format, or a Buffer
 - `privateKey` - **[optional]** your private key as a string or a Buffer - used for verifying symmetrical signatures (HMAC)
+
+Both are typed [`KeyLike`](#declaring-the-key-material-your-algorithm-accepts).
 
 The certificate that will be used to check the signature will first be determined by calling `this.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `publicCert` is used. If that is `null`, then `privateKey` is used (for symmetrical signing applications).
 
@@ -249,8 +268,8 @@ The `SignedXml` constructor provides an abstraction for sign and verify xml docu
 
 - `idMode` - default `null` - if the value of `wssecurity` is passed it will create/validate id's with the ws-security namespace.
 - `idAttribute` - string - default `Id` or `ID` or `id` - the name of the attribute that contains the id of the element
-- `privateKey` - string or Buffer - default `null` - the private key to use for signing
-- `publicCert` - string or Buffer - default `null` - the public certificate to use for verifying
+- `privateKey` - [`KeyLike`](#declaring-the-key-material-your-algorithm-accepts) - default `null` - the private key to use for signing
+- `publicCert` - [`KeyLike`](#declaring-the-key-material-your-algorithm-accepts) - default `null` - the public certificate to use for verifying
 - `signatureAlgorithm` - string - the signature algorithm to use
 - `canonicalizationAlgorithm` - string - default `undefined` - the canonicalization algorithm to use
 - `inclusiveNamespacesPrefixList` - string - default `null` - a list of namespace prefixes to include during canonicalization
@@ -337,6 +356,44 @@ function MySignatureAlgorithm() {
   };
 }
 ```
+
+#### Declaring the key material your algorithm accepts
+
+`privateKey`, `publicCert` and the key arguments to `SignatureAlgorithm` are typed as
+`KeyLike`, which is the widest set the library can carry:
+
+```ts
+type KeyLike = crypto.KeyLike | crypto.webcrypto.CryptoKey | Uint8Array;
+```
+
+That is deliberately wider than any single algorithm can use. `CryptoKey` is the only key
+representation the Web Crypto API produces, so it has to be nameable — but nothing built on
+`node:crypto` can use one. So `SignatureAlgorithm` takes the key type as a parameter, and an
+implementation declares the subset it actually accepts:
+
+```ts
+import * as crypto from "crypto";
+import type { BinaryLike, SignatureAlgorithm } from "xml-crypto";
+
+class MySignatureAlgorithm implements SignatureAlgorithm<crypto.KeyLike> {
+  getSignature = (signedInfo: BinaryLike, privateKey: crypto.KeyLike): string => {
+    // `privateKey` is narrowed to what node:crypto takes — no cast needed.
+  };
+
+  getAlgorithmName = () => "http://mySigningAlgorithm";
+}
+```
+
+Declare the narrowest type that works rather than leaving it at `KeyLike`. Leaving it wide
+compiles, but it advertises support the implementation does not have, and callers get no
+diagnostic when they pair your algorithm with a key it cannot use. Handed a `CryptoKey`,
+`node:crypto` does not fail — it accepts it through the
+[DEP0203](https://nodejs.org/api/deprecations.html#DEP0203) shim, so a signature appears to
+verify against a key the algorithm never really supported. The bundled algorithms reject
+non-Node key material with an explicit error for that reason.
+
+`signedInfo` is typed `BinaryLike` (`crypto.BinaryLike | ArrayBuffer`). `node:crypto` accepts
+every arm except a bare `ArrayBuffer`, which `Buffer.from(data)` views without copying.
 
 Custom transformation algorithm.
 
@@ -451,7 +508,7 @@ The function `sig.checkSignature` may also use a callback if asynchronous verifi
 
 ## X.509 / Key formats
 
-Xml-Crypto internally relies on node's crypto module. This means pem encoded certificates are supported. So to sign an xml use key.pem that looks like this (only the beginning of the key content is shown):
+The bundled algorithms are backed by node's crypto module, so pem encoded certificates are supported. To sign an xml use key.pem that looks like this (only the beginning of the key content is shown):
 
 ```text
 -----BEGIN PRIVATE KEY-----
