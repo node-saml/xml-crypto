@@ -341,4 +341,42 @@ describe("Signature integration tests", function () {
       });
     });
   }
+
+  // A signed reference must hand back the element in the namespace it was signed in. If a
+  // hoisted ancestor default namespace leaks into a descendant, the signature still verifies
+  // while `getSignedReferences()` reports an identity the sender never signed — and a caller
+  // that dispatches on element namespace acts on it.
+  // https://www.w3.org/TR/xml-c14n/#ProcessingModel
+  it("does not move an element into a namespace it was not signed in", function () {
+    const c14n = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    const xml = '<root xmlns="urn:A"><p:x xmlns:p="urn:p" Id="_1"><y xmlns=""></y></p:x></root>';
+
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.canonicalizationAlgorithm = c14n;
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: [c14n],
+    });
+    sig.computeSignature(xml);
+    const signed = sig.getSignedXml();
+
+    const signature = xpath.select1(
+      "//*[local-name(.)='Signature']",
+      new xmldom.DOMParser().parseFromString(signed),
+    );
+    isDomNode.assertIsNodeLike(signature);
+
+    const verify = new SignedXml();
+    verify.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    verify.loadSignature(signature);
+    expect(verify.checkSignature(signed)).to.be.true;
+
+    const trusted = new xmldom.DOMParser().parseFromString(verify.getSignedReferences()[0]);
+    const y = xpath.select1("//*[local-name(.)='y']", trusted);
+    isDomNode.assertIsElementNode(y);
+    expect(y.namespaceURI ?? "", "<y> must stay in no namespace").to.equal("");
+  });
 });

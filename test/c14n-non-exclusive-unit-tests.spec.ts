@@ -267,6 +267,70 @@ describe("C14N non-exclusive canonicalization tests", function () {
   });
 
   for (const Canonicalization of [C14nCanonicalization, C14nCanonicalizationWithComments]) {
+    describe(`${Canonicalization.name}: hoisted ancestor namespaces`, function () {
+      // A hoisted ancestor default namespace becomes the default the subset's descendants are
+      // canonicalized against. The rationale is spelled out in §4.7: the empty default is kept on
+      // output "so that e3 does not take on the default namespace qualification of e1".
+      // https://www.w3.org/TR/xml-c14n/#ProcessingModel
+      // https://www.w3.org/TR/xml-c14n/#PropagateDefaultNSDecl
+      it('renders xmlns="" on a descendant when the apex hoists an ancestor default namespace', function () {
+        test_C14nCanonicalization(
+          '<root xmlns="urn:A"><p:x xmlns:p="urn:p"><y xmlns=""></y></p:x></root>',
+          "//*[local-name()='x']",
+          '<p:x xmlns="urn:A" xmlns:p="urn:p"><y xmlns=""></y></p:x>',
+          new Canonicalization(),
+        );
+      });
+
+      it("omits a descendant declaration the hoisted ancestor default namespace makes redundant", function () {
+        test_C14nCanonicalization(
+          '<root xmlns="urn:A"><p:x xmlns:p="urn:p"><y xmlns="urn:A"></y></p:x></root>',
+          "//*[local-name()='x']",
+          '<p:x xmlns="urn:A" xmlns:p="urn:p"><y></y></p:x>',
+          new Canonicalization(),
+        );
+      });
+
+      it("renders the hoisted ancestor default namespace once when the apex inherits it", function () {
+        test_C14nCanonicalization(
+          '<root xmlns="urn:A"><x xmlns:p="urn:p"><y xmlns=""></y></x></root>',
+          "//*[local-name()='x']",
+          '<x xmlns="urn:A" xmlns:p="urn:p"><y xmlns=""></y></x>',
+          new Canonicalization(),
+        );
+      });
+
+      it("prefers the apex's own default namespace over the hoisted ancestor one", function () {
+        test_C14nCanonicalization(
+          '<root xmlns="urn:A"><x xmlns:p="urn:p" xmlns="urn:B"><y></y></x></root>',
+          "//*[local-name()='x']",
+          '<x xmlns="urn:B" xmlns:p="urn:p"><y></y></x>',
+          new Canonicalization(),
+        );
+      });
+
+      // A declaration on the apex shadows the ancestor one binding the same prefix, so the
+      // element must not resolve against the outer binding — in its descendants or its own name.
+      // https://www.w3.org/TR/REC-xml-names/#scoping
+      it("renders the apex's redeclaration of an ancestor prefix, not the ancestor binding", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:q="urn:old"><x xmlns:p="urn:p" xmlns:q="urn:new"><q:y></q:y></x></root>',
+          "//*[local-name()='x']",
+          '<x xmlns:p="urn:p" xmlns:q="urn:new"><q:y></q:y></x>',
+          new Canonicalization(),
+        );
+      });
+
+      it("renders the apex's redeclaration of the prefix in its own name", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:q="urn:old"><q:x xmlns:p="urn:p" xmlns:q="urn:new"><y></y></q:x></root>',
+          "//*[local-name()='x']",
+          '<q:x xmlns:p="urn:p" xmlns:q="urn:new"><y></y></q:x>',
+          new Canonicalization(),
+        );
+      });
+    });
+
     describe(`${Canonicalization.name}: subset namespace declarations`, function () {
       it("does not duplicate the default namespace when the subset declares a prefixed namespace", function () {
         // Render the inherited default namespace exactly once on the subset root.
