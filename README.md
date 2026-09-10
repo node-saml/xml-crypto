@@ -21,13 +21,13 @@ The package used to re-export everything in its internal `utils` module, so help
 for `signed-xml.ts` became public API by accident. The export list is explicit now and the
 following are no longer exported:
 
-| Removed                                                               | Instead                                                                                                                                                                                 |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `findAttr`, `findChildren`, `findChilds`, `isDescendantOf`            | use a DOM API, or [xpath](https://github.com/goto100/xpath)                                                                                                                             |
-| `encodeSpecialCharactersInAttribute`, `encodeSpecialCharactersInText` | these implement [c14n special-character normalization](https://www.w3.org/TR/xml-c14n#ProcessingModel); a serializer such as [xmldom](https://github.com/xmldom/xmldom) escapes for you |
-| `isArrayHasLength`                                                    | `Array.isArray(x) && x.length > 0`                                                                                                                                                      |
-| `validateDigestValue`                                                 | `crypto.timingSafeEqual(Buffer.from(a, "base64"), Buffer.from(b, "base64"))` — it throws on a length mismatch, which counts as unequal                                                  |
-| `BASE64_REGEX`, `EXTRACT_X509_CERTS`, `PEM_FORMAT_REGEX`              | no replacement; these were internal parsing details                                                                                                                                     |
+| Removed                                                               | Instead                                                                                                                                                                                                       |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `findAttr`, `findChildren`, `findChilds`, `isDescendantOf`            | use a DOM API, or [xpath](https://github.com/goto100/xpath)                                                                                                                                                   |
+| `encodeSpecialCharactersInAttribute`, `encodeSpecialCharactersInText` | these are the escaping step of `C14nCanonicalization` and `ExclusiveCanonicalization`, so use those; a custom canonicalizer must apply [C14N escaping](https://www.w3.org/TR/xml-c14n#ProcessingModel) itself |
+| `isArrayHasLength`                                                    | `Array.isArray(x) && x.length > 0`                                                                                                                                                                            |
+| `validateDigestValue`                                                 | `crypto.timingSafeEqual(Buffer.from(a, "base64"), Buffer.from(b, "base64"))` — it throws on a length mismatch, which counts as unequal                                                                        |
+| `BASE64_REGEX`, `EXTRACT_X509_CERTS`, `PEM_FORMAT_REGEX`              | no replacement; these were internal parsing details                                                                                                                                                           |
 
 `derToPem`, `pemToDer`, `normalizePem` and `findAncestorNs` are still exported. See
 [exports](#exports) for the whole surface.
