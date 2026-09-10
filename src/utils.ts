@@ -47,11 +47,6 @@ export function findChildren(node: Node | Document, localName: string, namespace
   return res;
 }
 
-/** @deprecated */
-export function findChilds(node: Node | Document, localName: string, namespace?: string) {
-  return findChildren(node, localName, namespace);
-}
-
 const xml_special_to_encoded_attribute = {
   "&": "&amp;",
   "<": "&lt;",
@@ -103,7 +98,7 @@ export function encodeSpecialCharactersInText(text: string): string {
  *  - 'preeb' and 'posteb' lines are limited to 64 characters, but
  *     should not cause any issues in context of PKIX, PKCS and CMS.
  */
-export const PEM_FORMAT_REGEX = new RegExp(
+const PEM_FORMAT_REGEX = new RegExp(
   "^-----BEGIN [A-Z\x20]{1,48}-----([^-]*)-----END [A-Z\x20]{1,48}-----$",
   "s",
 );
@@ -111,7 +106,7 @@ export const EXTRACT_X509_CERTS = new RegExp(
   "-----BEGIN CERTIFICATE-----[^-]*-----END CERTIFICATE-----",
   "g",
 );
-export const BASE64_REGEX = new RegExp(
+const BASE64_REGEX = new RegExp(
   "^(?:[A-Za-z0-9\\+\\/]{4}\\n{0,1})*(?:[A-Za-z0-9\\+\\/]{2}==|[A-Za-z0-9\\+\\/]{3}=)?$",
   "s",
 );

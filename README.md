@@ -15,6 +15,47 @@
 
 ## Upgrading
 
+### Upgrading to 7.0
+
+The package used to re-export everything in its internal `utils` module, so helpers written
+for `signed-xml.ts` became public API by accident. The export list is explicit now and the
+following are no longer exported:
+
+| Removed                                                               | Instead                                                                                                                                                                                                       |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `findAttr`, `findChildren`, `findChilds`, `isDescendantOf`            | use a DOM API, or [xpath](https://github.com/goto100/xpath)                                                                                                                                                   |
+| `encodeSpecialCharactersInAttribute`, `encodeSpecialCharactersInText` | these are the escaping step of `C14nCanonicalization` and `ExclusiveCanonicalization`, so use those; a custom canonicalizer must apply [C14N escaping](https://www.w3.org/TR/xml-c14n#ProcessingModel) itself |
+| `isArrayHasLength`                                                    | `Array.isArray(x) && x.length > 0`                                                                                                                                                                            |
+| `validateDigestValue`                                                 | decode both from base64, then compare with `a.length === b.length && crypto.timingSafeEqual(a, b)` — `timingSafeEqual` alone throws on a length mismatch instead of returning `false`. Never `===`            |
+| `BASE64_REGEX`, `EXTRACT_X509_CERTS`, `PEM_FORMAT_REGEX`              | no replacement; these were internal parsing details                                                                                                                                                           |
+
+`derToPem`, `pemToDer`, `normalizePem` and `findAncestorNs` are still exported. See
+[exports](#exports) for the whole surface.
+
+`xpath` was never exported by 6.x despite being documented here; the README examples now
+require the [xpath](https://github.com/goto100/xpath) package directly, and its `select()`
+takes the expression first.
+
+Reaching past the entry point no longer resolves either. `package.json` declares an `exports`
+map, so a deep import such as `require("xml-crypto/lib/hash-algorithms.js")` fails with
+`ERR_PACKAGE_PATH_NOT_EXPORTED` instead of quietly depending on the build layout. The bundled
+algorithm classes are still reachable, through the registries that name them:
+
+```js
+const { SignedXml } = require("xml-crypto");
+
+// before
+const { Sha256 } = require("xml-crypto/lib/hash-algorithms.js");
+// after
+const Sha256 = new SignedXml().HashAlgorithms["http://www.w3.org/2001/04/xmlenc#sha256"];
+```
+
+`SignatureAlgorithms` and `CanonicalizationAlgorithms` work the same way. If you need
+something from `lib/` that no registry names, please open an issue rather than reaching for the
+path — that is the conversation the `exports` map exists to start.
+
+### Upgrading to 6.0
+
 The `.getReferences()` AND the `.references` APIs are deprecated.
 Please do not attempt to access them. The content in them should be treated as unsigned.
 
@@ -150,16 +191,16 @@ new SignedXml({
 });
 ```
 
-You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/xmldom/xmldom), so you should install it first:
+You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/xmldom/xmldom) to parse and [xpath](https://github.com/goto100/xpath) to select, so install those first:
 
 ```shell
-npm install @xmldom/xmldom
+npm install @xmldom/xmldom xpath
 ```
 
 Example:
 
 ```javascript
-var select = require("xml-crypto").xpath,
+var select = require("xpath").select,
   dom = require("@xmldom/xmldom").DOMParser,
   SignedXml = require("xml-crypto").SignedXml,
   fs = require("fs");
@@ -173,8 +214,8 @@ var doc = new dom().parseFromString(xml);
 // good: see below
 
 var signature = select(
-  doc,
   "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+  doc,
 )[0];
 var sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
 sig.loadSignature(signature);
@@ -238,10 +279,30 @@ You might find it difficult to guess such transforms, but there are typical tran
 
 ## API
 
-### xpath
+### Exports
 
-See [xpath.js](https://github.com/yaronn/xpath.js) for usage. Note that this is actually using
-[another library](https://github.com/goto100/xpath) as the underlying implementation.
+The package exports these values:
+
+| Export                                                               | Purpose                                                                                           |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `SignedXml`                                                          | signing and verification — see below                                                              |
+| `C14nCanonicalization`, `C14nCanonicalizationWithComments`           | the [canonicalization algorithms](#canonicalization-and-transformation-algorithms)                |
+| `ExclusiveCanonicalization`, `ExclusiveCanonicalizationWithComments` | as above, exclusive                                                                               |
+| `findAncestorNs`                                                     | ancestor namespaces for a document subset, for [custom canonicalization](#customizing-algorithms) |
+| `derToPem`, `pemToDer`, `normalizePem`                               | [key-format conversion](#x509--key-formats)                                                       |
+| `createOptionalCallbackFunction`                                     | adds a callback form to a synchronous algorithm method                                            |
+
+Plus the types `CanonicalizationAlgorithmType`, `CanonicalizationOrTransformAlgorithmType`,
+`CanonicalizationOrTransformationAlgorithm`,
+`CanonicalizationOrTransformationAlgorithmProcessOptions`, `ComputeSignatureOptions`,
+`ComputeSignatureOptionsLocation`, `ErrorFirstCallback`, `GetKeyInfoContentArgs`,
+`HashAlgorithm`, `HashAlgorithmType`, `NamespacePrefix`, `ObjectAttributes`, `Reference`,
+`RenderedNamespace`, `SignatureAlgorithm`, `SignatureAlgorithmType`, `SignedXmlOptions` and
+`TransformAlgorithm`.
+
+Anything not on this list is internal. `package.json` declares an `exports` map naming only
+this entry point, so a path into `lib/` no longer resolves and the list above is the whole
+surface rather than a convention.
 
 ### SignedXml
 
