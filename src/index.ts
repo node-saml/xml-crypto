@@ -96,13 +96,13 @@ export const encodeSpecialCharactersInText = deprecate(
 );
 
 /**
- * @deprecated Will be removed in 7.0. Compare digests with
- *   `crypto.timingSafeEqual(Buffer.from(a, "base64"), Buffer.from(b, "base64"))`, which throws
- *   on a length mismatch — that counts as unequal. Do not compare them with `===`.
+ * @deprecated Will be removed in 7.0. Decode both digests from base64, then compare them with
+ *   `a.length === b.length && crypto.timingSafeEqual(a, b)`: `timingSafeEqual` alone throws on a
+ *   length mismatch instead of returning `false`. Do not compare them with `===`.
  */
 export const validateDigestValue = deprecate(
   utils.validateDigestValue,
-  '`validateDigestValue()` is deprecated and will be removed in version 7.0. Use `crypto.timingSafeEqual(Buffer.from(a, "base64"), Buffer.from(b, "base64"))` instead, and never `===`.',
+  "`validateDigestValue()` is deprecated and will be removed in version 7.0. Decode both digests from base64 and use `a.length === b.length && crypto.timingSafeEqual(a, b)` instead, and never `===`.",
   "XML_CRYPTO_VALIDATE_DIGEST_VALUE",
 );
 
