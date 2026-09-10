@@ -254,9 +254,6 @@ export function createOptionalCallbackFunction<T, A extends unknown[]>(
     const possibleCallback = args[args.length - 1];
     if (isErrorFirstCallback(possibleCallback)) {
       let result: T;
-      // Only `syncVersion` may run inside the `try`. Invoking the callback there would let an
-      // exception thrown *by the callback* land in the `catch` and invoke it a second time.
-      // https://github.com/node-saml/xml-crypto/issues/527
       try {
         result = syncVersion(...(args.slice(0, -1) as A));
       } catch (err) {
