@@ -47,11 +47,6 @@ export function findChildren(node: Node | Document, localName: string, namespace
   return res;
 }
 
-/** @deprecated */
-export function findChilds(node: Node | Document, localName: string, namespace?: string) {
-  return findChildren(node, localName, namespace);
-}
-
 const xml_special_to_encoded_attribute = {
   "&": "&amp;",
   "<": "&lt;",
