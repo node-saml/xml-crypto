@@ -48,8 +48,8 @@ export function findChildren(node: Node | Document, localName: string, namespace
 }
 
 /**
- * @deprecated Will be removed in 7.0. Use {@link findChildren} instead; the signature and
- *   behaviour are identical.
+ * @deprecated Will be removed in 7.0. This is an internal DOM helper with no replacement; use a
+ *   DOM API or the `xpath` package.
  */
 export function findChilds(node: Node | Document, localName: string, namespace?: string) {
   return findChildren(node, localName, namespace);
