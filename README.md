@@ -15,6 +15,48 @@
 
 ## Upgrading
 
+### Upgrading to 7.0
+
+Asynchronous work is done through its own entry points rather than by passing a callback.
+`computeSignature(xml, callback)`, `computeSignature(xml, options, callback)` and
+`checkSignature(xml, callback)` are gone, along with the `createOptionalCallbackFunction`
+helper and the `ErrorFirstCallback` type:
+
+```js
+// before
+sig.computeSignature(xml, (err) => {
+  if (err) return done(err);
+  use(sig.getSignedXml());
+});
+
+// after
+const signedXml = (await sig.computeSignatureAsync(xml)).getSignedXml();
+```
+
+Passing a callback now throws a `TypeError` naming the replacement, rather than signing
+successfully and never calling back.
+
+"Synchronous unless you pass a callback" was observable to the caller: switching
+`signatureAlgorithm` changed whether the caller's own `try`/`catch` caught a handler's error and
+whether state assigned after the call was visible to the handler. Node's own answer to this is a
+pair of separately named functions, and that is what this is.
+
+`checkSignature`'s asynchronous path did not work at all: it called `verifySignature` in its
+three-argument synchronous form and never passed the callback down, so an async-only verifier
+could not report a valid signature. `checkSignatureAsync` replaces it.
+
+`HashAlgorithm.getHash`, `SignatureAlgorithm.getSignature` and
+`SignatureAlgorithm.verifySignature` are now optional, joined by `getHashAsync`,
+`getSignatureAsync` and `verifySignatureAsync`. An implementation provides whichever forms its
+backend supports — see [asynchronous signing and verification](#asynchronous-signing-and-verification).
+Existing synchronous implementations keep working unchanged; TypeScript code that _calls_ these
+methods through the interface type now has to account for them being optional.
+
+`validateElementAgainstReferences` gained an asynchronous twin,
+`validateElementAgainstReferencesAsync`.
+
+### Upgrading to 6.0
+
 The `.getReferences()` AND the `.references` APIs are deprecated.
 Please do not attempt to access them. The content in them should be treated as unsigned.
 
@@ -278,6 +320,7 @@ To sign xml documents:
     - `attrs` - a hash of attributes and values `attrName: value` to add to the signature root node
     - `location` - customize the location of the signature, pass an object with a `reference` key which should contain a XPath expression to a reference node, an `action` key which should contain one of the following values: `append`, `prepend`, `before`, `after`
     - `existingPrefixes` - A hash of prefixes and namespaces `prefix: namespace` that shouldn't be in the signature because they already exist in the xml
+- `computeSignatureAsync(xml, [options])` - as `computeSignature`, but returns a promise for this instance and awaits any [algorithm that can only work asynchronously](#algorithms-that-can-only-work-asynchronously)
 - `getSignedXml()` - returns the original xml document with the signature in it, **must be called only after `computeSignature`**
 - `getSignatureXml()` - returns just the signature part, **must be called only after `computeSignature`**
 - `getOriginalXmlWithIds()` - **[deprecated]** returns the original xml with Id attributes added on relevant elements, **must be called only after `computeSignature`**. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. See [how to specify the location of the signature](#how-to-specify-the-location-of-the-signature).
@@ -287,6 +330,7 @@ To verify xml documents:
 - `loadSignature(signatureXml)` - loads the signature where:
   - `signatureXml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the signature
 - `checkSignature(xml)` - validates the given xml document and returns `true` if the validation was successful
+- `checkSignatureAsync(xml)` - as `checkSignature`, but returns a promise and awaits any [algorithm that can only work asynchronously](#algorithms-that-can-only-work-asynchronously)
 
 ## Customizing Algorithms
 
@@ -332,11 +376,20 @@ function MySignatureAlgorithm() {
     return "signature of signedInfo as base64...";
   };
 
+  /*verify the given signature over the given material. return a boolean*/
+  this.verifySignature = function (material, key, signatureValue) {
+    return true;
+  };
+
   this.getAlgorithmName = function () {
     return "http://mySigningAlgorithm";
   };
 }
 ```
+
+If the backend cannot answer synchronously — Web Crypto, an HSM, a KMS, a signing server —
+implement `getHashAsync`, `getSignatureAsync` and `verifySignatureAsync` instead. See
+[asynchronous signing and verification](#asynchronous-signing-and-verification).
 
 Custom transformation algorithm.
 
@@ -422,32 +475,78 @@ You can always look at the actual code as a sample.
 
 ## Asynchronous signing and verification
 
-If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, you can create a custom signing algorithm that uses an asynchronous callback.
+Every entry point comes in two forms. `computeSignature` and `checkSignature` are synchronous;
+`computeSignatureAsync` and `checkSignatureAsync` return promises and await the crypto.
 
 ```javascript
-function AsyncSignatureAlgorithm() {
-  this.getSignature = function (signedInfo, privateKey, callback) {
-    var signer = crypto.createSign("RSA-SHA1");
-    signer.update(signedInfo);
-    var res = signer.sign(privateKey, "base64");
-    //Do some asynchronous things here
-    callback(null, res);
-  };
+const sig = new SignedXml({ privateKey, signatureAlgorithm, canonicalizationAlgorithm });
+sig.addReference({ xpath, digestAlgorithm, transforms });
+
+await sig.computeSignatureAsync(xml);
+const signedXml = sig.getSignedXml();
+```
+
+`computeSignatureAsync` resolves with the instance, so it can be chained:
+
+```javascript
+const signedXml = (await sig.computeSignatureAsync(xml)).getSignedXml();
+```
+
+Only three operations can be asynchronous — hashing, signing, verifying — and they are the
+only places the asynchronous flow differs from the synchronous one. Canonicalization, XPath
+selection, digest comparison and DOM assembly are shared, so the two entry points produce
+byte-identical output.
+
+### Algorithms that can only work asynchronously
+
+If the private key is not held locally — a Hardware Security Module, a KMS, a signing server —
+or if the backend is the Web Crypto API, whose `crypto.subtle` has no synchronous form, the
+algorithm cannot answer synchronously. Implement the `Async` twin instead of the synchronous
+method:
+
+```javascript
+function WebCryptoSha256() {
   this.getAlgorithmName = function () {
-    return "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    return "http://www.w3.org/2001/04/xmlenc#sha256";
+  };
+  this.getHashAsync = async function (xml) {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(xml));
+    return Buffer.from(digest).toString("base64");
   };
 }
 
-var sig = new SignedXml({ signatureAlgorithm: "http://asyncSignatureAlgorithm" });
-sig.SignatureAlgorithms["http://asyncSignatureAlgorithm"] = AsyncSignatureAlgorithm;
-sig.signatureAlgorithm = "http://asyncSignatureAlgorithm";
-sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-sig.computeSignature(xml, opts, function (err) {
-  var signedResponse = sig.getSignedXml();
-});
+function RemoteRsaSha256() {
+  this.getAlgorithmName = function () {
+    return "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+  };
+  this.getSignatureAsync = async function (signedInfo, privateKey) {
+    return await signingServer.sign(signedInfo);
+  };
+  this.verifySignatureAsync = async function (material, key, signatureValue) {
+    return await signingServer.verify(material, signatureValue);
+  };
+}
 ```
 
-The function `sig.checkSignature` may also use a callback if asynchronous verification is needed.
+Provide whichever forms the backend supports, and no more:
+
+| Interface            | Synchronous       | Asynchronous           |
+| -------------------- | ----------------- | ---------------------- |
+| `HashAlgorithm`      | `getHash`         | `getHashAsync`         |
+| `SignatureAlgorithm` | `getSignature`    | `getSignatureAsync`    |
+| `SignatureAlgorithm` | `verifySignature` | `verifySignatureAsync` |
+
+The asynchronous entry points use the synchronous method when only that one exists, so they
+accept every algorithm the synchronous entry points do — the bundled `node:crypto` algorithms
+included. The reverse cannot work, so reaching an async-only algorithm from `computeSignature`
+or `checkSignature` fails immediately and names the entry point to use:
+
+```text
+WebCryptoSha256 is async-only; use computeSignatureAsync()
+```
+
+An algorithm that implements neither form of an operation is reported the same way, rather than
+surfacing as `undefined is not a function` from inside the flow.
 
 ## X.509 / Key formats
 

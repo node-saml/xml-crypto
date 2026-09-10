@@ -8,8 +8,6 @@
 
 import * as crypto from "crypto";
 
-export type ErrorFirstCallback<T> = (err: Error | null, result?: T) => void;
-
 export type CanonicalizationAlgorithmType =
   | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
   | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments"
@@ -169,36 +167,65 @@ export interface CanonicalizationOrTransformationAlgorithm {
   getAlgorithmName(): CanonicalizationOrTransformAlgorithmType;
 }
 
-/** Implement this to create a new HashAlgorithm */
+/**
+ * Implement this to create a new HashAlgorithm.
+ *
+ * Provide `getHash`, `getHashAsync`, or both — an implementation backed by `node:crypto` can
+ * answer synchronously, one backed by `crypto.subtle` cannot. Providing only `getHashAsync`
+ * makes the algorithm usable from {@link SignedXml.computeSignatureAsync} and
+ * {@link SignedXml.checkSignatureAsync}, and the synchronous entry points will say so rather
+ * than failing obscurely.
+ *
+ * @see https://github.com/node-saml/xml-crypto/issues/546
+ */
 export interface HashAlgorithm {
   getAlgorithmName(): HashAlgorithmType;
 
-  getHash(xml: string): string;
+  getHash?(xml: string): string;
+
+  getHashAsync?(xml: string): Promise<string>;
 }
 
-/** Extend this to create a new SignatureAlgorithm */
+/**
+ * Extend this to create a new SignatureAlgorithm.
+ *
+ * Each operation comes in a synchronous and an asynchronous form; provide whichever the
+ * backing implementation can support. A `node:crypto`-backed algorithm implements
+ * `getSignature` and `verifySignature`; one backed by `crypto.subtle`, an HSM, a KMS or a
+ * signing server implements `getSignatureAsync` and `verifySignatureAsync` and is used
+ * through {@link SignedXml.computeSignatureAsync} and {@link SignedXml.checkSignatureAsync}.
+ * An algorithm that only signs need not implement verification, and vice versa.
+ *
+ * @see https://github.com/node-saml/xml-crypto/issues/546
+ */
 export interface SignatureAlgorithm {
   /**
    * Sign the given string using the given key
    */
-  getSignature(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string;
-  getSignature(
-    signedInfo: crypto.BinaryLike,
-    privateKey: crypto.KeyLike,
-    callback?: ErrorFirstCallback<string>,
-  ): void;
+  getSignature?(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string;
+
+  /**
+   * Sign the given string using the given key, resolving when the signature is available
+   */
+  getSignatureAsync?(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): Promise<string>;
+
   /**
    * Verify the given signature of the given string using key
    *
    * @param key a public cert, public key, or private key can be passed here
    */
-  verifySignature(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
-  verifySignature(
+  verifySignature?(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
+
+  /**
+   * Verify the given signature of the given string using key, resolving with the verdict
+   *
+   * @param key a public cert, public key, or private key can be passed here
+   */
+  verifySignatureAsync?(
     material: string,
     key: crypto.KeyLike,
     signatureValue: string,
-    callback?: ErrorFirstCallback<boolean>,
-  ): void;
+  ): Promise<boolean>;
 
   getAlgorithmName(): SignatureAlgorithmType;
 }
@@ -231,39 +258,3 @@ export interface TransformAlgorithm {
  *  - {@link SignedXml#loadSignature}
  *  - {@link SignedXml#checkSignature}
  */
-
-function isErrorFirstCallback<T>(
-  possibleCallback: unknown,
-): possibleCallback is ErrorFirstCallback<T> {
-  return typeof possibleCallback === "function";
-}
-
-/**
- * This function will add a callback version of a sync function.
- *
- * This follows the factory pattern.
- * Just call this function, passing the function that you'd like to add a callback version of.
- */
-export function createOptionalCallbackFunction<T, A extends unknown[]>(
-  syncVersion: (...args: A) => T,
-): {
-  (...args: A): T;
-  (...args: [...A, ErrorFirstCallback<T>]): void;
-} {
-  return ((...args: A | [...A, ErrorFirstCallback<T>]) => {
-    const possibleCallback = args[args.length - 1];
-    if (isErrorFirstCallback(possibleCallback)) {
-      try {
-        const result = syncVersion(...(args.slice(0, -1) as A));
-        possibleCallback(null, result);
-      } catch (err) {
-        possibleCallback(err instanceof Error ? err : new Error("Unknown error"));
-      }
-    } else {
-      return syncVersion(...(args as A));
-    }
-  }) as {
-    (...args: A): T;
-    (...args: [...A, ErrorFirstCallback<T>]): void;
-  };
-}
