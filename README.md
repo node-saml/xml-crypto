@@ -15,6 +15,20 @@
 
 ## Upgrading
 
+### Upgrading to 7.0
+
+`findChilds()` has been removed. It was a deprecated alias that only ever forwarded to
+`findChildren()`, which has an identical signature and behaviour:
+
+```js
+// before
+findChilds(node, localName, namespace);
+// after
+findChildren(node, localName, namespace);
+```
+
+### Upgrading to 6.0
+
 The `.getReferences()` AND the `.references` APIs are deprecated.
 Please do not attempt to access them. The content in them should be treated as unsigned.
 
