@@ -1313,6 +1313,14 @@ export class SignedXml {
       //if only y is the node to sign then a string would be <p:y/> without the definition of the p namespace. probably xmldom toString() should have added it.
     });
 
+    // A node-set is converted to octets with C14N, never with a DOM serializer:
+    // https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
+    if (isDomNode.isNodeLike(transformedXml)) {
+      transformedXml = this.findCanonicalizationAlgorithm(
+        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+      ).process(transformedXml, options);
+    }
+
     return transformedXml.toString();
   }
 
