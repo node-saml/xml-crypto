@@ -1304,13 +1304,6 @@ export class SignedXml {
         const transform = this.findCanonicalizationAlgorithm(transformName);
         transformedXml = transform.process(transformedXml, options);
       }
-      //TODO: currently transform.process may return either Node or String value (enveloped transformation returns Node, exclusive-canonicalization returns String).
-      //This either needs to be more explicit in the API, or all should return the same.
-      //exclusive-canonicalization returns String since it builds the Xml by hand. If it had used xmldom it would incorrectly minimize empty tags
-      //to <x/> instead of <x></x> and also incorrectly handle some delicate line break issues.
-      //enveloped transformation returns Node since if it would return String consider this case:
-      //<x xmlns:p='ns'><p:y/></x>
-      //if only y is the node to sign then a string would be <p:y/> without the definition of the p namespace. probably xmldom toString() should have added it.
     });
 
     // A node-set is converted to octets with C14N, never with a DOM serializer:
