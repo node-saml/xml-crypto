@@ -29,7 +29,7 @@ import * as utils from "./utils";
 
 const warnOriginalXmlWithIds = deprecate(
   () => {},
-  "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`.",
+  "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. For a detached signature, give each referenced element an ID attribute before signing, then send that document alongside `getSignatureXml()`.",
   "XML_CRYPTO_GET_ORIGINAL_XML_WITH_IDS",
 );
 
@@ -1433,7 +1433,9 @@ export class SignedXml {
    *
    * @returns The original XML with IDs.
    * @deprecated Will be removed in a future version. Use the `location` option of
-   * {@link computeSignature} to place the signature, then {@link getSignedXml}.
+   * {@link computeSignature} to place the signature, then {@link getSignedXml}. For a detached
+   * signature, give each referenced element an ID attribute before signing, then send that
+   * document alongside {@link getSignatureXml}.
    */
   getOriginalXmlWithIds(): string {
     warnOriginalXmlWithIds();
