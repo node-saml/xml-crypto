@@ -31,6 +31,12 @@ export function findAttr(element: Element, localName: string, namespace?: string
   return null;
 }
 
+// `Algorithm` is xsd:anyURI. https://www.w3.org/TR/xmlschema-2/#anyURI
+// XML 1.0 §3.3.3 does not collapse, so this helper exists. https://www.w3.org/TR/xml/#AVNormalize
+export function collapseAnyUri(value: string): string {
+  return value.replace(/[\t\n\r ]+/g, " ").replace(/^ +| +$/g, "");
+}
+
 export function findChildren(node: Node | Document, localName: string, namespace?: string) {
   const element = (node as Document).documentElement ?? node;
   const res: Element[] = [];
