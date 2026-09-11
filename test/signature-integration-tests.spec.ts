@@ -507,6 +507,30 @@ describe("Signature integration tests", function () {
       });
     }
 
+    for (const references of [
+      ["//*[@Id]", "/*"],
+      ["/*", "//*[@Id]"],
+    ]) {
+      it(`rejects a reference that matches an input element only after IDs are added, with ${references[0]} first`, function () {
+        const signer = new SignedXml({
+          privateKey,
+          canonicalizationAlgorithm: canonicalization,
+          signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        });
+        for (const xpath of references) {
+          signer.addReference({
+            xpath,
+            transforms: [enveloped, canonicalization],
+            digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+          });
+        }
+
+        expect(() => signer.computeSignature("<root>trusted</root>")).to.throw(
+          "the following xpath cannot be signed because it was not found: //*[@Id]",
+        );
+      });
+    }
+
     it("retains ancestor namespaces when adding an ID changes the reference XPath's result", function () {
       const signer = new SignedXml({
         privateKey,
@@ -559,6 +583,30 @@ describe("Signature integration tests", function () {
         ),
       ).to.be.false;
       expect(verifier.getSignedReferences()).to.be.empty;
+    });
+
+    it("rejects a reference that matches an input element only after the signature is inserted", function () {
+      const signer = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: canonicalization,
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      signer.addReference({
+        xpath: "/root",
+        transforms: [enveloped, canonicalization],
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      });
+      signer.addReference({
+        xpath: "/root/*[2]",
+        transforms: [canonicalization],
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      });
+
+      expect(() =>
+        signer.computeSignature("<root><value>trusted</value></root>", {
+          location: { reference: "/root", action: "prepend" },
+        }),
+      ).to.throw("the following xpath cannot be signed because it was not found: /root/*[2]");
     });
   });
 });

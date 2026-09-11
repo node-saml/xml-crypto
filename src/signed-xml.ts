@@ -1119,6 +1119,21 @@ export class SignedXml {
     return this.findHashAlgorithm(ref.digestAlgorithm).getHash(canonXml);
   }
 
+  private findSignatureContentTargets(
+    ref: Reference,
+    doc: Document,
+    signatureElem: Element,
+  ): SigningReferenceTarget[] {
+    const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+    isDomNode.assertIsArrayOfNodes(nodes);
+    return nodes
+      .filter((node) => node === signatureElem || utils.isDescendantOf(node, signatureElem))
+      .map((node) => {
+        isDomNode.assertIsElementNode(node);
+        return { node };
+      });
+  }
+
   private addAllReferences(
     doc: Document,
     signatureElem: Element,
@@ -1140,23 +1155,19 @@ export class SignedXml {
     // but we will extract it here for clarity (and also make it support detached signatures in the future)
     const signatureDoc = signatureElem.ownerDocument;
 
-    // Process each reference
-    for (const ref of this.getReferences()) {
-      const targets = referenceTargets.get(ref);
-      const nodes = targets?.length
-        ? targets.map((target) => target.node)
-        : xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+    for (const [ref, inputTargets] of referenceTargets) {
+      const targets =
+        inputTargets.length > 0
+          ? inputTargets
+          : this.findSignatureContentTargets(ref, doc, signatureElem);
 
-      if (!utils.isArrayHasLength(nodes)) {
+      if (!utils.isArrayHasLength(targets)) {
         throw new Error(
           `the following xpath cannot be signed because it was not found: ${ref.xpath}`,
         );
       }
 
-      // Process the reference
-      for (const [index, node] of nodes.entries()) {
-        isDomNode.assertIsElementNode(node);
-
+      for (const { node, digestValue } of targets) {
         // Must not be a reference to Signature, SignedInfo, or a child of SignedInfo
         if (
           node === signatureElem ||
@@ -1233,8 +1244,7 @@ export class SignedXml {
           signatureNamespace,
           `${currentPrefix}DigestValue`,
         );
-        digestValueElem.textContent =
-          targets?.[index]?.digestValue ?? this.calculateReferenceDigest(ref, node);
+        digestValueElem.textContent = digestValue ?? this.calculateReferenceDigest(ref, node);
 
         referenceElem.appendChild(transformsElem);
         referenceElem.appendChild(digestMethodElem);
