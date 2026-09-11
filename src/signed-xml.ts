@@ -1151,7 +1151,7 @@ export class SignedXml {
         // https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature
         if (
           utils.isDescendantOf(signatureElem, node) &&
-          (ref.transforms ?? [])
+          ref.transforms
             .map((transform) => this.findCanonicalizationAlgorithm(transform))
             .every((algorithm) => !algorithm.removesNodes)
         ) {
