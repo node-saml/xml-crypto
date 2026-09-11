@@ -15,6 +15,25 @@
 
 ## Upgrading
 
+### Inclusive canonicalization output
+
+Inclusive canonicalization (`http://www.w3.org/TR/2001/REC-xml-c14n-20010315` and its
+`#WithComments` variant) now renders namespace declarations as the
+[C14N specification](https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel) requires.
+Earlier releases rendered some documents incorrectly, for example when:
+
+- a prefixed element in the signed content declares a default namespace, as in
+  `<p:item xmlns="urn:x">`
+- the signed element inherits a default namespace and declares a prefixed namespace of its own
+- the signed element is prefixed, inherits a default namespace, and contains an element that
+  clears it with `xmlns=""`
+- the signed element redeclares a prefix that an ancestor binds, after declaring another namespace
+
+For such documents this release computes a different digest than 6.1.x and earlier, so a
+signature created by one will not verify with the other. Upgrade signers and verifiers that
+exchange these documents together. Documents signed in these shapes by other conforming
+implementations, which 6.1.x rejected, now verify. Exclusive canonicalization is unaffected.
+
 ### Deprecated ahead of 7.0
 
 The package used to re-export everything in its internal `utils` module, so helpers written for
