@@ -138,6 +138,8 @@ describe("Signature integration tests", function () {
       "./test/static/signature_with_inclusivenamespaces_lines.xml",
       "utf-8",
     );
+    // The parser normalizes line endings, so only the fixture decides which kind this covers.
+    expect(xml).to.not.include("\r");
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const childXml = doc.firstChild?.toString();
 
@@ -160,6 +162,8 @@ describe("Signature integration tests", function () {
       "./test/static/signature_with_inclusivenamespaces_lines_windows.xml",
       "utf-8",
     );
+    expect(xml).to.include("\r\n");
+    expect(xml).to.not.match(/[^\r]\n/);
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const childXml = doc.firstChild?.toString();
 

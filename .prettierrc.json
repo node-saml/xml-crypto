@@ -1,4 +1,8 @@
 {
   "printWidth": 100,
-  "plugins": ["@prettier/plugin-xml", "prettier-plugin-packagejson"]
+  "plugins": [
+    "@prettier/plugin-xml",
+    "prettier-plugin-packagejson",
+    "./prettier-plugin-plain-text.js"
+  ]
 }
