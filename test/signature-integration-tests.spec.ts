@@ -477,6 +477,36 @@ describe("Signature integration tests", function () {
       });
     }
 
+    for (const references of [
+      ["/*", "/root[not(@Id)]"],
+      ["/root[not(@Id)]", "/*"],
+    ]) {
+      it(`resolves every reference against the input document with ${references[0]} first`, function () {
+        const signer = new SignedXml({
+          privateKey,
+          canonicalizationAlgorithm: canonicalization,
+          signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        });
+        for (const xpath of references) {
+          signer.addReference({
+            xpath,
+            transforms: [enveloped, canonicalization],
+            digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+          });
+        }
+
+        signer.computeSignature("<root>trusted</root>");
+
+        const verifier = new SignedXml({ publicCert });
+        verifier.loadSignature(signer.getSignatureXml());
+        expect(verifier.checkSignature(signer.getSignedXml())).to.be.true;
+        expect(verifier.getSignedReferences()).to.deep.equal([
+          '<root Id="_0">trusted</root>',
+          '<root Id="_0">trusted</root>',
+        ]);
+      });
+    }
+
     it("retains ancestor namespaces when adding an ID changes the reference XPath's result", function () {
       const signer = new SignedXml({
         privateKey,

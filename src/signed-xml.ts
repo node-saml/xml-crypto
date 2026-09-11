@@ -969,13 +969,11 @@ export class SignedXml {
       isDomNode.assertIsArrayOfNodes(nodes);
       const targets = nodes.map((node) => {
         isDomNode.assertIsElementNode(node);
-        if (!ref.isEmptyUri) {
-          this.ensureHasId(node);
-        }
         return { node };
       });
       referenceTargets.set(ref, targets);
     }
+    this.ensureTargetsHaveIds(referenceTargets);
 
     // Capture original with IDs (no sig yet)
     this.originalXmlWithIds = doc.toString();
@@ -1099,6 +1097,16 @@ export class SignedXml {
       signatureElem.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
       this.signatureXml = signatureElem.toString();
       this.signedXml = doc.toString();
+    }
+  }
+
+  private ensureTargetsHaveIds(referenceTargets: Map<Reference, SigningReferenceTarget[]>): void {
+    for (const [ref, targets] of referenceTargets) {
+      if (!ref.isEmptyUri) {
+        for (const { node } of targets) {
+          this.ensureHasId(node);
+        }
+      }
     }
   }
 
