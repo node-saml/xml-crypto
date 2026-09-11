@@ -1,5 +1,0 @@
-C:\Users\naveh\Documents\features\projects\xml-crypto\test\validators\XmlCryptoUtilities\XmlCryptoUtilities\bin\Debug\XmlCryptoUtilities.exe
-C:\Users\naveh\Documents\features\projects\xml-crypto\test\validators\XmlCryptoUtilities\XmlCryptoUtilities\bin\Debug\XmlCryptoUtilities.pdb
-C:\Users\naveh\Documents\features\projects\xml-crypto\test\validators\XmlCryptoUtilities\XmlCryptoUtilities\obj\x86\Debug\ResolveAssemblyReference.cache
-C:\Users\naveh\Documents\features\projects\xml-crypto\test\validators\XmlCryptoUtilities\XmlCryptoUtilities\obj\x86\Debug\XmlCryptoUtilities.exe
-C:\Users\naveh\Documents\features\projects\xml-crypto\test\validators\XmlCryptoUtilities\XmlCryptoUtilities\obj\x86\Debug\XmlCryptoUtilities.pdb
