@@ -301,7 +301,7 @@ To sign xml documents:
     - `existingPrefixes` - A hash of prefixes and namespaces `prefix: namespace` that shouldn't be in the signature because they already exist in the xml
 - `getSignedXml()` - returns the original xml document with the signature in it, **must be called only after `computeSignature`**
 - `getSignatureXml()` - returns just the signature part, **must be called only after `computeSignature`**
-- `getOriginalXmlWithIds()` - **[deprecated]** returns the original xml with Id attributes added on relevant elements, **must be called only after `computeSignature`**. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. See [how to specify the location of the signature](#how-to-specify-the-location-of-the-signature).
+- `getOriginalXmlWithIds()` - **[deprecated]** returns the original xml with Id attributes added on relevant elements, **must be called only after `computeSignature`**. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. See [how to specify the location of the signature](#how-to-specify-the-location-of-the-signature). For a detached signature, give each referenced element an ID attribute before signing, then send that document alongside `getSignatureXml()`.
 
 To verify xml documents:
 
