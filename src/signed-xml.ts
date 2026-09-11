@@ -523,7 +523,6 @@ export class SignedXml {
     throw new Error("No references passed validation");
   }
 
-  // The canonical XML returned is only trustworthy once SignatureValue has verified SignedInfo.
   private validateReference(ref: Reference, doc: Document): string | undefined {
     const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
     let elem: xpath.SelectSingleReturnType = null;
