@@ -273,6 +273,11 @@ export class SignedXml {
       throw new Error("Last parameter must be a callback function");
     }
 
+    // Nothing this check has not authenticated may be visible, even if it throws partway. Success
+    // adds to what earlier successful checks on this instance published.
+    const earlierSignedReferences = this.signedReferences;
+    this.signedReferences = [];
+
     this.signedXml = xml;
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
@@ -323,31 +328,23 @@ export class SignedXml {
       this.loadReference(reference);
     }
 
-    /* eslint-disable-next-line deprecation/deprecation */
-    if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
-      /* Trustworthiness can only be determined if SignedInfo's (which holds References' DigestValue(s)
-         which were validated at this stage) signature is valid. Execution does not proceed to validate
-         signature phase thus each References' DigestValue must be considered to be untrusted (attacker
-         might have injected any data with new new references and/or recalculated new DigestValue for
-         altered Reference(s)). Returning any content via `signedReferences` would give false sense of
-         trustworthiness if/when SignedInfo's (which holds references' DigestValues) signature is not
-         valid(ated). Put simply: if one fails, they are all not trustworthy.
-      */
-      this.signedReferences = [];
-      this.references.forEach((ref) => {
-        ref.signedReference = undefined;
-      });
-      // TODO: add this breaking change here later on for even more security: `this.references = [];`
+    const canonReferences: string[] = [];
+    for (const ref of this.references) {
+      const canonXml = this.validateReference(ref, doc);
+      if (canonXml === undefined) {
+        // TODO: add this breaking change here later on for even more security: `this.references = [];`
 
-      if (callback) {
-        callback(new Error("Could not validate all references"), false);
-        return;
+        if (callback) {
+          callback(new Error("Could not validate all references"), false);
+          return;
+        }
+
+        // We return false because some references validated, but not all
+        // We should actually be throwing an error here, but that would be a breaking change
+        // See https://www.w3.org/TR/xmldsig-core/#sec-CoreValidation
+        return false;
       }
-
-      // We return false because some references validated, but not all
-      // We should actually be throwing an error here, but that would be a breaking change
-      // See https://www.w3.org/TR/xmldsig-core/#sec-CoreValidation
-      return false;
+      canonReferences.push(canonXml);
     }
 
     // (Stage B authentication step, show that the `signedInfoCanon` is signed)
@@ -363,19 +360,17 @@ export class SignedXml {
     // Check the signature verification to know whether to reset signature value or not.
     const sigRes = signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
     if (sigRes === true) {
+      this.signedReferences = [...earlierSignedReferences, ...canonReferences];
+      this.references.forEach((ref, index) => {
+        ref.signedReference = canonReferences[index];
+      });
+
       if (callback) {
         callback(null, true);
       } else {
         return true;
       }
     } else {
-      // Ideally, we would start by verifying the `signedInfoCanon` first,
-      // but that may cause some breaking changes, so we'll handle that in v7.x.
-      // If we were validating `signedInfoCanon` first, we wouldn't have to reset this array.
-      this.signedReferences = [];
-      this.references.forEach((ref) => {
-        ref.signedReference = undefined;
-      });
       // TODO: add this breaking change here later on for even more security: `this.references = [];`
 
       if (callback) {
@@ -528,7 +523,7 @@ export class SignedXml {
     throw new Error("No references passed validation");
   }
 
-  private validateReference(ref: Reference, doc: Document) {
+  private validateReference(ref: Reference, doc: Document): string | undefined {
     const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
     let elem: xpath.SelectSingleReturnType = null;
 
@@ -573,7 +568,7 @@ export class SignedXml {
         `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
       );
       ref.validationError = validationError;
-      return false;
+      return undefined;
     }
 
     const canonXml = this.getCanonReferenceXml(doc, ref, elem);
@@ -586,16 +581,10 @@ export class SignedXml {
       );
       ref.validationError = validationError;
 
-      return false;
+      return undefined;
     }
-    // This step can only be done after we have verified the `signedInfo`.
-    // We verified that they have same hash,
-    // thus the `canonXml` and _only_ the `canonXml` can be trusted.
-    // Append this to `signedReferences`.
-    this.signedReferences.push(canonXml);
-    ref.signedReference = canonXml;
 
-    return true;
+    return canonXml;
   }
 
   findSignatures(doc: Node): Node[] {
