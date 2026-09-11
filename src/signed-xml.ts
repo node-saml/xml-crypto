@@ -27,6 +27,8 @@ import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
 
+type SigningReferenceTarget = { node: Element; digestValue?: string };
+
 const warnOriginalXmlWithIds = deprecate(
   () => {},
   "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`.",
@@ -961,21 +963,18 @@ export class SignedXml {
       }
     }
 
-    // Add IDs for all non-self references upfront
+    const referenceTargets = new Map<Reference, SigningReferenceTarget[]>();
     for (const ref of this.getReferences()) {
-      if (ref.isEmptyUri) {
-        continue;
-      } // No specific nodes to ID for empty URI
-
-      const nodes = xpath.selectWithResolver(
-        ref.xpath ?? "",
-        doc,
-        this.namespaceResolver,
-      ) as Element[];
-      for (const node of nodes) {
+      const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+      isDomNode.assertIsArrayOfNodes(nodes);
+      const targets = nodes.map((node) => {
         isDomNode.assertIsElementNode(node);
-        this.ensureHasId(node);
-      }
+        if (!ref.isEmptyUri) {
+          this.ensureHasId(node);
+        }
+        return { node };
+      });
+      referenceTargets.set(ref, targets);
     }
 
     // Capture original with IDs (no sig yet)
@@ -1034,30 +1033,36 @@ export class SignedXml {
       }
     }
 
-    if (location.action === "append") {
-      referenceNode.appendChild(signatureElem);
-    } else if (location.action === "prepend") {
-      referenceNode.insertBefore(signatureElem, referenceNode.firstChild);
-    } else if (location.action === "before") {
-      if (referenceNode.parentNode == null) {
-        throw new Error(
-          "`location.reference` refers to the root node (by default), so we can't insert `before`",
-        );
-      }
-      referenceNode.parentNode.insertBefore(signatureElem, referenceNode);
-    } else if (location.action === "after") {
-      if (referenceNode.parentNode == null) {
-        throw new Error(
-          "`location.reference` refers to the root node (by default), so we can't insert `after`",
-        );
-      }
-      referenceNode.parentNode.insertBefore(signatureElem, referenceNode.nextSibling);
-    }
-
     const previousSignatureNode = this.signatureNode;
     this.signatureNode = signatureElem;
     try {
-      this.addAllReferences(doc, signatureElem, prefix);
+      for (const [ref, targets] of referenceTargets) {
+        for (const target of targets) {
+          target.digestValue = this.calculateReferenceDigest(ref, target.node);
+        }
+      }
+
+      if (location.action === "append") {
+        referenceNode.appendChild(signatureElem);
+      } else if (location.action === "prepend") {
+        referenceNode.insertBefore(signatureElem, referenceNode.firstChild);
+      } else if (location.action === "before") {
+        if (referenceNode.parentNode == null) {
+          throw new Error(
+            "`location.reference` refers to the root node (by default), so we can't insert `before`",
+          );
+        }
+        referenceNode.parentNode.insertBefore(signatureElem, referenceNode);
+      } else if (location.action === "after") {
+        if (referenceNode.parentNode == null) {
+          throw new Error(
+            "`location.reference` refers to the root node (by default), so we can't insert `after`",
+          );
+        }
+        referenceNode.parentNode.insertBefore(signatureElem, referenceNode.nextSibling);
+      }
+
+      this.addAllReferences(doc, signatureElem, referenceTargets, prefix);
     } catch (error) {
       this.signatureNode = previousSignatureNode;
       throw error;
@@ -1097,10 +1102,21 @@ export class SignedXml {
     }
   }
 
-  /**
-   * Adds all references to the SignedInfo after the signature placeholder is inserted.
-   */
-  private addAllReferences(doc: Document, signatureElem: Element, prefix?: string): void {
+  private calculateReferenceDigest(ref: Reference, node: Element): string {
+    ref.ancestorNamespaces = utils.findAncestorNsForElement(node);
+    const canonXml = this.getCanonXml(ref.transforms, node, {
+      inclusiveNamespacesPrefixList: ref.inclusiveNamespacesPrefixList,
+      ancestorNamespaces: ref.ancestorNamespaces,
+    });
+    return this.findHashAlgorithm(ref.digestAlgorithm).getHash(canonXml);
+  }
+
+  private addAllReferences(
+    doc: Document,
+    signatureElem: Element,
+    referenceTargets: Map<Reference, SigningReferenceTarget[]>,
+    prefix?: string,
+  ): void {
     if (!utils.isArrayHasLength(this.references)) {
       return;
     }
@@ -1118,7 +1134,10 @@ export class SignedXml {
 
     // Process each reference
     for (const ref of this.getReferences()) {
-      const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+      const targets = referenceTargets.get(ref);
+      const nodes = targets?.length
+        ? targets.map((target) => target.node)
+        : xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
 
       if (!utils.isArrayHasLength(nodes)) {
         throw new Error(
@@ -1127,7 +1146,7 @@ export class SignedXml {
       }
 
       // Process the reference
-      for (const node of nodes) {
+      for (const [index, node] of nodes.entries()) {
         isDomNode.assertIsElementNode(node);
 
         // Must not be a reference to Signature, SignedInfo, or a child of SignedInfo
@@ -1194,10 +1213,6 @@ export class SignedXml {
           transformsElem.appendChild(transformElem);
         }
 
-        // Get the canonicalized XML
-        const canonXml = this.getCanonReferenceXml(doc, ref, node);
-
-        // Get the digest algorithm and compute the digest value
         const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
 
         const digestMethodElem = signatureDoc.createElementNS(
@@ -1210,7 +1225,8 @@ export class SignedXml {
           signatureNamespace,
           `${currentPrefix}DigestValue`,
         );
-        digestValueElem.textContent = digestAlgorithm.getHash(canonXml);
+        digestValueElem.textContent =
+          targets?.[index]?.digestValue ?? this.calculateReferenceDigest(ref, node);
 
         referenceElem.appendChild(transformsElem);
         referenceElem.appendChild(digestMethodElem);
