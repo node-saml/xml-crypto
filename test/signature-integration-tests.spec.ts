@@ -477,6 +477,43 @@ describe("Signature integration tests", function () {
       });
     }
 
+    for (const objectFirst of [false, true]) {
+      it(`signs an Object and an element inside it with the ${objectFirst ? "Object" : "element"} referenced first`, function () {
+        const signer = new SignedXml({
+          privateKey,
+          canonicalizationAlgorithm: canonicalization,
+          signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+          objects: [{ content: "<value>object-data</value>" }],
+        });
+        const objectReference = "//*[local-name(.)='Object']";
+        const valueReference = "//*[local-name(.)='value']";
+        for (const xpath of objectFirst
+          ? [objectReference, valueReference]
+          : [valueReference, objectReference]) {
+          signer.addReference({
+            xpath,
+            transforms: [canonicalization],
+            digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+          });
+        }
+
+        signer.computeSignature("<root>trusted</root>");
+
+        const signedXml = signer.getSignedXml();
+        const verifier = new SignedXml({ publicCert });
+        verifier.loadSignature(signer.getSignatureXml());
+        expect(verifier.checkSignature(signedXml)).to.be.true;
+        const signedElements = verifier
+          .getSignedReferences()
+          .map((xml) => new xmldom.DOMParser().parseFromString(xml).documentElement.localName);
+        expect(signedElements).to.deep.equal(
+          objectFirst ? ["Object", "value"] : ["value", "Object"],
+        );
+        expect(verifier.checkSignature(signedXml.replace("object-data", "tampered"))).to.be.false;
+        expect(verifier.getSignedReferences()).to.be.empty;
+      });
+    }
+
     for (const references of [
       ["/*", "/root[not(@Id)]"],
       ["/root[not(@Id)]", "/*"],

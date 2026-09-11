@@ -303,11 +303,11 @@ To sign xml documents:
 - `getSignatureXml()` - returns just the signature part, **must be called only after `computeSignature`**
 - `getOriginalXmlWithIds()` - **[deprecated]** returns the original xml with Id attributes added on relevant elements, **must be called only after `computeSignature`**. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. See [how to specify the location of the signature](#how-to-specify-the-location-of-the-signature).
 
-Reference XPath expressions first select elements from the input document. Once a reference
-matches, its targets stay the same when IDs and the signature are added. A reference without
-input matches is evaluated after signature insertion and selects only elements inside the new
-signature, such as generated `Object` or `KeyInfo` elements. Use separate `addReference()` calls
-for input elements and generated signature content.
+Every reference XPath is evaluated against the input document before any IDs or the signature
+are added, so the order of `addReference()` calls does not change what a reference selects. A
+reference that matches nothing in the input is evaluated after the signature is inserted and
+selects only elements inside the new signature, such as generated `Object` or `KeyInfo`
+elements. Use separate `addReference()` calls for input elements and generated signature content.
 
 To verify xml documents:
 

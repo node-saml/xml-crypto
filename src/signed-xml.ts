@@ -1155,11 +1155,16 @@ export class SignedXml {
     // but we will extract it here for clarity (and also make it support detached signatures in the future)
     const signatureDoc = signatureElem.ownerDocument;
 
+    const signatureContentTargets = new Map<Reference, SigningReferenceTarget[]>();
     for (const [ref, inputTargets] of referenceTargets) {
-      const targets =
-        inputTargets.length > 0
-          ? inputTargets
-          : this.findSignatureContentTargets(ref, doc, signatureElem);
+      if (inputTargets.length === 0) {
+        signatureContentTargets.set(ref, this.findSignatureContentTargets(ref, doc, signatureElem));
+      }
+    }
+    this.ensureTargetsHaveIds(signatureContentTargets);
+
+    for (const [ref, inputTargets] of referenceTargets) {
+      const targets = signatureContentTargets.get(ref) ?? inputTargets;
 
       if (!utils.isArrayHasLength(targets)) {
         throw new Error(
