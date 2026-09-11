@@ -244,6 +244,35 @@ function isElementSubset(docSubset: Node[]): docSubset is Element[] {
 }
 
 /**
+ * Extract ancestor namespaces for an element that is already resolved.
+ * Prefer this over `findAncestorNs` when the target element is known, since
+ * `findAncestorNs` re-executes an XPath and uses only the first match.
+ *
+ * @param element - The element whose ancestor namespace declarations to collect
+ * @returns i.e. [{prefix: "saml", namespaceURI: "urn:oasis:names:tc:SAML:2.0:assertion"}]
+ */
+export function findAncestorNsForNode(element: Element): NamespacePrefix[] {
+  const ancestorNs = collectAncestorNamespaces(element);
+  const ancestorNsWithoutDuplicate: NamespacePrefix[] = [];
+  for (const ns of ancestorNs) {
+    const isDuplicate = ancestorNsWithoutDuplicate.some((seen) => seen.prefix === ns.prefix);
+    if (!isDuplicate) {
+      ancestorNsWithoutDuplicate.push(ns);
+    }
+  }
+
+  const returningNs: NamespacePrefix[] = [];
+  const subsetNsPrefixes = findSubsetNSPrefixes(element);
+  for (const ns of ancestorNsWithoutDuplicate) {
+    if (!subsetNsPrefixes.has(ns.prefix)) {
+      returningNs.push(ns);
+    }
+  }
+
+  return returningNs;
+}
+
+/**
  * Extract ancestor namespaces in order to import it to root of document subset
  * which is being canonicalized for non-exclusive c14n.
  *
@@ -271,24 +300,7 @@ export function findAncestorNs(
     throw new Error("Document subset must be list of elements");
   }
 
-  const ancestorNs = collectAncestorNamespaces(docSubset[0]);
-  const ancestorNsWithoutDuplicate: NamespacePrefix[] = [];
-  for (const ns of ancestorNs) {
-    const isDuplicate = ancestorNsWithoutDuplicate.some((seen) => seen.prefix === ns.prefix);
-    if (!isDuplicate) {
-      ancestorNsWithoutDuplicate.push(ns);
-    }
-  }
-
-  const returningNs: NamespacePrefix[] = [];
-  const subsetNsPrefixes = findSubsetNSPrefixes(docSubset[0]);
-  for (const ancestorNs of ancestorNsWithoutDuplicate) {
-    if (!subsetNsPrefixes.has(ancestorNs.prefix)) {
-      returningNs.push(ancestorNs);
-    }
-  }
-
-  return returningNs;
+  return findAncestorNsForNode(docSubset[0]);
 }
 
 export function validateDigestValue(digest, expectedDigest) {

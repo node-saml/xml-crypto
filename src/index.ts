@@ -7,9 +7,33 @@ export {
   ExclusiveCanonicalizationWithComments,
 } from "./exclusive-canonicalization";
 export { SignedXml } from "./signed-xml";
-export * from "./types";
 
-export { derToPem, findAncestorNs, normalizePem, pemToDer } from "./utils";
+// These lists replace `export * from` and are exhaustive on purpose: they
+// reproduce the surface the wildcards already published, so that narrowing it
+// becomes a deliberate, separately reviewable break rather than a side effect.
+export { createOptionalCallbackFunction } from "./types";
+export type {
+  CanonicalizationAlgorithmType,
+  CanonicalizationOrTransformAlgorithmType,
+  CanonicalizationOrTransformationAlgorithm,
+  CanonicalizationOrTransformationAlgorithmProcessOptions,
+  ComputeSignatureOptions,
+  ComputeSignatureOptionsLocation,
+  ErrorFirstCallback,
+  GetKeyInfoContentArgs,
+  HashAlgorithm,
+  HashAlgorithmType,
+  NamespacePrefix,
+  ObjectAttributes,
+  Reference,
+  RenderedNamespace,
+  SignatureAlgorithm,
+  SignatureAlgorithmType,
+  SignedXmlOptions,
+  TransformAlgorithm,
+} from "./types";
+
+export { derToPem, findAncestorNs, findAncestorNsForNode, normalizePem, pemToDer } from "./utils";
 
 /*
  * `index.ts` used to re-export `./utils` wholesale, so helpers written for `signed-xml.ts` to

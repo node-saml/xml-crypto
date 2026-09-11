@@ -433,13 +433,12 @@ export class SignedXml {
     return this.getCanonXml([this.canonicalizationAlgorithm], signedInfo[0], c14nOptions);
   }
 
-  private getCanonReferenceXml(doc: Document, ref: Reference, node: Node) {
-    /**
-     * Search for ancestor namespaces before canonicalization.
-     */
-    if (Array.isArray(ref.transforms)) {
-      ref.ancestorNamespaces = utils.findAncestorNs(doc, ref.xpath, this.namespaceResolver);
-    }
+  private getCanonReferenceXml(ref: Reference, node: Node) {
+    // Derive the scope from the node being digested: findAncestorNs re-runs
+    // ref.xpath and keeps only the first match, which digests every reference
+    // addAllReferences() created from that xpath in the first match's scope.
+    isDomNode.assertIsElementNode(node);
+    ref.ancestorNamespaces = utils.findAncestorNsForNode(node);
 
     const c14nOptions = {
       inclusiveNamespacesPrefixList: ref.inclusiveNamespacesPrefixList,
@@ -478,7 +477,17 @@ export class SignedXml {
     if (name != null) {
       const algo = this.CanonicalizationAlgorithms[name];
       if (algo) {
-        return new algo();
+        const instance = new algo();
+        // Registering is reachable from JavaScript, where the required type buys
+        // nothing. Checking here covers every algorithm we instantiate, rather than
+        // only the ones a particular caller happens to look at.
+        if (typeof instance.removesNodes !== "boolean") {
+          throw new Error(
+            `canonicalization algorithm '${name}' must declare a boolean 'removesNodes'`,
+          );
+        }
+
+        return instance;
       }
     }
 
@@ -516,7 +525,7 @@ export class SignedXml {
         }
       }
 
-      const canonXml = this.getCanonReferenceXml(doc, ref, elem);
+      const canonXml = this.getCanonReferenceXml(ref, elem);
       const hash = this.findHashAlgorithm(ref.digestAlgorithm);
       const digest = hash.getHash(canonXml);
 
@@ -576,7 +585,7 @@ export class SignedXml {
       return false;
     }
 
-    const canonXml = this.getCanonReferenceXml(doc, ref, elem);
+    const canonXml = this.getCanonReferenceXml(ref, elem);
     const hash = this.findHashAlgorithm(ref.digestAlgorithm);
     const digest = hash.getHash(canonXml);
 
@@ -825,13 +834,9 @@ export class SignedXml {
       throw new Error("digestAlgorithm is required");
     }
 
-    if (!utils.isArrayHasLength(transforms)) {
-      throw new Error("transforms must contain at least one transform algorithm");
-    }
-
     this.references.push({
       xpath,
-      transforms,
+      transforms: transforms ?? [],
       digestAlgorithm,
       uri,
       digestValue,
@@ -1141,6 +1146,22 @@ export class SignedXml {
           );
         }
 
+        // The Signature is already in the document, and its SignatureValue is still
+        // empty, so digesting content that encloses it can never match on verification.
+        // https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature
+        if (
+          utils.isDescendantOf(signatureElem, node) &&
+          ref.transforms
+            .map((transform) => this.findCanonicalizationAlgorithm(transform))
+            .every((algorithm) => !algorithm.removesNodes)
+        ) {
+          throw new Error(
+            `The reference ${ref.xpath} encloses the signature, so it requires the ` +
+              "http://www.w3.org/2000/09/xmldsig#enveloped-signature transform. " +
+              "Without it the signature cannot be verified.",
+          );
+        }
+
         // Compute the target URI (ID already ensured earlier, extract it)
         let targetUri: string;
         if (ref.isEmptyUri) {
@@ -1166,36 +1187,40 @@ export class SignedXml {
           referenceElem.setAttribute("Type", ref.type);
         }
 
-        const transformsElem = signatureDoc.createElementNS(
-          signatureNamespace,
-          `${currentPrefix}Transforms`,
-        );
-
-        for (const trans of ref.transforms || []) {
-          const transform = this.findCanonicalizationAlgorithm(trans);
-          const transformElem = signatureDoc.createElementNS(
+        if (utils.isArrayHasLength(ref.transforms)) {
+          const transformsElem = signatureDoc.createElementNS(
             signatureNamespace,
-            `${currentPrefix}Transform`,
+            `${currentPrefix}Transforms`,
           );
-          transformElem.setAttribute("Algorithm", transform.getAlgorithmName());
 
-          if (utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList)) {
-            const inclusiveNamespacesElem = signatureDoc.createElementNS(
-              transform.getAlgorithmName(),
-              "InclusiveNamespaces",
+          for (const trans of ref.transforms) {
+            const transform = this.findCanonicalizationAlgorithm(trans);
+            const transformElem = signatureDoc.createElementNS(
+              signatureNamespace,
+              `${currentPrefix}Transform`,
             );
-            inclusiveNamespacesElem.setAttribute(
-              "PrefixList",
-              ref.inclusiveNamespacesPrefixList.join(" "),
-            );
-            transformElem.appendChild(inclusiveNamespacesElem);
+            transformElem.setAttribute("Algorithm", transform.getAlgorithmName());
+
+            if (utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList)) {
+              const inclusiveNamespacesElem = signatureDoc.createElementNS(
+                transform.getAlgorithmName(),
+                "InclusiveNamespaces",
+              );
+              inclusiveNamespacesElem.setAttribute(
+                "PrefixList",
+                ref.inclusiveNamespacesPrefixList.join(" "),
+              );
+              transformElem.appendChild(inclusiveNamespacesElem);
+            }
+
+            transformsElem.appendChild(transformElem);
           }
 
-          transformsElem.appendChild(transformElem);
+          referenceElem.appendChild(transformsElem);
         }
 
         // Get the canonicalized XML
-        const canonXml = this.getCanonReferenceXml(doc, ref, node);
+        const canonXml = this.getCanonReferenceXml(ref, node);
 
         // Get the digest algorithm and compute the digest value
         const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
@@ -1212,7 +1237,6 @@ export class SignedXml {
         );
         digestValueElem.textContent = digestAlgorithm.getHash(canonXml);
 
-        referenceElem.appendChild(transformsElem);
         referenceElem.appendChild(digestMethodElem);
         referenceElem.appendChild(digestValueElem);
 
@@ -1312,6 +1336,21 @@ export class SignedXml {
       //<x xmlns:p='ns'><p:y/></x>
       //if only y is the node to sign then a string would be <p:y/> without the definition of the p namespace. probably xmldom toString() should have added it.
     });
+
+    if (typeof transformedXml === "string") {
+      return transformedXml;
+    }
+
+    // A same-document reference dereferences to a node-set, which must be
+    // canonicalized to an octet stream before digesting. `loadReference` appends
+    // the same C14N on the verification side, so both sides digest equal bytes.
+    // https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
+    if (!utils.isArrayHasLength(transforms)) {
+      const c14n = this.findCanonicalizationAlgorithm(
+        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+      );
+      return String(c14n.process(transformedXml, options));
+    }
 
     return transformedXml.toString();
   }

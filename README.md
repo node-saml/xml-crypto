@@ -288,7 +288,9 @@ To sign xml documents:
 
 - `addReference({ xpath, transforms, digestAlgorithm, id, type })` - adds a reference to a xml element where:
   - `xpath` - a string containing a XPath expression referencing a xml element
-  - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array
+  - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array.
+    Omit it, or pass an empty array, to emit no `Transforms` element; the referenced element is then digested after canonicalization alone.
+    If the referenced element encloses the signature, this array has to include `http://www.w3.org/2000/09/xmldsig#enveloped-signature`, which removes the `Signature` before digesting; `computeSignature()` rejects the reference otherwise rather than emit a signature that cannot verify. Supply your own transform and that check defers to it, since only you know whether it removes the `Signature`.
   - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing-algorithms)
   - `id` - an optional `Id` attribute to add to the reference element
   - `type` - the optional `Type` attribute to add to the reference element (represented as a URI)
@@ -363,6 +365,9 @@ Custom transformation algorithm.
 
 ```javascript
 function MyTransformation() {
+  /*whether this drops nodes from the node-set, rather than only re-serializing it*/
+  this.removesNodes = false;
+
   /*given a node (from the xmldom module) return its canonical representation (as string)*/
   this.process = function (node) {
     //you should apply your transformation before returning
@@ -375,10 +380,16 @@ function MyTransformation() {
 }
 ```
 
+`removesNodes` is required on every canonicalization and transformation algorithm, including ones written in plain JavaScript. It is checked as the algorithm is instantiated, so a missing or non-boolean value throws from `checkSignature()` just as it does from `computeSignature()` — a verifier whose own registry is misconfigured refuses rather than canonicalizing with an algorithm that never said what it does. Registrations you never use are not checked.
+
+Declare `false` if the algorithm returns the node-set it was given, and `true` if it filters nodes at all. `computeSignature()` also reads this to decide whether a reference enclosing the signature can ever verify, and the two mistakes cost you different things: declaring `true` when the algorithm actually preserves everything skips that check, so you can sign a reference nobody can verify, while declaring `false` when it actually filters makes the check reject a reference that would have worked.
+
 Custom canonicalization is actually the same as custom transformation. It is applied on the SignedInfo rather than on references.
 
 ```javascript
 function MyCanonicalization() {
+  this.removesNodes = false;
+
   /*given a node (from the xmldom module) return its canonical representation (as string)*/
   this.process = function (node) {
     //you should apply your transformation before returning

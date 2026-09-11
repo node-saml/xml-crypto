@@ -126,6 +126,8 @@ export interface Reference {
   xpath?: string;
 
   // An array of transforms to be applied to the data before signing.
+  // An empty array emits no Transforms element; the referenced node is then
+  // digested directly, after C14N, per the XMLDSig processing model.
   transforms: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>;
 
   // The algorithm used to calculate the digest value of the data.
@@ -167,6 +169,29 @@ export interface CanonicalizationOrTransformationAlgorithm {
   ): Node | string;
 
   getAlgorithmName(): CanonicalizationOrTransformAlgorithmType;
+
+  /**
+   * Whether this algorithm can drop nodes from the node-set it is given, rather
+   * than only re-serializing it. Canonicalization algorithms declare `false`;
+   * the enveloped-signature transform declares `true`.
+   *
+   * Required, and enforced on both sides: every algorithm is checked as it is
+   * instantiated, so a missing or non-boolean value throws from `computeSignature()`
+   * and from `checkSignature()` alike. That covers algorithms registered from
+   * JavaScript, which this type cannot reach. Registrations that are never used are
+   * not checked.
+   *
+   * `computeSignature()` also reads the value to decide whether a reference that
+   * encloses the signature can ever verify: if every transform on that reference
+   * declares `false`, the `Signature` provably survives into the digest, so the
+   * reference is rejected rather than signed into something unverifiable.
+   *
+   * Declare `false` if the algorithm returns the node-set it was given, `true` if it
+   * filters nodes at all. Declaring `true` when it actually preserves everything
+   * skips the check above and can sign a reference nobody can verify; declaring
+   * `false` when it actually filters can reject a reference that would have worked.
+   */
+  removesNodes: boolean;
 }
 
 /** Implement this to create a new HashAlgorithm */
