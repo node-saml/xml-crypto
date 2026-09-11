@@ -257,6 +257,34 @@ describe("Signature integration tests", function () {
     expect(verifier.checkSignature(signedXml)).to.be.true;
   });
 
+  it("should create valid signature when enveloped-signature is the only transform", function () {
+    const xml = "<root><x Id='ref1' b='2' a='1'/></root>";
+
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      transforms: ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const signatureNode = xpath.select1("//*[local-name(.)='Signature']", doc);
+    isDomNode.assertIsNodeLike(signatureNode);
+
+    const verifier = new SignedXml();
+    verifier.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    verifier.loadSignature(signatureNode);
+
+    expect(verifier.checkSignature(signedXml)).to.be.true;
+    expect(verifier.getSignedReferences()).to.deep.equal(['<x Id="ref1" a="1" b="2"></x>']);
+  });
+
   it("should still verify a loaded signature after signing another document fails", function () {
     const signedXml = fs.readFileSync("./test/static/valid_signature.xml", "utf8");
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
