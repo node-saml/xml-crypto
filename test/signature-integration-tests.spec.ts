@@ -568,6 +568,35 @@ describe("Signature integration tests", function () {
       });
     }
 
+    it("signs an element its reference selects in the input that an ID added for another reference excludes", function () {
+      const signer = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: canonicalization,
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      for (const xpath of ["/root/b", "/root/c | /root/a[not(../b/@Id)]"]) {
+        signer.addReference({
+          xpath,
+          transforms: [canonicalization],
+          digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        });
+      }
+
+      signer.computeSignature("<root><a>A</a><b>B</b><c>C</c></root>");
+
+      const signedXml = signer.getSignedXml();
+      const verifier = new SignedXml({ publicCert });
+      verifier.loadSignature(signer.getSignatureXml());
+      expect(verifier.checkSignature(signedXml)).to.be.true;
+      expect(verifier.getSignedReferences()).to.deep.equal([
+        '<b Id="_0">B</b>',
+        '<a Id="_1">A</a>',
+        '<c Id="_2">C</c>',
+      ]);
+      expect(verifier.checkSignature(signedXml.replace(">A<", ">tampered<"))).to.be.false;
+      expect(verifier.getSignedReferences()).to.be.empty;
+    });
+
     it("retains ancestor namespaces when adding an ID changes the reference XPath's result", function () {
       const signer = new SignedXml({
         privateKey,
