@@ -303,6 +303,17 @@ To sign xml documents:
 - `getSignatureXml()` - returns just the signature part, **must be called only after `computeSignature`**
 - `getOriginalXmlWithIds()` - **[deprecated]** returns the original xml with Id attributes added on relevant elements, **must be called only after `computeSignature`**. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. See [how to specify the location of the signature](#how-to-specify-the-location-of-the-signature).
 
+Every reference XPath is evaluated against the input document before any IDs or the signature
+are added, so the order of `addReference()` calls does not change what a reference selects. A
+reference that matches nothing in the input is evaluated after the signature is inserted and
+selects only elements inside the new signature, such as generated `Object` or `KeyInfo`
+elements. Use separate `addReference()` calls for input elements and generated signature content.
+
+An input match takes precedence, so a reference whose XPath also matches an input element signs
+that element and leaves the generated one unsigned. Select generated content by the `Id` you
+configured for it, as in [how to add custom Objects to the signature](#how-to-add-custom-objects-to-the-signature),
+rather than by element name.
+
 To verify xml documents:
 
 - `loadSignature(signatureXml)` - loads the signature where:
