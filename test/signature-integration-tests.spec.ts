@@ -434,6 +434,27 @@ describe("Signature integration tests", function () {
       });
     }
 
+    it("prefers an input match over generated signature content for the same xpath", function () {
+      const signer = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: canonicalization,
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        objects: [{ content: "<value>generated</value>", attributes: { Id: "generated" } }],
+      });
+      signer.addReference({
+        xpath: "//*[local-name(.)='Object']",
+        transforms: [canonicalization],
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      });
+
+      signer.computeSignature("<root><Object>input data</Object></root>");
+
+      const verifier = new SignedXml({ publicCert });
+      verifier.loadSignature(signer.getSignatureXml());
+      expect(verifier.checkSignature(signer.getSignedXml())).to.be.true;
+      expect(verifier.getSignedReferences()).to.deep.equal(['<Object Id="_0">input data</Object>']);
+    });
+
     for (const objectFirst of [false, true]) {
       it(`preserves input targets alongside an Object reference placed ${objectFirst ? "first" : "last"}`, function () {
         const signer = new SignedXml({

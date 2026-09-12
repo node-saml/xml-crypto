@@ -309,6 +309,11 @@ reference that matches nothing in the input is evaluated after the signature is 
 selects only elements inside the new signature, such as generated `Object` or `KeyInfo`
 elements. Use separate `addReference()` calls for input elements and generated signature content.
 
+An input match takes precedence, so a reference whose XPath also matches an input element signs
+that element and leaves the generated one unsigned. Select generated content by the `Id` you
+configured for it, as in [how to add custom Objects to the signature](#how-to-add-custom-objects-to-the-signature),
+rather than by element name.
+
 To verify xml documents:
 
 - `loadSignature(signatureXml)` - loads the signature where:
