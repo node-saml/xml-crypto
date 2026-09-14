@@ -61,17 +61,15 @@ Earlier releases serialized both with xmldom instead.
 When a transform returns a string and another transform follows it in the same `Reference`, the
 string is parsed into a new document and the next transform is applied to that, as the
 [reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
-requires. Every built-in canonicalization algorithm returns a string.
+requires. Every built-in canonicalization algorithm returns a string, so:
 
-- A canonicalization followed by `enveloped-signature` verifies when the `Signature` is inside the
+- `enveloped-signature` after a canonicalization removes the `Signature`, including one inside the
   referenced element.
-- These chains can produce a different digest than 6.1.x, and then a signature created by one will
-  not verify with the other. Upgrade signers and verifiers that use them together.
-  - A `#WithComments` canonicalization followed by `enveloped-signature`, whose result is
-    [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
-  - Inclusive canonicalization followed by exclusive canonicalization, when the referenced element
-    inherits namespace declarations it does not use.
-  - A canonicalization followed by a custom transform.
+- The result of a `#WithComments` canonicalization followed by `enveloped-signature` is
+  [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
+- Exclusive canonicalization after inclusive canonicalization omits inherited namespace declarations
+  that the referenced element does not use.
+- A custom transform after a canonicalization receives the parsed document.
 - A transform throws when the string returned by the transform before it is not well-formed XML.
 
 ### Copies of an enveloped signature
