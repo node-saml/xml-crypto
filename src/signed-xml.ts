@@ -31,7 +31,7 @@ type SigningReferenceTarget = { node: Element; digestValue?: string };
 
 const warnOriginalXmlWithIds = deprecate(
   () => {},
-  "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`.",
+  "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. For a detached signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for WS-Security), sign that document, and send it alongside `getSignatureXml()`.",
   "XML_CRYPTO_GET_ORIGINAL_XML_WITH_IDS",
 );
 
@@ -1472,7 +1472,9 @@ export class SignedXml {
    *
    * @returns The original XML with IDs.
    * @deprecated Will be removed in a future version. Use the `location` option of
-   * {@link computeSignature} to place the signature, then {@link getSignedXml}.
+   * {@link computeSignature} to place the signature, then {@link getSignedXml}. For a detached
+   * signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for
+   * WS-Security), sign that document, and send it alongside {@link getSignatureXml}.
    */
   getOriginalXmlWithIds(): string {
     warnOriginalXmlWithIds();
