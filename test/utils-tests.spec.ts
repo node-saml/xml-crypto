@@ -18,6 +18,14 @@ describe("Utils tests", function () {
       expect(utils.derToPem(nonNormalizedPem)).to.equal(normalizedPem);
     });
 
+    for (const eol of ["\r\n", "\r"]) {
+      it(`will return a normalized PEM format when given a PEM with ${JSON.stringify(eol)} line endings`, function () {
+        const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
+
+        expect(utils.derToPem(normalizedPem.replace(/\n/g, eol))).to.equal(normalizedPem);
+      });
+    }
+
     it("will return a normalized PEM format when given a base64 string", function () {
       const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
       const pemAsArray = normalizedPem.trim().split("\n");
