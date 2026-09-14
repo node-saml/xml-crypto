@@ -376,6 +376,32 @@ describe("Signature integration tests", function () {
       expect(result.signedReferences).to.deep.equal(['<data Id="_0"><x>1</x></data>']);
     });
 
+    // Signed by .NET's SignedXml with client.pem, so a mistake this library's signer and verifier
+    // share cannot hide behind a round trip.
+    for (const { fixture, signedReference } of [
+      {
+        fixture: "dotnet_enveloped_signature_after_exc_c14n.xml",
+        signedReference: "<root><x>1</x></root>",
+      },
+      {
+        fixture: "dotnet_enveloped_signature_after_c14n.xml",
+        signedReference: '<item xmlns="urn:x" xmlns:p="urn:p" Id="i"><p:a>1</p:a></item>',
+      },
+    ]) {
+      it(`should verify ${fixture}`, function () {
+        const xml = fs.readFileSync(`./test/static/${fixture}`, "utf8");
+        const verifier = new SignedXml({
+          publicCert: fs.readFileSync("./test/static/client_public.pem"),
+        });
+        verifier.loadSignature(
+          verifier.findSignatures(new xmldom.DOMParser().parseFromString(xml))[0],
+        );
+
+        expect(verifier.checkSignature(xml)).to.be.true;
+        expect(verifier.getSignedReferences()).to.deep.equal([signedReference]);
+      });
+    }
+
     it("should not restore ancestor namespaces that exclusive canonicalization omitted", function () {
       const result = signAndVerify(
         "<root xmlns:p='urn:p'><item/></root>",
@@ -411,69 +437,151 @@ describe("Signature integration tests", function () {
     expect(sig.checkSignature(signedXml)).to.be.true;
   });
 
-  for (const location of ["/root", "/root/container"]) {
-    describe(`when appending a parent signature to ${location}`, function () {
-      const privateKey = fs.readFileSync("./test/static/client.pem");
-      const publicCert = fs.readFileSync("./test/static/client_public.pem");
-      const select = xpath.useNamespaces({ ds: "http://www.w3.org/2000/09/xmldsig#" });
-      let signedXml: string;
-      let doc: Document;
-      let parentSignatureXml: string;
+  const envelopedSignature = "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
+  const exclusiveCanonicalization = "http://www.w3.org/2001/10/xml-exc-c14n#";
+  const envelopedTransformOrders = [
+    [envelopedSignature, exclusiveCanonicalization],
+    [exclusiveCanonicalization, envelopedSignature],
+  ];
 
-      const createSigner = (reference: string) => {
-        const signer = new SignedXml({
-          privateKey,
-          canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
-          signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
-        });
-        signer.addReference({
-          xpath: reference,
-          transforms: [
-            "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
-            "http://www.w3.org/2001/10/xml-exc-c14n#",
-          ],
-          digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
-        });
-        return signer;
-      };
+  describe("copies of the enveloped signature", function () {
+    function sign(xml: string, reference: string, transforms: string[]) {
+      const signer = new SignedXml({
+        privateKey: fs.readFileSync("./test/static/client.pem"),
+        canonicalizationAlgorithm: exclusiveCanonicalization,
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      signer.addReference({
+        xpath: reference,
+        transforms,
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      });
+      signer.computeSignature(xml);
+      return { signedXml: signer.getSignedXml(), signatureXml: signer.getSignatureXml() };
+    }
 
-      beforeEach(function () {
-        const childSigner = createSigner("/root/child");
-        childSigner.computeSignature(
-          '<root Id="parent"><child Id="child"><value>data</value></child><container/></root>',
-          { location: { reference: "/root/child", action: "append" } },
+    function injectCopy(signedXml: string, signatureXml: string, after: string) {
+      const copy = signatureXml.replace("<SignedInfo>", "<role>admin</role><SignedInfo>");
+      return signedXml.replace(after, `${after}${copy}`);
+    }
+
+    function createVerifier(signature: Node | string) {
+      const verifier = new SignedXml({
+        publicCert: fs.readFileSync("./test/static/client_public.pem"),
+      });
+      verifier.loadSignature(signature);
+      return verifier;
+    }
+
+    const lastSignatureIn = (xml: string) =>
+      new SignedXml().findSignatures(new xmldom.DOMParser().parseFromString(xml)).pop() as Node;
+
+    for (const transforms of envelopedTransformOrders) {
+      const order = transforms[0] === envelopedSignature ? "before" : "after";
+
+      for (const loadFrom of ["the document", "a string"]) {
+        it(`should reject a copy inside the signed element, enveloped-signature ${order} canonicalization, signature loaded from ${loadFrom}`, function () {
+          const { signedXml, signatureXml } = sign(
+            "<root><role>user</role></root>",
+            "/*",
+            transforms,
+          );
+          const tampered = injectCopy(signedXml, signatureXml, "<role>user</role>");
+
+          const verifier = createVerifier(
+            loadFrom === "a string" ? signatureXml : lastSignatureIn(tampered),
+          );
+          expect(() => verifier.checkSignature(tampered)).to.throw(
+            "Cannot validate a document which contains multiple Signature elements with the same SignatureValue",
+          );
+          expect(verifier.getSignedReferences()).to.be.empty;
+          expect(createVerifier(signatureXml).checkSignature(signedXml)).to.be.true;
+        });
+      }
+
+      it(`should reject a copy inside a signed element the signature is outside of, enveloped-signature ${order} canonicalization`, function () {
+        const { signedXml, signatureXml } = sign(
+          "<response><assertion><role>user</role></assertion></response>",
+          "//assertion",
+          transforms,
         );
+        const tampered = injectCopy(signedXml, signatureXml, "<role>user</role>");
 
-        const parentSigner = createSigner("/root");
-        parentSigner.computeSignature(childSigner.getSignedXml(), {
-          prefix: "ds",
-          location: { reference: location, action: "append" },
+        const verifier = createVerifier(lastSignatureIn(tampered));
+        expect(() => verifier.checkSignature(tampered)).to.throw(
+          "Cannot validate a document which contains multiple Signature elements with the same SignatureValue",
+        );
+        expect(verifier.getSignedReferences()).to.be.empty;
+      });
+    }
+  });
+
+  for (const transforms of envelopedTransformOrders) {
+    for (const location of ["/root", "/root/container"]) {
+      describe(`when appending a parent signature to ${location}, enveloped-signature ${transforms[0] === envelopedSignature ? "before" : "after"} canonicalization`, function () {
+        const privateKey = fs.readFileSync("./test/static/client.pem");
+        const publicCert = fs.readFileSync("./test/static/client_public.pem");
+        const select = xpath.useNamespaces({ ds: "http://www.w3.org/2000/09/xmldsig#" });
+        let signedXml: string;
+        let doc: Document;
+        let parentSignatureXml: string;
+
+        const createSigner = (reference: string) => {
+          const signer = new SignedXml({
+            privateKey,
+            canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+            signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+          });
+          signer.addReference({
+            xpath: reference,
+            transforms,
+            digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+          });
+          return signer;
+        };
+
+        beforeEach(function () {
+          const childSigner = createSigner("/root/child");
+          childSigner.computeSignature(
+            '<root Id="parent"><child Id="child"><value>data</value></child><container/></root>',
+            { location: { reference: "/root/child", action: "append" } },
+          );
+
+          const parentSigner = createSigner("/root");
+          parentSigner.computeSignature(childSigner.getSignedXml(), {
+            prefix: "ds",
+            location: { reference: location, action: "append" },
+          });
+          signedXml = parentSigner.getSignedXml();
+          doc = new xmldom.DOMParser().parseFromString(signedXml);
+          parentSignatureXml = parentSigner.getSignatureXml();
         });
-        signedXml = parentSigner.getSignedXml();
-        doc = new xmldom.DOMParser().parseFromString(signedXml);
-        parentSignatureXml = parentSigner.getSignatureXml();
-      });
 
-      it("should preserve the validity of the child and parent signatures", function () {
-        for (const reference of ["/root/child", location]) {
-          const signature = select(`${reference}/ds:Signature`, doc, true);
-          isDomNode.assertIsNodeLike(signature);
-          const verifier = new SignedXml({ publicCert });
-          verifier.loadSignature(signature);
-          expect(verifier.checkSignature(signedXml), `signature at ${reference}`).to.be.true;
-        }
-      });
+        it("should preserve the validity of the child and parent signatures", function () {
+          for (const reference of ["/root/child", location]) {
+            const signature = select(`${reference}/ds:Signature`, doc, true);
+            isDomNode.assertIsNodeLike(signature);
+            const verifier = new SignedXml({ publicCert });
+            verifier.loadSignature(signature);
+            expect(verifier.checkSignature(signedXml), `signature at ${reference}`).to.be.true;
+          }
+        });
 
-      it("should reject the parent signature when the child signature is tampered with", function () {
-        const childSignatureValue = select("/root/child/ds:Signature/ds:SignatureValue", doc, true);
-        isDomNode.assertIsElementNode(childSignatureValue);
-        childSignatureValue.textContent = "tampered";
-        const parentVerifier = new SignedXml({ publicCert });
-        parentVerifier.loadSignature(parentSignatureXml);
-        expect(parentVerifier.checkSignature(doc.toString())).to.be.false;
-        expect(parentVerifier.getSignedReferences()).to.be.empty;
+        it("should reject the parent signature when the child signature is tampered with", function () {
+          const childSignatureValue = select(
+            "/root/child/ds:Signature/ds:SignatureValue",
+            doc,
+            true,
+          );
+          isDomNode.assertIsElementNode(childSignatureValue);
+          childSignatureValue.textContent = "tampered";
+          const parentVerifier = new SignedXml({ publicCert });
+          parentVerifier.loadSignature(parentSignatureXml);
+          expect(parentVerifier.checkSignature(doc.toString())).to.be.false;
+          expect(parentVerifier.getSignedReferences()).to.be.empty;
+        });
       });
-    });
+    }
   }
 
   // A signed reference must hand back the element in the namespace it was signed in. If a

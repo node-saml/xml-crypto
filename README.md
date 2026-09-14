@@ -75,6 +75,20 @@ every built-in canonicalization algorithm does.
   - A canonicalization followed by a custom transform, which earlier releases never called.
 - A transform that follows one whose string output is not well-formed XML now throws.
 
+### Copies of an enveloped signature
+
+The `enveloped-signature` transform now removes only the `Signature` element being verified, as
+[XMLDSig](https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature) requires. Earlier releases
+removed every `Signature` element in the signed content that had the same `SignatureValue`. A copy of
+the signature pasted into the signed content, holding whatever the sender chose, was left out of the
+digest and the document still verified. `getSignedReferences()` never contained the copy, but code
+that read the document itself could.
+
+- `checkSignature()` now throws when the document contains more than one `Signature` element with
+  the `SignatureValue` being verified.
+- `getCanonXml()` finds the loaded signature in the node's document the same way, and removes nothing
+  when the signature is not there.
+
 ### Deprecated ahead of 7.0
 
 The package used to re-export everything in its internal `utils` module, so helpers written for

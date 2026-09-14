@@ -29,6 +29,15 @@ import * as utils from "./utils";
 
 type SigningReferenceTarget = { node: Element; digestValue?: string };
 
+function findSignatureElements(node: Node): Element[] {
+  const signatures = xpath.select(
+    ".//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+    node,
+  );
+  isDomNode.assertIsArrayOfNodes(signatures);
+  return signatures.filter(isDomNode.isElementNode);
+}
+
 const warnOriginalXmlWithIds = deprecate(
   () => {},
   "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. For a detached signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for WS-Security), sign that document, and send it alongside `getSignatureXml()`.",
@@ -1311,7 +1320,7 @@ export class SignedXml {
     const canonXml = node.cloneNode(true); // Deep clone
     if (transforms.includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
       const signaturePath: number[] = [];
-      let signatureAncestor = this.signatureNode;
+      let signatureAncestor = this.findLoadedSignature(node);
       while (signatureAncestor?.parentNode && signatureAncestor !== node) {
         signaturePath.push(
           Array.from<Node>(signatureAncestor.parentNode.childNodes).indexOf(signatureAncestor),
@@ -1326,15 +1335,27 @@ export class SignedXml {
     }
     let transformedXml: Node | string = canonXml;
     let transformOptions = options;
+    let signaturePosition = -1;
 
     // Octets are parsed into a node-set for the next transform, and a node-set left at the end is
     // converted to octets with C14N: https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
     for (const transformName of transforms) {
       if (!isDomNode.isNodeLike(transformedXml)) {
         transformedXml = this.parseTransformInput(transformedXml, transformName);
-        // The parsed octets are a new document, so the referenced node's ancestors are gone.
-        transformOptions = { ...options, ancestorNamespaces: [], defaultNs: "" };
+        // The parsed octets are a new document: the referenced node's ancestors are gone, and the
+        // enveloped signature is found again by its position among the signatures, as .NET does.
+        transformOptions = {
+          ...options,
+          ancestorNamespaces: [],
+          defaultNs: "",
+          signatureNode:
+            findSignatureElements(transformedXml)[signaturePosition] ?? options.signatureNode,
+        };
       }
+      const { signatureNode } = transformOptions;
+      signaturePosition = findSignatureElements(transformedXml).findIndex(
+        (signature) => signature === signatureNode,
+      );
       transformedXml = this.findCanonicalizationAlgorithm(transformName).process(
         transformedXml,
         transformOptions,
@@ -1348,6 +1369,31 @@ export class SignedXml {
     }
 
     return transformedXml.toString();
+  }
+
+  // checkSignature() parses its own copy of the document, so the loaded signature is found there by
+  // its SignatureValue. A copy carrying the same value could stand in for it, so refuse to guess.
+  private findLoadedSignature(node: Node): Node | null {
+    const doc = node.ownerDocument ?? node;
+    if (this.signatureNode == null || this.signatureNode.ownerDocument === doc) {
+      return this.signatureNode;
+    }
+
+    const signatureValue = utils.findChildren(this.signatureNode, "SignatureValue")[0]?.textContent;
+    if (!signatureValue) {
+      return null;
+    }
+
+    const matches = findSignatureElements(doc).filter(
+      (signature) =>
+        utils.findChildren(signature, "SignatureValue")[0]?.textContent === signatureValue,
+    );
+    if (matches.length > 1) {
+      throw new Error(
+        "Cannot validate a document which contains multiple Signature elements with the same SignatureValue, in order to prevent signature wrapping attack.",
+      );
+    }
+    return matches[0] ?? null;
   }
 
   private parseTransformInput(octets: string, transformName: string): Element {
