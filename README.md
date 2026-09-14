@@ -444,8 +444,8 @@ Custom canonicalization is actually the same as custom transformation. It is app
 class MyCanonicalization {
   // Given a node (from the xmldom module), return its canonical representation as a string.
   process(node) {
-    // You should apply your transformation before returning.
-    return "< x/>";
+    // You should apply your canonicalization before returning.
+    return node.toString();
   }
 
   getAlgorithmName() {
