@@ -1,6 +1,6 @@
 import * as xpath from "xpath";
 import * as isDomNode from "@xmldom/is-dom-node";
-import { findChildren, isDescendantOf } from "./utils";
+import { isDescendantOf } from "./utils";
 
 import type {
   CanonicalizationOrTransformationAlgorithm,
@@ -29,32 +29,6 @@ export class EnvelopedSignature implements CanonicalizationOrTransformationAlgor
     const signatureNode = options.signatureNode;
     if (isDescendantOf(signatureNode, node) && signatureNode.parentNode) {
       signatureNode.parentNode.removeChild(signatureNode);
-      return node;
-    }
-    const signatureValueNode = findChildren(signatureNode, "SignatureValue")[0];
-    const expectedSignatureValue =
-      signatureValueNode && xpath.select1("text()", signatureValueNode);
-    if (isDomNode.isTextNode(expectedSignatureValue)) {
-      const expectedSignatureValueData = expectedSignatureValue.data;
-
-      const signatures = xpath.select(
-        ".//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-        node,
-      );
-      for (const nodeSignature of Array.isArray(signatures) ? signatures : []) {
-        const signatureValue = xpath.select1(
-          ".//*[local-name(.)='SignatureValue']/text()",
-          nodeSignature,
-        );
-        if (isDomNode.isTextNode(signatureValue)) {
-          const signatureValueData = signatureValue.data;
-          if (expectedSignatureValueData === signatureValueData) {
-            if (nodeSignature.parentNode) {
-              nodeSignature.parentNode.removeChild(nodeSignature);
-            }
-          }
-        }
-      }
     }
     return node;
   }
