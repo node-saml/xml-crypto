@@ -152,19 +152,21 @@ When signing a xml document you can pass the following options to the `SignedXml
 Use this code:
 
 ```javascript
-var SignedXml = require("xml-crypto").SignedXml,
-  fs = require("fs");
+const { SignedXml } = require("xml-crypto");
+const fs = require("fs");
 
-var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library><book><name>Harry Potter</name></book></library>";
 
-var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
+const sig = new SignedXml({
+  privateKey: fs.readFileSync("client.pem"),
+  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+});
 sig.addReference({
   xpath: "//*[local-name(.)='book']",
-  digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
   transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
 });
-sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml);
 fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
@@ -179,16 +181,16 @@ The result will be:
   <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
     <SignedInfo>
       <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />
-      <SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" />
+      <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256" />
       <Reference URI="#_0">
         <Transforms>
           <Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />
         </Transforms>
-        <DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
-        <DigestValue>cdiS43aFDQMnb3X8yaIUej3+z9Q=</DigestValue>
+        <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" />
+        <DigestValue>9d/ciWlVZkaJnJ3KBB5WY1H2Y8WRXPB2DquM0goT8jY=</DigestValue>
       </Reference>
     </SignedInfo>
-    <SignatureValue>vhWzpQyIYuncHUZV9W...[long base64 removed]...</SignatureValue>
+    <SignatureValue>uxmxGw2O3B6ylkhEXOaZ...[long base64 removed]...</SignatureValue>
   </Signature>
 </library>
 ```
@@ -202,7 +204,7 @@ If you set `publicCert`, a `<KeyInfo></KeyInfo>` element with the public certifi
   <SignedInfo>
     ...[signature info removed]...
   </SignedInfo>
-  <SignatureValue>vhWzpQyIYuncHUZV9W...[long base64 removed]...</SignatureValue>
+  <SignatureValue>uxmxGw2O3B6ylkhEXOaZ...[long base64 removed]...</SignatureValue>
   <KeyInfo>
     <X509Data>
       <X509Certificate>MIIGYjCCBJagACCBN...[long base64 removed]...</X509Certificate>
@@ -242,46 +244,42 @@ npm install @xmldom/xmldom xpath
 Example:
 
 ```javascript
-var xpath = require("xpath"),
-  dom = require("@xmldom/xmldom").DOMParser,
-  SignedXml = require("xml-crypto").SignedXml,
-  fs = require("fs");
+const { DOMParser } = require("@xmldom/xmldom");
+const xpath = require("xpath");
+const { SignedXml } = require("xml-crypto");
+const fs = require("fs");
 
-var xml = fs.readFileSync("signed.xml").toString();
-var doc = new dom().parseFromString(xml);
+const xml = fs.readFileSync("signed.xml", "utf8");
+const doc = new DOMParser().parseFromString(xml, "text/xml");
 
 // DO NOT attempt to parse whatever data object you have here in `doc`
 // and then use it to verify the signature. This can lead to security issues.
 // i.e. BAD: parseAssertion(doc),
 // good: see below
 
-var signature = xpath.select1(
+const signature = xpath.select1(
   "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
   doc,
 );
-var sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
+const sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
 sig.loadSignature(signature);
-try {
-  var res = sig.checkSignature(xml);
-} catch (ex) {
-  console.log(ex);
-}
+const res = sig.checkSignature(xml);
 ```
 
 In order to protect from some attacks we must check the content we want to use is the one that has been signed:
 
 ```javascript
 if (!res) {
-  throw "Invalid Signature";
+  throw new Error("Invalid signature");
 }
 // good: The XML Signature has been verified, meaning some subset of XML is verified.
-var signedBytes = sig.getSignedReferences();
+const signedBytes = sig.getSignedReferences();
 
-var authenticatedDoc = new dom().parseFromString(signedBytes[0]); // Take the first signed reference
+const authenticatedDoc = new DOMParser().parseFromString(signedBytes[0], "text/xml"); // Take the first signed reference
 // It is now safe to load SAML, obtain the assertion XML, or do whatever else is needed.
 // Be sure to only use authenticated data.
-let signedAssertionNode = extractAssertion(authenticatedDoc);
-let parsedAssertion = parseAssertion(signedAssertionNode);
+const signedAssertionNode = extractAssertion(authenticatedDoc);
+const parsedAssertion = parseAssertion(signedAssertionNode);
 
 return parsedAssertion; // This the correctly verified signed Assertion
 
@@ -303,13 +301,12 @@ which makes XML developers confused and then leads to incorrect implementation f
 If you keep failing verification, it is worth trying to guess such a hidden transform and specify it to the option as below:
 
 ```javascript
-var options = {
+const sig = new SignedXml({
   implicitTransforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"],
   publicCert: fs.readFileSync("client_public.pem"),
-};
-var sig = new SignedXml(options);
+});
 sig.loadSignature(signature);
-var res = sig.checkSignature(xml);
+const res = sig.checkSignature(xml);
 ```
 
 You might find it difficult to guess such transforms, but there are typical transforms you can try.
@@ -384,8 +381,8 @@ The following sample shows how to sign a message using custom algorithms.
 First import some modules:
 
 ```javascript
-var SignedXml = require("xml-crypto").SignedXml,
-  fs = require("fs");
+const { SignedXml } = require("xml-crypto");
+const fs = require("fs");
 ```
 
 Now define the extension point you want to implement. You can choose one or more.
@@ -401,61 +398,61 @@ To specify custom attributes on `<KeyInfo />`, add the properties to the `.keyIn
 A custom hash algorithm is used to calculate digests. Implement it if you want a hash other than the built-in methods.
 
 ```javascript
-function MyDigest() {
-  this.getHash = function (xml) {
+class MyDigest {
+  getHash(xml) {
     return "the base64 hash representation of the given xml string";
-  };
+  }
 
-  this.getAlgorithmName = function () {
+  getAlgorithmName() {
     return "http://myDigestAlgorithm";
-  };
+  }
 }
 ```
 
 A custom signing algorithm.
 
 ```javascript
-function MySignatureAlgorithm() {
-  /*sign the given SignedInfo using the key. return base64 signature value*/
-  this.getSignature = function (signedInfo, privateKey) {
+class MySignatureAlgorithm {
+  // Sign the given SignedInfo using the key. Return the base64 signature value.
+  getSignature(signedInfo, privateKey) {
     return "signature of signedInfo as base64...";
-  };
+  }
 
-  this.getAlgorithmName = function () {
+  getAlgorithmName() {
     return "http://mySigningAlgorithm";
-  };
+  }
 }
 ```
 
 Custom transformation algorithm.
 
 ```javascript
-function MyTransformation() {
-  /*given a node (from the xmldom module) return its canonical representation (as string)*/
-  this.process = function (node) {
-    //you should apply your transformation before returning
+class MyTransformation {
+  // Given a node (from the xmldom module), return its canonical representation as a string.
+  process(node) {
+    // You should apply your transformation before returning.
     return node.toString();
-  };
+  }
 
-  this.getAlgorithmName = function () {
+  getAlgorithmName() {
     return "http://myTransformation";
-  };
+  }
 }
 ```
 
 Custom canonicalization is actually the same as custom transformation. It is applied on the SignedInfo rather than on references.
 
 ```javascript
-function MyCanonicalization() {
-  /*given a node (from the xmldom module) return its canonical representation (as string)*/
-  this.process = function (node) {
-    //you should apply your transformation before returning
+class MyCanonicalization {
+  // Given a node (from the xmldom module), return its canonical representation as a string.
+  process(node) {
+    // You should apply your transformation before returning.
     return "< x/>";
-  };
+  }
 
-  this.getAlgorithmName = function () {
+  getAlgorithmName() {
     return "http://myCanonicalization";
-  };
+  }
 }
 ```
 
@@ -464,15 +461,15 @@ returns, and configure the instance to use them:
 
 ```javascript
 function signXml(xml, xpath, key, dest) {
-  var sig = new SignedXml({
+  const sig = new SignedXml({
     publicCert: fs.readFileSync("my_public_cert.pem", "latin1"),
     privateKey: fs.readFileSync(key),
-    /*configure the signature object to use the custom algorithms*/
+    // Configure the signature object to use the custom algorithms.
     signatureAlgorithm: "http://mySigningAlgorithm",
     canonicalizationAlgorithm: "http://myCanonicalization",
   });
 
-  /*register all the custom algorithms*/
+  // Register all the custom algorithms.
   sig.CanonicalizationAlgorithms["http://myTransformation"] = MyTransformation;
   sig.CanonicalizationAlgorithms["http://myCanonicalization"] = MyCanonicalization;
   sig.HashAlgorithms["http://myDigestAlgorithm"] = MyDigest;
@@ -487,7 +484,7 @@ function signXml(xml, xpath, key, dest) {
   fs.writeFileSync(dest, sig.getSignedXml());
 }
 
-var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library><book><name>Harry Potter</name></book></library>";
 
 signXml(xml, "//*[local-name(.)='book']", "client.pem", "result.xml");
 ```
@@ -496,28 +493,45 @@ You can always look at the actual code as a sample.
 
 ## Asynchronous signing and verification
 
-If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, you can create a custom signing algorithm that uses an asynchronous callback.
+If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, you can create a custom signing algorithm that uses an asynchronous callback. Register it under the URI of the algorithm it implements, which is the `SignatureMethod` a verifier reads.
 
 ```javascript
-function AsyncSignatureAlgorithm() {
-  this.getSignature = function (signedInfo, privateKey, callback) {
-    var signer = crypto.createSign("RSA-SHA1");
+const { SignedXml } = require("xml-crypto");
+const crypto = require("crypto");
+const fs = require("fs");
+
+class AsyncRsaSha256 {
+  getSignature(signedInfo, privateKey, callback) {
+    // Do some asynchronous things here, such as calling a signing server.
+    const signer = crypto.createSign("RSA-SHA256");
     signer.update(signedInfo);
-    var res = signer.sign(privateKey, "base64");
-    //Do some asynchronous things here
-    callback(null, res);
-  };
-  this.getAlgorithmName = function () {
-    return "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
-  };
+    callback(null, signer.sign(privateKey, "base64"));
+  }
+
+  getAlgorithmName() {
+    return "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+  }
 }
 
-var sig = new SignedXml({ signatureAlgorithm: "http://asyncSignatureAlgorithm" });
-sig.SignatureAlgorithms["http://asyncSignatureAlgorithm"] = AsyncSignatureAlgorithm;
-sig.signatureAlgorithm = "http://asyncSignatureAlgorithm";
-sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-sig.computeSignature(xml, opts, function (err) {
-  var signedResponse = sig.getSignedXml();
+const xml = "<library><book><name>Harry Potter</name></book></library>";
+
+const sig = new SignedXml({
+  privateKey: fs.readFileSync("client.pem"),
+  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+});
+sig.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] = AsyncRsaSha256;
+sig.addReference({
+  xpath: "//*[local-name(.)='book']",
+  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+  transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+});
+sig.computeSignature(xml, (err) => {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  fs.writeFileSync("signed.xml", sig.getSignedXml());
 });
 ```
 
@@ -558,19 +572,21 @@ Then you could use the result as is for the purpose of signing. For the purpose 
 Use the `prefix` option when calling `computeSignature` to add a prefix to the signature.
 
 ```javascript
-var SignedXml = require("xml-crypto").SignedXml,
-  fs = require("fs");
+const { SignedXml } = require("xml-crypto");
+const fs = require("fs");
 
-var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library><book><name>Harry Potter</name></book></library>";
 
-var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
+const sig = new SignedXml({
+  privateKey: fs.readFileSync("client.pem"),
+  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+});
 sig.addReference({
   xpath: "//*[local-name(.)='book']",
-  digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
   transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
 });
-sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml, {
   prefix: "ds",
 });
@@ -588,19 +604,21 @@ Use the `location` option when calling `computeSignature` to move the signature 
 - `after` - insert the signature just after the `reference` node
 
 ```javascript
-const SignedXml = require("xml-crypto").SignedXml;
+const { SignedXml } = require("xml-crypto");
 const fs = require("fs");
 
-const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library><book><name>Harry Potter</name></book></library>";
 
-const sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
+const sig = new SignedXml({
+  privateKey: fs.readFileSync("client.pem"),
+  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+});
 sig.addReference({
   xpath: "//*[local-name(.)='book']",
-  digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
   transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
 });
-sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml, {
   location: { reference: "//*[local-name(.)='book']", action: "after" }, // This will place the signature after the book element
 });
@@ -611,10 +629,10 @@ sig.computeSignature(xml, {
 Use the `objects` option when creating a SignedXml instance to add custom Objects to the signature.
 
 ```javascript
-const SignedXml = require("xml-crypto").SignedXml;
+const { SignedXml } = require("xml-crypto");
 const fs = require("fs");
 
-const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library><book><name>Harry Potter</name></book></library>";
 
 const sig = new SignedXml({
   privateKey: fs.readFileSync("client.pem"),
