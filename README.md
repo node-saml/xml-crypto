@@ -58,34 +58,29 @@ Earlier releases serialized both with xmldom instead.
 
 ### Transforms that follow a canonicalization
 
-When a transform returns a string and another transform follows it in the same `Reference`, 6.2.0
-and later parse the string into a new document and apply the next transform to that, as the
+When a transform returns a string and another transform follows it in the same `Reference`, the
+string is parsed into a new document and the next transform is applied to that, as the
 [reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
-requires. Earlier releases skipped every transform after the first one that returned a string, as
-every built-in canonicalization algorithm does.
+requires. Every built-in canonicalization algorithm returns a string.
 
-- A canonicalization followed by `enveloped-signature` now verifies when the `Signature` is inside
-  the referenced element. Earlier releases could not verify these signatures, including their own.
-- These chains now produce a different digest than 6.1.x, so a signature created by one will not
-  verify with the other. Upgrade signers and verifiers that use them together.
-  - A `#WithComments` canonicalization followed by `enveloped-signature`. The result is a DOM
-    `Node` again, so it is [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
+- A canonicalization followed by `enveloped-signature` verifies when the `Signature` is inside the
+  referenced element.
+- These chains produce a different digest than 6.1.x, so a signature created by one will not verify
+  with the other. Upgrade signers and verifiers that use them together.
+  - A `#WithComments` canonicalization followed by `enveloped-signature`, whose result is
+    [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
   - Inclusive canonicalization followed by exclusive canonicalization, when the referenced element
-    inherits namespace declarations it does not use. Exclusive canonicalization now omits them.
-  - A canonicalization followed by a custom transform, which earlier releases never called.
-- A transform that follows one whose string output is not well-formed XML now throws.
+    inherits namespace declarations it does not use.
+  - A canonicalization followed by a custom transform.
+- A transform throws when the string returned by the transform before it is not well-formed XML.
 
 ### Copies of an enveloped signature
 
-The `enveloped-signature` transform now removes only the `Signature` element being verified, as
-[XMLDSig](https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature) requires. Earlier releases
-removed every `Signature` element in the signed content that had the same `SignatureValue`. A copy of
-the signature pasted into the signed content, holding whatever the sender chose, was left out of the
-digest and the document still verified. `getSignedReferences()` never contained the copy, but code
-that read the document itself could.
+The `enveloped-signature` transform removes only the `Signature` element being verified, as
+[XMLDSig](https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature) requires.
 
-- `checkSignature()` now throws when the document contains more than one `Signature` element with
-  the `SignatureValue` being verified.
+- `checkSignature()` finds that element by its `SignatureValue`, and throws when the document
+  contains more than one `Signature` element with that value.
 - `getCanonXml()` finds the loaded signature in the node's document the same way, and removes nothing
   when the signature is not there.
 
