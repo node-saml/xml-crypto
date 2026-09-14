@@ -13,6 +13,10 @@
 
 ![stytchauth](https://github.com/stytchauth.png?size=30) [stytchauth](https://github.com/stytchauth)
 
+![Short-io logo](https://github.com/Short-io.png?size=30) [Short-io](https://github.com/Short-io)
+
+![RideAmigosCorp logo](https://github.com/RideAmigosCorp.png?size=30) [RideAmigosCorp](https://github.com/RideAmigosCorp)
+
 ## Upgrading
 
 ### Canonicalization output
@@ -429,50 +433,35 @@ function MyCanonicalization() {
 }
 ```
 
-Now you need to register the new algorithms:
-
-```javascript
-/*register all the custom algorithms*/
-
-signedXml.CanonicalizationAlgorithms["http://MyTransformation"] = MyTransformation;
-signedXml.CanonicalizationAlgorithms["http://MyCanonicalization"] = MyCanonicalization;
-signedXml.HashAlgorithms["http://myDigestAlgorithm"] = MyDigest;
-signedXml.SignatureAlgorithms["http://mySigningAlgorithm"] = MySignatureAlgorithm;
-```
-
-Now do the signing. Note how we configure the signature to use the above algorithms:
+Now register the new algorithms on a `SignedXml` instance, under the names their `getAlgorithmName()`
+returns, and configure the instance to use them:
 
 ```javascript
 function signXml(xml, xpath, key, dest) {
-  var options = {
+  var sig = new SignedXml({
     publicCert: fs.readFileSync("my_public_cert.pem", "latin1"),
     privateKey: fs.readFileSync(key),
     /*configure the signature object to use the custom algorithms*/
-    signatureAlgorithm: "http://mySignatureAlgorithm",
-    canonicalizationAlgorithm: "http://MyCanonicalization",
-  };
-
-  var sig = new SignedXml(options);
-
-  sig.addReference({
-    xpath: "//*[local-name(.)='x']",
-    transforms: ["http://MyTransformation"],
-    digestAlgorithm: "http://myDigestAlgorithm",
+    signatureAlgorithm: "http://mySigningAlgorithm",
+    canonicalizationAlgorithm: "http://myCanonicalization",
   });
+
+  /*register all the custom algorithms*/
+  sig.CanonicalizationAlgorithms["http://myTransformation"] = MyTransformation;
+  sig.CanonicalizationAlgorithms["http://myCanonicalization"] = MyCanonicalization;
+  sig.HashAlgorithms["http://myDigestAlgorithm"] = MyDigest;
+  sig.SignatureAlgorithms["http://mySigningAlgorithm"] = MySignatureAlgorithm;
 
   sig.addReference({
     xpath,
-    transforms: ["http://MyTransformation"],
+    transforms: ["http://myTransformation"],
     digestAlgorithm: "http://myDigestAlgorithm",
   });
-  sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-  sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
   sig.computeSignature(xml);
   fs.writeFileSync(dest, sig.getSignedXml());
 }
 
-var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>";
-("</library>");
+var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
 
 signXml(xml, "//*[local-name(.)='book']", "client.pem", "result.xml");
 ```
@@ -563,13 +552,14 @@ sig.computeSignature(xml, {
 
 ### how to specify the location of the signature
 
-Use the `location` option when calling `computeSignature` to move the signature around.
-Set `action` to one of the following:
+Use the `location` option when calling `computeSignature` to move the signature around. Set
+`reference` to an XPath expression that selects a node (default `/*`, the document element), and
+`action` to one of the following:
 
-- append(default) - append to the end of the xml document
-- prepend - prepend to the xml document
-- before - prepend to a specific node (use the `referenceNode` property)
-- after - append to specific node (use the `referenceNode` property)
+- `append` (default) - insert the signature as the last child of the `reference` node
+- `prepend` - insert the signature as the first child of the `reference` node
+- `before` - insert the signature just before the `reference` node
+- `after` - insert the signature just after the `reference` node
 
 ```javascript
 const SignedXml = require("xml-crypto").SignedXml;
@@ -635,12 +625,6 @@ To run tests use:
 ```shell
 npm test
 ```
-
-## Sponsors
-
-![Short-io logo](https://github.com/Short-io.png?size=30) [Short-io](https://github.com/Short-io)
-
-![RideAmigosCorp logo](https://github.com/RideAmigosCorp.png?size=30) [RideAmigosCorp](https://github.com/RideAmigosCorp)
 
 ## License
 
