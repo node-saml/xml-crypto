@@ -452,7 +452,10 @@ export class SignedXml {
       ancestorNamespaces: ref.ancestorNamespaces,
     };
 
-    return this.canonicalize(ref.transforms, node, c14nOptions, { discardComments: true });
+    // Only a same-document URI dereferences without comments; validateReference resolves no
+    // XPointer: https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document
+    const discardComments = ref.uri === "" || ref.uri.startsWith("#");
+    return this.canonicalize(ref.transforms, node, c14nOptions, { discardComments });
   }
 
   private calculateSignatureValue(doc: Document, callback?: ErrorFirstCallback<string>) {
@@ -1354,8 +1357,6 @@ export class SignedXml {
           .reduce((clonedNode, index) => clonedNode.childNodes[index], canonXml);
       }
     }
-    // A reference dereferences without comments unless its URI is an XPointer, which
-    // validateReference cannot resolve: https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document
     if (discardComments) {
       const comments = xpath.select(".//comment()", canonXml);
       isDomNode.assertIsArrayOfNodes(comments);

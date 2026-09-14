@@ -654,6 +654,18 @@ describe("Signature integration tests", function () {
 
   describe("comments in same-document references", function () {
     const enveloped = "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
+    const transformInputs: string[] = [];
+
+    class RecordInput {
+      process(node: Node) {
+        transformInputs.push(node.toString());
+        return node;
+      }
+
+      getAlgorithmName() {
+        return "urn:test:record-input";
+      }
+    }
 
     function sign(
       xml: string,
@@ -665,6 +677,7 @@ describe("Signature integration tests", function () {
         canonicalizationAlgorithm,
         signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
       });
+      signer.CanonicalizationAlgorithms["urn:test:record-input"] = RecordInput;
       signer.addReference({
         ...reference,
         digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
@@ -677,6 +690,7 @@ describe("Signature integration tests", function () {
       const verifier = new SignedXml({
         publicCert: fs.readFileSync("./test/static/client_public.pem"),
       });
+      verifier.CanonicalizationAlgorithms["urn:test:record-input"] = RecordInput;
       verifier.loadSignature(
         verifier.findSignatures(new xmldom.DOMParser().parseFromString(signedXml))[0],
       );
@@ -714,6 +728,22 @@ describe("Signature integration tests", function () {
         ]);
       });
     }
+
+    it("should remove comments before the first transform", function () {
+      const signedXml = sign("<root><item><!-- draft --><x>1</x></item></root>", {
+        xpath: "//item",
+        transforms: [
+          "urn:test:record-input",
+          "http://www.w3.org/2001/10/xml-exc-c14n#WithComments",
+        ],
+      });
+      verify(signedXml);
+
+      expect(transformInputs).to.deep.equal([
+        '<item Id="_0"><x>1</x></item>',
+        '<item Id="_0"><x>1</x></item>',
+      ]);
+    });
 
     it("should still sign comments in SignedInfo with a WithComments CanonicalizationMethod", function () {
       const signedXml = sign(
