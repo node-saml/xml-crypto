@@ -56,6 +56,32 @@ Earlier releases serialized both with xmldom instead.
   different digest or signature than 6.1.x, so a signature created by one will not verify with the
   other. Upgrade signers and verifiers that use it together.
 
+### Transforms that follow a canonicalization
+
+When a transform returns a string and another transform follows it in the same `Reference`, the
+string is parsed into a new document and the next transform is applied to that, as the
+[reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
+requires. Every built-in canonicalization algorithm returns a string, so:
+
+- `enveloped-signature` after a canonicalization removes the `Signature`, including one inside the
+  referenced element.
+- The result of a `#WithComments` canonicalization followed by `enveloped-signature` is
+  [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
+- Exclusive canonicalization after inclusive canonicalization omits inherited namespace declarations
+  that the referenced element does not use.
+- A custom transform after a canonicalization receives the parsed document.
+- A transform throws when the string returned by the transform before it is not well-formed XML.
+
+### Copies of an enveloped signature
+
+The `enveloped-signature` transform removes only the `Signature` element being verified, as
+[XMLDSig](https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature) requires.
+
+- `checkSignature()` finds that element by its `SignatureValue`, and throws when the document
+  contains more than one `Signature` element with that value.
+- `getCanonXml()` finds the loaded signature in the node's document the same way, and removes nothing
+  when the signature is not there.
+
 ### Deprecated ahead of 7.0
 
 The package used to re-export everything in its internal `utils` module, so helpers written for

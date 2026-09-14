@@ -29,6 +29,15 @@ import * as utils from "./utils";
 
 type SigningReferenceTarget = { node: Element; digestValue?: string };
 
+function findSignatureElements(node: Node): Element[] {
+  const signatures = xpath.select(
+    ".//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+    node,
+  );
+  isDomNode.assertIsArrayOfNodes(signatures);
+  return signatures.filter(isDomNode.isElementNode);
+}
+
 const warnOriginalXmlWithIds = deprecate(
   () => {},
   "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. For a detached signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for WS-Security), sign that document, and send it alongside `getSignatureXml()`.",
@@ -1311,7 +1320,7 @@ export class SignedXml {
     const canonXml = node.cloneNode(true); // Deep clone
     if (transforms.includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
       const signaturePath: number[] = [];
-      let signatureAncestor = this.signatureNode;
+      let signatureAncestor = this.findLoadedSignature(node);
       while (signatureAncestor?.parentNode && signatureAncestor !== node) {
         signaturePath.push(
           Array.from<Node>(signatureAncestor.parentNode.childNodes).indexOf(signatureAncestor),
@@ -1325,24 +1334,75 @@ export class SignedXml {
       }
     }
     let transformedXml: Node | string = canonXml;
+    let transformOptions = options;
 
-    transforms.forEach((transformName) => {
-      if (isDomNode.isNodeLike(transformedXml)) {
-        // If, after processing, `transformedNode` is a string, we can't do anymore transforms on it
-        const transform = this.findCanonicalizationAlgorithm(transformName);
-        transformedXml = transform.process(transformedXml, options);
+    // Octets are parsed into a node-set for the next transform, and a node-set left at the end is
+    // converted to octets with C14N: https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
+    for (const transformName of transforms) {
+      if (!isDomNode.isNodeLike(transformedXml)) {
+        transformedXml = this.parseTransformInput(transformedXml, transformName);
+        // The parsed octets are a new document, so the referenced node's ancestors are gone.
+        transformOptions = {
+          ...options,
+          ancestorNamespaces: [],
+          defaultNs: "",
+          signatureNode: this.findLoadedSignature(transformedXml) ?? options.signatureNode,
+        };
       }
-    });
+      transformedXml = this.findCanonicalizationAlgorithm(transformName).process(
+        transformedXml,
+        transformOptions,
+      );
+    }
 
-    // A node-set is converted to octets with C14N, never with a DOM serializer:
-    // https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
     if (isDomNode.isNodeLike(transformedXml)) {
       transformedXml = this.findCanonicalizationAlgorithm(
         "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
-      ).process(transformedXml, options);
+      ).process(transformedXml, transformOptions);
     }
 
     return transformedXml.toString();
+  }
+
+  // checkSignature() parses its own copy of the document, and octets a transform returns are parsed
+  // again, so the loaded signature is found by its SignatureValue. A copy carrying the same value
+  // could stand in for it, so refuse to guess.
+  private findLoadedSignature(node: Node): Node | null {
+    const doc = node.ownerDocument ?? node;
+    if (this.signatureNode == null || this.signatureNode.ownerDocument === doc) {
+      return this.signatureNode;
+    }
+
+    const signatureValue = utils.findChildren(this.signatureNode, "SignatureValue")[0]?.textContent;
+    if (!signatureValue) {
+      return null;
+    }
+
+    const matches = findSignatureElements(doc).filter(
+      (signature) =>
+        utils.findChildren(signature, "SignatureValue")[0]?.textContent === signatureValue,
+    );
+    if (matches.length > 1) {
+      throw new Error(
+        "Cannot validate a document which contains multiple Signature elements with the same SignatureValue, in order to prevent signature wrapping attack.",
+      );
+    }
+    return matches[0] ?? null;
+  }
+
+  private parseTransformInput(octets: string, transformName: string): Element {
+    const parseErrors: string[] = [];
+    const doc = new xmldom.DOMParser({
+      errorHandler: (_level, message) => parseErrors.push(String(message)),
+    }).parseFromString(octets);
+
+    if (parseErrors.length > 0 || doc.documentElement == null) {
+      throw new Error(
+        `Cannot apply transform ${transformName}: the output of the previous transform is not well-formed XML`,
+      );
+    }
+
+    return doc.documentElement;
   }
 
   /**
