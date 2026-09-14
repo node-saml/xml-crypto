@@ -40,13 +40,16 @@ implementations, which 6.1.x rejected, now verify.
 
 ### Transforms that end in a DOM node
 
-When the last transform of a `Reference`, or the `SignedInfo` canonicalization algorithm, returns a
-DOM `Node`, 6.2.0 and later convert it to octets with inclusive canonicalization, as the
+When the last transform of a `Reference` returns a DOM `Node`, 6.2.0 and later convert it to octets
+with inclusive canonicalization, as the
 [reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
-requires. Earlier releases serialized it with xmldom instead.
+requires. A `SignedInfo` canonicalization algorithm that returns a `Node` is converted the same way.
+Earlier releases serialized both with xmldom instead.
 
-- A reference whose only transform is `enveloped-signature` now gets a signature that verifies, with
-  6.1.x as well. Verification with the built-in algorithms is unchanged.
+- A reference whose only transform is `enveloped-signature` now gets a signature that verifies.
+  Verification with the built-in algorithms already canonicalized this case and is unchanged, so
+  6.1.x verifies these signatures too, except for documents affected by the
+  [canonicalization output](#canonicalization-output) changes.
 - `getCanonXml()` returns canonical XML for such transform lists, for example `<y></y>` rather than
   `<y/>`.
 - A custom transform or canonicalization algorithm whose `process()` returns a `Node` now produces a
