@@ -23,8 +23,8 @@
 
 Inclusive canonicalization (`http://www.w3.org/TR/2001/REC-xml-c14n-20010315` and its
 `#WithComments` variant) renders namespace declarations as the
-[C14N specification](https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel) requires.
-Its output differs from 6.1.x when:
+[C14N specification](https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel) requires,
+including when:
 
 - a prefixed element in the signed content declares a default namespace, as in
   `<p:item xmlns="urn:x">`
@@ -33,29 +33,17 @@ Its output differs from 6.1.x when:
   clears it with `xmlns=""`
 - the signed element redeclares a prefix that an ancestor binds, after declaring another namespace
 
-The last case also changes exclusive canonicalization (`http://www.w3.org/2001/10/xml-exc-c14n#`
-and its `#WithComments` variant) when the redeclared prefix is listed in the
-`InclusiveNamespaces` `PrefixList`. Exclusive canonicalization is otherwise unaffected.
-
-For such documents 6.2.0 and later compute a different digest than 6.1.x and earlier, so a
-signature created by one will not verify with the other. Upgrade signers and verifiers that
-exchange these documents together.
+Exclusive canonicalization (`http://www.w3.org/2001/10/xml-exc-c14n#` and its `#WithComments`
+variant) renders the last case the same way when the redeclared prefix is listed in the
+`InclusiveNamespaces` `PrefixList`.
 
 ### Transforms that end in a DOM node
 
 When the last transform of a `Reference` returns a DOM `Node`, it is converted to octets with
 inclusive canonicalization, as the
 [reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
-requires. A `SignedInfo` canonicalization algorithm that returns a `Node` is converted the same way.
-
-- A reference whose only transform is `enveloped-signature` gets a signature that 6.1.x also
-  verifies, except for documents affected by the [canonicalization output](#canonicalization-output)
-  changes.
-- `getCanonXml()` returns canonical XML for such transform lists, for example `<y></y>`, which can
-  differ from 6.1.x.
-- A custom transform or canonicalization algorithm whose `process()` returns a `Node` can produce a
-  different digest or signature than 6.1.x, and then a signature created by one will not verify with
-  the other. Upgrade signers and verifiers that use it together.
+requires. A `SignedInfo` canonicalization algorithm that returns a `Node` is converted the same way,
+and `getCanonXml()` returns canonical XML for such transform lists, for example `<y></y>`.
 
 ### Deprecated ahead of 7.0
 
