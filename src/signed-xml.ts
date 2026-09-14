@@ -503,6 +503,9 @@ export class SignedXml {
 
     /* eslint-disable-next-line deprecation/deprecation */
     for (const ref of this.getReferences()) {
+      if (ref.signedReference === undefined) {
+        continue;
+      }
       const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
 
       for (const attr of this.idAttributes) {
@@ -558,12 +561,12 @@ export class SignedXml {
 
     ref.getValidatedNode = deprecate((xpathSelector?: string) => {
       xpathSelector = xpathSelector || ref.xpath;
-      if (typeof xpathSelector !== "string" || ref.validationError != null) {
+      if (typeof xpathSelector !== "string" || ref.signedReference === undefined) {
         return null;
       }
       const selectedValue = xpath.select1(xpathSelector, doc);
       return isDomNode.isNodeLike(selectedValue) ? selectedValue : null;
-    }, "`ref.getValidatedNode()` is deprecated and insecure. Use `ref.signedReference` or `this.getSignedReferences()` instead.");
+    }, "`ref.getValidatedNode()` is deprecated and insecure. Use `getSignedReferences()` instead.");
 
     if (!isDomNode.isNodeLike(elem)) {
       const validationError = new Error(
