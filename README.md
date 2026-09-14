@@ -44,11 +44,9 @@ A `Reference` whose `URI` is empty or an ID, such as `#item`, removes comments f
 content before its transforms run, as
 [same-document references](https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document) require.
 
-- A `#WithComments` transform over content that contains a comment produces a different digest than
-  6.1.x, so a signature created by one will not verify with the other. Upgrade signers and verifiers
-  that use it together.
-- Those comments are not signed: adding, removing or changing one does not invalidate the signature.
-  Read signed content from `getSignedReferences()`, which does not contain them.
+- Comments in that content are not signed, even with a `#WithComments` transform: adding, removing
+  or changing one does not invalidate the signature. Read signed content from
+  `getSignedReferences()`, which does not contain them.
 - A custom transform in such a reference does not receive comment nodes.
 - A `#WithComments` `CanonicalizationMethod` signs the comments inside `SignedInfo`.
 
