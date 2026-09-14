@@ -193,6 +193,9 @@ export interface SignatureAlgorithm {
    * @param key a public cert, public key, or private key can be passed here
    */
   verifySignature(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
+  /**
+   * `SignedXml.checkSignature` calls only the synchronous form.
+   */
   verifySignature(
     material: string,
     key: crypto.KeyLike,
