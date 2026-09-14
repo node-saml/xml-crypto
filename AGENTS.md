@@ -110,12 +110,17 @@ and the _how_ are readable from the code, then don't restate them in prose that 
 stale the first time someone edits the line below it.
 
 Comment only what the code cannot say: _why_ something is done, what would break if it
-were done the obvious way, and which non-obvious constraint is being satisfied. Link the
-issue or spec that prompted the code.
+were done the obvious way, and which non-obvious constraint is being satisfied. Comment a
+hazard only when a test can't practically catch it, like the constant-time HMAC comparison.
+Typically, well-written tests and code are self-documenting.
 
-If a comment is needed at all, keep it DRY. The `it()` name plus a spec link is often the
-whole comment. Cite, don't quote: prefer a section number and a URL over the sentence they
-contain. Keep it to a line or two.
+Don't narrate history. A bug the code no longer has belongs in the commit message and the
+PR, and `git blame` leads there.
+
+If a comment is needed at all, keep it DRY. The `it()` name is usually the whole comment.
+Link a spec the code implements, but link an issue only for a tricky edge case, where
+whoever breaks the test might otherwise decide the test is wrong. Cite, don't quote:
+prefer a section number and a URL over the sentence they contain. Keep it to a line or two.
 
 A comment reading "loop over the references" above a loop over references, or one
 restating a field's name as a sentence, earns nothing and costs a review every time the

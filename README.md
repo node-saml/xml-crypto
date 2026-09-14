@@ -15,6 +15,68 @@
 
 ## Upgrading
 
+### Canonicalization output
+
+Inclusive canonicalization (`http://www.w3.org/TR/2001/REC-xml-c14n-20010315` and its
+`#WithComments` variant) now renders namespace declarations as the
+[C14N specification](https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel) requires.
+Earlier releases rendered some documents incorrectly, for example when:
+
+- a prefixed element in the signed content declares a default namespace, as in
+  `<p:item xmlns="urn:x">`
+- the signed element inherits a default namespace and declares a prefixed namespace of its own
+- the signed element is prefixed, inherits a default namespace, and contains an element that
+  clears it with `xmlns=""`
+- the signed element redeclares a prefix that an ancestor binds, after declaring another namespace
+
+The last case also changes exclusive canonicalization (`http://www.w3.org/2001/10/xml-exc-c14n#`
+and its `#WithComments` variant) when the redeclared prefix is listed in the
+`InclusiveNamespaces` `PrefixList`. Exclusive canonicalization is otherwise unaffected.
+
+For such documents 6.2.0 and later compute a different digest than 6.1.x and earlier, so a
+signature created by one will not verify with the other. Upgrade signers and verifiers that
+exchange these documents together. Documents signed in these shapes by other conforming
+implementations, which 6.1.x rejected, now verify.
+
+### Transforms that end in a DOM node
+
+When the last transform of a `Reference` returns a DOM `Node`, 6.2.0 and later convert it to octets
+with inclusive canonicalization, as the
+[reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
+requires. A `SignedInfo` canonicalization algorithm that returns a `Node` is converted the same way.
+Earlier releases serialized both with xmldom instead.
+
+- A reference whose only transform is `enveloped-signature` now gets a signature that verifies.
+  Verification with the built-in algorithms already canonicalized this case and is unchanged, so
+  6.1.x verifies these signatures too, except for documents affected by the
+  [canonicalization output](#canonicalization-output) changes.
+- `getCanonXml()` returns canonical XML for such transform lists, for example `<y></y>` rather than
+  `<y/>`.
+- A custom transform or canonicalization algorithm whose `process()` returns a `Node` now produces a
+  different digest or signature than 6.1.x, so a signature created by one will not verify with the
+  other. Upgrade signers and verifiers that use it together.
+
+### Deprecated ahead of 7.0
+
+The package used to re-export everything in its internal `utils` module, so helpers written for
+`signed-xml.ts` became public API by accident. These are deprecated as of 6.2.0 and will be
+removed in 7.0:
+
+| Deprecated                                                            | Instead                                                                                                                                                                                                       |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `findAttr`, `findChildren`, `findChilds`, `isDescendantOf`            | use a DOM API, or [xpath](https://github.com/goto100/xpath)                                                                                                                                                   |
+| `encodeSpecialCharactersInAttribute`, `encodeSpecialCharactersInText` | these are the escaping step of `C14nCanonicalization` and `ExclusiveCanonicalization`, so use those; a custom canonicalizer must apply [C14N escaping](https://www.w3.org/TR/xml-c14n#ProcessingModel) itself |
+| `isArrayHasLength`                                                    | `Array.isArray(x) && x.length > 0`                                                                                                                                                                            |
+| `validateDigestValue`                                                 | decode both from base64, then compare with `a.length === b.length && crypto.timingSafeEqual(a, b)` — `timingSafeEqual` alone throws on a length mismatch instead of returning `false`. Never `===`            |
+| `BASE64_REGEX`, `EXTRACT_X509_CERTS`, `PEM_FORMAT_REGEX`              | no replacement; these are internal parsing details                                                                                                                                                            |
+
+Calling one prints a `DeprecationWarning` naming its replacement. The three regexes cannot warn —
+`util.deprecate` needs a call to intercept — so TypeScript users see the `@deprecated` tag and
+JavaScript users get no signal until the names go away.
+
+`derToPem`, `pemToDer`, `normalizePem` and `findAncestorNs` are **not** deprecated and stay
+exported.
+
 The `.getReferences()` AND the `.references` APIs are deprecated.
 Please do not attempt to access them. The content in them should be treated as unsigned.
 
@@ -280,7 +342,18 @@ To sign xml documents:
     - `existingPrefixes` - A hash of prefixes and namespaces `prefix: namespace` that shouldn't be in the signature because they already exist in the xml
 - `getSignedXml()` - returns the original xml document with the signature in it, **must be called only after `computeSignature`**
 - `getSignatureXml()` - returns just the signature part, **must be called only after `computeSignature`**
-- `getOriginalXmlWithIds()` - **[deprecated]** returns the original xml with Id attributes added on relevant elements, **must be called only after `computeSignature`**. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. See [how to specify the location of the signature](#how-to-specify-the-location-of-the-signature).
+- `getOriginalXmlWithIds()` - **[deprecated]** returns the original xml with Id attributes added on relevant elements, **must be called only after `computeSignature`**. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. See [how to specify the location of the signature](#how-to-specify-the-location-of-the-signature). For a detached signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for WS-Security), sign that document, and send it alongside `getSignatureXml()`. Make sure each reference XPath still selects its intended element once those IDs are present, for example by selecting on the ID itself.
+
+Every reference XPath is evaluated against the input document before any IDs or the signature
+are added, so the order of `addReference()` calls does not change what a reference selects. A
+reference that matches nothing in the input is evaluated after the signature is inserted and
+selects only elements inside the new signature, such as generated `Object` or `KeyInfo`
+elements. Use separate `addReference()` calls for input elements and generated signature content.
+
+An input match takes precedence, so a reference whose XPath also matches an input element signs
+that element and leaves the generated one unsigned. Select generated content by the `Id` you
+configured for it, as in [how to add custom Objects to the signature](#how-to-add-custom-objects-to-the-signature),
+rather than by element name.
 
 To verify xml documents:
 

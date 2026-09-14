@@ -500,7 +500,7 @@ describe("Canonicalization unit tests", function () {
     const sig = new SignedXml();
     const transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
     const res = sig.getCanonXml(transforms, node);
-    expect(res).to.equal("<y/>");
+    expect(res).to.equal("<y></y>");
   });
 
   it("Enveloped-signature canonicalization preserves nested signatures when removing a direct child", function () {
