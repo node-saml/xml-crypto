@@ -330,6 +330,19 @@ describe("Signature integration tests", function () {
       }
     }
 
+    class ReverseSignaturesToString {
+      process(node: Node) {
+        const signatures = xpath.select("./*[local-name(.)='Signature']", node);
+        isDomNode.assertIsArrayOfNodes(signatures);
+        signatures.reverse().forEach((signature) => node.appendChild(signature));
+        return node.toString();
+      }
+
+      getAlgorithmName() {
+        return "urn:test:reverse-signatures";
+      }
+    }
+
     function signAndVerify(xml: string, xpathToSign: string, transforms: string[]) {
       const sig = new SignedXml({
         privateKey: fs.readFileSync("./test/static/client.pem"),
@@ -337,6 +350,7 @@ describe("Signature integration tests", function () {
         signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
       });
       sig.CanonicalizationAlgorithms["urn:test:drop-notes"] = DropNotes;
+      sig.CanonicalizationAlgorithms["urn:test:reverse-signatures"] = ReverseSignaturesToString;
       sig.addReference({
         xpath: xpathToSign,
         transforms,
@@ -348,6 +362,8 @@ describe("Signature integration tests", function () {
         publicCert: fs.readFileSync("./test/static/client_public.pem"),
       });
       verifier.CanonicalizationAlgorithms["urn:test:drop-notes"] = DropNotes;
+      verifier.CanonicalizationAlgorithms["urn:test:reverse-signatures"] =
+        ReverseSignaturesToString;
       verifier.loadSignature(sig.getSignatureXml());
       const valid = verifier.checkSignature(sig.getSignedXml());
 
@@ -363,6 +379,20 @@ describe("Signature integration tests", function () {
 
       expect(result.valid).to.be.true;
       expect(result.signedReferences).to.deep.equal(['<root Id="_0"><x>1</x></root>']);
+    });
+
+    it("should remove the verified signature after a custom transform reorders signatures", function () {
+      const otherSignature =
+        '<Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignatureValue>other</SignatureValue></Signature>';
+      const result = signAndVerify(`<root><x>1</x>${otherSignature}</root>`, "/*", [
+        "urn:test:reverse-signatures",
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+      ]);
+
+      expect(result.valid).to.be.true;
+      expect(result.signedReferences).to.deep.equal([
+        `<root Id="_0"><x>1</x>${otherSignature}</root>`,
+      ]);
     });
 
     it("should apply a custom transform that follows a canonicalization", function () {

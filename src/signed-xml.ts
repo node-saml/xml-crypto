@@ -1335,27 +1335,20 @@ export class SignedXml {
     }
     let transformedXml: Node | string = canonXml;
     let transformOptions = options;
-    let signaturePosition = -1;
 
     // Octets are parsed into a node-set for the next transform, and a node-set left at the end is
     // converted to octets with C14N: https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
     for (const transformName of transforms) {
       if (!isDomNode.isNodeLike(transformedXml)) {
         transformedXml = this.parseTransformInput(transformedXml, transformName);
-        // The parsed octets are a new document: the referenced node's ancestors are gone, and the
-        // enveloped signature is found again by its position among the signatures, as .NET does.
+        // The parsed octets are a new document, so the referenced node's ancestors are gone.
         transformOptions = {
           ...options,
           ancestorNamespaces: [],
           defaultNs: "",
-          signatureNode:
-            findSignatureElements(transformedXml)[signaturePosition] ?? options.signatureNode,
+          signatureNode: this.findLoadedSignature(transformedXml) ?? options.signatureNode,
         };
       }
-      const { signatureNode } = transformOptions;
-      signaturePosition = findSignatureElements(transformedXml).findIndex(
-        (signature) => signature === signatureNode,
-      );
       transformedXml = this.findCanonicalizationAlgorithm(transformName).process(
         transformedXml,
         transformOptions,
@@ -1371,8 +1364,9 @@ export class SignedXml {
     return transformedXml.toString();
   }
 
-  // checkSignature() parses its own copy of the document, so the loaded signature is found there by
-  // its SignatureValue. A copy carrying the same value could stand in for it, so refuse to guess.
+  // checkSignature() parses its own copy of the document, and octets a transform returns are parsed
+  // again, so the loaded signature is found by its SignatureValue. A copy carrying the same value
+  // could stand in for it, so refuse to guess.
   private findLoadedSignature(node: Node): Node | null {
     const doc = node.ownerDocument ?? node;
     if (this.signatureNode == null || this.signatureNode.ownerDocument === doc) {

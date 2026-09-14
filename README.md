@@ -65,8 +65,8 @@ requires. Every built-in canonicalization algorithm returns a string.
 
 - A canonicalization followed by `enveloped-signature` verifies when the `Signature` is inside the
   referenced element.
-- These chains produce a different digest than 6.1.x, so a signature created by one will not verify
-  with the other. Upgrade signers and verifiers that use them together.
+- These chains can produce a different digest than 6.1.x, and then a signature created by one will
+  not verify with the other. Upgrade signers and verifiers that use them together.
   - A `#WithComments` canonicalization followed by `enveloped-signature`, whose result is
     [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
   - Inclusive canonicalization followed by exclusive canonicalization, when the referenced element
