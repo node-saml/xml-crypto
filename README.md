@@ -38,6 +38,21 @@ signature created by one will not verify with the other. Upgrade signers and ver
 exchange these documents together. Documents signed in these shapes by other conforming
 implementations, which 6.1.x rejected, now verify.
 
+### Transforms that end in a DOM node
+
+When the last transform of a `Reference`, or the `SignedInfo` canonicalization algorithm, returns a
+DOM `Node`, 6.2.0 and later convert it to octets with inclusive canonicalization, as the
+[reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
+requires. Earlier releases serialized it with xmldom instead.
+
+- A reference whose only transform is `enveloped-signature` now gets a signature that verifies, with
+  6.1.x as well. Verification with the built-in algorithms is unchanged.
+- `getCanonXml()` returns canonical XML for such transform lists, for example `<y></y>` rather than
+  `<y/>`.
+- A custom transform or canonicalization algorithm whose `process()` returns a `Node` now produces a
+  different digest or signature than 6.1.x, so a signature created by one will not verify with the
+  other. Upgrade signers and verifiers that use it together.
+
 ### Deprecated ahead of 7.0
 
 The package used to re-export everything in its internal `utils` module, so helpers written for
