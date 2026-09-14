@@ -37,6 +37,18 @@ Exclusive canonicalization (`http://www.w3.org/2001/10/xml-exc-c14n#` and its `#
 variant) renders the last case the same way when the redeclared prefix is listed in the
 `InclusiveNamespaces` `PrefixList`.
 
+### Comments in referenced content
+
+A `Reference` whose `URI` is empty or `#` followed by an ID, such as `#item`, removes comments from
+the referenced content before its transforms run, as
+[same-document references](https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document) require.
+
+- Comments in that content are not signed, even with a `#WithComments` transform: adding, removing
+  or changing one does not invalidate the signature. Read signed content from
+  `getSignedReferences()`, which does not contain them.
+- A custom transform in such a reference does not receive comment nodes.
+- A `#WithComments` `CanonicalizationMethod` signs the comments inside `SignedInfo`.
+
 ### Transforms that end in a DOM node
 
 When the last transform of a `Reference` returns a DOM `Node`, it is converted to octets with
@@ -44,6 +56,32 @@ inclusive canonicalization, as the
 [reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
 requires. A `SignedInfo` canonicalization algorithm that returns a `Node` is converted the same way,
 and `getCanonXml()` returns canonical XML for such transform lists, for example `<y></y>`.
+
+### Transforms that follow a canonicalization
+
+When a transform returns a string and another transform follows it in the same `Reference`, the
+string is parsed into a new document and the next transform is applied to that, as the
+[reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
+requires. Every built-in canonicalization algorithm returns a string, so:
+
+- `enveloped-signature` after a canonicalization removes the `Signature`, including one inside the
+  referenced element.
+- The result of a `#WithComments` canonicalization followed by `enveloped-signature` is
+  [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
+- Exclusive canonicalization after inclusive canonicalization omits inherited namespace declarations
+  that the referenced element does not use.
+- A custom transform after a canonicalization receives the parsed document.
+- A transform throws when the string returned by the transform before it is not well-formed XML.
+
+### Copies of an enveloped signature
+
+The `enveloped-signature` transform removes only the `Signature` element being verified, as
+[XMLDSig](https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature) requires.
+
+- `checkSignature()` finds that element by its `SignatureValue`, and throws when the document
+  contains more than one `Signature` element with that value.
+- `getCanonXml()` finds the loaded signature in the node's document the same way, and removes nothing
+  when the signature is not there.
 
 ### Deprecated ahead of 7.0
 
