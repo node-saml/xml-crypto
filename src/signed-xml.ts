@@ -443,7 +443,7 @@ export class SignedXml {
       ancestorNamespaces: ref.ancestorNamespaces,
     };
 
-    return this.getCanonXml(ref.transforms, node, c14nOptions);
+    return this.canonicalize(ref.transforms, node, c14nOptions, { discardComments: true });
   }
 
   private calculateSignatureValue(doc: Document, callback?: ErrorFirstCallback<string>) {
@@ -1101,10 +1101,15 @@ export class SignedXml {
 
   private calculateReferenceDigest(ref: Reference, node: Element): string {
     ref.ancestorNamespaces = utils.findAncestorNsForElement(node);
-    const canonXml = this.getCanonXml(ref.transforms, node, {
-      inclusiveNamespacesPrefixList: ref.inclusiveNamespacesPrefixList,
-      ancestorNamespaces: ref.ancestorNamespaces,
-    });
+    const canonXml = this.canonicalize(
+      ref.transforms,
+      node,
+      {
+        inclusiveNamespacesPrefixList: ref.inclusiveNamespacesPrefixList,
+        ancestorNamespaces: ref.ancestorNamespaces,
+      },
+      { discardComments: true },
+    );
     return this.findHashAlgorithm(ref.digestAlgorithm).getHash(canonXml);
   }
 
@@ -1305,6 +1310,15 @@ export class SignedXml {
     node: Node,
     options: CanonicalizationOrTransformationAlgorithmProcessOptions = {},
   ) {
+    return this.canonicalize(transforms, node, options, { discardComments: false });
+  }
+
+  private canonicalize(
+    transforms: Reference["transforms"],
+    node: Node,
+    options: CanonicalizationOrTransformationAlgorithmProcessOptions,
+    { discardComments }: { discardComments: boolean },
+  ) {
     options.defaultNsForPrefix = options.defaultNsForPrefix ?? SignedXml.defaultNsForPrefix;
     options.signatureNode = this.signatureNode;
 
@@ -1323,6 +1337,13 @@ export class SignedXml {
           .reverse()
           .reduce((clonedNode, index) => clonedNode.childNodes[index], canonXml);
       }
+    }
+    // A reference dereferences without comments unless its URI is an XPointer, which
+    // validateReference cannot resolve: https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document
+    if (discardComments) {
+      const comments = xpath.select(".//comment()", canonXml);
+      isDomNode.assertIsArrayOfNodes(comments);
+      comments.forEach((comment) => comment.parentNode?.removeChild(comment));
     }
     let transformedXml: Node | string = canonXml;
 
