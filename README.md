@@ -40,8 +40,8 @@ implementations, which 6.1.x rejected, now verify.
 
 ### Comments in referenced content
 
-A `Reference` whose `URI` is empty or an ID, such as `#item`, removes comments from the referenced
-content before its transforms run, as
+A `Reference` whose `URI` is empty or `#` followed by an ID, such as `#item`, removes comments from
+the referenced content before its transforms run, as
 [same-document references](https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document) require.
 
 - Comments in that content are not signed, even with a `#WithComments` transform: adding, removing
