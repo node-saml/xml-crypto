@@ -626,13 +626,7 @@ describe("Signature self-reference prevention", function () {
     });
 
     sig.addReference({
-      xpath: "/*",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-    });
-
-    sig.addReference({
-      xpath: ".//*[local-name(.)='Reference']/*",
+      xpath: ".//*[local-name(.)='SignatureMethod']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
       transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
