@@ -463,28 +463,48 @@ describe("Canonicalization unit tests", function () {
     expect(res).to.equal('<p:y xmlns:p="myns"></p:y>');
   });
 
-  it("Shouldn't continue processing transforms if we end up with a string as a result of a transform", function () {
+  it("Parses the string a transform returns for the transform that follows it", function () {
     const doc = new xmldom.DOMParser().parseFromString(
       '<x xmlns:p="myns"><p:y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y></x>',
     );
-    const node1 = xpath.select1("//*[local-name(.)='y']", doc);
-    const node2 = xpath.select1("//*[local-name(.)='y']", doc);
-    isDomNode.assertIsNodeLike(node1);
-    isDomNode.assertIsNodeLike(node2);
+    const node = xpath.select1("//*[local-name(.)='y']", doc);
+    isDomNode.assertIsNodeLike(node);
+
     const sig = new SignedXml();
-    const res1 = sig.getCanonXml(
+    const res = sig.getCanonXml(
       [
         "http://www.w3.org/2001/10/xml-exc-c14n#",
         "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
       ],
-      node1,
+      node,
     );
-    const res2 = sig.getCanonXml(["http://www.w3.org/2001/10/xml-exc-c14n#"], node2);
-    expect(res1)
-      .to.equal(res2)
-      .to.equal(
-        '<p:y xmlns:p="myns"><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y>',
-      );
+    expect(res).to.equal('<p:y xmlns:p="myns"></p:y>');
+  });
+
+  it("Throws when a transform follows one that returns malformed XML", function () {
+    const doc = new xmldom.DOMParser().parseFromString("<x><y></y></x>");
+    const node = xpath.select1("//*[local-name(.)='y']", doc);
+    isDomNode.assertIsNodeLike(node);
+
+    const sig = new SignedXml();
+    sig.CanonicalizationAlgorithms["urn:test:malformed"] = class {
+      process() {
+        return "<y>";
+      }
+
+      getAlgorithmName() {
+        return "urn:test:malformed";
+      }
+    };
+
+    expect(() =>
+      sig.getCanonXml(
+        ["urn:test:malformed", "http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+        node,
+      ),
+    ).to.throw(
+      "Cannot apply transform http://www.w3.org/2000/09/xmldsig#enveloped-signature: the output of the previous transform is not well-formed XML",
+    );
   });
 
   it("Enveloped-signature canonicalization respects current node", function () {
