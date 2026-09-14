@@ -38,6 +38,18 @@ signature created by one will not verify with the other. Upgrade signers and ver
 exchange these documents together. Documents signed in these shapes by other conforming
 implementations, which 6.1.x rejected, now verify.
 
+### Comments in referenced content
+
+A `Reference` whose `URI` is empty or `#` followed by an ID, such as `#item`, removes comments from
+the referenced content before its transforms run, as
+[same-document references](https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document) require.
+
+- Comments in that content are not signed, even with a `#WithComments` transform: adding, removing
+  or changing one does not invalidate the signature. Read signed content from
+  `getSignedReferences()`, which does not contain them.
+- A custom transform in such a reference does not receive comment nodes.
+- A `#WithComments` `CanonicalizationMethod` signs the comments inside `SignedInfo`.
+
 ### Transforms that end in a DOM node
 
 When the last transform of a `Reference` returns a DOM `Node`, 6.2.0 and later convert it to octets
