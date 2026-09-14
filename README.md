@@ -18,9 +18,9 @@
 ### Canonicalization output
 
 Inclusive canonicalization (`http://www.w3.org/TR/2001/REC-xml-c14n-20010315` and its
-`#WithComments` variant) now renders namespace declarations as the
+`#WithComments` variant) renders namespace declarations as the
 [C14N specification](https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel) requires.
-Earlier releases rendered some documents incorrectly, for example when:
+Its output differs from 6.1.x when:
 
 - a prefixed element in the signed content declares a default namespace, as in
   `<p:item xmlns="urn:x">`
@@ -35,32 +35,27 @@ and its `#WithComments` variant) when the redeclared prefix is listed in the
 
 For such documents 6.2.0 and later compute a different digest than 6.1.x and earlier, so a
 signature created by one will not verify with the other. Upgrade signers and verifiers that
-exchange these documents together. Documents signed in these shapes by other conforming
-implementations, which 6.1.x rejected, now verify.
+exchange these documents together.
 
 ### Transforms that end in a DOM node
 
-When the last transform of a `Reference` returns a DOM `Node`, 6.2.0 and later convert it to octets
-with inclusive canonicalization, as the
+When the last transform of a `Reference` returns a DOM `Node`, it is converted to octets with
+inclusive canonicalization, as the
 [reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
 requires. A `SignedInfo` canonicalization algorithm that returns a `Node` is converted the same way.
-Earlier releases serialized both with xmldom instead.
 
-- A reference whose only transform is `enveloped-signature` now gets a signature that verifies.
-  Verification with the built-in algorithms already canonicalized this case and is unchanged, so
-  6.1.x verifies these signatures too, except for documents affected by the
-  [canonicalization output](#canonicalization-output) changes.
-- `getCanonXml()` returns canonical XML for such transform lists, for example `<y></y>` rather than
-  `<y/>`.
-- A custom transform or canonicalization algorithm whose `process()` returns a `Node` now produces a
+- A reference whose only transform is `enveloped-signature` gets a signature that 6.1.x also
+  verifies, except for documents affected by the [canonicalization output](#canonicalization-output)
+  changes.
+- `getCanonXml()` returns canonical XML for such transform lists, for example `<y></y>`, which
+  differs from 6.1.x.
+- A custom transform or canonicalization algorithm whose `process()` returns a `Node` produces a
   different digest or signature than 6.1.x, so a signature created by one will not verify with the
   other. Upgrade signers and verifiers that use it together.
 
 ### Deprecated ahead of 7.0
 
-The package used to re-export everything in its internal `utils` module, so helpers written for
-`signed-xml.ts` became public API by accident. These are deprecated as of 6.2.0 and will be
-removed in 7.0:
+These exports are deprecated and will be removed in 7.0:
 
 | Deprecated                                                            | Instead                                                                                                                                                                                                       |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -77,12 +72,8 @@ JavaScript users get no signal until the names go away.
 `derToPem`, `pemToDer`, `normalizePem` and `findAncestorNs` are **not** deprecated and stay
 exported.
 
-The `.getReferences()` AND the `.references` APIs are deprecated.
-Please do not attempt to access them. The content in them should be treated as unsigned.
-
-Instead, we strongly encourage users to migrate to the `.getSignedReferences()` API. See the [Verifying XML document](#verifying-xml-documents) section
-We understand that this may take a lot of efforts to migrate, feel free to ask for help.
-This will help prevent future XML signature wrapping attacks.
+`getReferences()` and `references` are deprecated, and their content is not signed. Use
+`getSignedReferences()` instead, as shown in [Verifying Xml documents](#verifying-xml-documents).
 
 ## Supported Algorithms
 
@@ -174,7 +165,7 @@ The result will be:
 
 Note:
 
-If you set the `publicCert` and the `getKeyInfoContent` properties, a `<KeyInfo></KeyInfo>` element with the public certificate will be generated in the signature:
+If you set `publicCert`, a `<KeyInfo></KeyInfo>` element with the public certificate will be generated in the signature:
 
 ```xml
 <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
@@ -190,7 +181,7 @@ If you set the `publicCert` and the `getKeyInfoContent` properties, a `<KeyInfo>
 </Signature>
 ```
 
-For `getKeyInfoContent`, a default implementation `SignedXml.getKeyInfoContent` is available.
+The default `getKeyInfoContent`, `SignedXml.getKeyInfoContent`, generates this element.
 
 To customize this see [customizing algorithms](#customizing-algorithms) for an example.
 
@@ -212,16 +203,16 @@ new SignedXml({
 });
 ```
 
-You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/xmldom/xmldom), so you should install it first:
+You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/xmldom/xmldom) and [xpath](https://github.com/goto100/xpath), so you should install them first:
 
 ```shell
-npm install @xmldom/xmldom
+npm install @xmldom/xmldom xpath
 ```
 
 Example:
 
 ```javascript
-var select = require("xml-crypto").xpath,
+var xpath = require("xpath"),
   dom = require("@xmldom/xmldom").DOMParser,
   SignedXml = require("xml-crypto").SignedXml,
   fs = require("fs");
@@ -234,10 +225,10 @@ var doc = new dom().parseFromString(xml);
 // i.e. BAD: parseAssertion(doc),
 // good: see below
 
-var signature = select(
-  doc,
+var signature = xpath.select1(
   "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-)[0];
+  doc,
+);
 var sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
 sig.loadSignature(signature);
 try {
@@ -299,11 +290,6 @@ You might find it difficult to guess such transforms, but there are typical tran
 - <http://www.w3.org/2001/10/xml-exc-c14n#WithComments>
 
 ## API
-
-### xpath
-
-See [xpath.js](https://github.com/yaronn/xpath.js) for usage. Note that this is actually using
-[another library](https://github.com/goto100/xpath) as the underlying implementation.
 
 ### SignedXml
 
@@ -376,7 +362,7 @@ Now define the extension point you want to implement. You can choose one or more
 
 To determine the inclusion and contents of a `<KeyInfo />` element, the function
 `this.getKeyInfoContent()` is called. There is a default implementation of this. If you wish to change
-this implementation, provide your own function assigned to the property `this.getKeyInfoContent`. If you prefer to use the default implementation, assign `SignedXml.getKeyInfoContent` to `this.getKeyInfoContent` If
+this implementation, provide your own function assigned to the property `this.getKeyInfoContent`. If
 there are no attributes and no contents to the `<KeyInfo />` element, it won't be included in the
 generated XML.
 
@@ -552,8 +538,6 @@ Then you could use the result as is for the purpose of signing. For the purpose 
 
 ## Examples
 
-### how to sign a root node (_coming soon_)
-
 ### how to add a prefix for the signature
 
 Use the `prefix` option when calling `computeSignature` to add a prefix to the signature.
@@ -641,8 +625,6 @@ sig.addReference({
 sig.computeSignature(xml);
 fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
-
-### more examples (_coming soon_)
 
 ## Development
 
