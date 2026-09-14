@@ -35,6 +35,12 @@ const warnOriginalXmlWithIds = deprecate(
   "XML_CRYPTO_GET_ORIGINAL_XML_WITH_IDS",
 );
 
+const warnValidateElementAgainstReferences = deprecate(
+  () => {},
+  "`validateElementAgainstReferences()` is deprecated and will be removed in a future version. Use `getSignedReferences()` after `checkSignature()`.",
+  "XML_CRYPTO_VALIDATE_ELEMENT_AGAINST_REFERENCES",
+);
+
 export class SignedXml {
   idMode?: "wssecurity";
   idAttributes: string[];
@@ -491,7 +497,12 @@ export class SignedXml {
     }
   }
 
+  /**
+   * @deprecated Will be removed in a future version. Use {@link getSignedReferences} after
+   * {@link checkSignature}.
+   */
   validateElementAgainstReferences(elemOrXpath: Element | string, doc: Document): Reference {
+    warnValidateElementAgainstReferences();
     let elem: Element;
     if (typeof elemOrXpath === "string") {
       const firstElem = xpath.select1(elemOrXpath, doc);

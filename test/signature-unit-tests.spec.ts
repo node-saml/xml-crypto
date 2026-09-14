@@ -909,11 +909,6 @@ describe("Signature unit tests", function () {
           "sH1gxKve8wlU8LlFVa2l6w3HMJ0=",
         ];
 
-        const firstGrandchild = doc.firstChild?.firstChild;
-        isDomNode.assertIsElementNode(firstGrandchild);
-        const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
-        expect(matchedReference).to.not.be.false;
-
         /* eslint-disable-next-line deprecation/deprecation */
         for (let i = 0; i < sig.getReferences().length; i++) {
           /* eslint-disable-next-line deprecation/deprecation */
