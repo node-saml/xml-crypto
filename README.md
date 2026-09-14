@@ -102,7 +102,7 @@ JavaScript users get no signal until the names go away.
 `derToPem`, `pemToDer`, `normalizePem` and `findAncestorNs` are **not** deprecated and stay
 exported.
 
-`getReferences()` and `references` are deprecated, and their content is not signed. Use
+`getReferences()` and `references` are deprecated. Do not use them to obtain signed XML; use
 `getSignedReferences()` instead, as shown in [Verifying Xml documents](#verifying-xml-documents).
 
 ## Supported Algorithms
@@ -211,7 +211,7 @@ If you set `publicCert`, a `<KeyInfo></KeyInfo>` element with the public certifi
 </Signature>
 ```
 
-The default `getKeyInfoContent`, `SignedXml.getKeyInfoContent`, generates this element.
+The default `SignedXml.getKeyInfoContent` generates the `<X509Data>` content of this element.
 
 To customize this see [customizing algorithms](#customizing-algorithms) for an example.
 
