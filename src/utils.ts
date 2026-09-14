@@ -172,22 +172,18 @@ export function derToPem(
   der: string | Buffer,
   pemLabel?: "CERTIFICATE" | "PRIVATE KEY" | "RSA PUBLIC KEY",
 ): string {
-  const base64Der = Buffer.isBuffer(der)
-    ? der.toString("base64").trim()
-    : der.replace(/(\r\n|\r)/g, "").trim();
+  const trimmed = Buffer.isBuffer(der) ? der.toString("base64").trim() : der.trim();
 
-  if (PEM_FORMAT_REGEX.test(base64Der)) {
-    return normalizePem(base64Der);
+  if (PEM_FORMAT_REGEX.test(trimmed)) {
+    return normalizePem(trimmed);
   }
 
-  if (BASE64_REGEX.test(base64Der.replace(/ /g, ""))) {
+  const base64Der = trimmed.replace(/\r\n|\r| /g, "");
+  if (BASE64_REGEX.test(base64Der)) {
     if (pemLabel == null) {
       throw new Error("PEM label is required when DER is given.");
     }
-    const pem = `-----BEGIN ${pemLabel}-----\n${base64Der.replace(
-      / /g,
-      "",
-    )}\n-----END ${pemLabel}-----`;
+    const pem = `-----BEGIN ${pemLabel}-----\n${base64Der}\n-----END ${pemLabel}-----`;
 
     return normalizePem(pem);
   }
