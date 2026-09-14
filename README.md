@@ -15,7 +15,7 @@
 
 ## Upgrading
 
-### Inclusive canonicalization output
+### Canonicalization output
 
 Inclusive canonicalization (`http://www.w3.org/TR/2001/REC-xml-c14n-20010315` and its
 `#WithComments` variant) now renders namespace declarations as the
@@ -29,16 +29,20 @@ Earlier releases rendered some documents incorrectly, for example when:
   clears it with `xmlns=""`
 - the signed element redeclares a prefix that an ancestor binds, after declaring another namespace
 
-For such documents this release computes a different digest than 6.1.x and earlier, so a
+The last case also changes exclusive canonicalization (`http://www.w3.org/2001/10/xml-exc-c14n#`
+and its `#WithComments` variant) when the redeclared prefix is listed in the
+`InclusiveNamespaces` `PrefixList`. Exclusive canonicalization is otherwise unaffected.
+
+For such documents 6.2.0 and later compute a different digest than 6.1.x and earlier, so a
 signature created by one will not verify with the other. Upgrade signers and verifiers that
 exchange these documents together. Documents signed in these shapes by other conforming
-implementations, which 6.1.x rejected, now verify. Exclusive canonicalization is unaffected.
+implementations, which 6.1.x rejected, now verify.
 
 ### Deprecated ahead of 7.0
 
 The package used to re-export everything in its internal `utils` module, so helpers written for
-`signed-xml.ts` became public API by accident. These are deprecated as of this release and will
-be removed in 7.0:
+`signed-xml.ts` became public API by accident. These are deprecated as of 6.2.0 and will be
+removed in 7.0:
 
 | Deprecated                                                            | Instead                                                                                                                                                                                                       |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
