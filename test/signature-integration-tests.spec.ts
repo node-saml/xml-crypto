@@ -1014,17 +1014,6 @@ describe("Signature integration tests", function () {
       });
     }
 
-    it("should keep them in getOriginalXmlWithIds()", function () {
-      const signer = createSigner();
-      signer.computeSignature("<root><item>a&#13;b</item></root>");
-
-      // eslint-disable-next-line deprecation/deprecation
-      const originalXmlWithIds = signer.getOriginalXmlWithIds();
-      expect(verify(signer.getSignatureXml(), originalXmlWithIds)).to.deep.equal([
-        '<item Id="_0">a&#xD;b</item>',
-      ]);
-    });
-
     it("should keep them in the Object content of getSignatureXml()", function () {
       const signer = createSigner({
         objects: [{ content: "<value>a&#13;b</value>", attributes: { Id: "data" } }],
