@@ -654,30 +654,23 @@ describe("Signature integration tests", function () {
 
   describe("comments in same-document references", function () {
     const enveloped = "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
-    const transformInputs: string[] = [];
 
-    class RecordInput {
-      process(node: Node) {
-        transformInputs.push(node.toString());
-        return node;
-      }
-
-      getAlgorithmName() {
-        return "urn:test:record-input";
-      }
-    }
+    type Algorithms = SignedXml["CanonicalizationAlgorithms"];
 
     function sign(
       xml: string,
       reference: { xpath: string; transforms: string[]; isEmptyUri?: boolean },
-      canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#",
+      {
+        canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#",
+        algorithms = {},
+      }: { canonicalizationAlgorithm?: string; algorithms?: Algorithms } = {},
     ) {
       const signer = new SignedXml({
         privateKey: fs.readFileSync("./test/static/client.pem"),
         canonicalizationAlgorithm,
         signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
       });
-      signer.CanonicalizationAlgorithms["urn:test:record-input"] = RecordInput;
+      Object.assign(signer.CanonicalizationAlgorithms, algorithms);
       signer.addReference({
         ...reference,
         digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
@@ -686,11 +679,11 @@ describe("Signature integration tests", function () {
       return signer.getSignedXml();
     }
 
-    function verify(signedXml: string) {
+    function verify(signedXml: string, algorithms: Algorithms = {}) {
       const verifier = new SignedXml({
         publicCert: fs.readFileSync("./test/static/client_public.pem"),
       });
-      verifier.CanonicalizationAlgorithms["urn:test:record-input"] = RecordInput;
+      Object.assign(verifier.CanonicalizationAlgorithms, algorithms);
       verifier.loadSignature(
         verifier.findSignatures(new xmldom.DOMParser().parseFromString(signedXml))[0],
       );
@@ -730,14 +723,31 @@ describe("Signature integration tests", function () {
     }
 
     it("should remove comments before the first transform", function () {
-      const signedXml = sign("<root><item><!-- draft --><x>1</x></item></root>", {
-        xpath: "//item",
-        transforms: [
-          "urn:test:record-input",
-          "http://www.w3.org/2001/10/xml-exc-c14n#WithComments",
-        ],
-      });
-      verify(signedXml);
+      const transformInputs: string[] = [];
+      class RecordInput {
+        process(node: Node) {
+          transformInputs.push(node.toString());
+          return node;
+        }
+
+        getAlgorithmName() {
+          return "urn:test:record-input";
+        }
+      }
+      const algorithms = { "urn:test:record-input": RecordInput };
+
+      const signedXml = sign(
+        "<root><item><!-- draft --><x>1</x></item></root>",
+        {
+          xpath: "//item",
+          transforms: [
+            "urn:test:record-input",
+            "http://www.w3.org/2001/10/xml-exc-c14n#WithComments",
+          ],
+        },
+        { algorithms },
+      );
+      verify(signedXml, algorithms);
 
       expect(transformInputs).to.deep.equal([
         '<item Id="_0"><x>1</x></item>',
@@ -749,7 +759,7 @@ describe("Signature integration tests", function () {
       const signedXml = sign(
         "<root><x>1</x></root>",
         { xpath: "//x", transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"] },
-        "http://www.w3.org/2001/10/xml-exc-c14n#WithComments",
+        { canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#WithComments" },
       );
       expect(verify(signedXml)).to.deep.equal(['<x Id="_0">1</x>']);
 
