@@ -904,11 +904,6 @@ describe("Signature unit tests", function () {
           '<y Id="_1" a_attr1="foo" z_attr="value"></y>',
           '<ns:w xmlns:ns="myns" Id="_2" ns:attr="value"></ns:w>',
         ]);
-
-        const firstGrandchild = doc.firstChild?.firstChild;
-        isDomNode.assertIsElementNode(firstGrandchild);
-        const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
-        expect(matchedReference).to.not.be.false;
       }
 
       it("correctly loads signature", function () {

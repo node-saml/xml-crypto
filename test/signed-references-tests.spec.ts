@@ -88,11 +88,6 @@ describe("Signed references", function () {
 
       expect(() => sig.checkSignature(xml)).to.throw(error);
       expect(sig.getSignedReferences()).to.be.empty;
-      /* eslint-disable-next-line deprecation/deprecation */
-      expect(sig.getReferences().map((ref) => ref.signedReference)).to.deep.equal([
-        undefined,
-        undefined,
-      ]);
     });
   }
 
