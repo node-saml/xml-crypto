@@ -197,7 +197,7 @@ The result will be:
 
 Note:
 
-If you set `publicCert`, a `<KeyInfo></KeyInfo>` element with the public certificate will be generated in the signature:
+If `publicCert` contains an X.509 certificate, the default `SignedXml.getKeyInfoContent` includes it in a `<KeyInfo>` element:
 
 ```xml
 <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
@@ -212,8 +212,6 @@ If you set `publicCert`, a `<KeyInfo></KeyInfo>` element with the public certifi
   </KeyInfo>
 </Signature>
 ```
-
-The default `SignedXml.getKeyInfoContent` generates the `<X509Data>` content of this element.
 
 To customize this see [customizing algorithms](#customizing-algorithms) for an example.
 
@@ -491,7 +489,7 @@ signXml(xml, "//*[local-name(.)='book']", "client.pem", "result.xml");
 
 You can always look at the actual code as a sample.
 
-## Asynchronous signing and verification
+## Asynchronous signing
 
 If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, you can create a custom signing algorithm that uses an asynchronous callback. Register it under the URI of the algorithm it implements, which is the `SignatureMethod` a verifier reads.
 
@@ -534,8 +532,6 @@ sig.computeSignature(xml, (err) => {
   fs.writeFileSync("signed.xml", sig.getSignedXml());
 });
 ```
-
-The function `sig.checkSignature` may also use a callback if asynchronous verification is needed.
 
 ## X.509 / Key formats
 
