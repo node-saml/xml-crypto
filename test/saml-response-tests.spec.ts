@@ -159,6 +159,8 @@ describe("SAML response tests", function () {
     const sig = new SignedXml();
     sig.publicCert = fs.readFileSync("./test/static/saml_external_ns.pem");
     sig.loadSignature(signature);
+    /* eslint-disable-next-line deprecation/deprecation */
+    expect(sig.getReferences().length).to.equal(1);
     const checkSignatureResult = sig.checkSignature(xml);
     expect(checkSignatureResult).to.be.true;
     expect(sig.getSignedReferences().length).to.equal(1);
@@ -183,7 +185,7 @@ describe("SAML response tests", function () {
   });
 
   describe("for a SAML response with a digest value comment", () => {
-    it("rejects a DigestValue that hides the calculated digest in a comment", function () {
+    it("loads digest value from text content instead of comment", function () {
       const xml = fs.readFileSync("./test/static/valid_saml_with_digest_comment.xml", "utf-8");
       const doc = new xmldom.DOMParser().parseFromString(xml);
       const assertion = xpath.select1("//*[local-name(.)='Assertion']", doc);
@@ -198,6 +200,8 @@ describe("SAML response tests", function () {
 
       sig.loadSignature(signature);
 
+      /* eslint-disable-next-line deprecation/deprecation */
+      expect(sig.getReferences()[0].digestValue).to.equal("RnNjoyUguwze5w2R+cboyTHlkQk=");
       expect(sig.checkSignature(xml)).to.be.false;
       expect(sig.getSignedReferences().length).to.equal(0);
     });
