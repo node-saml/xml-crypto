@@ -51,11 +51,11 @@ requires. A `SignedInfo` canonicalization algorithm that returns a `Node` is con
 - A reference whose only transform is `enveloped-signature` gets a signature that 6.1.x also
   verifies, except for documents affected by the [canonicalization output](#canonicalization-output)
   changes.
-- `getCanonXml()` returns canonical XML for such transform lists, for example `<y></y>`, which
-  differs from 6.1.x.
-- A custom transform or canonicalization algorithm whose `process()` returns a `Node` produces a
-  different digest or signature than 6.1.x, so a signature created by one will not verify with the
-  other. Upgrade signers and verifiers that use it together.
+- `getCanonXml()` returns canonical XML for such transform lists, for example `<y></y>`, which can
+  differ from 6.1.x.
+- A custom transform or canonicalization algorithm whose `process()` returns a `Node` can produce a
+  different digest or signature than 6.1.x, and then a signature created by one will not verify with
+  the other. Upgrade signers and verifiers that use it together.
 
 ### Deprecated ahead of 7.0
 
