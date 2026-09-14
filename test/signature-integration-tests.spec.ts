@@ -163,7 +163,7 @@ describe("Signature integration tests", function () {
       "utf-8",
     );
     expect(xml).to.include("\r\n");
-    expect(xml).to.not.match(/[^\r]\n/);
+    expect(xml).to.not.match(/\r(?!\n)|(?<!\r)\n/);
     const doc = new xmldom.DOMParser().parseFromString(xml);
     const childXml = doc.firstChild?.toString();
 
