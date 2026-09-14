@@ -965,7 +965,7 @@ export class SignedXml {
     this.ensureTargetsHaveIds(referenceTargets);
 
     // Capture original with IDs (no sig yet)
-    this.originalXmlWithIds = doc.toString();
+    this.originalXmlWithIds = this.serialize(doc);
 
     // automatic insertion of `:`
     if (prefix) {
@@ -1075,8 +1075,8 @@ export class SignedXml {
         } else {
           this.signatureValue = signature || "";
           signatureElem.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
-          this.signatureXml = signatureElem.toString();
-          this.signedXml = doc.toString();
+          this.signatureXml = this.serialize(signatureElem);
+          this.signedXml = this.serialize(doc);
           callback(null, this);
         }
       });
@@ -1084,9 +1084,16 @@ export class SignedXml {
       // Synchronous flow
       this.calculateSignatureValue(doc);
       signatureElem.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
-      this.signatureXml = signatureElem.toString();
-      this.signedXml = doc.toString();
+      this.signatureXml = this.serialize(signatureElem);
+      this.signedXml = this.serialize(doc);
     }
+  }
+
+  // The signer parses its input, so a carriage return reaches the DOM only through a character
+  // reference in text or an attribute value, and xmldom escapes only the attribute. Written raw, it
+  // would parse back as a line feed: https://www.w3.org/TR/xml/#sec-line-ends
+  private serialize(node: Node): string {
+    return node.toString().replace(/\r/g, "&#xD;");
   }
 
   private ensureTargetsHaveIds(referenceTargets: Map<Reference, SigningReferenceTarget[]>): void {

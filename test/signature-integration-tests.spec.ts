@@ -1,6 +1,6 @@
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
-import { SignedXml } from "../src/index";
+import { SignedXml, SignedXmlOptions } from "../src/index";
 import * as fs from "fs";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
@@ -753,6 +753,75 @@ describe("Signature integration tests", function () {
           location: { reference: "/root", action: "prepend" },
         }),
       ).to.throw("the following xpath cannot be signed because it was not found: /root/*[2]");
+    });
+  });
+
+  describe("carriage returns in signed text", function () {
+    const canonicalization = "http://www.w3.org/2001/10/xml-exc-c14n#";
+
+    function createSigner(options: { objects?: SignedXmlOptions["objects"] } = {}) {
+      const signer = new SignedXml({
+        privateKey: fs.readFileSync("./test/static/client.pem"),
+        canonicalizationAlgorithm: canonicalization,
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        ...options,
+      });
+      signer.addReference({
+        xpath: "//*[@Id='data' or local-name(.)='item']",
+        transforms: [canonicalization],
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      });
+      return signer;
+    }
+
+    function verify(signatureXml: string, signedXml: string) {
+      const verifier = new SignedXml({
+        publicCert: fs.readFileSync("./test/static/client_public.pem"),
+      });
+      verifier.loadSignature(signatureXml);
+      expect(verifier.checkSignature(signedXml)).to.be.true;
+      return verifier.getSignedReferences();
+    }
+
+    for (const useCallback of [false, true]) {
+      it(`should keep them in getSignedXml()${useCallback ? " with a callback" : ""}`, async function () {
+        const signer = createSigner();
+        const xml = "<root><item>a&#13;b&#13;&#10;c</item></root>";
+        if (useCallback) {
+          await new Promise<void>((resolve, reject) => {
+            signer.computeSignature(xml, (err) => (err ? reject(err) : resolve()));
+          });
+        } else {
+          signer.computeSignature(xml);
+        }
+
+        expect(verify(signer.getSignatureXml(), signer.getSignedXml())).to.deep.equal([
+          '<item Id="_0">a&#xD;b&#xD;\nc</item>',
+        ]);
+      });
+    }
+
+    it("should keep them in getOriginalXmlWithIds()", function () {
+      const signer = createSigner();
+      signer.computeSignature("<root><item>a&#13;b</item></root>");
+
+      // eslint-disable-next-line deprecation/deprecation
+      const originalXmlWithIds = signer.getOriginalXmlWithIds();
+      expect(verify(signer.getSignatureXml(), originalXmlWithIds)).to.deep.equal([
+        '<item Id="_0">a&#xD;b</item>',
+      ]);
+    });
+
+    it("should keep them in the Object content of getSignatureXml()", function () {
+      const signer = createSigner({
+        objects: [{ content: "<value>a&#13;b</value>", attributes: { Id: "data" } }],
+      });
+      signer.computeSignature("<root/>");
+
+      const signatureXml = signer.getSignatureXml();
+      expect(verify(signatureXml, signatureXml)).to.deep.equal([
+        '<Object xmlns="http://www.w3.org/2000/09/xmldsig#" Id="data"><value>a&#xD;b</value></Object>',
+      ]);
     });
   });
 });
