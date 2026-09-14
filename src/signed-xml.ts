@@ -1325,24 +1325,44 @@ export class SignedXml {
       }
     }
     let transformedXml: Node | string = canonXml;
+    let transformOptions = options;
 
-    transforms.forEach((transformName) => {
-      if (isDomNode.isNodeLike(transformedXml)) {
-        // If, after processing, `transformedNode` is a string, we can't do anymore transforms on it
-        const transform = this.findCanonicalizationAlgorithm(transformName);
-        transformedXml = transform.process(transformedXml, options);
+    // Octets are parsed into a node-set for the next transform, and a node-set left at the end is
+    // converted to octets with C14N: https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
+    for (const transformName of transforms) {
+      if (!isDomNode.isNodeLike(transformedXml)) {
+        transformedXml = this.parseTransformInput(transformedXml, transformName);
+        // The parsed octets are a new document, so the referenced node's ancestors are gone.
+        transformOptions = { ...options, ancestorNamespaces: [], defaultNs: "" };
       }
-    });
+      transformedXml = this.findCanonicalizationAlgorithm(transformName).process(
+        transformedXml,
+        transformOptions,
+      );
+    }
 
-    // A node-set is converted to octets with C14N, never with a DOM serializer:
-    // https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
     if (isDomNode.isNodeLike(transformedXml)) {
       transformedXml = this.findCanonicalizationAlgorithm(
         "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
-      ).process(transformedXml, options);
+      ).process(transformedXml, transformOptions);
     }
 
     return transformedXml.toString();
+  }
+
+  private parseTransformInput(octets: string, transformName: string): Element {
+    const parseErrors: string[] = [];
+    const doc = new xmldom.DOMParser({
+      errorHandler: (_level, message) => parseErrors.push(String(message)),
+    }).parseFromString(octets);
+
+    if (parseErrors.length > 0 || doc.documentElement == null) {
+      throw new Error(
+        `Cannot apply transform ${transformName}: the output of the previous transform is not well-formed XML`,
+      );
+    }
+
+    return doc.documentElement;
   }
 
   /**

@@ -316,6 +316,81 @@ describe("Signature integration tests", function () {
     ]);
   });
 
+  describe("transforms that follow a canonicalization", function () {
+    class DropNotes {
+      process(node: Node) {
+        const notes = xpath.select(".//note", node);
+        isDomNode.assertIsArrayOfNodes(notes);
+        notes.forEach((note) => note.parentNode?.removeChild(note));
+        return node;
+      }
+
+      getAlgorithmName() {
+        return "urn:test:drop-notes";
+      }
+    }
+
+    function signAndVerify(xml: string, xpathToSign: string, transforms: string[]) {
+      const sig = new SignedXml({
+        privateKey: fs.readFileSync("./test/static/client.pem"),
+        canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      sig.CanonicalizationAlgorithms["urn:test:drop-notes"] = DropNotes;
+      sig.addReference({
+        xpath: xpathToSign,
+        transforms,
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      });
+      sig.computeSignature(xml);
+
+      const verifier = new SignedXml({
+        publicCert: fs.readFileSync("./test/static/client_public.pem"),
+      });
+      verifier.CanonicalizationAlgorithms["urn:test:drop-notes"] = DropNotes;
+      verifier.loadSignature(sig.getSignatureXml());
+      const valid = verifier.checkSignature(sig.getSignedXml());
+
+      return { valid, signedReferences: verifier.getSignedReferences() };
+    }
+
+    // https://github.com/node-saml/xml-crypto/issues/111
+    it("should verify an enveloped signature removed after canonicalization", function () {
+      const result = signAndVerify("<root><x>1</x></root>", "/*", [
+        "http://www.w3.org/2001/10/xml-exc-c14n#",
+        "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+      ]);
+
+      expect(result.valid).to.be.true;
+      expect(result.signedReferences).to.deep.equal(['<root Id="_0"><x>1</x></root>']);
+    });
+
+    it("should apply a custom transform that follows a canonicalization", function () {
+      const result = signAndVerify(
+        "<root><data><x>1</x><note>draft</note></data></root>",
+        "//*[local-name(.)='data']",
+        ["http://www.w3.org/2001/10/xml-exc-c14n#", "urn:test:drop-notes"],
+      );
+
+      expect(result.valid).to.be.true;
+      expect(result.signedReferences).to.deep.equal(['<data Id="_0"><x>1</x></data>']);
+    });
+
+    it("should not restore ancestor namespaces that exclusive canonicalization omitted", function () {
+      const result = signAndVerify(
+        "<root xmlns:p='urn:p'><item/></root>",
+        "//*[local-name(.)='item']",
+        [
+          "http://www.w3.org/2001/10/xml-exc-c14n#",
+          "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+        ],
+      );
+
+      expect(result.valid).to.be.true;
+      expect(result.signedReferences).to.deep.equal(['<item Id="_0"></item>']);
+    });
+  });
+
   it("should still verify a loaded signature after signing another document fails", function () {
     const signedXml = fs.readFileSync("./test/static/valid_signature.xml", "utf8");
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
