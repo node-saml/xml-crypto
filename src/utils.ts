@@ -243,6 +243,27 @@ function isElementSubset(docSubset: Node[]): docSubset is Element[] {
   return docSubset.every((node) => isDomNode.isElementNode(node));
 }
 
+export function findAncestorNsForElement(node: Element): NamespacePrefix[] {
+  const ancestorNs = collectAncestorNamespaces(node);
+  const ancestorNsWithoutDuplicate: NamespacePrefix[] = [];
+  for (const ns of ancestorNs) {
+    const isDuplicate = ancestorNsWithoutDuplicate.some((seen) => seen.prefix === ns.prefix);
+    if (!isDuplicate) {
+      ancestorNsWithoutDuplicate.push(ns);
+    }
+  }
+
+  const returningNs: NamespacePrefix[] = [];
+  const subsetNsPrefixes = findSubsetNSPrefixes(node);
+  for (const ancestorNs of ancestorNsWithoutDuplicate) {
+    if (!subsetNsPrefixes.has(ancestorNs.prefix)) {
+      returningNs.push(ancestorNs);
+    }
+  }
+
+  return returningNs;
+}
+
 /**
  * Extract ancestor namespaces in order to import it to root of document subset
  * which is being canonicalized for non-exclusive c14n.
@@ -271,24 +292,7 @@ export function findAncestorNs(
     throw new Error("Document subset must be list of elements");
   }
 
-  const ancestorNs = collectAncestorNamespaces(docSubset[0]);
-  const ancestorNsWithoutDuplicate: NamespacePrefix[] = [];
-  for (const ns of ancestorNs) {
-    const isDuplicate = ancestorNsWithoutDuplicate.some((seen) => seen.prefix === ns.prefix);
-    if (!isDuplicate) {
-      ancestorNsWithoutDuplicate.push(ns);
-    }
-  }
-
-  const returningNs: NamespacePrefix[] = [];
-  const subsetNsPrefixes = findSubsetNSPrefixes(docSubset[0]);
-  for (const ancestorNs of ancestorNsWithoutDuplicate) {
-    if (!subsetNsPrefixes.has(ancestorNs.prefix)) {
-      returningNs.push(ancestorNs);
-    }
-  }
-
-  return returningNs;
+  return findAncestorNsForElement(docSubset[0]);
 }
 
 export function validateDigestValue(digest, expectedDigest) {
