@@ -27,6 +27,8 @@ import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
 
+type SigningReferenceTarget = { node: Element; digestValue?: string };
+
 const warnOriginalXmlWithIds = deprecate(
   () => {},
   "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`.",
@@ -961,22 +963,17 @@ export class SignedXml {
       }
     }
 
-    // Add IDs for all non-self references upfront
+    const referenceTargets = new Map<Reference, SigningReferenceTarget[]>();
     for (const ref of this.getReferences()) {
-      if (ref.isEmptyUri) {
-        continue;
-      } // No specific nodes to ID for empty URI
-
-      const nodes = xpath.selectWithResolver(
-        ref.xpath ?? "",
-        doc,
-        this.namespaceResolver,
-      ) as Element[];
-      for (const node of nodes) {
+      const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+      isDomNode.assertIsArrayOfNodes(nodes);
+      const targets = nodes.map((node) => {
         isDomNode.assertIsElementNode(node);
-        this.ensureHasId(node);
-      }
+        return { node };
+      });
+      referenceTargets.set(ref, targets);
     }
+    this.ensureTargetsHaveIds(referenceTargets);
 
     // Capture original with IDs (no sig yet)
     this.originalXmlWithIds = doc.toString();
@@ -1034,30 +1031,36 @@ export class SignedXml {
       }
     }
 
-    if (location.action === "append") {
-      referenceNode.appendChild(signatureElem);
-    } else if (location.action === "prepend") {
-      referenceNode.insertBefore(signatureElem, referenceNode.firstChild);
-    } else if (location.action === "before") {
-      if (referenceNode.parentNode == null) {
-        throw new Error(
-          "`location.reference` refers to the root node (by default), so we can't insert `before`",
-        );
-      }
-      referenceNode.parentNode.insertBefore(signatureElem, referenceNode);
-    } else if (location.action === "after") {
-      if (referenceNode.parentNode == null) {
-        throw new Error(
-          "`location.reference` refers to the root node (by default), so we can't insert `after`",
-        );
-      }
-      referenceNode.parentNode.insertBefore(signatureElem, referenceNode.nextSibling);
-    }
-
     const previousSignatureNode = this.signatureNode;
     this.signatureNode = signatureElem;
     try {
-      this.addAllReferences(doc, signatureElem, prefix);
+      for (const [ref, targets] of referenceTargets) {
+        for (const target of targets) {
+          target.digestValue = this.calculateReferenceDigest(ref, target.node);
+        }
+      }
+
+      if (location.action === "append") {
+        referenceNode.appendChild(signatureElem);
+      } else if (location.action === "prepend") {
+        referenceNode.insertBefore(signatureElem, referenceNode.firstChild);
+      } else if (location.action === "before") {
+        if (referenceNode.parentNode == null) {
+          throw new Error(
+            "`location.reference` refers to the root node (by default), so we can't insert `before`",
+          );
+        }
+        referenceNode.parentNode.insertBefore(signatureElem, referenceNode);
+      } else if (location.action === "after") {
+        if (referenceNode.parentNode == null) {
+          throw new Error(
+            "`location.reference` refers to the root node (by default), so we can't insert `after`",
+          );
+        }
+        referenceNode.parentNode.insertBefore(signatureElem, referenceNode.nextSibling);
+      }
+
+      this.addAllReferences(doc, signatureElem, referenceTargets, prefix);
     } catch (error) {
       this.signatureNode = previousSignatureNode;
       throw error;
@@ -1097,10 +1100,46 @@ export class SignedXml {
     }
   }
 
-  /**
-   * Adds all references to the SignedInfo after the signature placeholder is inserted.
-   */
-  private addAllReferences(doc: Document, signatureElem: Element, prefix?: string): void {
+  private ensureTargetsHaveIds(referenceTargets: Map<Reference, SigningReferenceTarget[]>): void {
+    for (const [ref, targets] of referenceTargets) {
+      if (!ref.isEmptyUri) {
+        for (const { node } of targets) {
+          this.ensureHasId(node);
+        }
+      }
+    }
+  }
+
+  private calculateReferenceDigest(ref: Reference, node: Element): string {
+    ref.ancestorNamespaces = utils.findAncestorNsForElement(node);
+    const canonXml = this.getCanonXml(ref.transforms, node, {
+      inclusiveNamespacesPrefixList: ref.inclusiveNamespacesPrefixList,
+      ancestorNamespaces: ref.ancestorNamespaces,
+    });
+    return this.findHashAlgorithm(ref.digestAlgorithm).getHash(canonXml);
+  }
+
+  private findSignatureContentTargets(
+    ref: Reference,
+    doc: Document,
+    signatureElem: Element,
+  ): SigningReferenceTarget[] {
+    const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+    isDomNode.assertIsArrayOfNodes(nodes);
+    return nodes
+      .filter((node) => node === signatureElem || utils.isDescendantOf(node, signatureElem))
+      .map((node) => {
+        isDomNode.assertIsElementNode(node);
+        return { node };
+      });
+  }
+
+  private addAllReferences(
+    doc: Document,
+    signatureElem: Element,
+    referenceTargets: Map<Reference, SigningReferenceTarget[]>,
+    prefix?: string,
+  ): void {
     if (!utils.isArrayHasLength(this.references)) {
       return;
     }
@@ -1116,20 +1155,24 @@ export class SignedXml {
     // but we will extract it here for clarity (and also make it support detached signatures in the future)
     const signatureDoc = signatureElem.ownerDocument;
 
-    // Process each reference
-    for (const ref of this.getReferences()) {
-      const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+    const signatureContentTargets = new Map<Reference, SigningReferenceTarget[]>();
+    for (const [ref, inputTargets] of referenceTargets) {
+      if (inputTargets.length === 0) {
+        signatureContentTargets.set(ref, this.findSignatureContentTargets(ref, doc, signatureElem));
+      }
+    }
+    this.ensureTargetsHaveIds(signatureContentTargets);
 
-      if (!utils.isArrayHasLength(nodes)) {
+    for (const [ref, inputTargets] of referenceTargets) {
+      const targets = signatureContentTargets.get(ref) ?? inputTargets;
+
+      if (!utils.isArrayHasLength(targets)) {
         throw new Error(
           `the following xpath cannot be signed because it was not found: ${ref.xpath}`,
         );
       }
 
-      // Process the reference
-      for (const node of nodes) {
-        isDomNode.assertIsElementNode(node);
-
+      for (const { node, digestValue } of targets) {
         // Must not be a reference to Signature, SignedInfo, or a child of SignedInfo
         if (
           node === signatureElem ||
@@ -1194,10 +1237,6 @@ export class SignedXml {
           transformsElem.appendChild(transformElem);
         }
 
-        // Get the canonicalized XML
-        const canonXml = this.getCanonReferenceXml(doc, ref, node);
-
-        // Get the digest algorithm and compute the digest value
         const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
 
         const digestMethodElem = signatureDoc.createElementNS(
@@ -1210,7 +1249,7 @@ export class SignedXml {
           signatureNamespace,
           `${currentPrefix}DigestValue`,
         );
-        digestValueElem.textContent = digestAlgorithm.getHash(canonXml);
+        digestValueElem.textContent = digestValue ?? this.calculateReferenceDigest(ref, node);
 
         referenceElem.appendChild(transformsElem);
         referenceElem.appendChild(digestMethodElem);
