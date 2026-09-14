@@ -899,35 +899,16 @@ describe("Signature unit tests", function () {
         const checkedSignature = sig.checkSignature(xml);
         expect(checkedSignature).to.be.true;
 
-        /* eslint-disable-next-line deprecation/deprecation */
-        expect(sig.getReferences().length).to.equal(3);
-        expect(sig.getSignedReferences().length).to.equal(3);
-
-        const digests = [
-          "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
-          "K4dI497ZCxzweDIrbndUSmtoezY=",
-          "sH1gxKve8wlU8LlFVa2l6w3HMJ0=",
-        ];
+        expect(sig.getSignedReferences()).to.deep.equal([
+          '<x xmlns="ns" Id="_0"></x>',
+          '<y Id="_1" a_attr1="foo" z_attr="value"></y>',
+          '<ns:w xmlns:ns="myns" Id="_2" ns:attr="value"></ns:w>',
+        ]);
 
         const firstGrandchild = doc.firstChild?.firstChild;
         isDomNode.assertIsElementNode(firstGrandchild);
         const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
         expect(matchedReference).to.not.be.false;
-
-        /* eslint-disable-next-line deprecation/deprecation */
-        for (let i = 0; i < sig.getReferences().length; i++) {
-          /* eslint-disable-next-line deprecation/deprecation */
-          const ref = sig.getReferences()[i];
-          const expectedUri = `#_${i}`;
-          expect(
-            ref.uri,
-            `wrong uri for index ${i}. expected: ${expectedUri} actual: ${ref.uri}`,
-          ).to.equal(expectedUri);
-          expect(ref.transforms.length).to.equal(1);
-          expect(ref.transforms[0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
-          expect(ref.digestValue).to.equal(digests[i]);
-          expect(ref.digestAlgorithm).to.equal("http://www.w3.org/2000/09/xmldsig#sha1");
-        }
       }
 
       it("correctly loads signature", function () {
@@ -963,8 +944,12 @@ describe("Signature unit tests", function () {
         const sig = loadSignature(xml, mode);
         const res = sig.checkSignature(xml);
         expect(res, "expected all signatures to be valid, but some reported invalid").to.be.true;
-        /* eslint-disable-next-line deprecation/deprecation */
-        expect(sig.getSignedReferences().length).to.equal(sig.getReferences().length);
+        const references = xpath.select(
+          "//*[local-name(.)='Signature']/*[local-name(.)='SignedInfo']/*[local-name(.)='Reference']",
+          new xmldom.DOMParser().parseFromString(xml),
+        );
+        isDomNode.assertIsArrayOfNodes(references);
+        expect(sig.getSignedReferences()).to.have.length(references.length);
       }
 
       function failInvalidSignature(file: string, idMode?: "wssecurity") {

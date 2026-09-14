@@ -468,7 +468,7 @@ describe("Signature integration tests", function () {
               digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
             });
 
-            const xml = "<root>trusted</root>";
+            const xml = detached ? '<root Id="_0">trusted</root>' : "<root>trusted</root>";
             if (useCallback) {
               await new Promise<void>((resolve, reject) => {
                 signer.computeSignature(xml, (err) => (err ? reject(err) : resolve()));
@@ -477,10 +477,7 @@ describe("Signature integration tests", function () {
               signer.computeSignature(xml);
             }
 
-            const signedXml = detached
-              ? // eslint-disable-next-line deprecation/deprecation
-                signer.getOriginalXmlWithIds()
-              : signer.getSignedXml();
+            const signedXml = detached ? xml : signer.getSignedXml();
             const verifier = new SignedXml({ publicCert });
             verifier.loadSignature(signer.getSignatureXml());
 
