@@ -11,8 +11,6 @@
 
 ![workos](https://github.com/workos.png?size=30) [workos](https://github.com/workos)
 
-![stytchauth](https://github.com/stytchauth.png?size=30) [stytchauth](https://github.com/stytchauth)
-
 ![Short-io logo](https://github.com/Short-io.png?size=30) [Short-io](https://github.com/Short-io)
 
 ![RideAmigosCorp logo](https://github.com/RideAmigosCorp.png?size=30) [RideAmigosCorp](https://github.com/RideAmigosCorp)
