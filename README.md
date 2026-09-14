@@ -15,11 +15,34 @@
 
 ## Upgrading
 
+### Canonicalization output
+
+Inclusive canonicalization (`http://www.w3.org/TR/2001/REC-xml-c14n-20010315` and its
+`#WithComments` variant) now renders namespace declarations as the
+[C14N specification](https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel) requires.
+Earlier releases rendered some documents incorrectly, for example when:
+
+- a prefixed element in the signed content declares a default namespace, as in
+  `<p:item xmlns="urn:x">`
+- the signed element inherits a default namespace and declares a prefixed namespace of its own
+- the signed element is prefixed, inherits a default namespace, and contains an element that
+  clears it with `xmlns=""`
+- the signed element redeclares a prefix that an ancestor binds, after declaring another namespace
+
+The last case also changes exclusive canonicalization (`http://www.w3.org/2001/10/xml-exc-c14n#`
+and its `#WithComments` variant) when the redeclared prefix is listed in the
+`InclusiveNamespaces` `PrefixList`. Exclusive canonicalization is otherwise unaffected.
+
+For such documents 6.2.0 and later compute a different digest than 6.1.x and earlier, so a
+signature created by one will not verify with the other. Upgrade signers and verifiers that
+exchange these documents together. Documents signed in these shapes by other conforming
+implementations, which 6.1.x rejected, now verify.
+
 ### Deprecated ahead of 7.0
 
 The package used to re-export everything in its internal `utils` module, so helpers written for
-`signed-xml.ts` became public API by accident. These are deprecated as of this release and will
-be removed in 7.0:
+`signed-xml.ts` became public API by accident. These are deprecated as of 6.2.0 and will be
+removed in 7.0:
 
 | Deprecated                                                            | Instead                                                                                                                                                                                                       |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -301,7 +324,18 @@ To sign xml documents:
     - `existingPrefixes` - A hash of prefixes and namespaces `prefix: namespace` that shouldn't be in the signature because they already exist in the xml
 - `getSignedXml()` - returns the original xml document with the signature in it, **must be called only after `computeSignature`**
 - `getSignatureXml()` - returns just the signature part, **must be called only after `computeSignature`**
-- `getOriginalXmlWithIds()` - **[deprecated]** returns the original xml with Id attributes added on relevant elements, **must be called only after `computeSignature`**. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. See [how to specify the location of the signature](#how-to-specify-the-location-of-the-signature).
+- `getOriginalXmlWithIds()` - **[deprecated]** returns the original xml with Id attributes added on relevant elements, **must be called only after `computeSignature`**. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. See [how to specify the location of the signature](#how-to-specify-the-location-of-the-signature). For a detached signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for WS-Security), sign that document, and send it alongside `getSignatureXml()`. Make sure each reference XPath still selects its intended element once those IDs are present, for example by selecting on the ID itself.
+
+Every reference XPath is evaluated against the input document before any IDs or the signature
+are added, so the order of `addReference()` calls does not change what a reference selects. A
+reference that matches nothing in the input is evaluated after the signature is inserted and
+selects only elements inside the new signature, such as generated `Object` or `KeyInfo`
+elements. Use separate `addReference()` calls for input elements and generated signature content.
+
+An input match takes precedence, so a reference whose XPath also matches an input element signs
+that element and leaves the generated one unsigned. Select generated content by the `Id` you
+configured for it, as in [how to add custom Objects to the signature](#how-to-add-custom-objects-to-the-signature),
+rather than by element name.
 
 To verify xml documents:
 
