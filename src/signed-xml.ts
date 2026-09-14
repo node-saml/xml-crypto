@@ -46,7 +46,7 @@ const warnOriginalXmlWithIds = deprecate(
 
 const warnValidateElementAgainstReferences = deprecate(
   () => {},
-  "`validateElementAgainstReferences()` is deprecated and will be removed in a future version. Use `getSignedReferences()` after `checkSignature()`.",
+  "`validateElementAgainstReferences()` is deprecated and will be removed in a future version. After `checkSignature()` succeeds, use the XML that `getSignedReferences()` returns instead of nodes from the original document.",
   "XML_CRYPTO_VALIDATE_ELEMENT_AGAINST_REFERENCES",
 );
 
@@ -510,8 +510,8 @@ export class SignedXml {
   }
 
   /**
-   * @deprecated Will be removed in a future version. Use {@link getSignedReferences} after
-   * {@link checkSignature}.
+   * @deprecated Will be removed in a future version. After {@link checkSignature} succeeds, use
+   * the XML that {@link getSignedReferences} returns instead of nodes from the original document.
    */
   validateElementAgainstReferences(elemOrXpath: Element | string, doc: Document): Reference {
     warnValidateElementAgainstReferences();

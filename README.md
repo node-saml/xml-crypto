@@ -366,7 +366,7 @@ To verify xml documents:
   - `signatureXml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the signature
 - `checkSignature(xml)` - validates the given xml document and returns `true` if the validation was successful
 - `getSignedReferences()` - returns the canonical XML of each reference, only after `checkSignature` succeeds
-- `validateElementAgainstReferences(elemOrXpath, doc)` - **[deprecated]** use `getSignedReferences()` after `checkSignature`
+- `validateElementAgainstReferences(elemOrXpath, doc)` - **[deprecated]** after `checkSignature` succeeds, use the XML that `getSignedReferences()` returns instead of nodes from the original document
 
 ## Customizing Algorithms
 
