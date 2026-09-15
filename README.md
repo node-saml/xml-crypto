@@ -384,8 +384,8 @@ Now define the extension point you want to implement. You can choose one or more
 To determine the inclusion and contents of a `<KeyInfo />` element, the function
 `this.getKeyInfoContent()` is called. There is a default implementation of this. If you wish to change
 this implementation, provide your own function assigned to the property `this.getKeyInfoContent`. If
-there are no attributes and no contents to the `<KeyInfo />` element, it won't be included in the
-generated XML.
+it returns no content, the `<KeyInfo />` element is not included in the generated XML, even when
+`keyInfoAttributes` are set.
 
 To specify custom attributes on `<KeyInfo />`, add the properties to the `.keyInfoAttributes` property.
 

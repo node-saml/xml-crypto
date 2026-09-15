@@ -1372,6 +1372,38 @@ describe("Signature unit tests", function () {
     );
   });
 
+  describe("omits KeyInfo when there is no content for it", function () {
+    const privateKey = fs.readFileSync("./test/static/client.pem");
+
+    function selectKeyInfo(options: ConstructorParameters<typeof SignedXml>[0]) {
+      const sig = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        ...options,
+      });
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      });
+      sig.computeSignature("<root><x /></root>");
+      const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+
+      return xpath.select("//*[local-name(.)='KeyInfo']", doc);
+    }
+
+    it("when publicCert contains no certificate", function () {
+      const publicCert = crypto.createPublicKey(privateKey).export({ type: "spki", format: "pem" });
+
+      expect(selectKeyInfo({ publicCert })).to.be.empty;
+    });
+
+    it("when keyInfoAttributes are set without a publicCert", function () {
+      expect(selectKeyInfo({ keyInfoAttributes: { Id: "key" } })).to.be.empty;
+    });
+  });
+
   it("adds id and type attributes to Reference elements when provided", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
