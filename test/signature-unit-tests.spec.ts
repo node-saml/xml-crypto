@@ -949,12 +949,12 @@ describe("Signature unit tests", function () {
     });
 
     describe("pass verify signature", function () {
+      const signatureXPath =
+        "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']";
+
       function loadSignature(xml: string, idMode?: "wssecurity") {
         const doc = new xmldom.DOMParser().parseFromString(xml);
-        const node = xpath.select1(
-          "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-          doc,
-        );
+        const node = xpath.select1(signatureXPath, doc);
         isDomNode.assertIsNodeLike(node);
         const sig = new SignedXml({ idMode });
         sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
@@ -969,7 +969,7 @@ describe("Signature unit tests", function () {
         const res = sig.checkSignature(xml);
         expect(res, "expected all signatures to be valid, but some reported invalid").to.be.true;
         const references = xpath.select(
-          "//*[local-name(.)='Signature']/*[local-name(.)='SignedInfo']/*[local-name(.)='Reference']",
+          `(${signatureXPath})[1]/*[local-name(.)='SignedInfo']/*[local-name(.)='Reference']`,
           new xmldom.DOMParser().parseFromString(xml),
         );
         isDomNode.assertIsArrayOfNodes(references);
