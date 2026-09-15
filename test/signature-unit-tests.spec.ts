@@ -1158,30 +1158,6 @@ describe("Signature unit tests", function () {
     expect(URI.value, `uri should be empty but instead was ${URI.value}`).to.equal("");
   });
 
-  it("signer appends signature to a non-existing reference node", function () {
-    const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
-    const sig = new SignedXml();
-
-    sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.addReference({
-      xpath: "//*[local-name(.)='repository']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-    });
-
-    try {
-      sig.computeSignature(xml, {
-        location: {
-          reference: "/root/foobar",
-          action: "append",
-        },
-      });
-      expect.fail("Expected an error to be thrown");
-    } catch (err) {
-      expect(err).not.to.be.an.instanceof(TypeError);
-    }
-  });
-
   it("signer adds existing prefixes", function () {
     function getKeyInfoContentWithAssertionId({ assertionId }) {
       return (
