@@ -783,8 +783,17 @@ describe("Signature integration tests", function () {
             reference: "/root[not(@Id)]",
             detached: false,
           },
-          { name: "creates a verifiable detached signature", reference: "/*", detached: true },
-        ]) {
+          {
+            name: "creates a verifiable detached signature",
+            reference: "/*",
+            detached: "generated IDs",
+          },
+          {
+            name: "creates a verifiable detached signature over elements that carry their IDs",
+            reference: "/*",
+            detached: "input IDs",
+          },
+        ] as const) {
           it(name, async function () {
             const signer = new SignedXml({
               privateKey,
@@ -797,7 +806,8 @@ describe("Signature integration tests", function () {
               digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
             });
 
-            const xml = "<root>trusted</root>";
+            const xml =
+              detached === "input IDs" ? '<root Id="_0">trusted</root>' : "<root>trusted</root>";
             if (useCallback) {
               await new Promise<void>((resolve, reject) => {
                 signer.computeSignature(xml, (err) => (err ? reject(err) : resolve()));
@@ -806,10 +816,12 @@ describe("Signature integration tests", function () {
               signer.computeSignature(xml);
             }
 
-            const signedXml = detached
-              ? // eslint-disable-next-line deprecation/deprecation
-                signer.getOriginalXmlWithIds()
-              : signer.getSignedXml();
+            const signedXml = !detached
+              ? signer.getSignedXml()
+              : detached === "input IDs"
+                ? xml
+                : // eslint-disable-next-line deprecation/deprecation
+                  signer.getOriginalXmlWithIds();
             const verifier = new SignedXml({ publicCert });
             verifier.loadSignature(signer.getSignatureXml());
 
