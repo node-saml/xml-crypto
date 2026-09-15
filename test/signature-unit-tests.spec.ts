@@ -1071,6 +1071,89 @@ describe("Signature unit tests", function () {
         failInvalidSignature("./test/static/invalid_signature_without_transforms_element.xml");
       });
     });
+
+    describe("reject malformed signature", function () {
+      const validXml = fs.readFileSync("./test/static/valid_signature.xml", "utf8");
+      const publicCert = fs.readFileSync("./test/static/client_public.pem");
+
+      function signatureOf(xml: string): Node {
+        const signature = xpath.select1(
+          "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+          new xmldom.DOMParser().parseFromString(xml),
+        );
+        isDomNode.assertIsNodeLike(signature);
+        return signature;
+      }
+
+      function malform(pattern: RegExp, replacement: string): string {
+        expect(validXml).to.match(pattern);
+        return validXml.replace(pattern, replacement);
+      }
+
+      const cases: Array<[string, () => string, string | RegExp]> = [
+        [
+          "no Reference",
+          () => malform(/<Reference .*<\/Reference>/, ""),
+          "could not find any Reference elements",
+        ],
+        [
+          "no CanonicalizationMethod",
+          () => malform(/<CanonicalizationMethod [^>]*\/>/, ""),
+          "could not find CanonicalizationMethod/@Algorithm element",
+        ],
+        [
+          "a Reference without DigestMethod",
+          () => malform(/<DigestMethod [^>]*\/>/, ""),
+          /^could not find DigestMethod in reference /,
+        ],
+        [
+          "a DigestMethod without Algorithm",
+          () => malform(/<DigestMethod [^>]*\/>/, "<DigestMethod/>"),
+          /^could not find Algorithm attribute in node /,
+        ],
+        [
+          "a Reference without DigestValue",
+          () => malform(/<DigestValue>[^<]*<\/DigestValue>/, ""),
+          /^could not find DigestValue node in reference /,
+        ],
+        [
+          "a Reference with two DigestValues",
+          () => malform(/<DigestValue>[^<]*<\/DigestValue>/, "$&$&"),
+          /^could not load reference for a node that contains multiple DigestValue nodes: /,
+        ],
+        [
+          "an empty DigestValue",
+          () => malform(/<DigestValue>[^<]*</, "<DigestValue><"),
+          /^could not find the value of DigestValue in /,
+        ],
+      ];
+
+      for (const [problem, xml, error] of cases) {
+        it(`with ${problem}`, function () {
+          const sig = new SignedXml({ publicCert });
+
+          expect(() => sig.loadSignature(signatureOf(xml()))).to.throw(error);
+        });
+      }
+
+      it("with no Reference, even when the caller carries on after loadSignature throws", function () {
+        const xml = malform(/<Reference .*<\/Reference>/, "");
+        const sig = new SignedXml({ publicCert });
+        expect(() => sig.loadSignature(signatureOf(xml))).to.throw();
+
+        expect(() => sig.checkSignature(xml)).to.throw("could not find any Reference elements");
+      });
+    });
+
+    it("throws when checking a signature that was never loaded", function () {
+      const sig = new SignedXml({
+        publicCert: fs.readFileSync("./test/static/client_public.pem"),
+      });
+
+      expect(() =>
+        sig.checkSignature(fs.readFileSync("./test/static/valid_signature.xml", "utf8")),
+      ).to.throw("No signature found.");
+    });
   });
 
   it("allow empty reference uri when signing", function () {
@@ -1100,26 +1183,26 @@ describe("Signature unit tests", function () {
 
   it("signer appends signature to a non-existing reference node", function () {
     const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
-    const sig = new SignedXml();
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
 
-    sig.privateKey = fs.readFileSync("./test/static/client.pem");
     sig.addReference({
       xpath: "//*[local-name(.)='repository']",
       digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
       transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
     });
 
-    try {
+    expect(() =>
       sig.computeSignature(xml, {
         location: {
           reference: "/root/foobar",
           action: "append",
         },
-      });
-      expect.fail("Expected an error to be thrown");
-    } catch (err) {
-      expect(err).not.to.be.an.instanceof(TypeError);
-    }
+      }),
+    ).to.throw("the following xpath cannot be used because it was not found: /root/foobar");
   });
 
   it("signer adds existing prefixes", function () {
@@ -1457,6 +1540,48 @@ describe("Signature unit tests", function () {
 
     expect(() => sig.computeSignature("<root></root>")).to.throw(
       /the following xpath cannot be signed because it was not found/,
+    );
+  });
+
+  it("should throw if a reference has no digestAlgorithm", () => {
+    const sig = new SignedXml();
+
+    expect(() =>
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      }),
+    ).to.throw("digestAlgorithm is required");
+  });
+
+  for (const transforms of [undefined, []]) {
+    it(`should throw if a reference has ${transforms ? "empty" : "no"} transforms`, () => {
+      const sig = new SignedXml();
+
+      expect(() =>
+        sig.addReference({
+          xpath: "//*[local-name(.)='x']",
+          transforms,
+          digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        }),
+      ).to.throw("transforms must contain at least one transform algorithm");
+    });
+  }
+
+  it("should throw if signing without a signatureAlgorithm", () => {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+    });
+
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    expect(() => sig.computeSignature("<root><x/></root>")).to.throw(
+      "signatureAlgorithm is required",
     );
   });
 

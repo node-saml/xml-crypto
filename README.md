@@ -294,16 +294,19 @@ If you keep failing verification, it is worth trying to guess such a hidden tran
 
 ```javascript
 const sig = new SignedXml({
-  implicitTransforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"],
+  implicitTransforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
   publicCert: fs.readFileSync("client_public.pem"),
 });
 sig.loadSignature(signature);
 const res = sig.checkSignature(xml);
 ```
 
+Implicit transforms run after the transforms a `<Reference>` declares. Where the transforms would
+otherwise end without a canonicalization, xml-crypto applies Canonical XML 1.0, so an implicit
+`http://www.w3.org/TR/2001/REC-xml-c14n-20010315` changes nothing there.
+
 You might find it difficult to guess such transforms, but there are typical transforms you can try.
 
-- <http://www.w3.org/TR/2001/REC-xml-c14n-20010315>
 - <http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments>
 - <http://www.w3.org/2001/10/xml-exc-c14n#>
 - <http://www.w3.org/2001/10/xml-exc-c14n#WithComments>
@@ -315,7 +318,7 @@ You might find it difficult to guess such transforms, but there are typical tran
 The `SignedXml` constructor provides an abstraction for sign and verify xml documents. The object is constructed using `new SignedXml(options?: SignedXmlOptions)` where the possible options are:
 
 - `idMode` - default `null` - if the value of `wssecurity` is passed it will create/validate id's with the ws-security namespace.
-- `idAttribute` - string - default `Id` or `ID` or `id` - the name of the attribute that contains the id of the element
+- `idAttribute` - string - default `undefined` - the name of an additional attribute that holds an element's id; it is checked before `Id`, `ID` and `id`
 - `privateKey` - string or Buffer - default `null` - the private key to use for signing
 - `publicCert` - string or Buffer - default `null` - the public certificate to use for verifying
 - `signatureAlgorithm` - string - the signature algorithm to use
