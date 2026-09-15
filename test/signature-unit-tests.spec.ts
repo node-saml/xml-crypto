@@ -911,6 +911,7 @@ describe("Signature unit tests", function () {
 
         const firstGrandchild = doc.firstChild?.firstChild;
         isDomNode.assertIsElementNode(firstGrandchild);
+        /* eslint-disable-next-line deprecation/deprecation */
         const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
         expect(matchedReference).to.not.be.false;
 
