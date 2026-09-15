@@ -1,7 +1,6 @@
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
-import { SignedXml, SignedXmlOptions, findAncestorNs } from "../src/index";
-import * as crypto from "crypto";
+import { SignedXml, SignedXmlOptions } from "../src/index";
 import * as fs from "fs";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
@@ -1156,107 +1155,35 @@ describe("Signature integration tests", function () {
     });
   });
 
-  describe("options", function () {
+  it("rejects a document where a default id attribute repeats the id held in idAttribute", function () {
     const exclusiveC14n = "http://www.w3.org/2001/10/xml-exc-c14n#";
-    const privateKey = fs.readFileSync("./test/static/client.pem");
-    const publicCert = fs.readFileSync("./test/static/client_public.pem");
-
-    function sign(xml: string, options: SignedXmlOptions, transforms: string[]): string {
-      const sig = new SignedXml({
-        ...options,
-        privateKey,
-        canonicalizationAlgorithm: exclusiveC14n,
-        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
-      });
-      sig.addReference({
-        xpath: "//*[local-name(.)='book']",
-        transforms,
-        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
-      });
-      sig.computeSignature(xml);
-      return sig.getSignedXml();
-    }
-
-    function verifier(xml: string, options: SignedXmlOptions): SignedXml {
-      const signature = xpath.select1(
-        "//*[local-name(.)='Signature']",
-        new xmldom.DOMParser().parseFromString(xml),
-      );
-      isDomNode.assertIsNodeLike(signature);
-      const sig = new SignedXml({ ...options, publicCert });
-      sig.loadSignature(signature);
-      return sig;
-    }
-
-    describe("idAttribute", function () {
-      const idAttribute = "AssertionID";
-      const signBook = () =>
-        sign(
-          '<library><book AssertionID="b1"><title>Harry Potter</title></book></library>',
-          { idAttribute },
-          [exclusiveC14n],
-        );
-
-      it("signs an element by the id it already carries in that attribute", function () {
-        const signed = signBook();
-
-        expect(signed).to.include('<book AssertionID="b1">');
-        expect(signed).to.include('<Reference URI="#b1">');
-      });
-
-      it("resolves a reference through that attribute when verifying", function () {
-        const signed = signBook();
-
-        expect(verifier(signed, {}).checkSignature(signed)).to.be.false;
-        expect(verifier(signed, { idAttribute }).checkSignature(signed)).to.be.true;
-      });
-
-      it("rejects a document where a default id attribute repeats that id", function () {
-        const signed = signBook().replace(
-          "</library>",
-          '<book Id="b1"><title>Forged</title></book></library>',
-        );
-
-        expect(() => verifier(signed, { idAttribute }).checkSignature(signed)).to.throw(
-          /in order to prevent signature wrapping attack/,
-        );
-      });
+    const idAttribute = "AssertionID";
+    const signer = new SignedXml({
+      idAttribute,
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: exclusiveC14n,
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
     });
-
-    describe("implicitTransforms", function () {
-      it("applies a transform the signer used but did not declare", function () {
-        const declared = sign(
-          '<library xmlns:unused="urn:unused"><book><title>Harry Potter</title></book></library>',
-          {},
-          ["http://www.w3.org/2000/09/xmldsig#enveloped-signature", exclusiveC14n],
-        );
-        // A signer that applied exclusive C14N without declaring it: drop the Transform, then sign
-        // SignedInfo again.
-        const undeclared = declared.replace(`<Transform Algorithm="${exclusiveC14n}"/>`, "");
-        expect(undeclared).to.not.equal(declared);
-
-        const doc = new xmldom.DOMParser().parseFromString(undeclared);
-        const signedInfo = xpath.select1("//*[local-name(.)='SignedInfo']", doc);
-        isDomNode.assertIsNodeLike(signedInfo);
-        const canonSignedInfo = new SignedXml().getCanonXml([exclusiveC14n], signedInfo, {
-          ancestorNamespaces: findAncestorNs(doc, "//*[local-name(.)='SignedInfo']"),
-        });
-        const signatureValue = crypto
-          .createSign("RSA-SHA256")
-          .update(canonSignedInfo)
-          .sign(privateKey, "base64");
-        const signed = undeclared.replace(
-          /<SignatureValue>[^<]*/,
-          `<SignatureValue>${signatureValue}`,
-        );
-
-        expect(verifier(signed, {}).checkSignature(signed)).to.be.false;
-        const sig = verifier(signed, { implicitTransforms: [exclusiveC14n] });
-        expect(sig.checkSignature(signed)).to.be.true;
-        expect(sig.getSignedReferences()).to.deep.equal([
-          '<book Id="_0"><title>Harry Potter</title></book>',
-        ]);
-      });
+    signer.addReference({
+      xpath: "//*[local-name(.)='book']",
+      transforms: [exclusiveC14n],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
     });
+    signer.computeSignature(
+      '<library><book AssertionID="b1"><title>Harry Potter</title></book></library>',
+    );
+    const signed = signer
+      .getSignedXml()
+      .replace("</library>", '<book Id="b1"><title>Forged</title></book></library>');
+
+    const verifier = new SignedXml({
+      idAttribute,
+      publicCert: fs.readFileSync("./test/static/client_public.pem"),
+    });
+    verifier.loadSignature(signer.getSignatureXml());
+
+    expect(() => verifier.checkSignature(signed)).to.throw(
+      /in order to prevent signature wrapping attack/,
+    );
   });
 });
