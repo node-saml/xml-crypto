@@ -213,7 +213,7 @@ export class SignedXml {
    * Builds the contents of a KeyInfo element as an XML string.
    *
    * For example, if the value of the prefix argument is 'foo', then
-   * the resultant XML string will be "<foo:X509Data></foo:X509Data>"
+   * the resultant XML string will be "<foo:X509Data><foo:X509Certificate>...</foo:X509Certificate></foo:X509Data>"
    *
    * @return an XML string representation of the contents of a KeyInfo element, or `null` if no `KeyInfo` element should be included
    */
@@ -224,7 +224,6 @@ export class SignedXml {
 
     prefix = prefix ? `${prefix}:` : "";
 
-    let x509Certs = "";
     if (Buffer.isBuffer(publicCert)) {
       publicCert = publicCert.toString("latin1");
     }
@@ -234,16 +233,19 @@ export class SignedXml {
       publicCertMatches = publicCert.match(utils.EXTRACT_X509_CERTS) || [];
     }
 
-    if (publicCertMatches.length > 0) {
-      x509Certs = publicCertMatches
-        .map(
-          (c) =>
-            `<${prefix}X509Certificate>${utils
-              .pemToDer(c)
-              .toString("base64")}</${prefix}X509Certificate>`,
-        )
-        .join("");
+    // X509Data requires at least one child: https://www.w3.org/TR/xmldsig-core1/#sec-X509Data
+    if (publicCertMatches.length === 0) {
+      return null;
     }
+
+    const x509Certs = publicCertMatches
+      .map(
+        (c) =>
+          `<${prefix}X509Certificate>${utils
+            .pemToDer(c)
+            .toString("base64")}</${prefix}X509Certificate>`,
+      )
+      .join("");
 
     return `<${prefix}X509Data>${x509Certs}</${prefix}X509Data>`;
   }
@@ -1286,6 +1288,12 @@ export class SignedXml {
   }
 
   private getKeyInfo(prefix) {
+    const keyInfoContent = this.getKeyInfoContent({ publicCert: this.publicCert, prefix });
+    // KeyInfo requires at least one child: https://www.w3.org/TR/xmldsig-core1/#sec-KeyInfo
+    if (!keyInfoContent) {
+      return "";
+    }
+
     const currentPrefix = prefix ? `${prefix}:` : "";
 
     let keyInfoAttrs = "";
@@ -1295,12 +1303,7 @@ export class SignedXml {
       });
     }
 
-    const keyInfoContent = this.getKeyInfoContent({ publicCert: this.publicCert, prefix });
-    if (keyInfoAttrs || keyInfoContent) {
-      return `<${currentPrefix}KeyInfo${keyInfoAttrs}>${keyInfoContent}</${currentPrefix}KeyInfo>`;
-    }
-
-    return "";
+    return `<${currentPrefix}KeyInfo${keyInfoAttrs}>${keyInfoContent}</${currentPrefix}KeyInfo>`;
   }
 
   /**
