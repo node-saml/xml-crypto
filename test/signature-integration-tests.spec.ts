@@ -1154,4 +1154,36 @@ describe("Signature integration tests", function () {
       ]);
     });
   });
+
+  it("rejects a document where a default id attribute repeats the id held in idAttribute", function () {
+    const exclusiveC14n = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    const idAttribute = "AssertionID";
+    const signer = new SignedXml({
+      idAttribute,
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: exclusiveC14n,
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+    signer.addReference({
+      xpath: "//*[local-name(.)='book']",
+      transforms: [exclusiveC14n],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    signer.computeSignature(
+      '<library><book AssertionID="b1"><title>Harry Potter</title></book></library>',
+    );
+    const signed = signer
+      .getSignedXml()
+      .replace("</library>", '<book Id="b1"><title>Forged</title></book></library>');
+
+    const verifier = new SignedXml({
+      idAttribute,
+      publicCert: fs.readFileSync("./test/static/client_public.pem"),
+    });
+    verifier.loadSignature(signer.getSignatureXml());
+
+    expect(() => verifier.checkSignature(signed)).to.throw(
+      /in order to prevent signature wrapping attack/,
+    );
+  });
 });
