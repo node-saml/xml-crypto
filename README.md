@@ -11,16 +11,14 @@
 
 ![workos](https://github.com/workos.png?size=30) [workos](https://github.com/workos)
 
-![stytchauth](https://github.com/stytchauth.png?size=30) [stytchauth](https://github.com/stytchauth)
-
 ## Upgrading
 
 ### Canonicalization output
 
 Inclusive canonicalization (`http://www.w3.org/TR/2001/REC-xml-c14n-20010315` and its
-`#WithComments` variant) now renders namespace declarations as the
-[C14N specification](https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel) requires.
-Earlier releases rendered some documents incorrectly, for example when:
+`#WithComments` variant) renders namespace declarations as the
+[C14N specification](https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel) requires,
+including when:
 
 - a prefixed element in the signed content declares a default namespace, as in
   `<p:item xmlns="urn:x">`
@@ -29,38 +27,59 @@ Earlier releases rendered some documents incorrectly, for example when:
   clears it with `xmlns=""`
 - the signed element redeclares a prefix that an ancestor binds, after declaring another namespace
 
-The last case also changes exclusive canonicalization (`http://www.w3.org/2001/10/xml-exc-c14n#`
-and its `#WithComments` variant) when the redeclared prefix is listed in the
-`InclusiveNamespaces` `PrefixList`. Exclusive canonicalization is otherwise unaffected.
+Exclusive canonicalization (`http://www.w3.org/2001/10/xml-exc-c14n#` and its `#WithComments`
+variant) renders the last case the same way when the redeclared prefix is listed in the
+`InclusiveNamespaces` `PrefixList`.
 
-For such documents 6.2.0 and later compute a different digest than 6.1.x and earlier, so a
-signature created by one will not verify with the other. Upgrade signers and verifiers that
-exchange these documents together. Documents signed in these shapes by other conforming
-implementations, which 6.1.x rejected, now verify.
+### Comments in referenced content
+
+A `Reference` whose `URI` is empty or `#` followed by an ID, such as `#item`, removes comments from
+the referenced content before its transforms run, as
+[same-document references](https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document) require.
+
+- Comments in that content are not signed, even with a `#WithComments` transform: adding, removing
+  or changing one does not invalidate the signature. Read signed content from
+  `getSignedReferences()`, which does not contain them.
+- A custom transform in such a reference does not receive comment nodes.
+- A `#WithComments` `CanonicalizationMethod` signs the comments inside `SignedInfo`.
 
 ### Transforms that end in a DOM node
 
-When the last transform of a `Reference` returns a DOM `Node`, 6.2.0 and later convert it to octets
-with inclusive canonicalization, as the
+When the last transform of a `Reference` returns a DOM `Node`, it is converted to octets with
+inclusive canonicalization, as the
 [reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
-requires. A `SignedInfo` canonicalization algorithm that returns a `Node` is converted the same way.
-Earlier releases serialized both with xmldom instead.
+requires. A `SignedInfo` canonicalization algorithm that returns a `Node` is converted the same way,
+and `getCanonXml()` returns canonical XML for such transform lists, for example `<y></y>`.
 
-- A reference whose only transform is `enveloped-signature` now gets a signature that verifies.
-  Verification with the built-in algorithms already canonicalized this case and is unchanged, so
-  6.1.x verifies these signatures too, except for documents affected by the
-  [canonicalization output](#canonicalization-output) changes.
-- `getCanonXml()` returns canonical XML for such transform lists, for example `<y></y>` rather than
-  `<y/>`.
-- A custom transform or canonicalization algorithm whose `process()` returns a `Node` now produces a
-  different digest or signature than 6.1.x, so a signature created by one will not verify with the
-  other. Upgrade signers and verifiers that use it together.
+### Transforms that follow a canonicalization
+
+When a transform returns a string and another transform follows it in the same `Reference`, the
+string is parsed into a new document and the next transform is applied to that, as the
+[reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
+requires. Every built-in canonicalization algorithm returns a string, so:
+
+- `enveloped-signature` after a canonicalization removes the `Signature`, including one inside the
+  referenced element.
+- The result of a `#WithComments` canonicalization followed by `enveloped-signature` is
+  [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
+- Exclusive canonicalization after inclusive canonicalization omits inherited namespace declarations
+  that the referenced element does not use.
+- A custom transform after a canonicalization receives the parsed document.
+- A transform throws when the string returned by the transform before it is not well-formed XML.
+
+### Copies of an enveloped signature
+
+The `enveloped-signature` transform removes only the `Signature` element being verified, as
+[XMLDSig](https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature) requires.
+
+- `checkSignature()` finds that element by its `SignatureValue`, and throws when the document
+  contains more than one `Signature` element with that value.
+- `getCanonXml()` finds the loaded signature in the node's document the same way, and removes nothing
+  when the signature is not there.
 
 ### Deprecated ahead of 7.0
 
-The package used to re-export everything in its internal `utils` module, so helpers written for
-`signed-xml.ts` became public API by accident. These are deprecated as of 6.2.0 and will be
-removed in 7.0:
+These exports are deprecated and will be removed in 7.0:
 
 | Deprecated                                                            | Instead                                                                                                                                                                                                       |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -77,12 +96,8 @@ JavaScript users get no signal until the names go away.
 `derToPem`, `pemToDer`, `normalizePem` and `findAncestorNs` are **not** deprecated and stay
 exported.
 
-The `.getReferences()` AND the `.references` APIs are deprecated.
-Please do not attempt to access them. The content in them should be treated as unsigned.
-
-Instead, we strongly encourage users to migrate to the `.getSignedReferences()` API. See the [Verifying XML document](#verifying-xml-documents) section
-We understand that this may take a lot of efforts to migrate, feel free to ask for help.
-This will help prevent future XML signature wrapping attacks.
+`getReferences()` and `references` are deprecated. Do not use them to obtain signed XML; use
+`getSignedReferences()` instead, as shown in [Verifying Xml documents](#verifying-xml-documents).
 
 ## Supported Algorithms
 
@@ -131,19 +146,21 @@ When signing a xml document you can pass the following options to the `SignedXml
 Use this code:
 
 ```javascript
-var SignedXml = require("xml-crypto").SignedXml,
-  fs = require("fs");
+const { SignedXml } = require("xml-crypto");
+const fs = require("fs");
 
-var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library><book><name>Harry Potter</name></book></library>";
 
-var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
+const sig = new SignedXml({
+  privateKey: fs.readFileSync("client.pem"),
+  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+});
 sig.addReference({
   xpath: "//*[local-name(.)='book']",
-  digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
   transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
 });
-sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml);
 fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
@@ -158,30 +175,30 @@ The result will be:
   <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
     <SignedInfo>
       <CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />
-      <SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" />
+      <SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256" />
       <Reference URI="#_0">
         <Transforms>
           <Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#" />
         </Transforms>
-        <DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
-        <DigestValue>cdiS43aFDQMnb3X8yaIUej3+z9Q=</DigestValue>
+        <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256" />
+        <DigestValue>9d/ciWlVZkaJnJ3KBB5WY1H2Y8WRXPB2DquM0goT8jY=</DigestValue>
       </Reference>
     </SignedInfo>
-    <SignatureValue>vhWzpQyIYuncHUZV9W...[long base64 removed]...</SignatureValue>
+    <SignatureValue>uxmxGw2O3B6ylkhEXOaZ...[long base64 removed]...</SignatureValue>
   </Signature>
 </library>
 ```
 
 Note:
 
-If you set the `publicCert` and the `getKeyInfoContent` properties, a `<KeyInfo></KeyInfo>` element with the public certificate will be generated in the signature:
+If `publicCert` contains an X.509 certificate, the default `SignedXml.getKeyInfoContent` includes it in a `<KeyInfo>` element:
 
 ```xml
 <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
   <SignedInfo>
     ...[signature info removed]...
   </SignedInfo>
-  <SignatureValue>vhWzpQyIYuncHUZV9W...[long base64 removed]...</SignatureValue>
+  <SignatureValue>uxmxGw2O3B6ylkhEXOaZ...[long base64 removed]...</SignatureValue>
   <KeyInfo>
     <X509Data>
       <X509Certificate>MIIGYjCCBJagACCBN...[long base64 removed]...</X509Certificate>
@@ -189,8 +206,6 @@ If you set the `publicCert` and the `getKeyInfoContent` properties, a `<KeyInfo>
   </KeyInfo>
 </Signature>
 ```
-
-For `getKeyInfoContent`, a default implementation `SignedXml.getKeyInfoContent` is available.
 
 To customize this see [customizing algorithms](#customizing-algorithms) for an example.
 
@@ -212,55 +227,51 @@ new SignedXml({
 });
 ```
 
-You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/xmldom/xmldom), so you should install it first:
+You can use any dom parser you want in your code (or none, depending on your usage). This sample uses [xmldom](https://github.com/xmldom/xmldom) and [xpath](https://github.com/goto100/xpath), so you should install them first:
 
 ```shell
-npm install @xmldom/xmldom
+npm install @xmldom/xmldom xpath
 ```
 
 Example:
 
 ```javascript
-var select = require("xml-crypto").xpath,
-  dom = require("@xmldom/xmldom").DOMParser,
-  SignedXml = require("xml-crypto").SignedXml,
-  fs = require("fs");
+const { DOMParser } = require("@xmldom/xmldom");
+const xpath = require("xpath");
+const { SignedXml } = require("xml-crypto");
+const fs = require("fs");
 
-var xml = fs.readFileSync("signed.xml").toString();
-var doc = new dom().parseFromString(xml);
+const xml = fs.readFileSync("signed.xml", "utf8");
+const doc = new DOMParser().parseFromString(xml, "text/xml");
 
 // DO NOT attempt to parse whatever data object you have here in `doc`
 // and then use it to verify the signature. This can lead to security issues.
 // i.e. BAD: parseAssertion(doc),
 // good: see below
 
-var signature = select(
-  doc,
+const signature = xpath.select1(
   "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-)[0];
-var sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
+  doc,
+);
+const sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
 sig.loadSignature(signature);
-try {
-  var res = sig.checkSignature(xml);
-} catch (ex) {
-  console.log(ex);
-}
+const res = sig.checkSignature(xml);
 ```
 
 In order to protect from some attacks we must check the content we want to use is the one that has been signed:
 
 ```javascript
 if (!res) {
-  throw "Invalid Signature";
+  throw new Error("Invalid signature");
 }
 // good: The XML Signature has been verified, meaning some subset of XML is verified.
-var signedBytes = sig.getSignedReferences();
+const signedBytes = sig.getSignedReferences();
 
-var authenticatedDoc = new dom().parseFromString(signedBytes[0]); // Take the first signed reference
+const authenticatedDoc = new DOMParser().parseFromString(signedBytes[0], "text/xml"); // Take the first signed reference
 // It is now safe to load SAML, obtain the assertion XML, or do whatever else is needed.
 // Be sure to only use authenticated data.
-let signedAssertionNode = extractAssertion(authenticatedDoc);
-let parsedAssertion = parseAssertion(signedAssertionNode);
+const signedAssertionNode = extractAssertion(authenticatedDoc);
+const parsedAssertion = parseAssertion(signedAssertionNode);
 
 return parsedAssertion; // This the correctly verified signed Assertion
 
@@ -282,13 +293,12 @@ which makes XML developers confused and then leads to incorrect implementation f
 If you keep failing verification, it is worth trying to guess such a hidden transform and specify it to the option as below:
 
 ```javascript
-var options = {
+const sig = new SignedXml({
   implicitTransforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"],
   publicCert: fs.readFileSync("client_public.pem"),
-};
-var sig = new SignedXml(options);
+});
 sig.loadSignature(signature);
-var res = sig.checkSignature(xml);
+const res = sig.checkSignature(xml);
 ```
 
 You might find it difficult to guess such transforms, but there are typical transforms you can try.
@@ -299,11 +309,6 @@ You might find it difficult to guess such transforms, but there are typical tran
 - <http://www.w3.org/2001/10/xml-exc-c14n#WithComments>
 
 ## API
-
-### xpath
-
-See [xpath.js](https://github.com/yaronn/xpath.js) for usage. Note that this is actually using
-[another library](https://github.com/goto100/xpath) as the underlying implementation.
 
 ### SignedXml
 
@@ -360,6 +365,8 @@ To verify xml documents:
 - `loadSignature(signatureXml)` - loads the signature where:
   - `signatureXml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the signature
 - `checkSignature(xml)` - validates the given xml document and returns `true` if the validation was successful
+- `getSignedReferences()` - returns the canonical XML of each reference, only after `checkSignature` succeeds
+- `validateElementAgainstReferences(elemOrXpath, doc)` - **[deprecated]** after `checkSignature` succeeds, use the XML that `getSignedReferences()` returns instead of nodes from the original document
 
 ## Customizing Algorithms
 
@@ -368,15 +375,15 @@ The following sample shows how to sign a message using custom algorithms.
 First import some modules:
 
 ```javascript
-var SignedXml = require("xml-crypto").SignedXml,
-  fs = require("fs");
+const { SignedXml } = require("xml-crypto");
+const fs = require("fs");
 ```
 
 Now define the extension point you want to implement. You can choose one or more.
 
 To determine the inclusion and contents of a `<KeyInfo />` element, the function
 `this.getKeyInfoContent()` is called. There is a default implementation of this. If you wish to change
-this implementation, provide your own function assigned to the property `this.getKeyInfoContent`. If you prefer to use the default implementation, assign `SignedXml.getKeyInfoContent` to `this.getKeyInfoContent` If
+this implementation, provide your own function assigned to the property `this.getKeyInfoContent`. If
 there are no attributes and no contents to the `<KeyInfo />` element, it won't be included in the
 generated XML.
 
@@ -385,142 +392,142 @@ To specify custom attributes on `<KeyInfo />`, add the properties to the `.keyIn
 A custom hash algorithm is used to calculate digests. Implement it if you want a hash other than the built-in methods.
 
 ```javascript
-function MyDigest() {
-  this.getHash = function (xml) {
+class MyDigest {
+  getHash(xml) {
     return "the base64 hash representation of the given xml string";
-  };
+  }
 
-  this.getAlgorithmName = function () {
+  getAlgorithmName() {
     return "http://myDigestAlgorithm";
-  };
+  }
 }
 ```
 
 A custom signing algorithm.
 
 ```javascript
-function MySignatureAlgorithm() {
-  /*sign the given SignedInfo using the key. return base64 signature value*/
-  this.getSignature = function (signedInfo, privateKey) {
+class MySignatureAlgorithm {
+  // Sign the given SignedInfo using the key. Return the base64 signature value.
+  getSignature(signedInfo, privateKey) {
     return "signature of signedInfo as base64...";
-  };
+  }
 
-  this.getAlgorithmName = function () {
+  getAlgorithmName() {
     return "http://mySigningAlgorithm";
-  };
+  }
 }
 ```
 
 Custom transformation algorithm.
 
 ```javascript
-function MyTransformation() {
-  /*given a node (from the xmldom module) return its canonical representation (as string)*/
-  this.process = function (node) {
-    //you should apply your transformation before returning
+class MyTransformation {
+  // Given a node (from the xmldom module), return its canonical representation as a string.
+  process(node) {
+    // You should apply your transformation before returning.
     return node.toString();
-  };
+  }
 
-  this.getAlgorithmName = function () {
+  getAlgorithmName() {
     return "http://myTransformation";
-  };
+  }
 }
 ```
 
 Custom canonicalization is actually the same as custom transformation. It is applied on the SignedInfo rather than on references.
 
 ```javascript
-function MyCanonicalization() {
-  /*given a node (from the xmldom module) return its canonical representation (as string)*/
-  this.process = function (node) {
-    //you should apply your transformation before returning
-    return "< x/>";
-  };
+class MyCanonicalization {
+  // Given a node (from the xmldom module), return its canonical representation as a string.
+  process(node) {
+    // You should apply your canonicalization before returning.
+    return node.toString();
+  }
 
-  this.getAlgorithmName = function () {
+  getAlgorithmName() {
     return "http://myCanonicalization";
-  };
+  }
 }
 ```
 
-Now you need to register the new algorithms:
-
-```javascript
-/*register all the custom algorithms*/
-
-signedXml.CanonicalizationAlgorithms["http://MyTransformation"] = MyTransformation;
-signedXml.CanonicalizationAlgorithms["http://MyCanonicalization"] = MyCanonicalization;
-signedXml.HashAlgorithms["http://myDigestAlgorithm"] = MyDigest;
-signedXml.SignatureAlgorithms["http://mySigningAlgorithm"] = MySignatureAlgorithm;
-```
-
-Now do the signing. Note how we configure the signature to use the above algorithms:
+Now register the new algorithms on a `SignedXml` instance, under the names their `getAlgorithmName()`
+returns, and configure the instance to use them:
 
 ```javascript
 function signXml(xml, xpath, key, dest) {
-  var options = {
+  const sig = new SignedXml({
     publicCert: fs.readFileSync("my_public_cert.pem", "latin1"),
     privateKey: fs.readFileSync(key),
-    /*configure the signature object to use the custom algorithms*/
-    signatureAlgorithm: "http://mySignatureAlgorithm",
-    canonicalizationAlgorithm: "http://MyCanonicalization",
-  };
-
-  var sig = new SignedXml(options);
-
-  sig.addReference({
-    xpath: "//*[local-name(.)='x']",
-    transforms: ["http://MyTransformation"],
-    digestAlgorithm: "http://myDigestAlgorithm",
+    // Configure the signature object to use the custom algorithms.
+    signatureAlgorithm: "http://mySigningAlgorithm",
+    canonicalizationAlgorithm: "http://myCanonicalization",
   });
+
+  // Register all the custom algorithms.
+  sig.CanonicalizationAlgorithms["http://myTransformation"] = MyTransformation;
+  sig.CanonicalizationAlgorithms["http://myCanonicalization"] = MyCanonicalization;
+  sig.HashAlgorithms["http://myDigestAlgorithm"] = MyDigest;
+  sig.SignatureAlgorithms["http://mySigningAlgorithm"] = MySignatureAlgorithm;
 
   sig.addReference({
     xpath,
-    transforms: ["http://MyTransformation"],
+    transforms: ["http://myTransformation"],
     digestAlgorithm: "http://myDigestAlgorithm",
   });
-  sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-  sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
   sig.computeSignature(xml);
   fs.writeFileSync(dest, sig.getSignedXml());
 }
 
-var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>";
-("</library>");
+const xml = "<library><book><name>Harry Potter</name></book></library>";
 
 signXml(xml, "//*[local-name(.)='book']", "client.pem", "result.xml");
 ```
 
 You can always look at the actual code as a sample.
 
-## Asynchronous signing and verification
+## Asynchronous signing
 
-If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, you can create a custom signing algorithm that uses an asynchronous callback.
+If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, you can create a custom signing algorithm that uses an asynchronous callback. Register it under the URI of the algorithm it implements, which is the `SignatureMethod` a verifier reads.
 
 ```javascript
-function AsyncSignatureAlgorithm() {
-  this.getSignature = function (signedInfo, privateKey, callback) {
-    var signer = crypto.createSign("RSA-SHA1");
+const { SignedXml } = require("xml-crypto");
+const crypto = require("crypto");
+const fs = require("fs");
+
+class AsyncRsaSha256 {
+  getSignature(signedInfo, privateKey, callback) {
+    // Do some asynchronous things here, such as calling a signing server.
+    const signer = crypto.createSign("RSA-SHA256");
     signer.update(signedInfo);
-    var res = signer.sign(privateKey, "base64");
-    //Do some asynchronous things here
-    callback(null, res);
-  };
-  this.getAlgorithmName = function () {
-    return "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
-  };
+    callback(null, signer.sign(privateKey, "base64"));
+  }
+
+  getAlgorithmName() {
+    return "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+  }
 }
 
-var sig = new SignedXml({ signatureAlgorithm: "http://asyncSignatureAlgorithm" });
-sig.SignatureAlgorithms["http://asyncSignatureAlgorithm"] = AsyncSignatureAlgorithm;
-sig.signatureAlgorithm = "http://asyncSignatureAlgorithm";
-sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-sig.computeSignature(xml, opts, function (err) {
-  var signedResponse = sig.getSignedXml();
+const xml = "<library><book><name>Harry Potter</name></book></library>";
+
+const sig = new SignedXml({
+  privateKey: fs.readFileSync("client.pem"),
+  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+});
+sig.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] = AsyncRsaSha256;
+sig.addReference({
+  xpath: "//*[local-name(.)='book']",
+  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+  transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+});
+sig.computeSignature(xml, (err) => {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  fs.writeFileSync("signed.xml", sig.getSignedXml());
 });
 ```
-
-The function `sig.checkSignature` may also use a callback if asynchronous verification is needed.
 
 ## X.509 / Key formats
 
@@ -552,26 +559,26 @@ Then you could use the result as is for the purpose of signing. For the purpose 
 
 ## Examples
 
-### how to sign a root node (_coming soon_)
-
 ### how to add a prefix for the signature
 
 Use the `prefix` option when calling `computeSignature` to add a prefix to the signature.
 
 ```javascript
-var SignedXml = require("xml-crypto").SignedXml,
-  fs = require("fs");
+const { SignedXml } = require("xml-crypto");
+const fs = require("fs");
 
-var xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library><book><name>Harry Potter</name></book></library>";
 
-var sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
+const sig = new SignedXml({
+  privateKey: fs.readFileSync("client.pem"),
+  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+});
 sig.addReference({
   xpath: "//*[local-name(.)='book']",
-  digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
   transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
 });
-sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml, {
   prefix: "ds",
 });
@@ -579,28 +586,31 @@ sig.computeSignature(xml, {
 
 ### how to specify the location of the signature
 
-Use the `location` option when calling `computeSignature` to move the signature around.
-Set `action` to one of the following:
+Use the `location` option when calling `computeSignature` to move the signature around. Set
+`reference` to an XPath expression that selects a node (default `/*`, the document element), and
+`action` to one of the following:
 
-- append(default) - append to the end of the xml document
-- prepend - prepend to the xml document
-- before - prepend to a specific node (use the `referenceNode` property)
-- after - append to specific node (use the `referenceNode` property)
+- `append` (default) - insert the signature as the last child of the `reference` node
+- `prepend` - insert the signature as the first child of the `reference` node
+- `before` - insert the signature just before the `reference` node
+- `after` - insert the signature just after the `reference` node
 
 ```javascript
-const SignedXml = require("xml-crypto").SignedXml;
+const { SignedXml } = require("xml-crypto");
 const fs = require("fs");
 
-const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library><book><name>Harry Potter</name></book></library>";
 
-const sig = new SignedXml({ privateKey: fs.readFileSync("client.pem") });
+const sig = new SignedXml({
+  privateKey: fs.readFileSync("client.pem"),
+  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+});
 sig.addReference({
   xpath: "//*[local-name(.)='book']",
-  digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
   transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
 });
-sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
 sig.computeSignature(xml, {
   location: { reference: "//*[local-name(.)='book']", action: "after" }, // This will place the signature after the book element
 });
@@ -611,10 +621,10 @@ sig.computeSignature(xml, {
 Use the `objects` option when creating a SignedXml instance to add custom Objects to the signature.
 
 ```javascript
-const SignedXml = require("xml-crypto").SignedXml;
+const { SignedXml } = require("xml-crypto");
 const fs = require("fs");
 
-const xml = "<library>" + "<book>" + "<name>Harry Potter</name>" + "</book>" + "</library>";
+const xml = "<library><book><name>Harry Potter</name></book></library>";
 
 const sig = new SignedXml({
   privateKey: fs.readFileSync("client.pem"),
@@ -642,8 +652,6 @@ sig.computeSignature(xml);
 fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
 
-### more examples (_coming soon_)
-
 ## Development
 
 The testing framework we use is [Mocha](https://github.com/mochajs/mocha) with [Chai](https://github.com/chaijs/chai) as the assertion framework.
@@ -659,6 +667,10 @@ npm test
 ![Short-io logo](https://github.com/Short-io.png?size=30) [Short-io](https://github.com/Short-io)
 
 ![RideAmigosCorp logo](https://github.com/RideAmigosCorp.png?size=30) [RideAmigosCorp](https://github.com/RideAmigosCorp)
+
+## Past sponsors
+
+![stytchauth](https://github.com/stytchauth.png?size=30) [stytchauth](https://github.com/stytchauth)
 
 ## License
 
