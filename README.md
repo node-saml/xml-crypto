@@ -301,12 +301,14 @@ sig.loadSignature(signature);
 const res = sig.checkSignature(xml);
 ```
 
-Implicit transforms run after the transforms a `<Reference>` declares. Where the transforms would
-otherwise end without a canonicalization, xml-crypto applies Canonical XML 1.0, so an implicit
-`http://www.w3.org/TR/2001/REC-xml-c14n-20010315` changes nothing there.
+Implicit transforms run after the transforms a `<Reference>` declares. xml-crypto converts a
+node-set left after the last transform to octets with Canonical XML 1.0, so an implicit
+`http://www.w3.org/TR/2001/REC-xml-c14n-20010315` changes nothing where the transforms end in a
+node-set, such as when there are none or the last one is enveloped-signature.
 
 You might find it difficult to guess such transforms, but there are typical transforms you can try.
 
+- <http://www.w3.org/TR/2001/REC-xml-c14n-20010315>
 - <http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments>
 - <http://www.w3.org/2001/10/xml-exc-c14n#>
 - <http://www.w3.org/2001/10/xml-exc-c14n#WithComments>
