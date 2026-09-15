@@ -646,7 +646,9 @@ export class SignedXml {
     }
 
     if (isDomNode.isAttributeNode(node)) {
-      this.canonicalizationAlgorithm = node.value as CanonicalizationAlgorithmType;
+      this.canonicalizationAlgorithm = utils.collapseAnyUri(
+        node.value,
+      ) as CanonicalizationAlgorithmType;
     }
 
     const signatureAlgorithm = xpath.select1(
@@ -655,7 +657,9 @@ export class SignedXml {
     );
 
     if (isDomNode.isAttributeNode(signatureAlgorithm)) {
-      this.signatureAlgorithm = signatureAlgorithm.value as SignatureAlgorithmType;
+      this.signatureAlgorithm = utils.collapseAnyUri(
+        signatureAlgorithm.value,
+      ) as SignatureAlgorithmType;
     }
 
     const signedInfoNodes = utils.findChildren(this.signatureNode, "SignedInfo");
@@ -734,7 +738,7 @@ export class SignedXml {
     if (!attr) {
       throw new Error(`could not find Algorithm attribute in node ${digestAlgoNode.toString()}`);
     }
-    const digestAlgo = attr.value;
+    const digestAlgo = utils.collapseAnyUri(attr.value);
 
     nodes = utils.findChildren(refNode, "DigestValue");
     if (nodes.length === 0) {
@@ -761,7 +765,7 @@ export class SignedXml {
         const transformAttr = utils.findAttr(transform, "Algorithm");
 
         if (transformAttr) {
-          transforms.push(transformAttr.value);
+          transforms.push(utils.collapseAnyUri(transformAttr.value));
         }
       }
 
