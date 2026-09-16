@@ -1,6 +1,57 @@
 # Changelog
 
-## 6.1.2 (2025-04-24)
+## Unreleased (2026-09-16)
+
+### 🚀 Minor Changes
+
+- [**enhancement**] Add support for inserting and signing Object elements inside the Signature [#506](https://github.com/node-saml/xml-crypto/pull/506)
+- [**enhancement**] Add support for sha256-rsa-MGF1 signing algorithm (#328) [#488](https://github.com/node-saml/xml-crypto/pull/488)
+
+### 🔗 Dependencies
+
+- [**dependencies**] Minor dependencies update [#543](https://github.com/node-saml/xml-crypto/pull/543)
+
+### 🐛 Bug Fixes
+
+- [**bug**] fix: omit KeyInfo when there is no content for it [#597](https://github.com/node-saml/xml-crypto/pull/597)
+- [**bug**] fix: discard comments when dereferencing same-document references [#589](https://github.com/node-saml/xml-crypto/pull/589)
+- [**bug**] fix: escape carriage returns in serialized signing output [#588](https://github.com/node-saml/xml-crypto/pull/588)
+- [**bug**] [**security**] fix: apply transforms after a canonicalization and remove only the verified Signature [#585](https://github.com/node-saml/xml-crypto/pull/585)
+- [**bug**] fix: handle CRLF PEMs in derToPem() and store every file byte-for-byte [#582](https://github.com/node-saml/xml-crypto/pull/582)
+- [**bug**] fix: canonicalize a node-set left at the end of the transforms [#581](https://github.com/node-saml/xml-crypto/pull/581)
+- [**bug**] [**security**] fix: publish signed references only after SignatureValue verifies [#580](https://github.com/node-saml/xml-crypto/pull/580)
+- [**bug**] fix: preserve input references during signature creation [#577](https://github.com/node-saml/xml-crypto/pull/577)
+- [**bug**] Fix double callback invoke on unhandled exception [#528](https://github.com/node-saml/xml-crypto/pull/528)
+- [**bug**] [**security**] fix: collect all subset namespace prefixes when filtering ancestor namespaces [#541](https://github.com/node-saml/xml-crypto/pull/541)
+- [**bug**] fix: Support nested enveloped signature location (#525) [#526](https://github.com/node-saml/xml-crypto/pull/526)
+- [**security**] fix: use constant-time comparison for HMAC verification (#522) [#523](https://github.com/node-saml/xml-crypto/pull/523)
+- [**bug**] Fix Id attribute handling in addAllReferences [#521](https://github.com/node-saml/xml-crypto/pull/521)
+
+### 📚 Documentation
+
+- [**documentation**] docs: describe the library as it is [#590](https://github.com/node-saml/xml-crypto/pull/590)
+- [**documentation**] docs: note the inclusive canonicalization output change for upgraders [#579](https://github.com/node-saml/xml-crypto/pull/579)
+- [**documentation**] docs: cover detached signatures in the getOriginalXmlWithIds() deprecation [#578](https://github.com/node-saml/xml-crypto/pull/578)
+- [**documentation**] Update README.md to reflect getCertFromKeyInfo changes [#470](https://github.com/node-saml/xml-crypto/pull/470)
+- [**documentation**] Add README sponsors [#518](https://github.com/node-saml/xml-crypto/pull/518)
+- [**documentation**] README.md: Remove obsolete requirement for `openssl` binary [#514](https://github.com/node-saml/xml-crypto/pull/514)
+
+### ⚙️ Technical Tasks
+
+- [**chore**] chore: merge master into 6.x [#600](https://github.com/node-saml/xml-crypto/pull/600)
+- [**chore**] test: cover spec-required Signature elements and fail-closed signing errors [#599](https://github.com/node-saml/xml-crypto/pull/599)
+- [**chore**] test: prove behavior through supported APIs instead of deprecated ones [#593](https://github.com/node-saml/xml-crypto/pull/593)
+- [**chore**] chore: deprecate validateElementAgainstReferences() [#592](https://github.com/node-saml/xml-crypto/pull/592)
+- [**chore**] docs: refine code commenting guidelines in AGENTS.md [#574](https://github.com/node-saml/xml-crypto/pull/574)
+- [**chore**] chore: deprecate the internal helpers 7.0 withdraws [#567](https://github.com/node-saml/xml-crypto/pull/567)
+- [**chore**] test: pin the hoisted ancestor namespace behaviour #541 fixed [#572](https://github.com/node-saml/xml-crypto/pull/572)
+- [**chore**] Add agent instructions [#544](https://github.com/node-saml/xml-crypto/pull/544)
+- [**chore**] Deprecate getOriginalXmlWithIds() [#516](https://github.com/node-saml/xml-crypto/pull/516)
+- [**chore**] Tests for sha256-rsa-MGF1 [#515](https://github.com/node-saml/xml-crypto/pull/515)
+
+---
+
+## v6.1.2 (2025-04-24)
 
 ### 🐛 Bug Fixes
 
@@ -26,7 +77,9 @@
 
 ## v6.0.1 (2025-03-14)
 
-- Address CVEs: CVE-2025-29774 and CVE-2025-29775
+### 🐛 Bug Fixes
+
+- [**security**] Address CVEs: [CVE-2025-29774](https://github.com/node-saml/xml-crypto/security/advisories/GHSA-9p8x-f768-wp2g) and [CVE-2025-29775](https://github.com/node-saml/xml-crypto/security/advisories/GHSA-x3m8-899r-f7c3) [8ac6118](https://github.com/node-saml/xml-crypto/commit/8ac6118ee7978b46aa56b82cbcaa5fca58c93a07)
 
 ---
 
@@ -210,6 +263,38 @@
 
 ---
 
+## v3.2.1 (2025-03-14)
+
+### 🐛 Bug Fixes
+
+- [**security**] Address CVEs: [CVE-2025-29774](https://github.com/node-saml/xml-crypto/security/advisories/GHSA-9p8x-f768-wp2g) and [CVE-2025-29775](https://github.com/node-saml/xml-crypto/security/advisories/GHSA-x3m8-899r-f7c3) [28f9221](https://github.com/node-saml/xml-crypto/commit/28f92218ecbb8dcbd238afa4efbbd50302aa9aed)
+
+---
+
+## v3.2.0 (2023-07-14)
+
+### 🚀 Minor Changes
+
+- [**enhancement**] Exports C14nCanonicalization, ExclusiveCanonicalization [#335](https://github.com/node-saml/xml-crypto/pull/335)
+
+### 🔗 Dependencies
+
+- [**dependencies**] Update gren for better support for branches [#339](https://github.com/node-saml/xml-crypto/pull/339)
+- [**dependencies**] Bump @xmldom/xmldom [#333](https://github.com/node-saml/xml-crypto/pull/333)
+
+### 🐛 Bug Fixes
+
+- [**bug**] Fix test case error [#338](https://github.com/node-saml/xml-crypto/pull/338)
+- [**bug**] Fix missing `index.js` on release [#337](https://github.com/node-saml/xml-crypto/pull/337)
+- [**bug**] Fix issue in case when namespace has no prefix [#329](https://github.com/node-saml/xml-crypto/pull/329)
+
+### ⚙️ Technical Tasks
+
+- [**chore**] Don't force `master` branch when generating changelog [#341](https://github.com/node-saml/xml-crypto/pull/341)
+- [**chore**] Ignore unnecessary files in the release [#334](https://github.com/node-saml/xml-crypto/pull/334)
+
+---
+
 ## v3.1.0 (2023-06-05)
 
 ### 🚀 Minor Changes
@@ -267,6 +352,22 @@
 
 ---
 
+## v2.1.6 (2025-03-14)
+
+### 🐛 Bug Fixes
+
+- [**security**] Address CVEs: [CVE-2025-29774](https://github.com/node-saml/xml-crypto/security/advisories/GHSA-9p8x-f768-wp2g) and [CVE-2025-29775](https://github.com/node-saml/xml-crypto/security/advisories/GHSA-x3m8-899r-f7c3) [886dc63](https://github.com/node-saml/xml-crypto/commit/886dc63a8b4bb5ae1db9f41c7854b171eb83aa98)
+
+---
+
+## v2.1.5 (2022-11-17)
+
+### 🔗 Dependencies
+
+- [**dependencies**] [**javascript**] 2.1.5: bump @xmldom/xmldom to 0.7.9 [#263](https://github.com/node-saml/xml-crypto/pull/263)
+
+---
+
 ## v2.1.4 (2022-07-08)
 
 ### 🐛 Bug Fixes
@@ -314,6 +415,24 @@ _No changelog for this release._
 ---
 
 ## v2.0.0 (2020-10-05)
+
+_No changelog for this release._
+
+---
+
+## v1.5.6 (2021-08-20)
+
+_No changelog for this release._
+
+---
+
+## v1.5.5 (2021-08-20)
+
+_No changelog for this release._
+
+---
+
+## v1.5.4 (2021-07-23)
 
 _No changelog for this release._
 
@@ -450,12 +569,6 @@ _No changelog for this release._
 
 ## v0.9.0 (2017-02-26)
 
-_No changelog for this release._
-
----
-
-## 0.9.0 (2017-02-26)
-
 ### 🚀 Minor Changes
 
 - [**enhancement**] Separate namespaces with same prefix but different URI [#117](https://github.com/node-saml/xml-crypto/pull/117)
@@ -477,39 +590,85 @@ _No changelog for this release._
 - [**documentation**] Update license field to npm recommendation [#119](https://github.com/node-saml/xml-crypto/pull/119)
 - [**documentation**] Fix author field format [#120](https://github.com/node-saml/xml-crypto/pull/120)
 - [**documentation**] Remove namespace-breaking reserialization of signature from example in README [#105](https://github.com/node-saml/xml-crypto/pull/105)
+- [**documentation**] Added MIT license [#103](https://github.com/node-saml/xml-crypto/pull/103)
 
 ---
 
 ## v0.8.4 (2016-03-12)
 
-_No changelog for this release._
+### 🐛 Bug Fixes
+
+- [**bug**] Fixed normalization of special characters according to spec [#99](https://github.com/node-saml/xml-crypto/pull/99)
 
 ---
 
 ## v0.8.3 (2016-03-06)
 
-_No changelog for this release._
+### 🐛 Bug Fixes
+
+- [**bug**] Update exclusive-canonicalization.js [#96](https://github.com/node-saml/xml-crypto/pull/96)
+- [**bug**] Canonicalization of line separators [#98](https://github.com/node-saml/xml-crypto/pull/98)
+
+### 📚 Documentation
+
+- [**documentation**] Add examples for signature prefix and location [#90](https://github.com/node-saml/xml-crypto/pull/90)
 
 ---
 
 ## v0.8.2 (2015-12-13)
 
-_No changelog for this release._
+### 🐛 Bug Fixes
+
+- [**bug**] xmlns:ds should default to http://www.w3.org/2000/09/xmldsig# if not provided [#82](https://github.com/node-saml/xml-crypto/pull/82)
 
 ---
 
 ## v0.8.1 (2015-10-15)
 
-_No changelog for this release._
+### 🐛 Bug Fixes
+
+- [**bug**] fix for reference node validation [#79](https://github.com/node-saml/xml-crypto/pull/79)
 
 ---
 
 ## v0.8.0 (2015-10-03)
 
-_No changelog for this release._
+### 🚀 Minor Changes
 
----
+- [**enhancement**] Support SHA512 hashing algorithm [#76](https://github.com/node-saml/xml-crypto/pull/76)
+- [**enhancement**] HMAC support [#71](https://github.com/node-saml/xml-crypto/pull/71)
+- [**enhancement**] Switch loadSignature to accept string or XML node [#62](https://github.com/node-saml/xml-crypto/pull/62)
+- [**enhancement**] Body Xml Element Canonicalization [#49](https://github.com/node-saml/xml-crypto/pull/49)
+- [**enhancement**] Updating EnvelopedSignature transform [#31](https://github.com/node-saml/xml-crypto/pull/31)
+- [**enhancement**] Improved string concat and general clean up [#20](https://github.com/node-saml/xml-crypto/pull/20)
+- [**enhancement**] support for InclusiveNamespaces PrefixList [#19](https://github.com/node-saml/xml-crypto/pull/19)
+- [**enhancement**] support specifying reference node to insert signature after [#9](https://github.com/node-saml/xml-crypto/pull/9)
+- [**bug**] [**enhancement**] fix global leaks and support for specifying ID attribute when producing a signature [#6](https://github.com/node-saml/xml-crypto/pull/6)
+- [**enhancement**] support for specifying id attributes (used on SAML 1.1) and fixed unit tests [#5](https://github.com/node-saml/xml-crypto/pull/5)
+- [**enhancement**] improve ADFS enveloped signature compatibility [#4](https://github.com/node-saml/xml-crypto/pull/4)
+- [**enhancement**] support for sha256 algorithms (hash and sign) [#2](https://github.com/node-saml/xml-crypto/pull/2)
+- [**enhancement**] Initial support for enveloped signatures [#1](https://github.com/node-saml/xml-crypto/pull/1)
 
-## V1 (2013-07-20)
+### 🔗 Dependencies
 
-_No changelog for this release._
+- [**dependencies**] proposed change to remove xmldom-fork-fixed dependency and move to latest xmldom [#42](https://github.com/node-saml/xml-crypto/pull/42)
+
+### 🐛 Bug Fixes
+
+- [**bug**] unqualified attributes should have an empty namespace [#70](https://github.com/node-saml/xml-crypto/pull/70)
+- [**bug**] signature validation fails if node passed to loadSignature is a Document [#64](https://github.com/node-saml/xml-crypto/pull/64)
+- [**bug**] Modified loadSignature to only check local name and not namespace name [#59](https://github.com/node-saml/xml-crypto/pull/59)
+- [**bug**] Fixes issue where the data from Comments were written to the canonicaliz... [#41](https://github.com/node-saml/xml-crypto/pull/41)
+- [**bug**] Safer iteration when Array.prototype has been extended [#34](https://github.com/node-saml/xml-crypto/pull/34)
+- [**bug**] fix: digest breaks if xml has utf8 chars [#13](https://github.com/node-saml/xml-crypto/pull/13)
+- [**bug**] Oops. This change avoids exiting check for ID prematurely [#12](https://github.com/node-saml/xml-crypto/pull/12)
+- [**bug**] Don't premature end search for id attribute [#11](https://github.com/node-saml/xml-crypto/pull/11)
+
+### 📚 Documentation
+
+- [**documentation**] Correct the hyperlink typo [#75](https://github.com/node-saml/xml-crypto/pull/75)
+- [**documentation**] Add a Bitdeli Badge to README [#21](https://github.com/node-saml/xml-crypto/pull/21)
+
+### ⚙️ Technical Tasks
+
+- [**chore**] npm: ignore test folder [#74](https://github.com/node-saml/xml-crypto/pull/74)
