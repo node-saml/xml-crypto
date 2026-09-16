@@ -132,3 +132,22 @@ describe("Validated node references tests", function () {
     expect(sig.getSignedReferences().length).to.equal(0);
   });
 });
+
+describe("Signed reference tests", function () {
+  it("should read signed data from the signed references", function () {
+    const xml = fs.readFileSync("./test/static/valid_saml.xml", "utf-8");
+    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const sig = new SignedXml();
+    sig.getCertFromKeyInfo = SignedXml.getCertFromKeyInfo;
+    sig.loadSignature(sig.findSignatures(doc)[0]);
+    expect(sig.checkSignature(xml)).to.be.true;
+
+    const signedDoc = new xmldom.DOMParser().parseFromString(sig.getSignedReferences()[0]);
+    const mail = xpath.select1(
+      "//*[local-name()='Attribute' and @Name='mail']/*[local-name()='AttributeValue']/text()",
+      signedDoc,
+    );
+    isDomNode.assertIsNodeLike(mail);
+    expect(mail.nodeValue).to.equal("henri.bergius@nemein.com");
+  });
+});

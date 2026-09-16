@@ -376,7 +376,7 @@ describe("Exclusive canonicalization with comments", function () {
     const transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
     isDomNode.assertIsNodeLike(node);
     const res = sig.getCanonXml(transforms, node);
-    expect(res).to.equal("<y/>");
+    expect(res).to.equal("<y></y>");
   });
 
   it("The XML canonicalization method processes a node-set by imposing the following additional document order rules on the namespace and attribute nodes of each element: \

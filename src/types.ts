@@ -18,8 +18,7 @@ export type CanonicalizationAlgorithmType =
   | string;
 
 export type CanonicalizationOrTransformAlgorithmType =
-  | CanonicalizationAlgorithmType
-  | "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
+  CanonicalizationAlgorithmType | "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
 
 export type HashAlgorithmType =
   | "http://www.w3.org/2000/09/xmldsig#sha1"
@@ -30,6 +29,7 @@ export type HashAlgorithmType =
 export type SignatureAlgorithmType =
   | "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
   | "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
+  | "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1"
   | "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"
   | "http://www.w3.org/2000/09/xmldsig#hmac-sha1"
   | string;
@@ -41,6 +41,21 @@ export type SignatureAlgorithmType =
 export interface GetKeyInfoContentArgs {
   publicCert?: crypto.KeyLike;
   prefix?: string | null;
+}
+
+/**
+ * Object attributes as defined in XMLDSig spec and are emitted verbatim
+ * @see https://www.w3.org/TR/xmldsig-core/#sec-Object
+ */
+export interface ObjectAttributes {
+  /** Optional ID attribute */
+  Id?: string;
+  /** Optional MIME type attribute */
+  MimeType?: string;
+  /** Optional encoding attribute */
+  Encoding?: string;
+  /** Any additional custom attributes */
+  [key: string]: string | undefined;
 }
 
 /**
@@ -58,6 +73,7 @@ export interface SignedXmlOptions {
   keyInfoAttributes?: Record<string, string>;
   getKeyInfoContent?(args?: GetKeyInfoContentArgs): string | null;
   getCertFromKeyInfo?(keyInfo?: Node | null): string | null;
+  objects?: Array<{ content: string; attributes?: ObjectAttributes }>;
 }
 
 export interface NamespacePrefix {
@@ -127,6 +143,12 @@ export interface Reference {
   // Optional. Indicates whether the URI is empty.
   isEmptyUri: boolean;
 
+  // Optional. The `Id` attribute of the reference node.
+  id?: string;
+
+  // Optional. The `Type` attribute of the reference node.
+  type?: string;
+
   // Optional. The type of the reference node.
   ancestorNamespaces?: NamespacePrefix[];
 
@@ -171,6 +193,9 @@ export interface SignatureAlgorithm {
    * @param key a public cert, public key, or private key can be passed here
    */
   verifySignature(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
+  /**
+   * `SignedXml.checkSignature` calls only the synchronous form.
+   */
   verifySignature(
     material: string,
     key: crypto.KeyLike,
@@ -231,12 +256,14 @@ export function createOptionalCallbackFunction<T, A extends unknown[]>(
   return ((...args: A | [...A, ErrorFirstCallback<T>]) => {
     const possibleCallback = args[args.length - 1];
     if (isErrorFirstCallback(possibleCallback)) {
+      let result: T;
       try {
-        const result = syncVersion(...(args.slice(0, -1) as A));
-        possibleCallback(null, result);
+        result = syncVersion(...(args.slice(0, -1) as A));
       } catch (err) {
         possibleCallback(err instanceof Error ? err : new Error("Unknown error"));
+        return;
       }
+      possibleCallback(null, result);
     } else {
       return syncVersion(...(args as A));
     }

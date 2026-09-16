@@ -6,8 +6,12 @@
     "codecov",
     "feide",
     "HMAC",
+    "posteb",
+    "preeb",
     "reserialization",
+    "stricttextualmsg",
     "wsfederation",
-    "wssecurity"
+    "wssecurity",
+    "xades"
   ]
 }

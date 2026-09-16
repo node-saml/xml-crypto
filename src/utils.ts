@@ -47,7 +47,10 @@ export function findChildren(node: Node | Document, localName: string, namespace
   return res;
 }
 
-/** @deprecated */
+/**
+ * @deprecated Will be removed in 7.0. This is an internal DOM helper with no replacement; use a
+ *   DOM API or the `xpath` package.
+ */
 export function findChilds(node: Node | Document, localName: string, namespace?: string) {
   return findChildren(node, localName, namespace);
 }
@@ -169,22 +172,18 @@ export function derToPem(
   der: string | Buffer,
   pemLabel?: "CERTIFICATE" | "PRIVATE KEY" | "RSA PUBLIC KEY",
 ): string {
-  const base64Der = Buffer.isBuffer(der)
-    ? der.toString("base64").trim()
-    : der.replace(/(\r\n|\r)/g, "").trim();
+  const trimmed = Buffer.isBuffer(der) ? der.toString("base64").trim() : der.trim();
 
-  if (PEM_FORMAT_REGEX.test(base64Der)) {
-    return normalizePem(base64Der);
+  if (PEM_FORMAT_REGEX.test(trimmed)) {
+    return normalizePem(trimmed);
   }
 
-  if (BASE64_REGEX.test(base64Der.replace(/ /g, ""))) {
+  const base64Der = trimmed.replace(/\r\n|\r| /g, "");
+  if (BASE64_REGEX.test(base64Der)) {
     if (pemLabel == null) {
       throw new Error("PEM label is required when DER is given.");
     }
-    const pem = `-----BEGIN ${pemLabel}-----\n${base64Der.replace(
-      / /g,
-      "",
-    )}\n-----END ${pemLabel}-----`;
+    const pem = `-----BEGIN ${pemLabel}-----\n${base64Der}\n-----END ${pemLabel}-----`;
 
     return normalizePem(pem);
   }
@@ -221,19 +220,44 @@ function collectAncestorNamespaces(
   return collectAncestorNamespaces(parent, nsArray);
 }
 
-function findNSPrefix(subset) {
+function findSubsetNSPrefixes(subset: Element): Set<string> {
+  const prefixes = new Set<string>();
   const subsetAttributes = subset.attributes;
   for (let k = 0; k < subsetAttributes.length; k++) {
     const nodeName = subsetAttributes[k].nodeName;
-    if (nodeName.search(/^xmlns:?/) !== -1) {
-      return nodeName.replace(/^xmlns:?/, "");
+    if (nodeName === "xmlns" || nodeName.startsWith("xmlns:")) {
+      prefixes.add(nodeName.replace(/^xmlns:?/, ""));
     }
   }
-  return subset.prefix || "";
+  // C14N already renders the element's own namespace; hoisting it would duplicate the declaration.
+  // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+  prefixes.add(subset.prefix || "");
+  return prefixes;
 }
 
 function isElementSubset(docSubset: Node[]): docSubset is Element[] {
   return docSubset.every((node) => isDomNode.isElementNode(node));
+}
+
+export function findAncestorNsForElement(node: Element): NamespacePrefix[] {
+  const ancestorNs = collectAncestorNamespaces(node);
+  const ancestorNsWithoutDuplicate: NamespacePrefix[] = [];
+  for (const ns of ancestorNs) {
+    const isDuplicate = ancestorNsWithoutDuplicate.some((seen) => seen.prefix === ns.prefix);
+    if (!isDuplicate) {
+      ancestorNsWithoutDuplicate.push(ns);
+    }
+  }
+
+  const returningNs: NamespacePrefix[] = [];
+  const subsetNsPrefixes = findSubsetNSPrefixes(node);
+  for (const ancestorNs of ancestorNsWithoutDuplicate) {
+    if (!subsetNsPrefixes.has(ancestorNs.prefix)) {
+      returningNs.push(ancestorNs);
+    }
+  }
+
+  return returningNs;
 }
 
 /**
@@ -264,33 +288,7 @@ export function findAncestorNs(
     throw new Error("Document subset must be list of elements");
   }
 
-  // Remove duplicate on ancestor namespace
-  const ancestorNs = collectAncestorNamespaces(docSubset[0]);
-  const ancestorNsWithoutDuplicate: NamespacePrefix[] = [];
-  for (let i = 0; i < ancestorNs.length; i++) {
-    let notOnTheList = true;
-    for (const v in ancestorNsWithoutDuplicate) {
-      if (ancestorNsWithoutDuplicate[v].prefix === ancestorNs[i].prefix) {
-        notOnTheList = false;
-        break;
-      }
-    }
-
-    if (notOnTheList) {
-      ancestorNsWithoutDuplicate.push(ancestorNs[i]);
-    }
-  }
-
-  // Remove namespaces which are already declared in the subset with the same prefix
-  const returningNs: NamespacePrefix[] = [];
-  const subsetNsPrefix = findNSPrefix(docSubset[0]);
-  for (const ancestorNs of ancestorNsWithoutDuplicate) {
-    if (ancestorNs.prefix !== subsetNsPrefix) {
-      returningNs.push(ancestorNs);
-    }
-  }
-
-  return returningNs;
+  return findAncestorNsForElement(docSubset[0]);
 }
 
 export function validateDigestValue(digest, expectedDigest) {
@@ -312,4 +310,22 @@ export function validateDigestValue(digest, expectedDigest) {
   }
 
   return true;
+}
+
+// Check if the given node is descendant of the given parent node
+export function isDescendantOf(node: Node, parent: Node): boolean {
+  if (!node || !parent) {
+    return false;
+  }
+
+  let currentNode: Node | null = node.parentNode;
+
+  while (currentNode) {
+    if (currentNode === parent) {
+      return true;
+    }
+    currentNode = currentNode.parentNode;
+  }
+
+  return false;
 }

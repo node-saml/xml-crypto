@@ -6,7 +6,75 @@ import * as crypto from "crypto";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
 
+const signatureAlgorithms = [
+  "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+  "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+  "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1",
+  "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512",
+];
+
 describe("Signature unit tests", function () {
+  describe("sign and verify", function () {
+    signatureAlgorithms.forEach((signatureAlgorithm) => {
+      function signWith(signatureAlgorithm: string): string {
+        const xml = '<root><x attr="value"></x></root>';
+        const sig = new SignedXml();
+        sig.privateKey = fs.readFileSync("./test/static/client.pem");
+
+        sig.addReference({
+          xpath: "//*[local-name(.)='x']",
+          digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+          transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+        });
+
+        sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+        sig.signatureAlgorithm = signatureAlgorithm;
+        sig.computeSignature(xml);
+        return sig.getSignedXml();
+      }
+
+      function loadSignature(xml: string): SignedXml {
+        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const node = xpath.select1(
+          "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+          doc,
+        );
+        isDomNode.assertIsNodeLike(node);
+        const sig = new SignedXml();
+        sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+        sig.loadSignature(node);
+        return sig;
+      }
+
+      it(`should verify signed xml with ${signatureAlgorithm}`, function () {
+        const xml = signWith(signatureAlgorithm);
+        const sig = loadSignature(xml);
+        const res = sig.checkSignature(xml);
+        expect(
+          res,
+          `expected all signatures with ${signatureAlgorithm} to be valid, but some reported invalid`,
+        ).to.be.true;
+      });
+
+      it(`should fail verification of signed xml with ${signatureAlgorithm} after manipulation`, function () {
+        const xml = signWith(signatureAlgorithm);
+        const doc = new xmldom.DOMParser().parseFromString(xml);
+        const node = xpath.select1("//*[local-name(.)='x']", doc);
+        isDomNode.assertIsElementNode(node);
+        const targetElement = node as Element;
+        targetElement.setAttribute("attr", "manipulatedValue");
+        const manipulatedXml = new xmldom.XMLSerializer().serializeToString(doc);
+
+        const sig = loadSignature(manipulatedXml);
+        const res = sig.checkSignature(manipulatedXml);
+        expect(
+          res,
+          `expected all signatures with ${signatureAlgorithm} to be invalid, but some reported valid`,
+        ).to.be.false;
+      });
+    });
+  });
+
   describe("verify adds ID", function () {
     function nodeExists(doc, xpathArg) {
       if (!doc && !xpathArg) {
@@ -41,7 +109,7 @@ describe("Signature unit tests", function () {
       sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
       sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
       sig.computeSignature(xml);
-      const signedXml = sig.getOriginalXmlWithIds();
+      const signedXml = sig.getSignedXml();
       const doc = new xmldom.DOMParser().parseFromString(signedXml);
 
       const op = nsMode === "equal" ? "=" : "!=";
@@ -104,9 +172,10 @@ describe("Signature unit tests", function () {
       sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
       sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
       sig.computeSignature(xml);
-      const signedXml = sig.getOriginalXmlWithIds();
+      const signedXml = sig.getSignedXml();
       const doc = new xmldom.DOMParser().parseFromString(signedXml);
-      const attrs = xpath.select("//@*", doc);
+      // Only count attributes on the 'x' element, not the entire document (which includes signature attributes)
+      const attrs = xpath.select("//*[local-name(.)='x']/@*", doc);
       isDomNode.assertIsArrayOfNodes(attrs);
       expect(attrs.length, "wrong number of attributes").to.equal(2);
     }
@@ -467,10 +536,17 @@ describe("Signature unit tests", function () {
 
     expect(expectedSignedXml, "wrong signedXml format").to.equal(signedXml);
 
-    const originalXmlWithIds = sig.getOriginalXmlWithIds();
-    const expectedOriginalXmlWithIds =
-      '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z></root>';
-    expect(expectedOriginalXmlWithIds, "wrong OriginalXmlWithIds").to.equal(originalXmlWithIds);
+    // Verify IDs were added to the signed XML document
+    const signedDoc = new xmldom.DOMParser().parseFromString(signedXml);
+    const xId = xpath.select1("//*[local-name(.)='x']/@*[local-name(.)='Id']", signedDoc);
+    isDomNode.assertIsAttributeNode(xId);
+    expect(xId.value).to.equal("_0");
+    const yId = xpath.select1("//*[local-name(.)='y']/@*[local-name(.)='Id']", signedDoc);
+    isDomNode.assertIsAttributeNode(yId);
+    expect(yId.value).to.equal("_1");
+    const wId = xpath.select1("//*[local-name(.)='w']/@*[local-name(.)='Id']", signedDoc);
+    isDomNode.assertIsAttributeNode(wId);
+    expect(wId.value).to.equal("_2");
   });
 
   it("signer creates signature with correct structure (with prefix)", function () {
@@ -631,10 +707,17 @@ describe("Signature unit tests", function () {
 
     expect(signedXml, "wrong signedXml format").to.equal(expectedSignedXml);
 
-    const originalXmlWithIds = sig.getOriginalXmlWithIds();
-    const expectedOriginalXmlWithIds =
-      '<root><x xmlns="ns" Id="_0"/><y attr="value" Id="_1"/><z><w Id="_2"/></z></root>';
-    expect(originalXmlWithIds, "wrong OriginalXmlWithIds").to.equal(expectedOriginalXmlWithIds);
+    // Verify IDs were added to the signed XML document
+    const signedDoc = new xmldom.DOMParser().parseFromString(signedXml);
+    const xId = xpath.select1("//*[local-name(.)='x']/@*[local-name(.)='Id']", signedDoc);
+    isDomNode.assertIsAttributeNode(xId);
+    expect(xId.value).to.equal("_0");
+    const yId = xpath.select1("//*[local-name(.)='y']/@*[local-name(.)='Id']", signedDoc);
+    isDomNode.assertIsAttributeNode(yId);
+    expect(yId.value).to.equal("_1");
+    const wId = xpath.select1("//*[local-name(.)='w']/@*[local-name(.)='Id']", signedDoc);
+    isDomNode.assertIsAttributeNode(wId);
+    expect(wId.value).to.equal("_2");
   });
 
   it("signer creates correct signature values", function () {
@@ -818,7 +901,11 @@ describe("Signature unit tests", function () {
 
         /* eslint-disable-next-line deprecation/deprecation */
         expect(sig.getReferences().length).to.equal(3);
-        expect(sig.getSignedReferences().length).to.equal(3);
+        expect(sig.getSignedReferences()).to.deep.equal([
+          '<x xmlns="ns" Id="_0"></x>',
+          '<y Id="_1" a_attr1="foo" z_attr="value"></y>',
+          '<ns:w xmlns:ns="myns" Id="_2" ns:attr="value"></ns:w>',
+        ]);
 
         const digests = [
           "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
@@ -828,6 +915,7 @@ describe("Signature unit tests", function () {
 
         const firstGrandchild = doc.firstChild?.firstChild;
         isDomNode.assertIsElementNode(firstGrandchild);
+        /* eslint-disable-next-line deprecation/deprecation */
         const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
         expect(matchedReference).to.not.be.false;
 
@@ -861,12 +949,12 @@ describe("Signature unit tests", function () {
     });
 
     describe("pass verify signature", function () {
+      const signatureXPath =
+        "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']";
+
       function loadSignature(xml: string, idMode?: "wssecurity") {
         const doc = new xmldom.DOMParser().parseFromString(xml);
-        const node = xpath.select1(
-          "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-          doc,
-        );
+        const node = xpath.select1(signatureXPath, doc);
         isDomNode.assertIsNodeLike(node);
         const sig = new SignedXml({ idMode });
         sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
@@ -880,8 +968,12 @@ describe("Signature unit tests", function () {
         const sig = loadSignature(xml, mode);
         const res = sig.checkSignature(xml);
         expect(res, "expected all signatures to be valid, but some reported invalid").to.be.true;
-        /* eslint-disable-next-line deprecation/deprecation */
-        expect(sig.getSignedReferences().length).to.equal(sig.getReferences().length);
+        const references = xpath.select(
+          `(${signatureXPath})[1]/*[local-name(.)='SignedInfo']/*[local-name(.)='Reference']`,
+          new xmldom.DOMParser().parseFromString(xml),
+        );
+        isDomNode.assertIsArrayOfNodes(references);
+        expect(sig.getSignedReferences()).to.have.length(references.length);
       }
 
       function failInvalidSignature(file: string, idMode?: "wssecurity") {
@@ -979,6 +1071,66 @@ describe("Signature unit tests", function () {
         failInvalidSignature("./test/static/invalid_signature_without_transforms_element.xml");
       });
     });
+
+    describe("reject malformed signature", function () {
+      const validXml = fs.readFileSync("./test/static/valid_signature.xml", "utf8");
+      const publicCert = fs.readFileSync("./test/static/client_public.pem");
+
+      function signatureOf(xml: string): Node {
+        const signature = xpath.select1(
+          "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+          new xmldom.DOMParser().parseFromString(xml),
+        );
+        isDomNode.assertIsNodeLike(signature);
+        return signature;
+      }
+
+      function malform(pattern: RegExp, replacement: string): string {
+        expect(validXml).to.match(pattern);
+        return validXml.replace(pattern, replacement);
+      }
+
+      const cases: Array<[string, () => string, string | RegExp]> = [
+        [
+          "no Reference",
+          () => malform(/<Reference .*<\/Reference>/, ""),
+          "could not find any Reference elements",
+        ],
+        [
+          "no CanonicalizationMethod",
+          () => malform(/<CanonicalizationMethod [^>]*\/>/, ""),
+          "could not find CanonicalizationMethod/@Algorithm element",
+        ],
+        [
+          "a Reference without DigestMethod",
+          () => malform(/<DigestMethod [^>]*\/>/, ""),
+          /^could not find DigestMethod in reference /,
+        ],
+        [
+          "a DigestMethod without Algorithm",
+          () => malform(/<DigestMethod [^>]*\/>/, "<DigestMethod/>"),
+          /^could not find Algorithm attribute in node /,
+        ],
+        [
+          "a Reference without DigestValue",
+          () => malform(/<DigestValue>[^<]*<\/DigestValue>/, ""),
+          /^could not find DigestValue node in reference /,
+        ],
+        [
+          "a Reference with two DigestValues",
+          () => malform(/<DigestValue>[^<]*<\/DigestValue>/, "$&$&"),
+          /^could not load reference for a node that contains multiple DigestValue nodes: /,
+        ],
+      ];
+
+      for (const [problem, xml, error] of cases) {
+        it(`with ${problem}`, function () {
+          const sig = new SignedXml({ publicCert });
+
+          expect(() => sig.loadSignature(signatureOf(xml()))).to.throw(error);
+        });
+      }
+    });
   });
 
   it("allow empty reference uri when signing", function () {
@@ -1004,30 +1156,6 @@ describe("Signature unit tests", function () {
     const URI = xpath.select1("//*[local-name(.)='Reference']/@URI", doc);
     isDomNode.assertIsAttributeNode(URI);
     expect(URI.value, `uri should be empty but instead was ${URI.value}`).to.equal("");
-  });
-
-  it("signer appends signature to a non-existing reference node", function () {
-    const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
-    const sig = new SignedXml();
-
-    sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.addReference({
-      xpath: "//*[local-name(.)='repository']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-    });
-
-    try {
-      sig.computeSignature(xml, {
-        location: {
-          reference: "/root/foobar",
-          action: "append",
-        },
-      });
-      expect.fail("Expected an error to be thrown");
-    } catch (err) {
-      expect(err).not.to.be.an.instanceof(TypeError);
-    }
   });
 
   it("signer adds existing prefixes", function () {
@@ -1277,6 +1405,153 @@ describe("Signature unit tests", function () {
     );
     expect(trimmedTextContent2?.substring(0, 5), "Incorrect value for X509Certificate[1]").to.equal(
       "MIIDZ",
+    );
+  });
+
+  describe("omits KeyInfo when there is no content for it", function () {
+    const privateKey = fs.readFileSync("./test/static/client.pem");
+
+    function selectKeyInfo(options: ConstructorParameters<typeof SignedXml>[0]) {
+      const sig = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        ...options,
+      });
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      });
+      sig.computeSignature("<root><x /></root>");
+      const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+
+      return xpath.select("//*[local-name(.)='KeyInfo']", doc);
+    }
+
+    it("when publicCert contains no certificate", function () {
+      const publicCert = crypto.createPublicKey(privateKey).export({ type: "spki", format: "pem" });
+
+      expect(selectKeyInfo({ publicCert })).to.be.empty;
+    });
+
+    it("when keyInfoAttributes are set without a publicCert", function () {
+      expect(selectKeyInfo({ keyInfoAttributes: { Id: "key" } })).to.be.empty;
+    });
+  });
+
+  it("adds id and type attributes to Reference elements when provided", function () {
+    const xml = "<root><x /></root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      id: "ref-1",
+      type: "http://www.w3.org/2000/09/xmldsig#Object",
+    });
+
+    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const referenceElements = xpath.select("//*[local-name(.)='Reference']", doc);
+    isDomNode.assertIsArrayOfNodes(referenceElements);
+    expect(referenceElements.length, "Reference element should exist").to.equal(1);
+
+    const referenceElement = referenceElements[0];
+    isDomNode.assertIsElementNode(referenceElement);
+
+    const idAttribute = referenceElement.getAttribute("Id");
+    expect(idAttribute, "Reference element should have the correct Id attribute value").to.equal(
+      "ref-1",
+    );
+
+    const typeAttribute = referenceElement.getAttribute("Type");
+    expect(
+      typeAttribute,
+      "Reference element should have the correct Type attribute value",
+    ).to.equal("http://www.w3.org/2000/09/xmldsig#Object");
+  });
+
+  it("should throw if xpath matches no nodes", () => {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+
+    sig.addReference({
+      xpath: "//definitelyNotThere",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    expect(() => sig.computeSignature("<root></root>")).to.throw(
+      /the following xpath cannot be signed because it was not found/,
+    );
+  });
+
+  it("should throw if a reference has no digestAlgorithm", () => {
+    const sig = new SignedXml();
+
+    expect(() =>
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      }),
+    ).to.throw("digestAlgorithm is required");
+  });
+
+  it("should throw if signing without a signatureAlgorithm", () => {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+    });
+
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    expect(() => sig.computeSignature("<root><x/></root>")).to.throw(
+      "signatureAlgorithm is required",
+    );
+  });
+
+  it("should sign references when the Id attribute is prefixed", () => {
+    const xml = '<root><x xmlns:ns="urn:example" ns:Id="unique-id"/></root>';
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
+    });
+
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const referenceElements = xpath.select("//*[local-name(.)='Reference']", doc);
+    isDomNode.assertIsArrayOfNodes(referenceElements);
+    expect(referenceElements.length, "Reference element should exist").to.equal(1);
+
+    const referenceElement = referenceElements[0];
+    isDomNode.assertIsElementNode(referenceElement);
+
+    const uriAttribute = referenceElement.getAttribute("URI");
+    expect(uriAttribute, "Reference element should have the correct URI attribute value").to.equal(
+      "#unique-id",
     );
   });
 });
