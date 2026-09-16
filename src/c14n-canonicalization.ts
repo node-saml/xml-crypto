@@ -96,18 +96,36 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     const nsListToRender: { prefix: string; namespaceURI: string }[] = [];
     const currNs = node.namespaceURI || "";
 
-    //handle the namespace of the node itself
-    if (node.prefix) {
-      if (prefixesInScope.indexOf(node.prefix) === -1) {
-        nsListToRender.push({
-          prefix: node.prefix,
-          namespaceURI: node.namespaceURI || defaultNsForPrefix[node.prefix],
-        });
-        prefixesInScope.push(node.prefix);
+    if (node.prefix && prefixesInScope.indexOf(node.prefix) === -1) {
+      nsListToRender.push({
+        prefix: node.prefix,
+        namespaceURI: node.namespaceURI || defaultNsForPrefix[node.prefix],
+      });
+      prefixesInScope.push(node.prefix);
+    }
+
+    // The default namespace is independent of a prefixed element's namespaceURI.
+    // https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+    let localDefaultNs: string | null = null;
+    if (node.attributes) {
+      for (i = 0; i < node.attributes.length; ++i) {
+        if (node.attributes[i].name === "xmlns") {
+          localDefaultNs = node.attributes[i].value;
+        }
       }
-    } else if (defaultNs !== currNs) {
-      //new default ns
-      newDefaultNs = node.namespaceURI || "";
+    }
+
+    let nodeDefaultNs: string;
+    if (localDefaultNs !== null) {
+      nodeDefaultNs = localDefaultNs;
+    } else if (node.prefix) {
+      nodeDefaultNs = defaultNs;
+    } else {
+      nodeDefaultNs = currNs;
+    }
+
+    if (nodeDefaultNs !== defaultNs) {
+      newDefaultNs = nodeDefaultNs;
       res.push(' xmlns="', newDefaultNs, '"');
     }
 
@@ -152,6 +170,9 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
 
         if (!alreadyListed) {
           nsListToRender.push(ancestorNamespace);
+          if (!ancestorNamespace.prefix) {
+            newDefaultNs = ancestorNamespace.namespaceURI;
+          }
         }
       }
     }

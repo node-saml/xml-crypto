@@ -23,6 +23,38 @@ describe("SAML response tests", function () {
     expect(sig.getSignedReferences().length).to.equal(1);
   });
 
+  it("test validating SAML response with sha256-rsa-MGF1", function () {
+    const xml = fs.readFileSync("./test/static/valid_saml_sha256_rsa_mgf1.xml", "utf-8");
+    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const signature = xpath.select1(
+      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc,
+    );
+    isDomNode.assertIsNodeLike(signature);
+    const sig = new SignedXml();
+    sig.publicCert = fs.readFileSync("./test/static/idp_certificate.pem");
+    sig.loadSignature(signature);
+    const result = sig.checkSignature(xml);
+
+    expect(result).to.be.true;
+  });
+
+  it("test validating SAML response with sha256-rsa-MGF1 fails for modified file", function () {
+    const xml = fs.readFileSync("./test/static/invalid_saml_sha256_rsa_mgf1.xml", "utf-8");
+    const doc = new xmldom.DOMParser().parseFromString(xml);
+    const signature = xpath.select1(
+      "/*/*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc,
+    );
+    isDomNode.assertIsNodeLike(signature);
+    const sig = new SignedXml();
+    sig.publicCert = fs.readFileSync("./test/static/idp_certificate.pem");
+    sig.loadSignature(signature);
+    const result = sig.checkSignature(xml);
+
+    expect(result).to.be.false;
+  });
+
   it("test validating wrapped assertion signature", function () {
     const xml = fs.readFileSync("./test/static/valid_saml_signature_wrapping.xml", "utf-8");
     const doc = new xmldom.DOMParser().parseFromString(xml);
