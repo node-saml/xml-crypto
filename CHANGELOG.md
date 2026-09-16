@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (2026-09-16)
+## 6.2.0 (2026-09-16)
 
 ### 🚀 Minor Changes
 
@@ -48,6 +48,10 @@
 - [**chore**] Add agent instructions [#544](https://github.com/node-saml/xml-crypto/pull/544)
 - [**chore**] Deprecate getOriginalXmlWithIds() [#516](https://github.com/node-saml/xml-crypto/pull/516)
 - [**chore**] Tests for sha256-rsa-MGF1 [#515](https://github.com/node-saml/xml-crypto/pull/515)
+
+### 🙈 Other
+
+- [**closed**] chore: regenerate the changelog with gren 5.1.1 [#601](https://github.com/node-saml/xml-crypto/pull/601)
 
 ---
 
