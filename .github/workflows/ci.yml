@@ -44,6 +44,7 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   lint:
     name: Lint Code

@@ -77,6 +77,18 @@ The `enveloped-signature` transform removes only the `Signature` element being v
 - `getCanonXml()` finds the loaded signature in the node's document the same way, and removes nothing
   when the signature is not there.
 
+### Malformed certificates
+
+A certificate whose encapsulated data is not base64 is rejected rather than decoded as far as it
+goes. `Buffer.from(value, "base64")` discards what it does not recognize, so a corrupt certificate
+used to reach `KeyInfo`, or Node's crypto, as whatever bytes survived that. What the parser accepts is
+described under [X.509 / Key formats](#x509--key-formats).
+
+The error for a value the parser cannot read is `Invalid PEM format.`, in place of the
+`Unknown DER format.` that `derToPem()` threw. A `Buffer` holding the bytes of a PEM file is read
+as that file rather than base64-encoded, which is what made it a message with a body of
+base64-encoded PEM. Both forms of PEM the parser does read produce the same canonical output.
+
 ### Deprecated ahead of 7.0
 
 These exports are deprecated and will be removed in 7.0:
@@ -87,14 +99,15 @@ These exports are deprecated and will be removed in 7.0:
 | `encodeSpecialCharactersInAttribute`, `encodeSpecialCharactersInText` | these are the escaping step of `C14nCanonicalization` and `ExclusiveCanonicalization`, so use those; a custom canonicalizer must apply [C14N escaping](https://www.w3.org/TR/xml-c14n#ProcessingModel) itself |
 | `isArrayHasLength`                                                    | `Array.isArray(x) && x.length > 0`                                                                                                                                                                            |
 | `validateDigestValue`                                                 | decode both from base64, then compare with `a.length === b.length && crypto.timingSafeEqual(a, b)` — `timingSafeEqual` alone throws on a length mismatch instead of returning `false`. Never `===`            |
-| `BASE64_REGEX`, `EXTRACT_X509_CERTS`, `PEM_FORMAT_REGEX`              | no replacement; these are internal parsing details                                                                                                                                                            |
+| `BASE64_REGEX`, `EXTRACT_X509_CERTS`, `PEM_FORMAT_REGEX`              | `toPem()`, `pemToDer()` and `pemCertificates()` apply the rules these described, and validate the encapsulated data as well; see [X.509 / Key formats](#x509--key-formats)                                    |
+| `derToPem`                                                            | `toPem()`, which is the same function under a name that describes it: it takes a PEM message, several of them, base64, or a Buffer, and DER is only one of those                                              |
 
 Calling one prints a `DeprecationWarning` naming its replacement. The three regexes cannot warn —
 `util.deprecate` needs a call to intercept — so TypeScript users see the `@deprecated` tag and
 JavaScript users get no signal until the names go away.
 
-`derToPem`, `pemToDer`, `normalizePem` and `findAncestorNs` are **not** deprecated and stay
-exported.
+`toPem`, `pemToDer`, `pemCertificates`, `normalizePem` and `findAncestorNs` are **not**
+deprecated and stay exported.
 
 `getReferences()` and `references` are deprecated. Do not use them to obtain signed XML; use
 `getSignedReferences()` instead, as shown in [Verifying Xml documents](#verifying-xml-documents).
@@ -551,6 +564,76 @@ And for verification use key_public.pem:
 MIIBxDCCAW6gAwIBAgIQxUSX...
 -----END CERTIFICATE-----
 ```
+
+### What the parser accepts
+
+`toPem()`, `pemToDer()` and `pemCertificates()` read
+[RFC 7468](https://www.rfc-editor.org/rfc/rfc7468) textual messages, and `toPem()` also reads bare
+base64 with a label supplied by the caller. Either form is judged by the same rules, and `toPem()`
+returns the same certificate whatever it arrived as: `\n` line endings, lines of 64 characters,
+one message after another.
+
+- `toPem(value, label?)` returns canonical PEM. A Buffer that opens with an encapsulation
+  boundary is read as the bytes of a PEM file and any other as raw DER, so base64 text is given
+  as a string rather than a Buffer.
+- `pemToDer(pem)` returns the decoded bytes of the one message a value holds.
+- `pemCertificates(pem)` returns the base64 of each `CERTIFICATE` message and ignores messages of
+  any other label, so a private key in the same value is never published. It reads certificates
+  out of a larger value, passing over the explanatory text tools write around a message, while
+  `toPem()` rewrites the whole value and so must account for all of it.
+
+Accepted:
+
+- `\n`, `\r\n` and `\r` line endings, and a leading UTF-8 BOM.
+- any line width, a single line included.
+- spaces and tabs anywhere in the encapsulated data. XMLDSig carries a certificate as
+  [`xs:base64Binary`](https://www.w3.org/TR/xmlschema11-2/#base64Binary), whose lexical space
+  collapses whitespace, so a pretty-printed document indents it and a value that has been through
+  a text field may have had its line endings replaced by spaces.
+- a blank line after the header, and a blank line anywhere among the lines of base64 given
+  without boundaries, which is the form an `X509Certificate` element carries. A blank line inside
+  a message's body is rejected; RFC 7468's body does not have one.
+- explanatory text before, after or between the messages, which `pemCertificates()` passes over.
+  [Section 5.2](https://www.rfc-editor.org/rfc/rfc7468#section-5.2) shows a certificate written
+  under its subject and issuer lines, and OpenSSL and keytool both write them.
+- several messages in one value, of which `toPem()` keeps all, `pemCertificates()` takes the
+  certificates, and `pemToDer()` takes none.
+- any non-empty label of up to 48 characters that RFC 7468's grammar allows, which is every
+  registered label and the ones OpenSSL adds, such as `RSA PRIVATE KEY`. `PemLabel` names the
+  registered ones, the longest of which is 21 characters.
+- a certificate encoded as BER as well as DER, as
+  [RFC 7468 section 5.1](https://www.rfc-editor.org/rfc/rfc7468#section-5.1) allows. Its octets are
+  kept as given, because [XML Signature 1.1](https://www.w3.org/TR/xmldsig-core1/#sec-X509Data)
+  says an implementation SHOULD NOT alter or re-encode a certificate.
+- base64 whose pad bits are not zero, which is written back out with them zeroed, since only that
+  form is in [`xs:base64Binary`](https://www.w3.org/TR/xmlschema11-2/#base64Binary)'s lexical space.
+  The octets are the same either way.
+- the `Proc-Type` and `DEK-Info` header fields of a traditional encrypted private key, as OpenSSL
+  and Node write one, so that `pemCertificates()` can read certificates out of a bundle holding
+  such a key. `toPem()` and `pemToDer()` refuse the key itself, whose data is lost without them.
+
+Rejected, with an error rather than a certificate:
+
+- data outside the base64 alphabet, padding away from the end, or a final quantum that is not
+  whole, per [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648#section-4).
+- a `CERTIFICATE` whose data is not exactly one X.509 certificate: base64 of something else, a
+  certificate cut short, or one with more bytes after it. Node's
+  [`X509Certificate`](https://nodejs.org/api/crypto.html#class-x509certificate) decides whether
+  the data is a certificate, so it is judged as X.509 and not by its base64 alone.
+- a header with no data under it, and a blank line in the middle of a message's data.
+- a boundary sharing its line with other text.
+  [Figure 1](https://www.rfc-editor.org/rfc/rfc7468#section-3) gives an encapsulation boundary a
+  line of its own, so text on that line is not the explanatory text around a message.
+- a value that opens a message it does not close, or one whose header and footer labels disagree.
+  [Section 3](https://www.rfc-editor.org/rfc/rfc7468#section-3) permits a parser to disregard the
+  footer's label, but OpenSSL will not read such a message, so neither does this one.
+- an empty label, which the `label` production marks as `empty ok`. A message labelled nothing
+  names no format, and OpenSSL answers one with `ERR_OSSL_UNSUPPORTED`, so `-----BEGIN -----` and
+  `toPem(data, "")` are both refused.
+- a label outside RFC 7468's grammar, which is one holding `--` or opening or closing with a
+  blank, and one longer than 48 characters. A label is written into both boundaries, so one
+  holding `--` would produce a message this parser could not read back, and `-----BEGIN ` and
+  `-----` bracket it in 16 characters, so 48 is the longest whose boundary still fits one line.
 
 ### Converting .pfx certificates to pem
 

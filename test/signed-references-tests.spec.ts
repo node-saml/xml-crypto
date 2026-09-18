@@ -77,7 +77,7 @@ describe("Signed references", function () {
           "<KeyInfo><X509Data><X509Certificate>%%%</X509Certificate></X509Data></KeyInfo></Signature>",
         ),
       { getCertFromKeyInfo: SignedXml.getCertFromKeyInfo },
-      "Unknown DER format.",
+      "Invalid PEM format.",
     ],
   ];
 
