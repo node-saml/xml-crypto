@@ -184,13 +184,24 @@ function pemMessages(pem: string): PemMessage[] {
   PEM_MESSAGE_REGEX.lastIndex = 0;
   let message = PEM_MESSAGE_REGEX.exec(pem);
   while (message !== null) {
-    messages.push({
-      label: message[1],
-      endLabel: message[3],
-      // A line break inside base64 is presentation and never data, so where a line ends is a
-      // question for the structure check alone, and the data is carried de-lined from here on.
-      data: message[2].replace(/\n/g, ""),
-    });
+    const start = message.index;
+    const end = start + message[0].length;
+
+    // An encapsulation boundary is a line of its own in Figure 1, and a message is read out of a
+    // larger value, so text sharing a boundary's line must not be passed over as the explanatory
+    // text around the message. Anchoring that in the pattern costs it the linearity every pattern
+    // here has to keep — `^` and `$` under `m` make it exponential, which `recheck` will say and
+    // a timing test will not — so the position is taken from the match, where it is two tests.
+    if ((start === 0 || pem[start - 1] === "\n") && (end === pem.length || pem[end] === "\n")) {
+      messages.push({
+        label: message[1],
+        endLabel: message[3],
+        // A line break inside base64 is presentation and never data, so where a line ends is a
+        // question for the structure check alone, and the data is carried de-lined from here on.
+        data: message[2].replace(/\n/g, ""),
+      });
+    }
+
     message = PEM_MESSAGE_REGEX.exec(pem);
   }
 
@@ -330,7 +341,10 @@ export function toPem(value: string | Buffer, pemLabel?: PemLabel): string {
 
   if (PEM_FORMAT_REGEX.test(text)) {
     const messages = pemMessages(text);
-    if (!messages.every(isWellFormedMessage)) {
+    // `PEM_FORMAT_REGEX` lets one message follow another with no line between them, which the
+    // line check in `pemMessages` will not read as two. Counting the openings here is what turns
+    // that into an error rather than a value returned with a certificate quietly missing.
+    if (countOpenings(text) !== messages.length || !messages.every(isWellFormedMessage)) {
       throw new Error("Invalid PEM format.");
     }
 

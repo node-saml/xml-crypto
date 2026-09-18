@@ -327,6 +327,15 @@ describe("Utils tests", function () {
         expect(() => utils.toPem(corrupt(interrupted))).to.throw("Invalid PEM format.");
       });
 
+      it("two messages sharing one line", function () {
+        // Nothing stands between the footer and the next header, so the two boundaries fall on
+        // one line and neither is a line of its own. Refused rather than read as one message,
+        // which would return a value with the second certificate quietly missing.
+        const run = `${normalizedPem.trim()}${normalizedPem.trim()}`;
+
+        expect(() => utils.toPem(run)).to.throw("Invalid PEM format.");
+      });
+
       it("a message whose two labels disagree", function () {
         const mismatched = normalizedPem.replace("-----END CERTIFICATE-----", "-----END KEY-----");
 
@@ -430,6 +439,20 @@ describe("Utils tests", function () {
 
         expect(() => utils.pemCertificates(value)).to.throw("Invalid PEM format.");
       });
+
+      for (const [place, value] of [
+        ["before the header", `prefix${certificate}`],
+        // A line opening with `-----` is held to be a boundary and keeps its blanks, so this is
+        // the shape that reaches the header with text still in front of it.
+        ["before the header, itself opening with dashes", `-----X${certificate}`],
+        ["after the footer", `${certificate.trim()}suffix\n`],
+      ] as const) {
+        it(`and not text sharing a boundary's line, ${place}`, function () {
+          // Figure 1 gives an encapsulation boundary a line of its own, so text on that line is
+          // not the explanatory text around a message and is not passed over as though it were.
+          expect(() => utils.pemCertificates(value)).to.throw("Invalid PEM format.");
+        });
+      }
     });
 
     it("returns an empty array when the value holds no message at all", function () {
