@@ -246,7 +246,8 @@ function isLabel(label: string): boolean {
  */
 function isX509Certificate(bytes: Buffer): boolean {
   try {
-    return new X509Certificate(bytes) instanceof X509Certificate;
+    new X509Certificate(bytes);
+    return true;
   } catch {
     return false;
   }

@@ -253,8 +253,8 @@ export class SignedXml {
   static getCertFromKeyInfo(keyInfo?: Node | null): string | null {
     if (keyInfo != null) {
       const cert = xpath.select1(".//*[local-name(.)='X509Certificate']", keyInfo);
-      if (isDomNode.isNodeLike(cert)) {
-        return utils.toPem(cert.textContent ?? "", "CERTIFICATE");
+      if (isDomNode.isElementNode(cert)) {
+        return utils.toPem(cert.textContent, "CERTIFICATE");
       }
     }
 
