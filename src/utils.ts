@@ -237,12 +237,11 @@ function isLabel(label: string): boolean {
 /*
  * A certificate is handed to Node, whose X509Certificate reads the DER as X.509 and not as base64
  * alone, so data that is well-formed base64 and no certificate is refused here rather than being
- * published in KeyInfo or reaching OpenSSL later. What the parser above still owns is what Node
- * does not: finding each message in a value, which X509Certificate answers by taking the first
- * certificate and passing over the rest. It does the same within one message's data, reading the
- * first certificate and ignoring the bytes after it, so the data has to be that certificate's
- * encoding exactly, or a second certificate run into the first would be dropped without a word.
- * Node's own message depends on the OpenSSL it was built with, so the error is this module's.
+ * published in KeyInfo or failing later in Node's crypto. What the parser above still owns is what
+ * Node does not: finding each message in a value, which X509Certificate answers by taking the first
+ * certificate and passing over the rest. Node documents `.raw` as the DER encoding of the
+ * certificate, so the data is accepted only when it is exactly that. Node's own message depends
+ * on the crypto library it was built with, so the error is this module's.
  */
 function x509Certificate(data: string): X509Certificate {
   const der = Buffer.from(data, "base64");
@@ -261,10 +260,12 @@ function x509Certificate(data: string): X509Certificate {
     return certificate;
   }
 
-  // Each refusal below is named, because 6.x accepted both and OpenSSL read a certificate from
-  // them, so whoever meets one has to know that the value, and not the parser, is what changed.
-  // `.raw` is a prefix of the input only when the bytes after the first certificate are the
-  // difference; OpenSSL re-encodes one that is BER rather than DER, which X.509 requires.
+  // Each refusal below is named, because 6.x accepted both and Node read a certificate from them,
+  // so whoever meets one has to know that the value, and not the parser, is what changed. Which
+  // one it is comes from how Node behaves rather than from anything it documents: `.raw` has been
+  // a prefix of the input when bytes follow the certificate, and a re-encoding of it when the
+  // certificate is BER rather than the DER that X.509 requires. A crypto library that refused
+  // either outright would reach `Invalid PEM format.` above, and the value would still be refused.
   if (der.subarray(0, certificate.raw.length).equals(certificate.raw)) {
     throw new Error("Expected a single certificate, but found more data after it.");
   }

@@ -81,7 +81,7 @@ The `enveloped-signature` transform removes only the `Signature` element being v
 
 A certificate whose encapsulated data is not base64 is rejected rather than decoded as far as it
 goes. `Buffer.from(value, "base64")` discards what it does not recognize, so a corrupt certificate
-used to reach `KeyInfo`, or OpenSSL, as whatever bytes survived that. What the parser accepts is
+used to reach `KeyInfo`, or Node's crypto, as whatever bytes survived that. What the parser accepts is
 described under [X.509 / Key formats](#x509--key-formats).
 
 The error for a value the parser cannot read is `Invalid PEM format.`, in place of the
@@ -607,9 +607,10 @@ Rejected, with an error rather than a certificate:
 - data outside the base64 alphabet, padding away from the end, or a final quantum that is not
   whole, per [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648#section-4).
 - a `CERTIFICATE` whose data is not exactly one X.509 certificate: base64 of something else, a
-  certificate cut short, or one with more bytes after it. That data is read by Node's
+  certificate cut short, one with more bytes after it, or one encoded as BER rather than DER. That
+  data is read by Node's
   [`X509Certificate`](https://nodejs.org/api/crypto.html#class-x509certificate), so a certificate
-  is judged by OpenSSL and not by its base64 alone, and a certificate is written back out by it.
+  is judged as X.509 and not by its base64 alone, and Node writes it back out.
 - a header with no data under it, and a blank line in the middle of a message's data.
 - a boundary sharing its line with other text.
   [Figure 1](https://www.rfc-editor.org/rfc/rfc7468#section-3) gives an encapsulation boundary a
