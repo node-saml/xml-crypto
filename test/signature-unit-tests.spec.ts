@@ -1438,6 +1438,177 @@ describe("Signature unit tests", function () {
     it("when keyInfoAttributes are set without a publicCert", function () {
       expect(selectKeyInfo({ keyInfoAttributes: { Id: "key" } })).to.be.empty;
     });
+
+    it("when publicCert is a KeyObject, which holds a key and never a certificate", function () {
+      expect(selectKeyInfo({ publicCert: crypto.createPublicKey(privateKey) })).to.be.empty;
+    });
+  });
+
+  describe("getCertFromKeyInfo", function () {
+    const parse = (xml: string) => new xmldom.DOMParser().parseFromString(xml, "text/xml");
+
+    it("returns the certificate a KeyInfo carries, as PEM", function () {
+      const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
+      const data = normalizedPem.trim().split("\n").slice(1, -1).join("");
+      const keyInfo = parse(
+        `<KeyInfo><X509Data><X509Certificate>${data}</X509Certificate></X509Data></KeyInfo>`,
+      );
+
+      expect(SignedXml.getCertFromKeyInfo(keyInfo)).to.equal(normalizedPem);
+    });
+
+    it("throws when the X509Certificate is base64 and no certificate", function () {
+      const data = Buffer.from("base64, and no certificate").toString("base64");
+      const keyInfo = parse(
+        `<KeyInfo><X509Data><X509Certificate>${data}</X509Certificate></X509Data></KeyInfo>`,
+      );
+
+      expect(() => SignedXml.getCertFromKeyInfo(keyInfo)).to.throw("Invalid PEM format.");
+    });
+
+    it("says why when one X509Certificate carries two certificates", function () {
+      const certificate = fs.readFileSync("./test/static/client_public.der");
+      const data = Buffer.concat([certificate, certificate]).toString("base64");
+      const keyInfo = parse(
+        `<KeyInfo><X509Data><X509Certificate>${data}</X509Certificate></X509Data></KeyInfo>`,
+      );
+
+      expect(() => SignedXml.getCertFromKeyInfo(keyInfo)).to.throw(
+        "Expected a single certificate, but found more data after it.",
+      );
+    });
+
+    it("returns a BER certificate with its octets as given", function () {
+      const der = fs.readFileSync("./test/static/client_public.der");
+      const ber = Buffer.concat([Buffer.from([0x30, 0x83, 0x00]), der.subarray(2)]);
+      const keyInfo = parse(
+        `<KeyInfo><X509Data><X509Certificate>${ber.toString("base64")}</X509Certificate></X509Data></KeyInfo>`,
+      );
+      const pem = SignedXml.getCertFromKeyInfo(keyInfo);
+
+      expect(pem).to.be.a("string");
+      expect(crypto.createPublicKey(pem as string).asymmetricKeyType).to.equal("rsa");
+      expect(
+        Buffer.from((pem as string).split("\n").slice(1, -2).join(""), "base64"),
+      ).to.deep.equal(ber);
+    });
+
+    it("returns null when the KeyInfo carries no X509Certificate", function () {
+      const keyInfo = parse("<KeyInfo><KeyName>client</KeyName></KeyInfo>");
+
+      expect(SignedXml.getCertFromKeyInfo(keyInfo)).to.be.null;
+    });
+
+    it("returns null when there is no KeyInfo at all", function () {
+      expect(SignedXml.getCertFromKeyInfo(null)).to.be.null;
+    });
+  });
+
+  function signWithPublicCert(publicCert: string) {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      publicCert,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    return () => {
+      sig.computeSignature("<root><x /></root>");
+
+      return sig.getSignedXml();
+    };
+  }
+
+  // The text of each X509Certificate that signing with this publicCert puts into KeyInfo.
+  function publishedCertificates(publicCert: string): string[] {
+    const doc = new xmldom.DOMParser().parseFromString(signWithPublicCert(publicCert)());
+    const certificates = xpath.select("//*[local-name(.)='X509Certificate']", doc);
+    isDomNode.assertIsArrayOfNodes(certificates);
+
+    return certificates.map((certificate) => certificate.textContent ?? "");
+  }
+
+  it("refuses to sign with a publicCert whose two labels disagree", function () {
+    const publicCert = fs
+      .readFileSync("./test/static/client_public.pem", "latin1")
+      .replace("-----END CERTIFICATE-----", "-----END PRIVATE KEY-----");
+
+    expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("refuses to sign with a publicCert that opens as a key and closes as a certificate", function () {
+    const publicCert = fs
+      .readFileSync("./test/static/client_public.pem", "latin1")
+      .replace("BEGIN CERTIFICATE", "BEGIN PRIVATE KEY");
+
+    expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("refuses to sign with a publicCert whose certificate is not base64", function () {
+    const lines = fs.readFileSync("./test/static/client_public.pem", "latin1").trim().split("\n");
+    const publicCert = [lines[0], "not base64 at all!", lines[lines.length - 1]].join("\n");
+
+    expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("refuses to sign with a publicCert whose certificate is base64 and no certificate", function () {
+    const data = Buffer.from("base64, and no certificate").toString("base64");
+    const publicCert = `-----BEGIN CERTIFICATE-----\n${data}\n-----END CERTIFICATE-----\n`;
+
+    // Published in KeyInfo, this would name a certificate no verifier could load.
+    expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("signs a BER certificate into KeyInfo with its octets as given", function () {
+    // RFC 7468 section 5.1 allows BER, and XML Signature 1.1 says an implementation SHOULD NOT
+    // re-encode a certificate: https://www.w3.org/TR/xmldsig-core1/#sec-X509Data
+    const der = fs.readFileSync("./test/static/client_public.der");
+    const ber = Buffer.concat([Buffer.from([0x30, 0x83, 0x00]), der.subarray(2)]);
+    const publicCert = `-----BEGIN CERTIFICATE-----\n${ber.toString("base64")}\n-----END CERTIFICATE-----\n`;
+
+    expect(publishedCertificates(publicCert)).to.deep.equal([ber.toString("base64")]);
+  });
+
+  it("publishes a certificate's base64 with its pad bits zeroed", function () {
+    // `w` and `x` differ only in bits past the last octet, so both decode to the same certificate,
+    // but xs:base64Binary allows only zeros there, and KeyInfo is XML that a schema may check.
+    // https://www.w3.org/TR/xmlschema11-2/#base64Binary
+    const pem = fs.readFileSync("./test/static/feide_public.pem", "latin1");
+    const data = pem.trim().split("\n").slice(1, -1).join("");
+
+    expect(data).to.match(/4PF13w==$/);
+    expect(publishedCertificates(pem.replace("4PF13w==", "4PF13x=="))).to.deep.equal([data]);
+  });
+
+  it("signs with a publicCert bundling a certificate and a traditional encrypted key", function () {
+    // Node exports a PKCS#1 key encrypted the traditional way, with `Proc-Type` and `DEK-Info`
+    // header fields before its data, and a bundle may carry one beside its certificate.
+    const encrypted = crypto
+      .createPrivateKey(fs.readFileSync("./test/static/client.pem"))
+      .export({ type: "pkcs1", format: "pem", cipher: "aes-256-cbc", passphrase: "secret" })
+      .toString();
+    const certificate = fs.readFileSync("./test/static/client_public.pem", "latin1");
+
+    expect(encrypted).to.contain("Proc-Type: 4,ENCRYPTED");
+    expect(publishedCertificates(`${certificate}${encrypted}`)).to.deep.equal([
+      certificate.trim().split("\n").slice(1, -1).join(""),
+    ]);
+  });
+
+  it("signs with a publicCert carrying the explanatory text tools write around a certificate", function () {
+    // RFC 7468 section 5.2 shows a certificate written under its subject and issuer lines, and
+    // OpenSSL writes them, so a value that carries them still carries a certificate to publish.
+    const certificate = fs.readFileSync("./test/static/client_public.pem", "latin1");
+    const publicCert = `subject=/CN=client\nissuer=/CN=ca\n${certificate}Issued for testing.\n`;
+
+    expect(publishedCertificates(publicCert)).to.deep.equal([
+      certificate.trim().split("\n").slice(1, -1).join(""),
+    ]);
   });
 
   it("adds id and type attributes to Reference elements when provided", function () {

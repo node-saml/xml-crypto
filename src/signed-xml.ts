@@ -228,23 +228,16 @@ export class SignedXml {
       publicCert = publicCert.toString("latin1");
     }
 
-    let publicCertMatches: string[] = [];
-    if (typeof publicCert === "string") {
-      publicCertMatches = publicCert.match(utils.EXTRACT_X509_CERTS) || [];
-    }
+    // A KeyObject holds a key and never a certificate, so there is no X509Data to build from it.
+    const certificates = typeof publicCert === "string" ? utils.pemCertificates(publicCert) : [];
 
     // X509Data requires at least one child: https://www.w3.org/TR/xmldsig-core1/#sec-X509Data
-    if (publicCertMatches.length === 0) {
+    if (certificates.length === 0) {
       return null;
     }
 
-    const x509Certs = publicCertMatches
-      .map(
-        (c) =>
-          `<${prefix}X509Certificate>${utils
-            .pemToDer(c)
-            .toString("base64")}</${prefix}X509Certificate>`,
-      )
+    const x509Certs = certificates
+      .map((cert) => `<${prefix}X509Certificate>${cert}</${prefix}X509Certificate>`)
       .join("");
 
     return `<${prefix}X509Data>${x509Certs}</${prefix}X509Data>`;
@@ -260,8 +253,8 @@ export class SignedXml {
   static getCertFromKeyInfo(keyInfo?: Node | null): string | null {
     if (keyInfo != null) {
       const cert = xpath.select1(".//*[local-name(.)='X509Certificate']", keyInfo);
-      if (isDomNode.isNodeLike(cert)) {
-        return utils.derToPem(cert.textContent ?? "", "CERTIFICATE");
+      if (isDomNode.isElementNode(cert)) {
+        return utils.toPem(cert.textContent, "CERTIFICATE");
       }
     }
 
