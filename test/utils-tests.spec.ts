@@ -223,6 +223,14 @@ describe("Utils tests", function () {
         expect(utils.toPem(utils.toPem(data, "FOO-BAR"))).to.contain("-----BEGIN FOO-BAR-----");
       });
 
+      it("refuses a message labelled nothing, which the grammar marks as 'empty ok'", function () {
+        // A message labelled nothing names no format, and OpenSSL answers it with
+        // ERR_OSSL_UNSUPPORTED, so reading one would only move the failure later.
+        expect(() => utils.toPem("-----BEGIN -----\nQUFBQQ==\n-----END -----\n")).to.throw(
+          "Invalid PEM format.",
+        );
+      });
+
       it("refuses a label that would write a boundary into the message", function () {
         expect(() => utils.toPem(data, "A-----BEGIN CERTIFICATE-----B")).to.throw(
           "Invalid PEM label.",
