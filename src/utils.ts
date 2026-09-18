@@ -1,5 +1,5 @@
 import * as xpath from "xpath";
-import type { NamespacePrefix } from "./types";
+import type { NamespacePrefix, PemLabel } from "./types";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 export function isArrayHasLength(array: unknown): array is unknown[] {
@@ -106,6 +106,8 @@ export function encodeSpecialCharactersInText(text: string): string {
  *    lines as Figure 1 permits. XMLDSig carries a certificate as xs:base64Binary, whose lexical
  *    space allows whitespace, and a pretty-printed document indents it.
  *    https://www.w3.org/TR/xmlschema11-2/#base64Binary
+ *  - a label is limited to 48 label characters, which no registered label comes close to, so that
+ *    a boundary cannot be made arbitrarily long.
  *
  * Structure and data are separate checks, the data taken with its line breaks removed, so that a
  * line may end anywhere without `{4}` having to become the ambiguous `{1,4}`. Line endings and
@@ -114,10 +116,25 @@ export function encodeSpecialCharactersInText(text: string): string {
  * has to stay provably linear, which only an analyzer can establish and no timing test can:
  * `npx recheck@4 check '<source>' ''`.
  */
-const PEM_FORMAT_REGEX =
-  /^(?:-----BEGIN [A-Z\x20]{1,48}-----\n+(?:[A-Za-z0-9+/=]+\n)+-----END [A-Z\x20]{1,48}-----\n*)+$/;
-const PEM_MESSAGE_REGEX =
-  /-----BEGIN ([A-Z\x20]{1,48})-----\n+((?:[A-Za-z0-9+/=]+\n)+)-----END ([A-Z\x20]{1,48})-----/g;
+
+/*
+ * Section 3 gives `labelchar = %x21-2C / %x2E-7E` and
+ * `label = [ labelchar *( ["-" / SP] labelchar ) ]`. A separator is always followed by a label
+ * character, so `--` can never occur inside a label and no boundary can be smuggled into one.
+ * A label character is neither `-` nor a blank, which is what keeps the two disjoint and the
+ * patterns below unambiguous.
+ */
+const LABEL_CHAR = "[\\x21-\\x2C\\x2E-\\x7E]";
+const LABEL = `${LABEL_CHAR}(?:[-\\x20]?${LABEL_CHAR}){0,47}`;
+
+const LABEL_REGEX = new RegExp(`^${LABEL}$`);
+const PEM_FORMAT_REGEX = new RegExp(
+  `^(?:-----BEGIN ${LABEL}-----\\n+(?:[A-Za-z0-9+/=]+\\n)+-----END ${LABEL}-----\\n*)+$`,
+);
+const PEM_MESSAGE_REGEX = new RegExp(
+  `-----BEGIN (${LABEL})-----\\n+((?:[A-Za-z0-9+/=]+\\n)+)-----END (${LABEL})-----`,
+  "g",
+);
 const BASE64_LINES_REGEX = /^(?:[A-Za-z0-9+/=]+\n)*[A-Za-z0-9+/=]+$/;
 const BASE64_DATA_REGEX = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
@@ -253,22 +270,38 @@ export function pemToDer(pem: string): Buffer {
   return Buffer.from(messages[0].data, "base64");
 }
 
+// A Buffer holds either the bytes of a PEM file or raw DER. DER is ASN.1, whose every encoding
+// opens with a tag byte, never with the `-` of a boundary, so the two cannot be confused.
+function pemText(value: string | Buffer): string {
+  if (!Buffer.isBuffer(value)) {
+    return value;
+  }
+
+  const text = value.toString("latin1");
+
+  return text.replace(BOM_REGEX, "").trimStart().startsWith("-----BEGIN ")
+    ? text
+    : value.toString("base64");
+}
+
 /**
- * @param der The DER-encoded base64 certificate to add PEM headers too
- * @param pemLabel The label of the header and footer to add
+ * Returns a value as canonical PEM: one message per certificate or key, wrapped at 64 characters.
+ * The value may be a PEM message, several of them, base64 data with the label supplied by the
+ * caller, or a Buffer. A Buffer that opens with an encapsulation boundary is read as the bytes of
+ * a PEM file and any other as raw DER, so base64 text is given as a string rather than a Buffer.
+ *
+ * @param value The certificate or key to return as PEM
+ * @param pemLabel The label to give base64 data, which needs one; ignored when the value is PEM
  * @throws Error if the value is neither a well-formed PEM nor base64, or if it is base64 and no
- *   label was given
+ *   label, or an unusable one, was given
  */
-export function derToPem(
-  der: string | Buffer,
-  pemLabel?: "CERTIFICATE" | "PRIVATE KEY" | "RSA PUBLIC KEY",
-): string {
-  const text = normalizePemInput(Buffer.isBuffer(der) ? der.toString("base64") : der);
+export function toPem(value: string | Buffer, pemLabel?: PemLabel): string {
+  const text = normalizePemInput(pemText(value));
 
   if (PEM_FORMAT_REGEX.test(text)) {
     const messages = pemMessages(text);
     if (!messages.every(isWellFormedMessage)) {
-      throw new Error("Unknown DER format.");
+      throw new Error("Invalid PEM format.");
     }
 
     return messages.map((message) => formatPemMessage(message.label, message.data)).join("");
@@ -278,13 +311,19 @@ export function derToPem(
 
   if (BASE64_LINES_REGEX.test(text) && isBase64Data(data)) {
     if (pemLabel == null) {
-      throw new Error("PEM label is required when DER is given.");
+      throw new Error("A PEM label is required to wrap base64 data.");
+    }
+
+    // The label is written into both boundaries, so one that is not a label would produce a
+    // message this parser could not read back, and `-----` in it would produce a second message.
+    if (!LABEL_REGEX.test(pemLabel)) {
+      throw new Error("Invalid PEM label.");
     }
 
     return formatPemMessage(pemLabel, data);
   }
 
-  throw new Error("Unknown DER format.");
+  throw new Error("Invalid PEM format.");
 }
 
 function collectAncestorNamespaces(

@@ -9,7 +9,7 @@ export {
 export { SignedXml } from "./signed-xml";
 export * from "./types";
 
-export { derToPem, findAncestorNs, normalizePem, pemToDer } from "./utils";
+export { findAncestorNs, normalizePem, pemCertificates, pemToDer, toPem } from "./utils";
 
 /*
  * `index.ts` used to re-export `./utils` wholesale, so helpers written for `signed-xml.ts` to
@@ -104,6 +104,16 @@ export const validateDigestValue = deprecate(
   utils.validateDigestValue,
   "`validateDigestValue()` is deprecated and will be removed in version 7.0. Decode both digests from base64 and use `a.length === b.length && crypto.timingSafeEqual(a, b)` instead, and never `===`.",
   "XML_CRYPTO_VALIDATE_DIGEST_VALUE",
+);
+
+/**
+ * @deprecated Will be removed in 7.0. Renamed to `toPem()`, which is what it has always done:
+ *   its input is a PEM message, several of them, base64, or a Buffer of either PEM or DER.
+ */
+export const derToPem = deprecate(
+  utils.toPem,
+  "`derToPem()` is deprecated and will be removed in version 7.0. Use `toPem()` instead.",
+  "XML_CRYPTO_DER_TO_PEM",
 );
 
 /*

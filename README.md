@@ -84,6 +84,11 @@ goes. `Buffer.from(value, "base64")` discards what it does not recognize, so a c
 used to reach `KeyInfo`, or OpenSSL, as whatever bytes survived that. What the parser accepts is
 described under [X.509 / Key formats](#x509--key-formats).
 
+The error for a value the parser cannot read is `Invalid PEM format.`, in place of the
+`Unknown DER format.` that `derToPem()` threw. A `Buffer` holding the bytes of a PEM file is read
+as that file rather than base64-encoded, which is what made it a message with a body of
+base64-encoded PEM. Both forms of PEM the parser does read produce the same canonical output.
+
 ### Deprecated ahead of 7.0
 
 These exports are deprecated and will be removed in 7.0:
@@ -94,14 +99,15 @@ These exports are deprecated and will be removed in 7.0:
 | `encodeSpecialCharactersInAttribute`, `encodeSpecialCharactersInText` | these are the escaping step of `C14nCanonicalization` and `ExclusiveCanonicalization`, so use those; a custom canonicalizer must apply [C14N escaping](https://www.w3.org/TR/xml-c14n#ProcessingModel) itself |
 | `isArrayHasLength`                                                    | `Array.isArray(x) && x.length > 0`                                                                                                                                                                            |
 | `validateDigestValue`                                                 | decode both from base64, then compare with `a.length === b.length && crypto.timingSafeEqual(a, b)` — `timingSafeEqual` alone throws on a length mismatch instead of returning `false`. Never `===`            |
-| `BASE64_REGEX`, `EXTRACT_X509_CERTS`, `PEM_FORMAT_REGEX`              | `derToPem()` and `pemToDer()` apply the rules these described, and validate the encapsulated data as well; see [X.509 / Key formats](#x509--key-formats)                                                      |
+| `BASE64_REGEX`, `EXTRACT_X509_CERTS`, `PEM_FORMAT_REGEX`              | `toPem()`, `pemToDer()` and `pemCertificates()` apply the rules these described, and validate the encapsulated data as well; see [X.509 / Key formats](#x509--key-formats)                                    |
+| `derToPem`                                                            | `toPem()`, which is the same function under a name that describes it: it takes a PEM message, several of them, base64, or a Buffer, and DER is only one of those                                              |
 
 Calling one prints a `DeprecationWarning` naming its replacement. The three regexes cannot warn —
 `util.deprecate` needs a call to intercept — so TypeScript users see the `@deprecated` tag and
 JavaScript users get no signal until the names go away.
 
-`derToPem`, `pemToDer`, `normalizePem` and `findAncestorNs` are **not** deprecated and stay
-exported.
+`toPem`, `pemToDer`, `pemCertificates`, `normalizePem` and `findAncestorNs` are **not**
+deprecated and stay exported.
 
 `getReferences()` and `references` are deprecated. Do not use them to obtain signed XML; use
 `getSignedReferences()` instead, as shown in [Verifying Xml documents](#verifying-xml-documents).
@@ -561,10 +567,18 @@ MIIBxDCCAW6gAwIBAgIQxUSX...
 
 ### What the parser accepts
 
-`derToPem()` and `pemToDer()` read [RFC 7468](https://www.rfc-editor.org/rfc/rfc7468) textual
-messages, and `derToPem()` also reads bare base64 with a label supplied by the caller. Either form
-is judged by the same rules, and `derToPem()` returns the same certificate whatever it arrived as:
-`\n` line endings, lines of 64 characters, one message after another.
+`toPem()`, `pemToDer()` and `pemCertificates()` read
+[RFC 7468](https://www.rfc-editor.org/rfc/rfc7468) textual messages, and `toPem()` also reads bare
+base64 with a label supplied by the caller. Either form is judged by the same rules, and `toPem()`
+returns the same certificate whatever it arrived as: `\n` line endings, lines of 64 characters,
+one message after another.
+
+- `toPem(value, label?)` returns canonical PEM. A Buffer that opens with an encapsulation
+  boundary is read as the bytes of a PEM file and any other as raw DER, so base64 text is given
+  as a string rather than a Buffer.
+- `pemToDer(pem)` returns the decoded bytes of the one message a value holds.
+- `pemCertificates(pem)` returns the base64 of each `CERTIFICATE` message and ignores messages of
+  any other label, so a private key in the same value is never published.
 
 Accepted:
 
@@ -574,7 +588,10 @@ Accepted:
   [`xs:base64Binary`](https://www.w3.org/TR/xmlschema11-2/#base64Binary), whose lexical space
   allows whitespace, so a pretty-printed document indents it and a value that has been through a
   text field may have had its line endings replaced by spaces.
-- several messages in one value, of which `derToPem()` keeps all and `pemToDer()` takes none.
+- several messages in one value, of which `toPem()` keeps all, `pemCertificates()` takes the
+  certificates, and `pemToDer()` takes none.
+- any label RFC 7468's grammar allows, which is every registered label and the ones OpenSSL adds,
+  such as `RSA PRIVATE KEY`. `PemLabel` names the registered ones.
 
 Rejected, with an error rather than a certificate:
 
@@ -584,6 +601,9 @@ Rejected, with an error rather than a certificate:
 - a value that opens a message it does not close, or one whose header and footer labels disagree.
   [Section 3](https://www.rfc-editor.org/rfc/rfc7468#section-3) permits a parser to disregard the
   footer's label, but OpenSSL will not read such a message, so neither does this one.
+- a label outside RFC 7468's grammar, which is one holding `--` or opening or closing with a
+  blank. A label is written into both boundaries, so one holding `--` would produce a message
+  this parser could not read back.
 
 ### Converting .pfx certificates to pem
 

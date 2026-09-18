@@ -7,7 +7,7 @@ import * as xpath from "xpath";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 describe("Utils tests", function () {
-  describe("derToPem", function () {
+  describe("toPem", function () {
     it("will return a normalized PEM format when given an non-normalized PEM format", function () {
       const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
       const pemAsArray = normalizedPem.trim().split("\n");
@@ -16,14 +16,14 @@ describe("Utils tests", function () {
         pemAsArray[pemAsArray.length - 1]
       }`;
 
-      expect(utils.derToPem(nonNormalizedPem)).to.equal(normalizedPem);
+      expect(utils.toPem(nonNormalizedPem)).to.equal(normalizedPem);
     });
 
     for (const eol of ["\r\n", "\r"]) {
       it(`will return a normalized PEM format when given a PEM with ${JSON.stringify(eol)} line endings`, function () {
         const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
 
-        expect(utils.derToPem(normalizedPem.replace(/\n/g, eol))).to.equal(normalizedPem);
+        expect(utils.toPem(normalizedPem.replace(/\n/g, eol))).to.equal(normalizedPem);
       });
     }
 
@@ -32,25 +32,25 @@ describe("Utils tests", function () {
       const pemAsArray = normalizedPem.trim().split("\n");
       const base64String = pemAsArray.slice(1, -1).join("");
 
-      expect(utils.derToPem(base64String, "CERTIFICATE")).to.equal(normalizedPem);
+      expect(utils.toPem(base64String, "CERTIFICATE")).to.equal(normalizedPem);
     });
 
     it("will throw if the format is neither PEM nor DER", function () {
-      expect(() => utils.derToPem("not a pem")).to.throw();
+      expect(() => utils.toPem("not a pem")).to.throw();
     });
 
     it("will return a normalized PEM format when given a DER Buffer", function () {
       const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
       const derBuffer = fs.readFileSync("./test/static/client_public.der");
 
-      expect(utils.derToPem(derBuffer, "CERTIFICATE")).to.equal(normalizedPem);
+      expect(utils.toPem(derBuffer, "CERTIFICATE")).to.equal(normalizedPem);
     });
 
     it("will return a normalized PEM format when given a base64 string with line breaks", function () {
       const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
       const base64String = fs.readFileSync("./test/static/client_public.der", "base64");
 
-      expect(utils.derToPem(base64String, "CERTIFICATE")).to.equal(normalizedPem);
+      expect(utils.toPem(base64String, "CERTIFICATE")).to.equal(normalizedPem);
     });
 
     it("will return a normalized PEM format when given a base64 string with line breaks and spaces at the line breaks", function () {
@@ -62,16 +62,16 @@ describe("Utils tests", function () {
 
       const normalizedPem = fs.readFileSync("./test/static/keyinfo.pem", "latin1");
 
-      expect(utils.derToPem(cert.textContent ?? "", "CERTIFICATE")).to.equal(normalizedPem);
+      expect(utils.toPem(cert.textContent ?? "", "CERTIFICATE")).to.equal(normalizedPem);
     });
 
     it("will throw if the DER string is not base64 encoded", function () {
-      expect(() => utils.derToPem("not base64", "CERTIFICATE")).to.throw();
+      expect(() => utils.toPem("not base64", "CERTIFICATE")).to.throw();
     });
 
     it("will throw if the PEM label is not provided", function () {
       const derBuffer = fs.readFileSync("./test/static/client_public.der");
-      expect(() => utils.derToPem(derBuffer)).to.throw();
+      expect(() => utils.toPem(derBuffer)).to.throw();
     });
 
     describe("judges the same data with and without encapsulation boundaries", function () {
@@ -104,14 +104,14 @@ describe("Utils tests", function () {
 
       Object.entries(accepted).forEach(([description, data]) => {
         it(`accepts ${description} either way, and reads the same certificate`, function () {
-          expect(utils.derToPem(wrap(data))).to.equal(utils.derToPem(data, "CERTIFICATE"));
+          expect(utils.toPem(wrap(data))).to.equal(utils.toPem(data, "CERTIFICATE"));
         });
       });
 
       Object.entries(rejected).forEach(([description, data]) => {
         it(`rejects ${description} either way, for the same reason`, function () {
-          expect(() => utils.derToPem(wrap(data), "CERTIFICATE")).to.throw("Unknown DER format.");
-          expect(() => utils.derToPem(data, "CERTIFICATE")).to.throw("Unknown DER format.");
+          expect(() => utils.toPem(wrap(data), "CERTIFICATE")).to.throw("Invalid PEM format.");
+          expect(() => utils.toPem(data, "CERTIFICATE")).to.throw("Invalid PEM format.");
         });
       });
     });
@@ -124,15 +124,15 @@ describe("Utils tests", function () {
         [lines[0], ...bodyLines, lines[lines.length - 1]].join("\n");
 
       it("blanks at the ends of lines", function () {
-        expect(utils.derToPem(rebuild(body.map((line) => `${line}  `)))).to.equal(normalizedPem);
+        expect(utils.toPem(rebuild(body.map((line) => `${line}  `)))).to.equal(normalizedPem);
       });
 
       it("a pretty-printer's indentation", function () {
-        expect(utils.derToPem(rebuild(body.map((line) => `    ${line}`)))).to.equal(normalizedPem);
+        expect(utils.toPem(rebuild(body.map((line) => `    ${line}`)))).to.equal(normalizedPem);
       });
 
       it("a line ending replaced by a space", function () {
-        expect(utils.derToPem(rebuild([body.join(" ")]))).to.equal(normalizedPem);
+        expect(utils.toPem(rebuild([body.join(" ")]))).to.equal(normalizedPem);
       });
 
       for (const [name, eol] of [
@@ -142,29 +142,29 @@ describe("Utils tests", function () {
         it(`${name} line endings, with and without boundaries`, function () {
           const bare = body.join("\n").replace(/\n/g, eol);
 
-          expect(utils.derToPem(bare, "CERTIFICATE")).to.equal(normalizedPem);
-          expect(utils.derToPem(rebuild(body).replace(/\n/g, eol))).to.equal(normalizedPem);
+          expect(utils.toPem(bare, "CERTIFICATE")).to.equal(normalizedPem);
+          expect(utils.toPem(rebuild(body).replace(/\n/g, eol))).to.equal(normalizedPem);
         });
       }
 
       it("a blank line between concatenated messages", function () {
         const pair = `${normalizedPem}\n\n${normalizedPem}`;
 
-        expect(utils.derToPem(pair)).to.equal(`${normalizedPem}${normalizedPem}`);
+        expect(utils.toPem(pair)).to.equal(`${normalizedPem}${normalizedPem}`);
       });
 
       it("a blank line after the header", function () {
-        expect(utils.derToPem(rebuild(["", ...body]))).to.equal(normalizedPem);
+        expect(utils.toPem(rebuild(["", ...body]))).to.equal(normalizedPem);
       });
 
       it("a line width other than 64", function () {
         const rewrapped = body.join("").match(/.{1,70}/g) ?? [];
 
-        expect(utils.derToPem(rebuild(rewrapped))).to.equal(normalizedPem);
+        expect(utils.toPem(rebuild(rewrapped))).to.equal(normalizedPem);
       });
 
       it("a UTF-8 BOM, as decoded text", function () {
-        expect(utils.derToPem(`\uFEFF${normalizedPem}`)).to.equal(normalizedPem);
+        expect(utils.toPem(`\uFEFF${normalizedPem}`)).to.equal(normalizedPem);
       });
 
       it("a UTF-8 BOM, as the bytes a latin1 read gives", function () {
@@ -173,13 +173,19 @@ describe("Utils tests", function () {
           Buffer.from(normalizedPem, "latin1"),
         ]);
 
-        expect(utils.derToPem(withBom.toString("latin1"))).to.equal(normalizedPem);
+        expect(utils.toPem(withBom.toString("latin1"))).to.equal(normalizedPem);
+      });
+
+      it("a Buffer holding the bytes of a PEM file, rather than DER", function () {
+        expect(utils.toPem(fs.readFileSync("./test/static/client_public.pem"))).to.equal(
+          normalizedPem,
+        );
       });
 
       it("several certificates in one value", function () {
         const bundle = fs.readFileSync("./test/static/client_bundle.pem", "latin1");
 
-        expect(utils.derToPem(bundle).match(/-----BEGIN CERTIFICATE-----/g)).to.have.lengthOf(2);
+        expect(utils.toPem(bundle).match(/-----BEGIN CERTIFICATE-----/g)).to.have.lengthOf(2);
       });
 
       it("and hands OpenSSL something it can load", function () {
@@ -190,8 +196,49 @@ describe("Utils tests", function () {
           .map((line) => `${line}  `)
           .join("\r\n");
 
-        expect(() => crypto.createPublicKey(utils.derToPem(untidy))).to.not.throw();
+        expect(() => crypto.createPublicKey(utils.toPem(untidy))).to.not.throw();
       });
+    });
+
+    describe("labels", function () {
+      const data = fs
+        .readFileSync("./test/static/client_public.pem", "latin1")
+        .trim()
+        .split("\n")
+        .slice(1, -1)
+        .join("");
+
+      for (const label of ["CERTIFICATE", "PUBLIC KEY", "X509 CRL", "ENCRYPTED PRIVATE KEY"]) {
+        it(`wraps base64 in a message labelled "${label}"`, function () {
+          const pem = utils.toPem(data, label);
+
+          expect(pem).to.contain(`-----BEGIN ${label}-----\n`);
+          expect(pem).to.contain(`-----END ${label}-----\n`);
+          // A label this parser writes is one it reads back, or the value is good for one trip.
+          expect(utils.toPem(pem)).to.equal(pem);
+        });
+      }
+
+      it("keeps a hyphen inside a label, which RFC 7468 allows", function () {
+        expect(utils.toPem(utils.toPem(data, "FOO-BAR"))).to.contain("-----BEGIN FOO-BAR-----");
+      });
+
+      it("refuses a label that would write a boundary into the message", function () {
+        expect(() => utils.toPem(data, "A-----BEGIN CERTIFICATE-----B")).to.throw(
+          "Invalid PEM label.",
+        );
+      });
+
+      for (const [problem, label] of [
+        ["is empty", ""],
+        ["opens with a blank", " CERTIFICATE"],
+        ["closes with a blank", "CERTIFICATE "],
+        ["holds a line break", "CERT\nIFICATE"],
+      ] as const) {
+        it(`refuses a label that ${problem}`, function () {
+          expect(() => utils.toPem(data, label)).to.throw("Invalid PEM label.");
+        });
+      }
     });
 
     describe("rejects data that is not base64", function () {
@@ -200,29 +247,29 @@ describe("Utils tests", function () {
       const corrupt = (body: string) => [lines[0], body, lines[lines.length - 1]].join("\n");
 
       it("a body that is not base64 at all", function () {
-        expect(() => utils.derToPem(corrupt("not base64 at all!"))).to.throw("Unknown DER format.");
+        expect(() => utils.toPem(corrupt("not base64 at all!"))).to.throw("Invalid PEM format.");
       });
 
       it("a body that is one long run of blanks", function () {
-        expect(() => utils.derToPem(corrupt(" ".repeat(80000)))).to.throw("Unknown DER format.");
+        expect(() => utils.toPem(corrupt(" ".repeat(80000)))).to.throw("Invalid PEM format.");
       });
 
       it("a body with a blank line in the middle of the data", function () {
         const body = lines.slice(1, -1);
         const interrupted = [...body.slice(0, 2), "", ...body.slice(2)].join("\n");
 
-        expect(() => utils.derToPem(corrupt(interrupted))).to.throw("Unknown DER format.");
+        expect(() => utils.toPem(corrupt(interrupted))).to.throw("Invalid PEM format.");
       });
 
       it("a message whose two labels disagree", function () {
         const mismatched = normalizedPem.replace("-----END CERTIFICATE-----", "-----END KEY-----");
 
-        expect(() => utils.derToPem(mismatched)).to.throw("Unknown DER format.");
+        expect(() => utils.toPem(mismatched)).to.throw("Invalid PEM format.");
       });
 
       it("a body whose final quantum is incomplete", function () {
-        expect(() => utils.derToPem(corrupt(`${lines.slice(1, -1).join("\n")}A`))).to.throw(
-          "Unknown DER format.",
+        expect(() => utils.toPem(corrupt(`${lines.slice(1, -1).join("\n")}A`))).to.throw(
+          "Invalid PEM format.",
         );
       });
     });
@@ -253,6 +300,43 @@ describe("Utils tests", function () {
       const bundle = fs.readFileSync("./test/static/client_bundle.pem", "latin1");
 
       expect(() => utils.pemToDer(bundle)).to.throw("Expected a single PEM message, but found 3.");
+    });
+  });
+
+  describe("pemCertificates", function () {
+    const bundle = fs.readFileSync("./test/static/client_bundle.pem", "latin1");
+
+    it("returns the base64 of every certificate, and only certificates", function () {
+      const certificates = utils.pemCertificates(bundle);
+
+      // The bundle carries a private key alongside its two certificates, and publishing that in
+      // KeyInfo would hand out the signing key: https://www.w3.org/TR/xmldsig-core1/#sec-X509Data
+      expect(certificates).to.have.lengthOf(2);
+      for (const certificate of certificates) {
+        expect(certificate).to.match(/^[A-Za-z0-9+/]+={0,2}$/);
+        expect(() =>
+          crypto.createPublicKey(utils.toPem(certificate, "CERTIFICATE")),
+        ).to.not.throw();
+      }
+    });
+
+    it("returns an empty array when the value holds no message at all", function () {
+      const data = bundle.split("\n").slice(1, 19).join("");
+
+      expect(utils.pemCertificates("")).to.deep.equal([]);
+      expect(utils.pemCertificates(data)).to.deep.equal([]);
+    });
+
+    it("throws when the value opens a message it does not close", function () {
+      expect(() => utils.pemCertificates(bundle.replace(/-----END CERTIFICATE-----/, ""))).to.throw(
+        "Invalid PEM format.",
+      );
+    });
+
+    it("throws when a certificate's data is not base64", function () {
+      const corrupt = bundle.replace(/^[A-Za-z0-9+/]{64}$/m, "not base64 at all!");
+
+      expect(() => utils.pemCertificates(corrupt)).to.throw("Invalid PEM format.");
     });
   });
 });
