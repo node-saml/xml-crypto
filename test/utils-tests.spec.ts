@@ -241,6 +241,31 @@ describe("Utils tests", function () {
       }
     });
 
+    describe("keys, not only certificates", function () {
+      for (const [name, file, label] of [
+        ["a private key", "client.pem", "PRIVATE KEY"],
+        ["an RSA public key", "saml_external_ns.pem", "RSA PUBLIC KEY"],
+      ] as const) {
+        it(`normalizes ${name}, from PEM and from bare base64 alike`, function () {
+          const pem = fs.readFileSync(`./test/static/${file}`, "latin1");
+          const normalized = `${pem.trim()}\n`;
+          const data = pem.trim().split("\n").slice(1, -1).join("");
+
+          expect(utils.toPem(pem)).to.equal(normalized);
+          expect(utils.toPem(data, label)).to.equal(normalized);
+          expect(utils.toPem(data.match(/.{1,32}/g)?.join("\n") ?? "", label)).to.equal(normalized);
+        });
+      }
+
+      it("round-trips a public key OpenSSL exports, which holds no certificate", function () {
+        const privateKey = fs.readFileSync("./test/static/client.pem", "latin1");
+        const spki = crypto.createPublicKey(privateKey).export({ type: "spki", format: "pem" });
+
+        expect(utils.toPem(spki.toString())).to.equal(spki);
+        expect(utils.pemCertificates(spki.toString())).to.be.empty;
+      });
+    });
+
     describe("rejects data that is not base64", function () {
       const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
       const lines = normalizedPem.trim().split("\n");
@@ -267,6 +292,16 @@ describe("Utils tests", function () {
         expect(() => utils.toPem(mismatched)).to.throw("Invalid PEM format.");
       });
 
+      for (const [name, value] of [
+        ["an empty string", ""],
+        ["an empty Buffer", Buffer.alloc(0)],
+        ["blanks and nothing else", "   \n\t  "],
+      ] as const) {
+        it(name, function () {
+          expect(() => utils.toPem(value, "CERTIFICATE")).to.throw("Invalid PEM format.");
+        });
+      }
+
       it("a body whose final quantum is incomplete", function () {
         expect(() => utils.toPem(corrupt(`${lines.slice(1, -1).join("\n")}A`))).to.throw(
           "Invalid PEM format.",
@@ -287,6 +322,12 @@ describe("Utils tests", function () {
 
     it("will throw if the format is not PEM", function () {
       expect(() => utils.pemToDer("not a pem")).to.throw();
+    });
+
+    it("returns the bytes of a message of any label, which OpenSSL loads back", function () {
+      const key = utils.pemToDer(fs.readFileSync("./test/static/client.pem", "latin1"));
+
+      expect(() => crypto.createPrivateKey({ key, format: "der", type: "pkcs8" })).to.not.throw();
     });
 
     it("will throw if the encapsulated data is not base64", function () {
