@@ -177,6 +177,15 @@ interface PemMessage {
   data: string;
 }
 
+// Counted rather than matched, so that an opening boundary no message was built from is still
+// seen, whatever left it unusable: a missing footer, a label too long to write back, or a body
+// that is not base64. The blank of `-----BEGIN ` is left out deliberately, so that a boundary
+// sharing its line with other text is counted here and refused, rather than passed over as prose
+// and the certificate under it dropped from a signature without a word.
+function countOpenings(text: string): number {
+  return text.split("-----BEGIN").length - 1;
+}
+
 function pemMessages(pem: string): PemMessage[] {
   const messages: PemMessage[] = [];
 
@@ -205,6 +214,14 @@ function pemMessages(pem: string): PemMessage[] {
     message = PEM_MESSAGE_REGEX.exec(pem);
   }
 
+  // Every opening boundary has to have produced a message. One that did not is a message this
+  // parser could not read — no footer, a label it will not write back, a body that is not base64,
+  // or a boundary sharing its line — and passing over it would hand back a value with a
+  // certificate or a key quietly missing from it. Held here so that no caller can omit it.
+  if (countOpenings(pem) !== messages.length) {
+    throw new Error("Invalid PEM format.");
+  }
+
   return messages;
 }
 
@@ -218,15 +235,6 @@ function isLabel(label: string): boolean {
 
 function isWellFormedMessage({ label, endLabel, data }: PemMessage): boolean {
   return label === endLabel && isLabel(label) && isBase64Data(data);
-}
-
-// Counted rather than matched, so that an opening boundary no message was built from is still
-// seen, whatever left it unusable: a missing footer, a label too long to write back, or a body
-// that is not base64. The blank of `-----BEGIN ` is left out deliberately, so that a boundary
-// sharing its line with other text is counted here and refused, rather than passed over as prose
-// and the certificate under it dropped from a signature without a word.
-function countOpenings(text: string): number {
-  return text.split("-----BEGIN").length - 1;
 }
 
 /**
@@ -277,13 +285,12 @@ export function pemCertificates(pem: string): string[] {
   const messages = pemMessages(text);
 
   // Section 5.2 shows explanatory text before a certificate, and the tools that write one put the
-  // subject and issuer there, so whatever surrounds a message is passed over rather than refused.
-  // An opening boundary that no message was built from is another matter: it is a certificate we
-  // failed to read, and dropping it would sign without the KeyInfo the caller asked for. Every
-  // message is checked before any is filtered, because a message is a certificate by its opening
-  // label alone, so one that opens as something else and closes as a certificate would be
-  // filtered away unexamined.
-  if (countOpenings(text) !== messages.length || !messages.every(isWellFormedMessage)) {
+  // subject and issuer there, so whatever surrounds a message is passed over rather than refused;
+  // an opening boundary that produced no message is `pemMessages`' to refuse. Every message is
+  // checked before any is filtered, because a message is a certificate by its opening label
+  // alone, so one that opens as something else and closes as a certificate would be filtered away
+  // unexamined, and signing would go on without the KeyInfo the caller asked for.
+  if (!messages.every(isWellFormedMessage)) {
     throw new Error("Invalid PEM format.");
   }
 
@@ -341,10 +348,7 @@ export function toPem(value: string | Buffer, pemLabel?: PemLabel): string {
 
   if (PEM_FORMAT_REGEX.test(text)) {
     const messages = pemMessages(text);
-    // `PEM_FORMAT_REGEX` lets one message follow another with no line between them, which the
-    // line check in `pemMessages` will not read as two. Counting the openings here is what turns
-    // that into an error rather than a value returned with a certificate quietly missing.
-    if (countOpenings(text) !== messages.length || !messages.every(isWellFormedMessage)) {
+    if (!messages.every(isWellFormedMessage)) {
       throw new Error("Invalid PEM format.");
     }
 

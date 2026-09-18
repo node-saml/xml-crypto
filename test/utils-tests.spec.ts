@@ -392,6 +392,17 @@ describe("Utils tests", function () {
 
       expect(() => utils.pemToDer(bundle)).to.throw("Expected a single PEM message, but found 3.");
     });
+
+    it("will throw, not return the first, when later boundaries run together", function () {
+      // A footer and the next header on one line are not two messages, so counting the messages
+      // alone would find one and hand back its bytes with the rest of the value discarded.
+      const runTogether = fs
+        .readFileSync("./test/static/client_bundle.pem", "latin1")
+        .replace("-----\n-----BEGIN ", "----------BEGIN ");
+
+      expect(runTogether).to.contain("----------BEGIN ");
+      expect(() => utils.pemToDer(runTogether)).to.throw("Invalid PEM format.");
+    });
   });
 
   describe("pemCertificates", function () {
