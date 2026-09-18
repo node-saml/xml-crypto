@@ -110,13 +110,26 @@ export const validateDigestValue = deprecate(
  * The three regexes below cannot carry a runtime warning: `util.deprecate` wraps a function, and
  * a `RegExp` has no call to intercept. TypeScript consumers see the `@deprecated` tag; JavaScript
  * consumers get no signal until the name goes away in 7.0.
+ *
+ * They are defined here rather than in `utils.ts` because the parser no longer uses them. They
+ * are frozen copies of what 6.1 exported, so that a consumer still reading them sees what it has
+ * always seen until 7.0 removes them.
  */
 
 /** @deprecated Will be removed in 7.0. This is an internal parsing detail with no replacement. */
-export const PEM_FORMAT_REGEX = utils.PEM_FORMAT_REGEX;
+export const PEM_FORMAT_REGEX = new RegExp(
+  "^-----BEGIN [A-Z\x20]{1,48}-----([^-]*)-----END [A-Z\x20]{1,48}-----$",
+  "s",
+);
 
 /** @deprecated Will be removed in 7.0. This is an internal parsing detail with no replacement. */
-export const EXTRACT_X509_CERTS = utils.EXTRACT_X509_CERTS;
+export const EXTRACT_X509_CERTS = new RegExp(
+  "-----BEGIN CERTIFICATE-----[^-]*-----END CERTIFICATE-----",
+  "g",
+);
 
 /** @deprecated Will be removed in 7.0. This is an internal parsing detail with no replacement. */
-export const BASE64_REGEX = utils.BASE64_REGEX;
+export const BASE64_REGEX = new RegExp(
+  "^(?:[A-Za-z0-9\\+\\/]{4}\\n{0,1})*(?:[A-Za-z0-9\\+\\/]{2}==|[A-Za-z0-9\\+\\/]{3}=)?$",
+  "s",
+);

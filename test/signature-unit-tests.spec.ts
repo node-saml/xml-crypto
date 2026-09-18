@@ -1440,6 +1440,37 @@ describe("Signature unit tests", function () {
     });
   });
 
+  function signWithPublicCert(publicCert: string) {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      publicCert,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    return () => sig.computeSignature("<root><x /></root>");
+  }
+
+  it("refuses to sign with a publicCert whose two labels disagree", function () {
+    const publicCert = fs
+      .readFileSync("./test/static/client_public.pem", "latin1")
+      .replace("-----END CERTIFICATE-----", "-----END PRIVATE KEY-----");
+
+    expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("refuses to sign with a publicCert whose certificate is not base64", function () {
+    const lines = fs.readFileSync("./test/static/client_public.pem", "latin1").trim().split("\n");
+    const publicCert = [lines[0], "not base64 at all!", lines[lines.length - 1]].join("\n");
+
+    expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
   it("adds id and type attributes to Reference elements when provided", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();

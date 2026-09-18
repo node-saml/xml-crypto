@@ -228,23 +228,15 @@ export class SignedXml {
       publicCert = publicCert.toString("latin1");
     }
 
-    let publicCertMatches: string[] = [];
-    if (typeof publicCert === "string") {
-      publicCertMatches = publicCert.match(utils.EXTRACT_X509_CERTS) || [];
-    }
+    const certificates = typeof publicCert === "string" ? utils.pemCertificates(publicCert) : [];
 
     // X509Data requires at least one child: https://www.w3.org/TR/xmldsig-core1/#sec-X509Data
-    if (publicCertMatches.length === 0) {
+    if (certificates.length === 0) {
       return null;
     }
 
-    const x509Certs = publicCertMatches
-      .map(
-        (c) =>
-          `<${prefix}X509Certificate>${utils
-            .pemToDer(c)
-            .toString("base64")}</${prefix}X509Certificate>`,
-      )
+    const x509Certs = certificates
+      .map((cert) => `<${prefix}X509Certificate>${cert}</${prefix}X509Certificate>`)
       .join("");
 
     return `<${prefix}X509Data>${x509Certs}</${prefix}X509Data>`;

@@ -77,6 +77,13 @@ The `enveloped-signature` transform removes only the `Signature` element being v
 - `getCanonXml()` finds the loaded signature in the node's document the same way, and removes nothing
   when the signature is not there.
 
+### Malformed certificates
+
+A certificate whose encapsulated data is not base64 is rejected rather than decoded as far as it
+goes. `Buffer.from(value, "base64")` discards what it does not recognize, so a corrupt certificate
+used to reach `KeyInfo`, or OpenSSL, as whatever bytes survived that. What the parser accepts is
+described under [X.509 / Key formats](#x509--key-formats).
+
 ### Deprecated ahead of 7.0
 
 These exports are deprecated and will be removed in 7.0:
@@ -87,7 +94,7 @@ These exports are deprecated and will be removed in 7.0:
 | `encodeSpecialCharactersInAttribute`, `encodeSpecialCharactersInText` | these are the escaping step of `C14nCanonicalization` and `ExclusiveCanonicalization`, so use those; a custom canonicalizer must apply [C14N escaping](https://www.w3.org/TR/xml-c14n#ProcessingModel) itself |
 | `isArrayHasLength`                                                    | `Array.isArray(x) && x.length > 0`                                                                                                                                                                            |
 | `validateDigestValue`                                                 | decode both from base64, then compare with `a.length === b.length && crypto.timingSafeEqual(a, b)` — `timingSafeEqual` alone throws on a length mismatch instead of returning `false`. Never `===`            |
-| `BASE64_REGEX`, `EXTRACT_X509_CERTS`, `PEM_FORMAT_REGEX`              | no replacement; these are internal parsing details                                                                                                                                                            |
+| `BASE64_REGEX`, `EXTRACT_X509_CERTS`, `PEM_FORMAT_REGEX`              | `derToPem()` and `pemToDer()` apply the rules these described, and validate the encapsulated data as well; see [X.509 / Key formats](#x509--key-formats)                                                      |
 
 Calling one prints a `DeprecationWarning` naming its replacement. The three regexes cannot warn —
 `util.deprecate` needs a call to intercept — so TypeScript users see the `@deprecated` tag and
@@ -551,6 +558,32 @@ And for verification use key_public.pem:
 MIIBxDCCAW6gAwIBAgIQxUSX...
 -----END CERTIFICATE-----
 ```
+
+### What the parser accepts
+
+`derToPem()` and `pemToDer()` read [RFC 7468](https://www.rfc-editor.org/rfc/rfc7468) textual
+messages, and `derToPem()` also reads bare base64 with a label supplied by the caller. Either form
+is judged by the same rules, and `derToPem()` returns the same certificate whatever it arrived as:
+`\n` line endings, lines of 64 characters, one message after another.
+
+Accepted:
+
+- `\n`, `\r\n` and `\r` line endings, and a leading UTF-8 BOM.
+- any line width, a single line included, and a blank line after the header.
+- blanks anywhere in the encapsulated data. XMLDSig carries a certificate as
+  [`xs:base64Binary`](https://www.w3.org/TR/xmlschema11-2/#base64Binary), whose lexical space
+  allows whitespace, so a pretty-printed document indents it and a value that has been through a
+  text field may have had its line endings replaced by spaces.
+- several messages in one value, of which `derToPem()` keeps all and `pemToDer()` takes none.
+
+Rejected, with an error rather than a certificate:
+
+- data outside the base64 alphabet, padding away from the end, or a final quantum that is not
+  whole, per [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648#section-4).
+- a header with no data under it, and a blank line in the middle of the data.
+- a value that opens a message it does not close, or one whose header and footer labels disagree.
+  [Section 3](https://www.rfc-editor.org/rfc/rfc7468#section-3) permits a parser to disregard the
+  footer's label, but OpenSSL will not read such a message, so neither does this one.
 
 ### Converting .pfx certificates to pem
 

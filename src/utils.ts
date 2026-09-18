@@ -93,31 +93,85 @@ export function encodeSpecialCharactersInText(text: string): string {
   });
 }
 
-/**
- * PEM format has wide range of usages, but this library
- * is enforcing RFC7468 which focuses on PKIX, PKCS and CMS.
- *
+/*
+ * RFC 7468 'textualmsg', with the deviations below.
  * https://www.rfc-editor.org/rfc/rfc7468
  *
- * PEM_FORMAT_REGEX is validating given PEM file against RFC7468 'stricttextualmsg' definition.
+ *  - line length is not enforced and several messages may be concatenated: section 2. Section 3
+ *    lets a parser disregard the label of the post-encapsulation boundary, but this one requires
+ *    the two to agree, because OpenSSL will not read a message whose labels disagree.
+ *  - whitespace around the message is discarded, the '*W' of 'laxtextualmsg' in Figure 2, and a
+ *    leading UTF-8 BOM with it.
+ *  - blanks are discarded wherever they fall in the encapsulated data, not only at the ends of
+ *    lines as Figure 1 permits. XMLDSig carries a certificate as xs:base64Binary, whose lexical
+ *    space allows whitespace, and a pretty-printed document indents it.
+ *    https://www.w3.org/TR/xmlschema11-2/#base64Binary
  *
- * With few exceptions;
- *  - 'posteb' MAY have 'eol', but it is not mandatory.
- *  - 'preeb' and 'posteb' lines are limited to 64 characters, but
- *     should not cause any issues in context of PKIX, PKCS and CMS.
+ * Structure and data are separate checks, the data taken with its line breaks removed, so that a
+ * line may end anywhere without `{4}` having to become the ambiguous `{1,4}`. Line endings and
+ * blanks are normalized away rather than matched, because an 'eol' alternation inside a repeated
+ * group backtracks exponentially and `[ \t]+` against an anchor is quadratic. Every pattern here
+ * has to stay provably linear, which only an analyzer can establish and no timing test can:
+ * `npx recheck@4 check '<source>' ''`.
  */
-export const PEM_FORMAT_REGEX = new RegExp(
-  "^-----BEGIN [A-Z\x20]{1,48}-----([^-]*)-----END [A-Z\x20]{1,48}-----$",
-  "s",
-);
-export const EXTRACT_X509_CERTS = new RegExp(
-  "-----BEGIN CERTIFICATE-----[^-]*-----END CERTIFICATE-----",
-  "g",
-);
-export const BASE64_REGEX = new RegExp(
-  "^(?:[A-Za-z0-9\\+\\/]{4}\\n{0,1})*(?:[A-Za-z0-9\\+\\/]{2}==|[A-Za-z0-9\\+\\/]{3}=)?$",
-  "s",
-);
+const PEM_FORMAT_REGEX =
+  /^(?:-----BEGIN [A-Z\x20]{1,48}-----\n+(?:[A-Za-z0-9+/=]+\n)+-----END [A-Z\x20]{1,48}-----\n*)+$/;
+const PEM_MESSAGE_REGEX =
+  /-----BEGIN ([A-Z\x20]{1,48})-----\n+((?:[A-Za-z0-9+/=]+\n)+)-----END ([A-Z\x20]{1,48})-----/g;
+const BASE64_LINES_REGEX = /^(?:[A-Za-z0-9+/=]+\n)*[A-Za-z0-9+/=]+$/;
+const BASE64_DATA_REGEX = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+// A Buffer is decoded latin1 to keep every byte, which leaves a UTF-8 BOM as three characters
+// rather than the U+FEFF that `trim()` would take, so both representations are removed here.
+const BOM_REGEX = /^(?:\uFEFF|\u00EF\u00BB\u00BF)/;
+
+function normalizePemInput(text: string): string {
+  return text
+    .replace(BOM_REGEX, "")
+    .replace(/\r\n|\r/g, "\n")
+    .split("\n")
+    .map((line) => {
+      const boundary = line.trim();
+      // The blanks of a label are data, as in "RSA PUBLIC KEY"; those of an encoded line are not.
+      return boundary.startsWith("-----") ? boundary : line.replace(/[ \t]+/g, "");
+    })
+    .join("\n")
+    .trim();
+}
+
+interface PemMessage {
+  label: string;
+  endLabel: string;
+  data: string;
+}
+
+function pemMessages(pem: string): PemMessage[] {
+  const messages: PemMessage[] = [];
+
+  // Global regexes carry `lastIndex` between calls, so the loop runs to exhaustion to return it.
+  PEM_MESSAGE_REGEX.lastIndex = 0;
+  let message = PEM_MESSAGE_REGEX.exec(pem);
+  while (message !== null) {
+    messages.push({
+      label: message[1],
+      endLabel: message[3],
+      // A line break inside base64 is presentation and never data, so where a line ends is a
+      // question for the structure check alone, and the data is carried de-lined from here on.
+      data: message[2].replace(/\n/g, ""),
+    });
+    message = PEM_MESSAGE_REGEX.exec(pem);
+  }
+
+  return messages;
+}
+
+function isBase64Data(data: string): boolean {
+  return BASE64_DATA_REGEX.test(data);
+}
+
+function isWellFormedMessage({ label, endLabel, data }: PemMessage): boolean {
+  return label === endLabel && isBase64Data(data);
+}
 
 /**
  * -----BEGIN [LABEL]-----
@@ -130,13 +184,10 @@ export const BASE64_REGEX = new RegExp(
  * This function normalizes PEM presentation to;
  *  - contain PEM header and footer as they are given
  *  - normalize line endings to '\n'
- *  - normalize line length to maximum of 64 characters
+ *  - split lines longer than 64 characters, leaving shorter ones as they are
  *  - ensure that 'preeb' has line ending '\n'
  *
- * With a couple of notes:
- *  - 'eol' is normalized to '\n'
- *
- * @param pem The PEM string to normalize to RFC7468 'stricttextualmsg' definition
+ * @param pem The PEM string to normalize
  */
 export function normalizePem(pem: string): string {
   return `${(
@@ -147,45 +198,90 @@ export function normalizePem(pem: string): string {
   ).join("\n")}\n`;
 }
 
+// Rebuilt from the data rather than passed through, so that the same certificate produces the
+// same bytes whatever line width, line ending or blanks it arrived with.
+function formatPemMessage(label: string, data: string): string {
+  return normalizePem(`-----BEGIN ${label}-----\n${data}\n-----END ${label}-----`);
+}
+
 /**
- * @param pem The PEM-encoded base64 certificate to strip headers from
+ * Returns the base64 data of each `CERTIFICATE` message in a PEM value, and `[]` when the value
+ * holds no certificate: bare base64, or messages of other labels.
+ *
+ * @param pem The PEM value to read certificates from
+ * @throws Error if the value opens a message it does not close as a well-formed PEM, or if a
+ *   certificate's labels disagree or its data is not base64
  */
-export function pemToDer(pem: string): Buffer {
-  if (!PEM_FORMAT_REGEX.test(pem.trim())) {
+export function pemCertificates(pem: string): string[] {
+  const text = normalizePemInput(pem);
+
+  if (!PEM_FORMAT_REGEX.test(text)) {
+    // A value with no boundaries at all holds no certificate to publish, but one that opens a
+    // message it cannot finish is a certificate we failed to read, and dropping it would sign
+    // without the KeyInfo the caller asked for.
+    if (text.includes("-----BEGIN ")) {
+      throw new Error("Invalid PEM format.");
+    }
+
+    return [];
+  }
+
+  const certificates = pemMessages(text).filter((message) => message.label === "CERTIFICATE");
+  if (!certificates.every(isWellFormedMessage)) {
     throw new Error("Invalid PEM format.");
   }
 
-  return Buffer.from(
-    pem
-      .replace(/(\r\n|\r)/g, "")
-      .replace(/-----BEGIN [A-Z\x20]{1,48}-----\n?/, "")
-      .replace(/-----END [A-Z\x20]{1,48}-----\n?/, ""),
-    "base64",
-  );
+  return certificates.map((certificate) => certificate.data);
+}
+
+/**
+ * @param pem The PEM-encoded base64 certificate to strip headers from
+ * @throws Error if the value is not a single well-formed PEM message
+ */
+export function pemToDer(pem: string): Buffer {
+  const text = normalizePemInput(pem);
+  const messages = PEM_FORMAT_REGEX.test(text) ? pemMessages(text) : [];
+
+  if (messages.length > 1) {
+    throw new Error(`Expected a single PEM message, but found ${messages.length}.`);
+  }
+
+  if (messages.length === 0 || !isWellFormedMessage(messages[0])) {
+    throw new Error("Invalid PEM format.");
+  }
+
+  return Buffer.from(messages[0].data, "base64");
 }
 
 /**
  * @param der The DER-encoded base64 certificate to add PEM headers too
  * @param pemLabel The label of the header and footer to add
+ * @throws Error if the value is neither a well-formed PEM nor base64, or if it is base64 and no
+ *   label was given
  */
 export function derToPem(
   der: string | Buffer,
   pemLabel?: "CERTIFICATE" | "PRIVATE KEY" | "RSA PUBLIC KEY",
 ): string {
-  const trimmed = Buffer.isBuffer(der) ? der.toString("base64").trim() : der.trim();
+  const text = normalizePemInput(Buffer.isBuffer(der) ? der.toString("base64") : der);
 
-  if (PEM_FORMAT_REGEX.test(trimmed)) {
-    return normalizePem(trimmed);
+  if (PEM_FORMAT_REGEX.test(text)) {
+    const messages = pemMessages(text);
+    if (!messages.every(isWellFormedMessage)) {
+      throw new Error("Unknown DER format.");
+    }
+
+    return messages.map((message) => formatPemMessage(message.label, message.data)).join("");
   }
 
-  const base64Der = trimmed.replace(/\r\n|\r| /g, "");
-  if (BASE64_REGEX.test(base64Der)) {
+  const data = text.replace(/\n/g, "");
+
+  if (BASE64_LINES_REGEX.test(text) && isBase64Data(data)) {
     if (pemLabel == null) {
       throw new Error("PEM label is required when DER is given.");
     }
-    const pem = `-----BEGIN ${pemLabel}-----\n${base64Der}\n-----END ${pemLabel}-----`;
 
-    return normalizePem(pem);
+    return formatPemMessage(pemLabel, data);
   }
 
   throw new Error("Unknown DER format.");
