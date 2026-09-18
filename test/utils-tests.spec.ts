@@ -377,9 +377,15 @@ describe("Utils tests", function () {
     });
 
     it("throws when the value opens a message it does not close", function () {
-      expect(() => utils.pemCertificates(bundle.replace(/-----END CERTIFICATE-----/, ""))).to.throw(
-        "Invalid PEM format.",
-      );
+      // Dropping one footer leaves the next header where data should be, which is a different
+      // malformation from a message left open at the end, so both are worth their own case.
+      const interleaved = bundle.replace(/-----END CERTIFICATE-----/, "");
+      const unclosed = `${bundle}\n-----BEGIN CERTIFICATE-----\nQUFBQQ==\n`;
+      const empty = `${bundle}\n-----BEGIN CERTIFICATE-----\n`;
+
+      for (const value of [interleaved, unclosed, empty]) {
+        expect(() => utils.pemCertificates(value)).to.throw("Invalid PEM format.");
+      }
     });
 
     it("throws when a message's labels disagree, whichever of them is a certificate", function () {
