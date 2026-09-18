@@ -605,6 +605,12 @@ Accepted:
   [RFC 7468 section 5.1](https://www.rfc-editor.org/rfc/rfc7468#section-5.1) allows. Its octets are
   kept as given, because [XML Signature 1.1](https://www.w3.org/TR/xmldsig-core1/#sec-X509Data)
   says an implementation SHOULD NOT alter or re-encode a certificate.
+- base64 whose pad bits are not zero, which is written back out with them zeroed, since only that
+  form is in [`xs:base64Binary`](https://www.w3.org/TR/xmlschema11-2/#base64Binary)'s lexical space.
+  The octets are the same either way.
+- the `Proc-Type` and `DEK-Info` header fields of a traditional encrypted private key, as OpenSSL
+  and Node write one, so that `pemCertificates()` can read certificates out of a bundle holding
+  such a key. `toPem()` and `pemToDer()` refuse the key itself, whose data is lost without them.
 
 Rejected, with an error rather than a certificate:
 

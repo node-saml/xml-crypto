@@ -112,6 +112,10 @@ export function encodeSpecialCharactersInText(text: string): string {
  *    opening boundary still fits the line this module writes, and it may not be empty, which the
  *    'label' production of Figure 1 marks as 'empty ok'. A message labelled nothing names no
  *    format, and OpenSSL will not read one.
+ *  - the header fields of RFC 1421 section 4.4 are read, which section 2 does not permit, but only
+ *    the `Proc-Type` and `DEK-Info` that OpenSSL writes into a traditional encrypted private key,
+ *    as Node exports one, so that a bundle may carry such a key beside its certificates. A message
+ *    with them is not a certificate, and is neither rewritten nor decoded.
  *
  * Structure and data are separate checks, the data taken with its line breaks removed, so that a
  * line may end anywhere without `{4}` having to become the ambiguous `{1,4}`. Line endings and
@@ -140,11 +144,17 @@ const LABEL = `${LABEL_CHAR}(?:[-\\x20]?${LABEL_CHAR}){0,47}`;
 const LABEL_MAX_LENGTH = 48;
 
 const LABEL_REGEX = new RegExp(`^${LABEL}$`);
+// A traditional encrypted private key opens with `Proc-Type` and `DEK-Info` fields and a blank
+// line. Their values are held to what OpenSSL writes, blanks already removed, and so can never hold
+// the `-----BEGIN ` of a boundary: a value that could would let the fields of one message run on
+// over every message after it, which `recheck` reports as polynomial.
+const HEADERS = "(?:(?:Proc-Type|DEK-Info):[A-Za-z0-9,-]+\\n)+\\n+";
+
 const PEM_FORMAT_REGEX = new RegExp(
-  `^(?:-----BEGIN ${LABEL}-----\\n+(?:[A-Za-z0-9+/=]+\\n)+-----END ${LABEL}-----\\n*)+$`,
+  `^(?:-----BEGIN ${LABEL}-----\\n+(?:${HEADERS})?(?:[A-Za-z0-9+/=]+\\n)+-----END ${LABEL}-----\\n*)+$`,
 );
 const PEM_MESSAGE_REGEX = new RegExp(
-  `-----BEGIN (${LABEL})-----\\n+((?:[A-Za-z0-9+/=]+\\n)+)-----END (${LABEL})-----`,
+  `-----BEGIN (${LABEL})-----\\n+(${HEADERS})?((?:[A-Za-z0-9+/=]+\\n)+)-----END (${LABEL})-----`,
   "g",
 );
 // Base64 given without boundaries is what XMLDSig carries in `X509Certificate`, an
@@ -175,6 +185,7 @@ function normalizePemInput(text: string): string {
 interface PemMessage {
   label: string;
   endLabel: string;
+  headers: boolean;
   data: string;
 }
 
@@ -205,10 +216,11 @@ function pemMessages(pem: string): PemMessage[] {
     if ((start === 0 || pem[start - 1] === "\n") && (end === pem.length || pem[end] === "\n")) {
       messages.push({
         label: message[1],
-        endLabel: message[3],
+        endLabel: message[4],
+        headers: message[2] != null,
         // A line break inside base64 is presentation and never data, so where a line ends is a
         // question for the structure check alone, and the data is carried de-lined from here on.
-        data: message[2].replace(/\n/g, ""),
+        data: message[3].replace(/\n/g, ""),
       });
     }
 
@@ -271,8 +283,18 @@ function assertX509Certificate(data: string): void {
   }
 }
 
-function isWellFormedMessage({ label, endLabel, data }: PemMessage): boolean {
-  return label === endLabel && isLabel(label) && isBase64Data(data);
+function isWellFormedMessage({ label, endLabel, headers, data }: PemMessage): boolean {
+  // Header fields are what a traditional encrypted key carries, and a certificate never has them.
+  const certificateWithHeaders = headers && label === "CERTIFICATE";
+
+  return label === endLabel && isLabel(label) && isBase64Data(data) && !certificateWithHeaders;
+}
+
+// Base64 decodes to the same octets whatever its pad bits hold, but xs:base64Binary allows only
+// zeros there, so data is written as the base64 of its octets and not as the text it arrived as.
+// The octets themselves are untouched. https://www.w3.org/TR/xmlschema11-2/#base64Binary
+function canonicalBase64(data: string): string {
+  return Buffer.from(data, "base64").toString("base64");
 }
 
 /**
@@ -309,7 +331,7 @@ function formatPemMessage(label: string, data: string): string {
     assertX509Certificate(data);
   }
 
-  return `-----BEGIN ${label}-----\n${normalizePem(data)}-----END ${label}-----\n`;
+  return `-----BEGIN ${label}-----\n${normalizePem(canonicalBase64(data))}-----END ${label}-----\n`;
 }
 
 /**
@@ -341,7 +363,7 @@ export function pemCertificates(pem: string): string[] {
     .map((certificate) => certificate.data);
   certificates.forEach(assertX509Certificate);
 
-  return certificates;
+  return certificates.map(canonicalBase64);
 }
 
 /**
@@ -358,7 +380,9 @@ export function pemToDer(pem: string): Buffer {
     throw new Error(`Expected a single PEM message, but found ${messages.length}.`);
   }
 
-  if (messages.length === 0 || !isWellFormedMessage(messages[0])) {
+  // A message with header fields holds a key encrypted under the cipher they name, and its bytes
+  // are of no use without them.
+  if (messages.length === 0 || !isWellFormedMessage(messages[0]) || messages[0].headers) {
     throw new Error("Invalid PEM format.");
   }
 
@@ -400,7 +424,9 @@ export function toPem(value: string | Buffer, pemLabel?: PemLabel): string {
 
   if (PEM_FORMAT_REGEX.test(text)) {
     const messages = pemMessages(text);
-    if (!messages.every(isWellFormedMessage)) {
+    // A message with header fields is read so that a bundle can carry one, but not rewritten: its
+    // data is a key encrypted under the cipher they name, and written out without them it is lost.
+    if (!messages.every(isWellFormedMessage) || messages.some((message) => message.headers)) {
       throw new Error("Invalid PEM format.");
     }
 

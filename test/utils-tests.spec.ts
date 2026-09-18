@@ -173,6 +173,14 @@ describe("Utils tests", function () {
         expect(utils.toPem(rebuild(rewrapped))).to.equal(normalizedPem);
       });
 
+      it("nonzero pad bits, written back as zeros", function () {
+        // `w` and `x` differ only in bits past the last octet, so both decode alike, but only the
+        // zeros are in xs:base64Binary's lexical space.
+        const feide = fs.readFileSync("./test/static/feide_public.pem", "latin1");
+
+        expect(utils.toPem(feide.replace("4PF13w==", "4PF13x=="))).to.equal(feide);
+      });
+
       it("a UTF-8 BOM, as decoded text", function () {
         expect(utils.toPem(`\uFEFF${normalizedPem}`)).to.equal(normalizedPem);
       });
@@ -305,6 +313,21 @@ describe("Utils tests", function () {
 
         expect(utils.toPem(spki.toString())).to.equal(spki);
         expect(utils.pemCertificates(spki.toString())).to.be.empty;
+      });
+    });
+
+    describe("a traditional encrypted key", function () {
+      // Node exports a PKCS#1 key encrypted the traditional way, with `Proc-Type` and `DEK-Info`
+      // header fields naming the cipher before the data they make readable.
+      const encrypted = crypto
+        .createPrivateKey(fs.readFileSync("./test/static/client.pem"))
+        .export({ type: "pkcs1", format: "pem", cipher: "aes-256-cbc", passphrase: "secret" })
+        .toString();
+
+      it("is neither rewritten nor decoded, since its data is lost without its fields", function () {
+        expect(encrypted).to.contain("DEK-Info: AES-256-CBC,");
+        expect(() => utils.toPem(encrypted)).to.throw("Invalid PEM format.");
+        expect(() => utils.pemToDer(encrypted)).to.throw("Invalid PEM format.");
       });
     });
 
@@ -545,6 +568,36 @@ describe("Utils tests", function () {
           expect(() => utils.pemCertificates(value)).to.throw("Invalid PEM format.");
         });
       }
+    });
+
+    it("reads certificates out of a bundle that also holds a traditional encrypted key", function () {
+      const encrypted = crypto
+        .createPrivateKey(fs.readFileSync("./test/static/client.pem"))
+        .export({ type: "pkcs1", format: "pem", cipher: "aes-256-cbc", passphrase: "secret" })
+        .toString();
+      const certificate = fs.readFileSync("./test/static/client_public.pem", "latin1");
+
+      expect(utils.pemCertificates(`${certificate}${encrypted}`)).to.deep.equal([
+        certificate.trim().split("\n").slice(1, -1).join(""),
+      ]);
+    });
+
+    it("refuses a certificate with header fields, which only an encrypted key carries", function () {
+      const certificate = fs.readFileSync("./test/static/client_public.pem", "latin1");
+      const withFields = certificate.replace(
+        "-----\n",
+        "-----\nProc-Type: 4,ENCRYPTED\nDEK-Info: AES-256-CBC,00\n\n",
+      );
+
+      expect(() => utils.pemCertificates(withFields)).to.throw("Invalid PEM format.");
+    });
+
+    it("returns base64 with its pad bits zeroed", function () {
+      const feide = fs.readFileSync("./test/static/feide_public.pem", "latin1");
+
+      expect(utils.pemCertificates(feide.replace("4PF13w==", "4PF13x=="))).to.deep.equal([
+        feide.trim().split("\n").slice(1, -1).join(""),
+      ]);
     });
 
     it("returns an empty array when the value holds no message at all", function () {
