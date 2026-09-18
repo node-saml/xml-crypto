@@ -75,8 +75,9 @@ describe("Utils tests", function () {
     });
 
     describe("judges the same data with and without encapsulation boundaries", function () {
-      const wrap = (data: string) =>
-        `-----BEGIN CERTIFICATE-----\n${data}\n-----END CERTIFICATE-----`;
+      // These are rules for base64, so they are held to a label whose data Node does not parse:
+      // under CERTIFICATE the data must also be a certificate, which none of these is.
+      const wrap = (data: string) => `-----BEGIN PKCS7-----\n${data}\n-----END PKCS7-----`;
 
       const accepted = {
         "a whole quantum": "QUJD",
@@ -103,15 +104,15 @@ describe("Utils tests", function () {
       };
 
       Object.entries(accepted).forEach(([description, data]) => {
-        it(`accepts ${description} either way, and reads the same certificate`, function () {
-          expect(utils.toPem(wrap(data))).to.equal(utils.toPem(data, "CERTIFICATE"));
+        it(`accepts ${description} either way, and reads the same data`, function () {
+          expect(utils.toPem(wrap(data))).to.equal(utils.toPem(data, "PKCS7"));
         });
       });
 
       Object.entries(rejected).forEach(([description, data]) => {
         it(`rejects ${description} either way, for the same reason`, function () {
-          expect(() => utils.toPem(wrap(data), "CERTIFICATE")).to.throw("Invalid PEM format.");
-          expect(() => utils.toPem(data, "CERTIFICATE")).to.throw("Invalid PEM format.");
+          expect(() => utils.toPem(wrap(data), "PKCS7")).to.throw("Invalid PEM format.");
+          expect(() => utils.toPem(data, "PKCS7")).to.throw("Invalid PEM format.");
         });
       });
     });
@@ -402,6 +403,38 @@ describe("Utils tests", function () {
 
       expect(runTogether).to.contain("----------BEGIN ");
       expect(() => utils.pemToDer(runTogether)).to.throw("Invalid PEM format.");
+    });
+  });
+
+  describe("reads a CERTIFICATE message's data as X.509, and not only as base64", function () {
+    // The base64 rules above hold for every label. Under CERTIFICATE the data is handed to Node's
+    // X509Certificate as well, so data those rules accept is still refused if it is no certificate.
+    const certificate = fs.readFileSync("./test/static/client_public.der");
+    const wrap = (der: Buffer) =>
+      `-----BEGIN CERTIFICATE-----\n${der.toString("base64")}\n-----END CERTIFICATE-----\n`;
+
+    for (const [problem, der] of [
+      ["well-formed base64 that is no certificate", Buffer.from("base64, and no certificate")],
+      ["a certificate cut short", certificate.subarray(0, -1)],
+      // X509Certificate reads the first certificate in the bytes and ignores what follows.
+      ["a certificate with a second run into it", Buffer.concat([certificate, certificate])],
+    ] as const) {
+      it(`refuses ${problem}, in each function that reads one`, function () {
+        expect(() => utils.toPem(wrap(der))).to.throw("Invalid PEM format.");
+        expect(() => utils.toPem(der.toString("base64"), "CERTIFICATE")).to.throw(
+          "Invalid PEM format.",
+        );
+        expect(() => utils.toPem(der, "CERTIFICATE")).to.throw("Invalid PEM format.");
+        expect(() => utils.pemToDer(wrap(der))).to.throw("Invalid PEM format.");
+        expect(() => utils.pemCertificates(wrap(der))).to.throw("Invalid PEM format.");
+      });
+    }
+
+    it("and holds the data of any other label to the base64 rules alone", function () {
+      const data = Buffer.from("base64, and no certificate");
+      const pem = `-----BEGIN PKCS7-----\n${data.toString("base64")}\n-----END PKCS7-----\n`;
+
+      expect(utils.pemToDer(pem)).to.deep.equal(data);
     });
   });
 

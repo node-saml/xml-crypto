@@ -1457,6 +1457,15 @@ describe("Signature unit tests", function () {
       expect(SignedXml.getCertFromKeyInfo(keyInfo)).to.equal(normalizedPem);
     });
 
+    it("throws when the X509Certificate is base64 and no certificate", function () {
+      const data = Buffer.from("base64, and no certificate").toString("base64");
+      const keyInfo = parse(
+        `<KeyInfo><X509Data><X509Certificate>${data}</X509Certificate></X509Data></KeyInfo>`,
+      );
+
+      expect(() => SignedXml.getCertFromKeyInfo(keyInfo)).to.throw("Invalid PEM format.");
+    });
+
     it("returns null when the KeyInfo carries no X509Certificate", function () {
       const keyInfo = parse("<KeyInfo><KeyName>client</KeyName></KeyInfo>");
 
@@ -1504,6 +1513,14 @@ describe("Signature unit tests", function () {
     const lines = fs.readFileSync("./test/static/client_public.pem", "latin1").trim().split("\n");
     const publicCert = [lines[0], "not base64 at all!", lines[lines.length - 1]].join("\n");
 
+    expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("refuses to sign with a publicCert whose certificate is base64 and no certificate", function () {
+    const data = Buffer.from("base64, and no certificate").toString("base64");
+    const publicCert = `-----BEGIN CERTIFICATE-----\n${data}\n-----END CERTIFICATE-----\n`;
+
+    // Published in KeyInfo, this would name a certificate no verifier could load.
     expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
   });
 
