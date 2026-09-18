@@ -257,17 +257,19 @@ function x509Certificate(data: string): X509Certificate {
     throw new Error("Invalid PEM format.");
   }
 
-  // Refused by name, because 6.x accepted it and OpenSSL used the first certificate: whoever
-  // meets this has to know that the value, and not the parser, is what changed.
-  if (certificate.raw.length < der.length) {
+  if (certificate.raw.equals(der)) {
+    return certificate;
+  }
+
+  // Each refusal below is named, because 6.x accepted both and OpenSSL read a certificate from
+  // them, so whoever meets one has to know that the value, and not the parser, is what changed.
+  // `.raw` is a prefix of the input only when the bytes after the first certificate are the
+  // difference; OpenSSL re-encodes one that is BER rather than DER, which X.509 requires.
+  if (der.subarray(0, certificate.raw.length).equals(certificate.raw)) {
     throw new Error("Expected a single certificate, but found more data after it.");
   }
 
-  if (!certificate.raw.equals(der)) {
-    throw new Error("Invalid PEM format.");
-  }
-
-  return certificate;
+  throw new Error("Expected a DER-encoded certificate.");
 }
 
 function isWellFormedMessage({ label, endLabel, data }: PemMessage): boolean {

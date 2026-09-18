@@ -434,6 +434,13 @@ describe("Utils tests", function () {
         Buffer.concat([certificate, Buffer.from("more")]),
         moreAfter,
       ],
+      [
+        // The fixture's outer length is `82 01C4`. Written `83 0001C4` it is the same length in a
+        // longer form, which BER allows and DER forbids, and OpenSSL reads it and re-encodes it.
+        "a certificate encoded as BER rather than DER",
+        Buffer.concat([Buffer.from([0x30, 0x83, 0x00]), certificate.subarray(2)]),
+        "Expected a DER-encoded certificate.",
+      ],
     ] as const) {
       it(`refuses ${problem}, in each function that reads one`, function () {
         expect(() => utils.toPem(wrap(der))).to.throw(error);
