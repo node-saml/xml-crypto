@@ -413,20 +413,34 @@ describe("Utils tests", function () {
     const wrap = (der: Buffer) =>
       `-----BEGIN CERTIFICATE-----\n${der.toString("base64")}\n-----END CERTIFICATE-----\n`;
 
-    for (const [problem, der] of [
-      ["well-formed base64 that is no certificate", Buffer.from("base64, and no certificate")],
-      ["a certificate cut short", certificate.subarray(0, -1)],
-      // X509Certificate reads the first certificate in the bytes and ignores what follows.
-      ["a certificate with a second run into it", Buffer.concat([certificate, certificate])],
+    const moreAfter = "Expected a single certificate, but found more data after it.";
+
+    for (const [problem, der, error] of [
+      [
+        "well-formed base64 that is no certificate",
+        Buffer.from("base64, and no certificate"),
+        "Invalid PEM format.",
+      ],
+      ["a certificate cut short", certificate.subarray(0, -1), "Invalid PEM format."],
+      // X509Certificate reads the first certificate in the bytes and ignores what follows, which
+      // 6.x passed on for OpenSSL to do the same, so these are refused with a reason of their own.
+      [
+        "a certificate with a second run into it",
+        Buffer.concat([certificate, certificate]),
+        moreAfter,
+      ],
+      [
+        "a certificate with other bytes after it",
+        Buffer.concat([certificate, Buffer.from("more")]),
+        moreAfter,
+      ],
     ] as const) {
       it(`refuses ${problem}, in each function that reads one`, function () {
-        expect(() => utils.toPem(wrap(der))).to.throw("Invalid PEM format.");
-        expect(() => utils.toPem(der.toString("base64"), "CERTIFICATE")).to.throw(
-          "Invalid PEM format.",
-        );
-        expect(() => utils.toPem(der, "CERTIFICATE")).to.throw("Invalid PEM format.");
-        expect(() => utils.pemToDer(wrap(der))).to.throw("Invalid PEM format.");
-        expect(() => utils.pemCertificates(wrap(der))).to.throw("Invalid PEM format.");
+        expect(() => utils.toPem(wrap(der))).to.throw(error);
+        expect(() => utils.toPem(der.toString("base64"), "CERTIFICATE")).to.throw(error);
+        expect(() => utils.toPem(der, "CERTIFICATE")).to.throw(error);
+        expect(() => utils.pemToDer(wrap(der))).to.throw(error);
+        expect(() => utils.pemCertificates(wrap(der))).to.throw(error);
       });
     }
 

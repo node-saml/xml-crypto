@@ -1466,6 +1466,18 @@ describe("Signature unit tests", function () {
       expect(() => SignedXml.getCertFromKeyInfo(keyInfo)).to.throw("Invalid PEM format.");
     });
 
+    it("says why when one X509Certificate carries two certificates", function () {
+      const certificate = fs.readFileSync("./test/static/client_public.der");
+      const data = Buffer.concat([certificate, certificate]).toString("base64");
+      const keyInfo = parse(
+        `<KeyInfo><X509Data><X509Certificate>${data}</X509Certificate></X509Data></KeyInfo>`,
+      );
+
+      expect(() => SignedXml.getCertFromKeyInfo(keyInfo)).to.throw(
+        "Expected a single certificate, but found more data after it.",
+      );
+    });
+
     it("returns null when the KeyInfo carries no X509Certificate", function () {
       const keyInfo = parse("<KeyInfo><KeyName>client</KeyName></KeyInfo>");
 
