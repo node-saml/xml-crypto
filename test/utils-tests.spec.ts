@@ -89,10 +89,13 @@ describe("Utils tests", function () {
 
       const rejected = {
         "a lone character": "A",
+        "two characters with no pad": "AA",
+        "three characters with no pad": "AAA",
         "a character and a pad": "A=",
         "three characters and two pads": "AAA==",
         "a whole quantum and a pad": "AAAA=",
         "a quantum and one character": "AAAAA",
+        "a whole quantum and two pads": "AAAA==",
         "a pad in the middle of the data": "QUJD=REVG",
         "a character outside the base64 alphabet": "QU-JD",
         "nothing at all": "",
@@ -130,6 +133,24 @@ describe("Utils tests", function () {
 
       it("a line ending replaced by a space", function () {
         expect(utils.derToPem(rebuild([body.join(" ")]))).to.equal(normalizedPem);
+      });
+
+      for (const [name, eol] of [
+        ["CRLF", "\r\n"],
+        ["CR", "\r"],
+      ] as const) {
+        it(`${name} line endings, with and without boundaries`, function () {
+          const bare = body.join("\n").replace(/\n/g, eol);
+
+          expect(utils.derToPem(bare, "CERTIFICATE")).to.equal(normalizedPem);
+          expect(utils.derToPem(rebuild(body).replace(/\n/g, eol))).to.equal(normalizedPem);
+        });
+      }
+
+      it("a blank line between concatenated messages", function () {
+        const pair = `${normalizedPem}\n\n${normalizedPem}`;
+
+        expect(utils.derToPem(pair)).to.equal(`${normalizedPem}${normalizedPem}`);
       });
 
       it("a blank line after the header", function () {
