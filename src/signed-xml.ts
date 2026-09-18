@@ -228,6 +228,7 @@ export class SignedXml {
       publicCert = publicCert.toString("latin1");
     }
 
+    // A KeyObject holds a key and never a certificate, so there is no X509Data to build from it.
     const certificates = typeof publicCert === "string" ? utils.pemCertificates(publicCert) : [];
 
     // X509Data requires at least one child: https://www.w3.org/TR/xmldsig-core1/#sec-X509Data

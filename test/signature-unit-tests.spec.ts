@@ -1438,6 +1438,34 @@ describe("Signature unit tests", function () {
     it("when keyInfoAttributes are set without a publicCert", function () {
       expect(selectKeyInfo({ keyInfoAttributes: { Id: "key" } })).to.be.empty;
     });
+
+    it("when publicCert is a KeyObject, which holds a key and never a certificate", function () {
+      expect(selectKeyInfo({ publicCert: crypto.createPublicKey(privateKey) })).to.be.empty;
+    });
+  });
+
+  describe("getCertFromKeyInfo", function () {
+    const parse = (xml: string) => new xmldom.DOMParser().parseFromString(xml, "text/xml");
+
+    it("returns the certificate a KeyInfo carries, as PEM", function () {
+      const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
+      const data = normalizedPem.trim().split("\n").slice(1, -1).join("");
+      const keyInfo = parse(
+        `<KeyInfo><X509Data><X509Certificate>${data}</X509Certificate></X509Data></KeyInfo>`,
+      );
+
+      expect(SignedXml.getCertFromKeyInfo(keyInfo)).to.equal(normalizedPem);
+    });
+
+    it("returns null when the KeyInfo carries no X509Certificate", function () {
+      const keyInfo = parse("<KeyInfo><KeyName>client</KeyName></KeyInfo>");
+
+      expect(SignedXml.getCertFromKeyInfo(keyInfo)).to.be.null;
+    });
+
+    it("returns null when there is no KeyInfo at all", function () {
+      expect(SignedXml.getCertFromKeyInfo(null)).to.be.null;
+    });
   });
 
   function signWithPublicCert(publicCert: string) {
