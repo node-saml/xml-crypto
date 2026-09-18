@@ -1507,6 +1507,34 @@ describe("Signature unit tests", function () {
     expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
   });
 
+  it("signs with a publicCert carrying the explanatory text tools write around a certificate", function () {
+    // RFC 7468 section 5.2 shows a certificate written under its subject and issuer lines, and
+    // OpenSSL writes them, so a value that carries them still carries a certificate to publish.
+    const certificate = fs.readFileSync("./test/static/client_public.pem", "latin1");
+    const publicCert = `subject=/CN=client\nissuer=/CN=ca\n${certificate}Issued for testing.\n`;
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      publicCert,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+    sig.computeSignature("<root><x /></root>");
+
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const certificates = xpath.select("//*[local-name(.)='X509Certificate']", doc);
+    isDomNode.assertIsArrayOfNodes(certificates);
+
+    expect(certificates).to.have.lengthOf(1);
+    expect(certificates[0].textContent).to.equal(
+      certificate.trim().split("\n").slice(1, -1).join(""),
+    );
+  });
+
   it("adds id and type attributes to Reference elements when provided", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();

@@ -578,32 +578,41 @@ one message after another.
   as a string rather than a Buffer.
 - `pemToDer(pem)` returns the decoded bytes of the one message a value holds.
 - `pemCertificates(pem)` returns the base64 of each `CERTIFICATE` message and ignores messages of
-  any other label, so a private key in the same value is never published.
+  any other label, so a private key in the same value is never published. It reads certificates
+  out of a larger value, passing over the explanatory text tools write around a message, while
+  `toPem()` rewrites the whole value and so must account for all of it.
 
 Accepted:
 
 - `\n`, `\r\n` and `\r` line endings, and a leading UTF-8 BOM.
 - any line width, a single line included, and a blank line after the header.
-- blanks anywhere in the encapsulated data. XMLDSig carries a certificate as
+- blanks anywhere in the encapsulated data, and a blank line as well when the base64 is given
+  without boundaries. XMLDSig carries a certificate as
   [`xs:base64Binary`](https://www.w3.org/TR/xmlschema11-2/#base64Binary), whose lexical space
-  allows whitespace, so a pretty-printed document indents it and a value that has been through a
-  text field may have had its line endings replaced by spaces.
+  collapses whitespace, so a pretty-printed document indents it and a value that has been through
+  a text field may have had its line endings replaced by spaces.
+- explanatory text before, after or between the messages, which `pemCertificates()` passes over.
+  [Section 5.2](https://www.rfc-editor.org/rfc/rfc7468#section-5.2) shows a certificate written
+  under its subject and issuer lines, and OpenSSL and keytool both write them.
 - several messages in one value, of which `toPem()` keeps all, `pemCertificates()` takes the
   certificates, and `pemToDer()` takes none.
-- any label RFC 7468's grammar allows, which is every registered label and the ones OpenSSL adds,
-  such as `RSA PRIVATE KEY`. `PemLabel` names the registered ones.
+- any label of up to 48 characters that RFC 7468's grammar allows, which is every registered
+  label and the ones OpenSSL adds, such as `RSA PRIVATE KEY`. `PemLabel` names the registered
+  ones, the longest of which is 21 characters.
 
 Rejected, with an error rather than a certificate:
 
 - data outside the base64 alphabet, padding away from the end, or a final quantum that is not
   whole, per [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648#section-4).
-- a header with no data under it, and a blank line in the middle of the data.
+- a header with no data under it, and a blank line in the middle of a message's data, which
+  RFC 7468's body does not have.
 - a value that opens a message it does not close, or one whose header and footer labels disagree.
   [Section 3](https://www.rfc-editor.org/rfc/rfc7468#section-3) permits a parser to disregard the
   footer's label, but OpenSSL will not read such a message, so neither does this one.
 - a label outside RFC 7468's grammar, which is one holding `--` or opening or closing with a
-  blank. A label is written into both boundaries, so one holding `--` would produce a message
-  this parser could not read back.
+  blank, and one longer than 48 characters. A label is written into both boundaries, so one
+  holding `--` would produce a message this parser could not read back, and `-----BEGIN ` and
+  `-----` bracket it in 16 characters, so 48 is the longest whose boundary still fits one line.
 
 ### Converting .pfx certificates to pem
 

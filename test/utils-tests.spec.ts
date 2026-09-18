@@ -157,6 +157,15 @@ describe("Utils tests", function () {
         expect(utils.toPem(rebuild(["", ...body]))).to.equal(normalizedPem);
       });
 
+      it("a blank line in base64 given without boundaries", function () {
+        // XMLDSig carries a certificate as xs:base64Binary, whose lexical space collapses
+        // whitespace, so a blank line among the lines of an X509Certificate is insignificant.
+        // Inside a message the body is RFC 7468's, which has no blank line in it.
+        const interrupted = [...body.slice(0, 2), "", ...body.slice(2)].join("\n");
+
+        expect(utils.toPem(interrupted, "CERTIFICATE")).to.equal(normalizedPem);
+      });
+
       it("a line width other than 64", function () {
         const rewrapped = body.join("").match(/.{1,70}/g) ?? [];
 
@@ -221,6 +230,30 @@ describe("Utils tests", function () {
 
       it("keeps a hyphen inside a label, which RFC 7468 allows", function () {
         expect(utils.toPem(utils.toPem(data, "FOO-BAR"))).to.contain("-----BEGIN FOO-BAR-----");
+      });
+
+      it("writes the longest label it takes on one line, and reads it back", function () {
+        // `-----BEGIN ` and `-----` bracket the label in 16 characters, so 48 is the longest one
+        // whose opening boundary still fits a 64-character line.
+        const longest = "A".repeat(48);
+        const pem = utils.toPem(data, longest);
+
+        expect(`-----BEGIN ${longest}-----`).to.have.lengthOf(64);
+        expect(pem).to.contain(`-----BEGIN ${longest}-----\n`);
+        expect(pem).to.contain(`-----END ${longest}-----\n`);
+        expect(utils.toPem(pem)).to.equal(pem);
+      });
+
+      it("refuses a label too long for a boundary to carry on one line", function () {
+        // The separators of RFC 7468's 'label' count toward the length as its label characters
+        // do: 25 label characters with a space between each pair is 49, one over.
+        const tooLong = Array(25).fill("A").join(" ");
+
+        expect(tooLong).to.have.lengthOf(49);
+        expect(() => utils.toPem(data, tooLong)).to.throw("Invalid PEM label.");
+        expect(() =>
+          utils.toPem(`-----BEGIN ${tooLong}-----\nQUFBQQ==\n-----END ${tooLong}-----\n`),
+        ).to.throw("Invalid PEM format.");
       });
 
       it("refuses a message labelled nothing, which the grammar marks as 'empty ok'", function () {
@@ -367,6 +400,36 @@ describe("Utils tests", function () {
           crypto.createPublicKey(utils.toPem(certificate, "CERTIFICATE")),
         ).to.not.throw();
       }
+    });
+
+    describe("passes over the explanatory text around a message", function () {
+      // RFC 7468 section 5.2 shows a certificate written under its subject and issuer lines, and
+      // both OpenSSL and keytool put them there, so a value carrying them is still a value
+      // carrying a certificate. Section 2 allows the data before an encapsulation boundary.
+      const certificate = fs.readFileSync("./test/static/client_public.pem", "latin1");
+      const data = certificate.trim().split("\n").slice(1, -1).join("");
+
+      it("before the message", function () {
+        const value = `subject=/CN=client\nissuer=/CN=ca\n${certificate}`;
+
+        expect(utils.pemCertificates(value)).to.deep.equal([data]);
+      });
+
+      it("after the message", function () {
+        expect(utils.pemCertificates(`${certificate}Issued for testing.\n`)).to.deep.equal([data]);
+      });
+
+      it("between two messages", function () {
+        const value = `${certificate}and its issuer:\n\n${certificate}`;
+
+        expect(utils.pemCertificates(value)).to.deep.equal([data, data]);
+      });
+
+      it("but not an opening boundary no message was built from", function () {
+        const value = `${certificate}and one more:\n-----BEGIN CERTIFICATE-----\n`;
+
+        expect(() => utils.pemCertificates(value)).to.throw("Invalid PEM format.");
+      });
     });
 
     it("returns an empty array when the value holds no message at all", function () {

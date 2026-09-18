@@ -103,13 +103,14 @@ export function encodeSpecialCharactersInText(text: string): string {
  *  - whitespace around the message is discarded, the '*W' of 'laxtextualmsg' in Figure 2, and a
  *    leading UTF-8 BOM with it.
  *  - blanks are discarded wherever they fall in the encapsulated data, not only at the ends of
- *    lines as Figure 1 permits. XMLDSig carries a certificate as xs:base64Binary, whose lexical
- *    space allows whitespace, and a pretty-printed document indents it.
+ *    lines as Figure 1 permits, and base64 given without boundaries may hold a blank line as
+ *    well. XMLDSig carries a certificate as xs:base64Binary, whose lexical space collapses
+ *    whitespace, and a pretty-printed document indents it.
  *    https://www.w3.org/TR/xmlschema11-2/#base64Binary
- *  - a label is limited to 48 label characters, which no registered label comes close to, so that
- *    a boundary cannot be made arbitrarily long, and it may not be empty, which the 'label'
- *    production of Figure 1 marks as 'empty ok'. A message labelled nothing names no format, and
- *    OpenSSL will not read one.
+ *  - a label is limited to 48 characters, which no registered label comes close to, so that an
+ *    opening boundary still fits the line this module writes, and it may not be empty, which the
+ *    'label' production of Figure 1 marks as 'empty ok'. A message labelled nothing names no
+ *    format, and OpenSSL will not read one.
  *
  * Structure and data are separate checks, the data taken with its line breaks removed, so that a
  * line may end anywhere without `{4}` having to become the ambiguous `{1,4}`. Line endings and
@@ -129,6 +130,14 @@ export function encodeSpecialCharactersInText(text: string): string {
 const LABEL_CHAR = "[\\x21-\\x2C\\x2E-\\x7E]";
 const LABEL = `${LABEL_CHAR}(?:[-\\x20]?${LABEL_CHAR}){0,47}`;
 
+/*
+ * `-----BEGIN ` and `-----` bracket a label in 16 characters, so 48 is the longest label whose
+ * opening boundary still fits the 64-character line `normalizePem` writes. The repetition above
+ * bounds label characters alone, and the separators standing between them carry a label past 48
+ * without exceeding it, so the length is measured rather than left to the pattern.
+ */
+const LABEL_MAX_LENGTH = 48;
+
 const LABEL_REGEX = new RegExp(`^${LABEL}$`);
 const PEM_FORMAT_REGEX = new RegExp(
   `^(?:-----BEGIN ${LABEL}-----\\n+(?:[A-Za-z0-9+/=]+\\n)+-----END ${LABEL}-----\\n*)+$`,
@@ -137,7 +146,11 @@ const PEM_MESSAGE_REGEX = new RegExp(
   `-----BEGIN (${LABEL})-----\\n+((?:[A-Za-z0-9+/=]+\\n)+)-----END (${LABEL})-----`,
   "g",
 );
-const BASE64_LINES_REGEX = /^(?:[A-Za-z0-9+/=]+\n)*[A-Za-z0-9+/=]+$/;
+// Base64 given without boundaries is what XMLDSig carries in `X509Certificate`, an
+// `xs:base64Binary` whose lexical space collapses whitespace, so a blank line among its lines is
+// insignificant and is taken here. Inside a message the body is RFC 7468's, which has no blank
+// line in it, and `PEM_FORMAT_REGEX` holds that line to its own shape.
+const BASE64_TEXT_REGEX = /^[A-Za-z0-9+/=\n]+$/;
 const BASE64_DATA_REGEX = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 // A Buffer is decoded latin1 to keep every byte, which leaves a UTF-8 BOM as three characters
@@ -188,8 +201,21 @@ function isBase64Data(data: string): boolean {
   return BASE64_DATA_REGEX.test(data);
 }
 
+function isLabel(label: string): boolean {
+  return label.length <= LABEL_MAX_LENGTH && LABEL_REGEX.test(label);
+}
+
 function isWellFormedMessage({ label, endLabel, data }: PemMessage): boolean {
-  return label === endLabel && isBase64Data(data);
+  return label === endLabel && isLabel(label) && isBase64Data(data);
+}
+
+// Counted rather than matched, so that an opening boundary no message was built from is still
+// seen, whatever left it unusable: a missing footer, a label too long to write back, or a body
+// that is not base64. The blank of `-----BEGIN ` is left out deliberately, so that a boundary
+// sharing its line with other text is counted here and refused, rather than passed over as prose
+// and the certificate under it dropped from a signature without a word.
+function countOpenings(text: string): number {
+  return text.split("-----BEGIN").length - 1;
 }
 
 /**
@@ -218,14 +244,18 @@ export function normalizePem(pem: string): string {
 }
 
 // Rebuilt from the data rather than passed through, so that the same certificate produces the
-// same bytes whatever line width, line ending or blanks it arrived with.
+// same bytes whatever line width, line ending or blanks it arrived with. Only the data is handed
+// to `normalizePem`, which wraps at 64 characters whatever it is given: a boundary broken across
+// two lines would be a message this parser could no longer read back.
 function formatPemMessage(label: string, data: string): string {
-  return normalizePem(`-----BEGIN ${label}-----\n${data}\n-----END ${label}-----`);
+  return `-----BEGIN ${label}-----\n${normalizePem(data)}-----END ${label}-----\n`;
 }
 
 /**
  * Returns the base64 data of each `CERTIFICATE` message in a PEM value, and `[]` when the value
- * holds no certificate: bare base64, or messages of other labels.
+ * holds no certificate: bare base64, or messages of other labels. Explanatory text before, after
+ * or between the messages is passed over, as RFC 7468 section 5.2 allows, but every message the
+ * value does hold is read and checked.
  *
  * @param pem The PEM value to read certificates from
  * @throws Error if the value opens a message it does not close as a well-formed PEM, or if a
@@ -233,23 +263,16 @@ function formatPemMessage(label: string, data: string): string {
  */
 export function pemCertificates(pem: string): string[] {
   const text = normalizePemInput(pem);
-
-  if (!PEM_FORMAT_REGEX.test(text)) {
-    // A value with no boundaries at all holds no certificate to publish, but one that opens a
-    // message it cannot finish is a certificate we failed to read, and dropping it would sign
-    // without the KeyInfo the caller asked for.
-    if (text.includes("-----BEGIN ")) {
-      throw new Error("Invalid PEM format.");
-    }
-
-    return [];
-  }
-
-  // Every message is checked before any is filtered: a message is a certificate by its opening
-  // label alone, so one that opens as something else and closes as a certificate would be
-  // filtered away unexamined, and signing would go on without the KeyInfo the caller asked for.
   const messages = pemMessages(text);
-  if (!messages.every(isWellFormedMessage)) {
+
+  // Section 5.2 shows explanatory text before a certificate, and the tools that write one put the
+  // subject and issuer there, so whatever surrounds a message is passed over rather than refused.
+  // An opening boundary that no message was built from is another matter: it is a certificate we
+  // failed to read, and dropping it would sign without the KeyInfo the caller asked for. Every
+  // message is checked before any is filtered, because a message is a certificate by its opening
+  // label alone, so one that opens as something else and closes as a certificate would be
+  // filtered away unexamined.
+  if (countOpenings(text) !== messages.length || !messages.every(isWellFormedMessage)) {
     throw new Error("Invalid PEM format.");
   }
 
@@ -316,14 +339,14 @@ export function toPem(value: string | Buffer, pemLabel?: PemLabel): string {
 
   const data = text.replace(/\n/g, "");
 
-  if (BASE64_LINES_REGEX.test(text) && isBase64Data(data)) {
+  if (BASE64_TEXT_REGEX.test(text) && isBase64Data(data)) {
     if (pemLabel == null) {
       throw new Error("A PEM label is required to wrap base64 data.");
     }
 
     // The label is written into both boundaries, so one that is not a label would produce a
     // message this parser could not read back, and `-----` in it would produce a second message.
-    if (!LABEL_REGEX.test(pemLabel)) {
+    if (!isLabel(pemLabel)) {
       throw new Error("Invalid PEM label.");
     }
 
