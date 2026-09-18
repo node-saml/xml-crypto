@@ -374,6 +374,19 @@ describe("Utils tests", function () {
       );
     });
 
+    it("throws when a message's labels disagree, whichever of them is a certificate", function () {
+      const pem = fs.readFileSync("./test/static/client_public.pem", "latin1");
+
+      // The opening label alone decides what a message is, so a message that opens as something
+      // else is not a certificate to filter away: it is a certificate that failed to parse.
+      expect(() =>
+        utils.pemCertificates(pem.replace("BEGIN CERTIFICATE", "BEGIN PRIVATE KEY")),
+      ).to.throw("Invalid PEM format.");
+      expect(() =>
+        utils.pemCertificates(pem.replace("END CERTIFICATE", "END PRIVATE KEY")),
+      ).to.throw("Invalid PEM format.");
+    });
+
     it("throws when a certificate's data is not base64", function () {
       const corrupt = bundle.replace(/^[A-Za-z0-9+/]{64}$/m, "not base64 at all!");
 

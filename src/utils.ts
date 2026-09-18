@@ -107,7 +107,9 @@ export function encodeSpecialCharactersInText(text: string): string {
  *    space allows whitespace, and a pretty-printed document indents it.
  *    https://www.w3.org/TR/xmlschema11-2/#base64Binary
  *  - a label is limited to 48 label characters, which no registered label comes close to, so that
- *    a boundary cannot be made arbitrarily long.
+ *    a boundary cannot be made arbitrarily long, and it may not be empty, which the 'label'
+ *    production of Figure 1 marks as 'empty ok'. A message labelled nothing names no format, and
+ *    OpenSSL will not read one.
  *
  * Structure and data are separate checks, the data taken with its line breaks removed, so that a
  * line may end anywhere without `{4}` having to become the ambiguous `{1,4}`. Line endings and
@@ -243,12 +245,17 @@ export function pemCertificates(pem: string): string[] {
     return [];
   }
 
-  const certificates = pemMessages(text).filter((message) => message.label === "CERTIFICATE");
-  if (!certificates.every(isWellFormedMessage)) {
+  // Every message is checked before any is filtered: a message is a certificate by its opening
+  // label alone, so one that opens as something else and closes as a certificate would be
+  // filtered away unexamined, and signing would go on without the KeyInfo the caller asked for.
+  const messages = pemMessages(text);
+  if (!messages.every(isWellFormedMessage)) {
     throw new Error("Invalid PEM format.");
   }
 
-  return certificates.map((certificate) => certificate.data);
+  return messages
+    .filter((message) => message.label === "CERTIFICATE")
+    .map((certificate) => certificate.data);
 }
 
 /**

@@ -1492,6 +1492,14 @@ describe("Signature unit tests", function () {
     expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
   });
 
+  it("refuses to sign with a publicCert that opens as a key and closes as a certificate", function () {
+    const publicCert = fs
+      .readFileSync("./test/static/client_public.pem", "latin1")
+      .replace("BEGIN CERTIFICATE", "BEGIN PRIVATE KEY");
+
+    expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
   it("refuses to sign with a publicCert whose certificate is not base64", function () {
     const lines = fs.readFileSync("./test/static/client_public.pem", "latin1").trim().split("\n");
     const publicCert = [lines[0], "not base64 at all!", lines[lines.length - 1]].join("\n");
