@@ -1,6 +1,18 @@
 # Changelog
 
-## 6.2.0 (2026-09-16)
+## 6.3.0 (2026-09-18)
+
+### 🚀 Minor Changes
+
+- [**bug**] [**enhancement**] feat: own the PEM parser and validate the encapsulated text [#603](https://github.com/node-saml/xml-crypto/pull/603)
+
+### ⚙️ Technical Tasks
+
+- [**chore**] chore: merge master into 6.x [#604](https://github.com/node-saml/xml-crypto/pull/604)
+
+---
+
+## v6.2.0 (2026-09-16)
 
 ### 🚀 Minor Changes
 
