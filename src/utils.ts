@@ -235,42 +235,39 @@ function isLabel(label: string): boolean {
 }
 
 /*
- * A certificate is handed to Node, whose X509Certificate reads the DER as X.509 and not as base64
+ * A certificate is handed to Node, whose X509Certificate reads it as X.509 and not as base64
  * alone, so data that is well-formed base64 and no certificate is refused here rather than being
- * published in KeyInfo or failing later in Node's crypto. What the parser above still owns is what
- * Node does not: finding each message in a value, which X509Certificate answers by taking the first
- * certificate and passing over the rest. Node documents `.raw` as the DER encoding of the
- * certificate, so the data is accepted only when it is exactly that. Node's own message depends
- * on the crypto library it was built with, so the error is this module's.
+ * published in KeyInfo or failing later in Node's crypto. Node validates and does nothing more:
+ * the octets are kept as given, because RFC 7468 section 5.1 allows BER, and XML Signature 1.1
+ * says an implementation SHOULD NOT alter or re-encode a certificate, which could invalidate it.
+ * https://www.w3.org/TR/xmldsig-core1/#sec-X509Data
+ * What the parser above still owns is what Node does not do: finding each message in a value,
+ * which X509Certificate answers by taking the first certificate and passing over the rest.
  */
-function x509Certificate(data: string): X509Certificate {
-  const der = Buffer.from(data, "base64");
-  let certificate: X509Certificate | undefined;
+function isX509Certificate(bytes: Buffer): boolean {
   try {
-    certificate = new X509Certificate(der);
+    return new X509Certificate(bytes) instanceof X509Certificate;
   } catch {
-    // Refused below, with this module's message.
+    return false;
   }
+}
 
-  if (certificate == null) {
+function assertX509Certificate(data: string): void {
+  const bytes = Buffer.from(data, "base64");
+
+  if (!isX509Certificate(bytes)) {
     throw new Error("Invalid PEM format.");
   }
 
-  if (certificate.raw.equals(der)) {
-    return certificate;
-  }
-
-  // Each refusal below is named, because 6.x accepted both and Node read a certificate from them,
-  // so whoever meets one has to know that the value, and not the parser, is what changed. Which
-  // one it is comes from how Node behaves rather than from anything it documents: `.raw` has been
-  // a prefix of the input when bytes follow the certificate, and a re-encoding of it when the
-  // certificate is BER rather than the DER that X.509 requires. A crypto library that refused
-  // either outright would reach `Invalid PEM format.` above, and the value would still be refused.
-  if (der.subarray(0, certificate.raw.length).equals(certificate.raw)) {
+  // Node reads a certificate from the start of the bytes and passes over what follows it, which
+  // 6.x did the same with. The data is exactly one certificate when dropping its last byte leaves
+  // bytes Node cannot read, and that holds for DER and both forms of BER length alike, so no ASN.1
+  // is parsed here. A crypto library that did not pass over what follows would refuse such data
+  // above, and one that read a certificate cut short would refuse every certificate here: either
+  // way what goes wrong is a refusal, never an acceptance.
+  if (isX509Certificate(bytes.subarray(0, -1))) {
     throw new Error("Expected a single certificate, but found more data after it.");
   }
-
-  throw new Error("Expected a DER-encoded certificate.");
 }
 
 function isWellFormedMessage({ label, endLabel, data }: PemMessage): boolean {
@@ -308,7 +305,7 @@ export function normalizePem(pem: string): string {
 // two lines would be a message this parser could no longer read back.
 function formatPemMessage(label: string, data: string): string {
   if (label === "CERTIFICATE") {
-    return x509Certificate(data).toString();
+    assertX509Certificate(data);
   }
 
   return `-----BEGIN ${label}-----\n${normalizePem(data)}-----END ${label}-----\n`;
@@ -338,13 +335,18 @@ export function pemCertificates(pem: string): string[] {
     throw new Error("Invalid PEM format.");
   }
 
-  return messages
+  const certificates = messages
     .filter((message) => message.label === "CERTIFICATE")
-    .map((certificate) => x509Certificate(certificate.data).raw.toString("base64"));
+    .map((certificate) => certificate.data);
+  certificates.forEach(assertX509Certificate);
+
+  return certificates;
 }
 
 /**
- * @param pem The PEM-encoded base64 certificate to strip headers from
+ * Returns the decoded bytes of the one PEM message a value holds, whatever its label.
+ *
+ * @param pem The PEM message to decode
  * @throws Error if the value is not a single well-formed PEM message
  */
 export function pemToDer(pem: string): Buffer {
@@ -360,8 +362,11 @@ export function pemToDer(pem: string): Buffer {
   }
 
   const [{ label, data }] = messages;
+  if (label === "CERTIFICATE") {
+    assertX509Certificate(data);
+  }
 
-  return label === "CERTIFICATE" ? x509Certificate(data).raw : Buffer.from(data, "base64");
+  return Buffer.from(data, "base64");
 }
 
 // A Buffer holds either the bytes of a PEM file or raw DER. DER is ASN.1, whose every encoding

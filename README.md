@@ -601,16 +601,19 @@ Accepted:
 - any non-empty label of up to 48 characters that RFC 7468's grammar allows, which is every
   registered label and the ones OpenSSL adds, such as `RSA PRIVATE KEY`. `PemLabel` names the
   registered ones, the longest of which is 21 characters.
+- a certificate encoded as BER as well as DER, as
+  [RFC 7468 section 5.1](https://www.rfc-editor.org/rfc/rfc7468#section-5.1) allows. Its octets are
+  kept as given, because [XML Signature 1.1](https://www.w3.org/TR/xmldsig-core1/#sec-X509Data)
+  says an implementation SHOULD NOT alter or re-encode a certificate.
 
 Rejected, with an error rather than a certificate:
 
 - data outside the base64 alphabet, padding away from the end, or a final quantum that is not
   whole, per [RFC 4648 section 4](https://www.rfc-editor.org/rfc/rfc4648#section-4).
 - a `CERTIFICATE` whose data is not exactly one X.509 certificate: base64 of something else, a
-  certificate cut short, one with more bytes after it, or one encoded as BER rather than DER. That
-  data is read by Node's
-  [`X509Certificate`](https://nodejs.org/api/crypto.html#class-x509certificate), so a certificate
-  is judged as X.509 and not by its base64 alone, and Node writes it back out.
+  certificate cut short, or one with more bytes after it. Node's
+  [`X509Certificate`](https://nodejs.org/api/crypto.html#class-x509certificate) decides whether
+  the data is a certificate, so it is judged as X.509 and not by its base64 alone.
 - a header with no data under it, and a blank line in the middle of a message's data.
 - a boundary sharing its line with other text.
   [Figure 1](https://www.rfc-editor.org/rfc/rfc7468#section-3) gives an encapsulation boundary a

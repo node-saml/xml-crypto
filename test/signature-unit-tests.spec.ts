@@ -1478,6 +1478,21 @@ describe("Signature unit tests", function () {
       );
     });
 
+    it("returns a BER certificate with its octets as given", function () {
+      const der = fs.readFileSync("./test/static/client_public.der");
+      const ber = Buffer.concat([Buffer.from([0x30, 0x83, 0x00]), der.subarray(2)]);
+      const keyInfo = parse(
+        `<KeyInfo><X509Data><X509Certificate>${ber.toString("base64")}</X509Certificate></X509Data></KeyInfo>`,
+      );
+      const pem = SignedXml.getCertFromKeyInfo(keyInfo);
+
+      expect(pem).to.be.a("string");
+      expect(crypto.createPublicKey(pem as string).asymmetricKeyType).to.equal("rsa");
+      expect(
+        Buffer.from((pem as string).split("\n").slice(1, -2).join(""), "base64"),
+      ).to.deep.equal(ber);
+    });
+
     it("returns null when the KeyInfo carries no X509Certificate", function () {
       const keyInfo = parse("<KeyInfo><KeyName>client</KeyName></KeyInfo>");
 
@@ -1534,6 +1549,33 @@ describe("Signature unit tests", function () {
 
     // Published in KeyInfo, this would name a certificate no verifier could load.
     expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("signs a BER certificate into KeyInfo with its octets as given", function () {
+    // RFC 7468 section 5.1 allows BER, and XML Signature 1.1 says an implementation SHOULD NOT
+    // re-encode a certificate: https://www.w3.org/TR/xmldsig-core1/#sec-X509Data
+    const der = fs.readFileSync("./test/static/client_public.der");
+    const ber = Buffer.concat([Buffer.from([0x30, 0x83, 0x00]), der.subarray(2)]);
+    const publicCert = `-----BEGIN CERTIFICATE-----\n${ber.toString("base64")}\n-----END CERTIFICATE-----\n`;
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      publicCert,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+    sig.computeSignature("<root><x /></root>");
+
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const certificates = xpath.select("//*[local-name(.)='X509Certificate']", doc);
+    isDomNode.assertIsArrayOfNodes(certificates);
+
+    expect(certificates).to.have.lengthOf(1);
+    expect(Buffer.from(certificates[0].textContent ?? "", "base64")).to.deep.equal(ber);
   });
 
   it("signs with a publicCert carrying the explanatory text tools write around a certificate", function () {

@@ -415,6 +415,30 @@ describe("Utils tests", function () {
 
     const moreAfter = "Expected a single certificate, but found more data after it.";
 
+    // The fixture's outer length is `82 01C4`. Written `83 0001C4` it is the same length in a
+    // longer form, and written `80` with two zero octets after the contents it is indefinite: both
+    // are BER and not DER, which RFC 7468 section 5.1 and XML Signature 1.1 both allow.
+    const longForm = Buffer.concat([Buffer.from([0x30, 0x83, 0x00]), certificate.subarray(2)]);
+    const indefinite = Buffer.concat([
+      Buffer.from([0x30, 0x80]),
+      certificate.subarray(4),
+      Buffer.from([0, 0]),
+    ]);
+
+    for (const [encoding, der] of [
+      ["DER", certificate],
+      ["BER with a long-form length", longForm],
+      ["BER with an indefinite length", indefinite],
+    ] as const) {
+      it(`accepts a certificate encoded as ${encoding}, and keeps its octets as given`, function () {
+        // XML Signature 1.1 says an implementation SHOULD NOT alter or re-encode a certificate.
+        expect(utils.pemToDer(utils.toPem(wrap(der)))).to.deep.equal(der);
+        expect(utils.pemToDer(utils.toPem(der, "CERTIFICATE"))).to.deep.equal(der);
+        expect(utils.pemToDer(wrap(der))).to.deep.equal(der);
+        expect(utils.pemCertificates(wrap(der))).to.deep.equal([der.toString("base64")]);
+      });
+    }
+
     for (const [problem, der, error] of [
       [
         "well-formed base64 that is no certificate",
@@ -423,7 +447,7 @@ describe("Utils tests", function () {
       ],
       ["a certificate cut short", certificate.subarray(0, -1), "Invalid PEM format."],
       // X509Certificate reads the first certificate in the bytes and ignores what follows, which
-      // 6.x passed on for OpenSSL to do the same, so these are refused with a reason of their own.
+      // 6.x passed on for Node to do the same, so these are refused with a reason of their own.
       [
         "a certificate with a second run into it",
         Buffer.concat([certificate, certificate]),
@@ -435,11 +459,14 @@ describe("Utils tests", function () {
         moreAfter,
       ],
       [
-        // The fixture's outer length is `82 01C4`. Written `83 0001C4` it is the same length in a
-        // longer form, which BER allows and DER forbids, and OpenSSL reads it and re-encodes it.
-        "a certificate encoded as BER rather than DER",
-        Buffer.concat([Buffer.from([0x30, 0x83, 0x00]), certificate.subarray(2)]),
-        "Expected a DER-encoded certificate.",
+        "a BER certificate with bytes after it",
+        Buffer.concat([longForm, Buffer.from("more")]),
+        moreAfter,
+      ],
+      [
+        "an indefinite-length certificate with bytes after it",
+        Buffer.concat([indefinite, certificate]),
+        moreAfter,
       ],
     ] as const) {
       it(`refuses ${problem}, in each function that reads one`, function () {

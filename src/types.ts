@@ -28,8 +28,8 @@ export type HashAlgorithmType =
 
 /**
  * The label carried by both boundaries of a PEM message. The values listed are the ones RFC 7468
- * defines; any label its grammar allows is accepted, because OpenSSL and the wider ecosystem use
- * others, such as `RSA PRIVATE KEY`.
+ * defines; any other label its grammar allows is accepted too, when it is not empty and not over
+ * 48 characters, because OpenSSL and the wider ecosystem use others, such as `RSA PRIVATE KEY`.
  *
  * @see https://www.rfc-editor.org/rfc/rfc7468
  */
