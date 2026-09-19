@@ -134,6 +134,8 @@ deprecated and stay exported.
 - RSA-SHA256 <http://www.w3.org/2001/04/xmldsig-more#rsa-sha256>
 - RSA-SHA256 with MGF1 <http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1>
 - RSA-SHA512 <http://www.w3.org/2001/04/xmldsig-more#rsa-sha512>
+- ECDSA-SHA256 <http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256>
+- ECDSA-SHA512 <http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512>
 
 HMAC-SHA1 is also available but it is disabled by default
 
