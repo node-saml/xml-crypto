@@ -1442,6 +1442,23 @@ describe("Signature unit tests", function () {
     it("when publicCert is a KeyObject, which holds a key and never a certificate", function () {
       expect(selectKeyInfo({ publicCert: crypto.createPublicKey(privateKey) })).to.be.empty;
     });
+
+    it("when publicCert is a private key", function () {
+      expect(selectKeyInfo({ publicCert: privateKey })).to.be.empty;
+    });
+
+    for (const [name, der] of [
+      ["public key", crypto.createPublicKey(privateKey).export({ type: "spki", format: "der" })],
+      ["private key", crypto.createPrivateKey(privateKey).export({ type: "pkcs8", format: "der" })],
+    ] as const) {
+      it(`when publicCert is the base64 of a ${name}, without boundaries`, function () {
+        expect(selectKeyInfo({ publicCert: der.toString("base64") })).to.be.empty;
+      });
+    }
+
+    it("when publicCert is not a certificate in any form", function () {
+      expect(selectKeyInfo({ publicCert: "not a certificate" })).to.be.empty;
+    });
   });
 
   describe("getCertFromKeyInfo", function () {
@@ -1562,6 +1579,14 @@ describe("Signature unit tests", function () {
 
     // Published in KeyInfo, this would name a certificate no verifier could load.
     expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("publishes a publicCert given as the base64 of a certificate, without boundaries", function () {
+    const lines = fs.readFileSync("./test/static/client_public.pem", "latin1").trim().split("\n");
+    const data = lines.slice(1, -1);
+
+    expect(publishedCertificates(data.join(""))).to.deep.equal([data.join("")]);
+    expect(publishedCertificates(data.join("\n"))).to.deep.equal([data.join("")]);
   });
 
   it("signs a BER certificate into KeyInfo with its octets as given", function () {
