@@ -50,51 +50,6 @@ const warnValidateElementAgainstReferences = deprecate(
   "XML_CRYPTO_VALIDATE_ELEMENT_AGAINST_REFERENCES",
 );
 
-// Node's crypto loads one key from a value and ignores the rest. These warn about values that might
-// hold a key it ignores, judged by label alone and erring toward a warning: which messages are keys
-// is Node's to say, and the 7.0 error in #608 has to ask it rather than tighten these labels.
-const emittedKeyWarnings = new Set<string>();
-
-function keyLabels(value: crypto.KeyLike): string[] {
-  if (typeof value !== "string" && !Buffer.isBuffer(value)) {
-    return [];
-  }
-
-  const text = Buffer.isBuffer(value) ? value.toString("latin1") : value;
-
-  return utils
-    .pemLabels(text)
-    .filter((label) => /(?:PRIVATE KEY|PUBLIC KEY|CERTIFICATE)$/.test(label));
-}
-
-function warnOnceForKey(code: string, message: string) {
-  if (!emittedKeyWarnings.has(code)) {
-    emittedKeyWarnings.add(code);
-    process.emitWarning(message, { code });
-  }
-}
-
-function warnIfSeveralPrivateKeys(privateKey: crypto.KeyLike) {
-  if (keyLabels(privateKey).filter((label) => label.endsWith("PRIVATE KEY")).length > 1) {
-    warnOnceForKey(
-      "XML_CRYPTO_SEVERAL_PRIVATE_KEYS",
-      "`privateKey` holds more than one private key, and only one of them is used to sign. This will be an error in 7.0. Give `privateKey` one private key.",
-    );
-  }
-}
-
-// Several certificates are not reported: that is also what a chain given leaf first looks like.
-function warnIfPublicKeyAmongOthers(publicCert: crypto.KeyLike) {
-  const labels = keyLabels(publicCert);
-
-  if (labels.length > 1 && labels.some((label) => label.endsWith("PUBLIC KEY"))) {
-    warnOnceForKey(
-      "XML_CRYPTO_PUBLIC_KEY_AMONG_OTHERS",
-      "`publicCert` holds a public key together with other keys or certificates, and only one of them is used to verify. This will be an error in 7.0. Give `publicCert` one key, and verify with each key in turn to trust several.",
-    );
-  }
-}
-
 export class SignedXml {
   idMode?: "wssecurity";
   idAttributes: string[];
@@ -413,9 +368,6 @@ export class SignedXml {
     if (key == null) {
       throw new Error("KeyInfo or publicCert or privateKey is required to validate signature");
     }
-    if (key === this.publicCert) {
-      warnIfPublicKeyAmongOthers(key);
-    }
 
     // Check the signature verification to know whether to reset signature value or not.
     const sigRes = signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
@@ -513,7 +465,6 @@ export class SignedXml {
     if (this.privateKey == null) {
       throw new Error("Private key is required to compute signature");
     }
-    warnIfSeveralPrivateKeys(this.privateKey);
     if (typeof callback === "function") {
       signer.getSignature(signedInfoCanon, this.privateKey, callback);
     } else {

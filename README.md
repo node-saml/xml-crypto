@@ -577,9 +577,6 @@ from a value and ignores the rest.
 - To trust several independent keys, verify with each in turn, as node-saml does for its `idpCert`
   array.
 
-A `privateKey` holding more than one private key, or a `publicCert` holding a public key together
-with any other key or certificate, prints a warning. Both will be errors in 7.0.
-
 ### What the parser accepts
 
 `toPem()`, `pemToDer()` and `pemCertificates()` read
