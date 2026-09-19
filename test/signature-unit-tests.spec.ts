@@ -1,6 +1,6 @@
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
-import { SignedXml, createOptionalCallbackFunction } from "../src/index";
+import { SignedXml, createOptionalCallbackFunction, pemCertificates, toPem } from "../src/index";
 import * as fs from "fs";
 import * as crypto from "crypto";
 import { expect } from "chai";
@@ -1724,5 +1724,60 @@ describe("Signature unit tests", function () {
     expect(uriAttribute, "Reference element should have the correct URI attribute value").to.equal(
       "#unique-id",
     );
+  });
+
+  describe("verifies with one key from a publicCert holding several", function () {
+    const bundle = fs.readFileSync("./test/static/client_bundle.pem", "latin1");
+    const pairs = {
+      A: {
+        privateKey: fs.readFileSync("./test/static/client.pem", "latin1"),
+        certificate: fs.readFileSync("./test/static/client_public.pem", "latin1"),
+      },
+      // The bundle holds this key beside its certificates, and signs with it.
+      B: { privateKey: bundle, certificate: toPem(pemCertificates(bundle)[0], "CERTIFICATE") },
+    };
+
+    function sign(privateKey: string) {
+      const sig = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        transforms: [
+          "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+          "http://www.w3.org/2001/10/xml-exc-c14n#",
+        ],
+      });
+      sig.computeSignature("<root><x /></root>");
+
+      return sig.getSignedXml();
+    }
+
+    function checkSignature(xml: string, publicCert: string) {
+      const doc = new xmldom.DOMParser().parseFromString(xml);
+      const signature = xpath.select1("//*[local-name(.)='Signature']", doc);
+      isDomNode.assertIsNodeLike(signature);
+      const sig = new SignedXml({ publicCert });
+      sig.loadSignature(signature);
+
+      return sig.checkSignature(xml);
+    }
+
+    for (const [first, second] of [
+      ["A", "B"],
+      ["B", "A"],
+    ] as const) {
+      it(`uses the first of two certificates, and not the second, which in a chain is the issuer's (${first} first)`, function () {
+        const publicCert = `${pairs[first].certificate}${pairs[second].certificate}`;
+
+        expect(checkSignature(sign(pairs[first].privateKey), publicCert)).to.be.true;
+        expect(() => checkSignature(sign(pairs[second].privateKey), publicCert)).to.throw(
+          "invalid signature",
+        );
+      });
+    }
   });
 });

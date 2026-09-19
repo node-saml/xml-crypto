@@ -226,7 +226,7 @@ To customize this see [customizing algorithms](#customizing-algorithms) for an e
 
 When verifying a xml document you can pass the following options to the `SignedXml` constructor to customize the verify process:
 
-- `publicCert` - **[optional]** your certificate as a string, a string of multiple certs in PEM format, or a Buffer
+- `publicCert` - **[optional]** the certificate or public key to verify with, as a PEM `String` or `Buffer`. Verification uses [one key](#one-key-per-value) from it.
 - `privateKey` - **[optional]** your private key as a string or a Buffer - used for verifying symmetrical signatures (HMAC)
 
 The certificate that will be used to check the signature will first be determined by calling `this.getCertFromKeyInfo()`, which function you can customize as you see fit. If that returns `null`, then `publicCert` is used. If that is `null`, then `privateKey` is used (for symmetrical signing applications).
@@ -564,6 +564,22 @@ And for verification use key_public.pem:
 MIIBxDCCAW6gAwIBAgIQxUSX...
 -----END CERTIFICATE-----
 ```
+
+### One key per value
+
+Signing and verification hand `privateKey` and `publicCert` to Node's crypto, which loads one key
+from a value and ignores the rest.
+
+- `privateKey` holds one private key. A file that also holds its certificate, or its chain, is
+  fine. Given several private keys, signing uses the first.
+- Verification takes one key from `publicCert`. From several certificates it takes the first, which
+  is how a chain given leaf first works, so the chain's issuers are not trusted to sign. A public
+  key is taken before any certificate, wherever it is in the value.
+- To trust several independent keys, verify with each in turn, as node-saml does for its `idpCert`
+  array.
+
+A `privateKey` holding more than one private key, or a `publicCert` holding a public key together
+with any other key or certificate, prints a warning. Both will be errors in 7.0.
 
 ### What the parser accepts
 
