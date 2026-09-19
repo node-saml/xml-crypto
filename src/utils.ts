@@ -366,6 +366,16 @@ export function pemCertificates(pem: string): string[] {
   return certificates.map(canonicalBase64);
 }
 
+// A value this parser cannot read yields no labels, because callers only report on what Node's
+// crypto goes on to load, and must not fail a value it can load.
+export function pemLabels(pem: string): string[] {
+  try {
+    return pemMessages(normalizePemInput(pem)).map((message) => message.label);
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Returns the decoded bytes of the one PEM message a value holds, whatever its label.
  *
