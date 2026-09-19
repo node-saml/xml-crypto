@@ -152,7 +152,7 @@ signature algorithms enabled at same time.
 When signing a xml document you can pass the following options to the `SignedXml` constructor to customize the signature process:
 
 - `privateKey` - **[required]** a `Buffer` or pem encoded `String` containing your private key
-- `publicCert` - **[optional]** the X.509 certificate to publish in `<KeyInfo>`, or a chain of them, as a PEM `String` or `Buffer`, or as a `String` of one certificate's base64 without the PEM boundaries. A value that holds no certificate, such as a public key, produces no `<KeyInfo>`.
+- `publicCert` - **[optional]** the X.509 certificate to publish in `<KeyInfo>`, or a chain of them, as PEM or as one certificate's base64 without the PEM boundaries, in a `String` or `Buffer`. A value that holds no certificate, such as a public key, produces no `<KeyInfo>`.
 - `signatureAlgorithm` - **[required]** one of the supported [signature algorithms](#signature-algorithms). Ex: `sign.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"`
 - `canonicalizationAlgorithm` - **[required]** one of the supported [canonicalization algorithms](#canonicalization-and-transformation-algorithms). Ex: `sign.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"`
 

@@ -1525,7 +1525,7 @@ describe("Signature unit tests", function () {
     });
   });
 
-  function signWithPublicCert(publicCert: string) {
+  function signWithPublicCert(publicCert: string | Buffer) {
     const sig = new SignedXml({
       privateKey: fs.readFileSync("./test/static/client.pem"),
       publicCert,
@@ -1546,7 +1546,7 @@ describe("Signature unit tests", function () {
   }
 
   // The text of each X509Certificate that signing with this publicCert puts into KeyInfo.
-  function publishedCertificates(publicCert: string): string[] {
+  function publishedCertificates(publicCert: string | Buffer): string[] {
     const doc = new xmldom.DOMParser().parseFromString(signWithPublicCert(publicCert)());
     const certificates = xpath.select("//*[local-name(.)='X509Certificate']", doc);
     isDomNode.assertIsArrayOfNodes(certificates);
@@ -1591,6 +1591,7 @@ describe("Signature unit tests", function () {
 
     expect(publishedCertificates(data.join(""))).to.deep.equal([data.join("")]);
     expect(publishedCertificates(data.join("\n"))).to.deep.equal([data.join("")]);
+    expect(publishedCertificates(Buffer.from(data.join("\n")))).to.deep.equal([data.join("")]);
   });
 
   it("signs a BER certificate into KeyInfo with its octets as given", function () {

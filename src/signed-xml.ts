@@ -38,17 +38,7 @@ function findSignatureElements(node: Node): Element[] {
   return signatures.filter(isDomNode.isElementNode);
 }
 
-function certificatesToPublish(publicCert: crypto.KeyLike): string[] {
-  // Base64 text is given as a string, as toPem() documents, so a Buffer is read for PEM alone.
-  if (Buffer.isBuffer(publicCert)) {
-    return utils.pemCertificates(publicCert.toString("latin1"));
-  }
-
-  // A KeyObject holds a key and never a certificate, so there is no X509Data to build from it.
-  if (typeof publicCert !== "string") {
-    return [];
-  }
-
+function certificatesToPublish(publicCert: string): string[] {
   const certificates = utils.pemCertificates(publicCert);
   if (certificates.length > 0) {
     return certificates;
@@ -248,7 +238,12 @@ export class SignedXml {
 
     prefix = prefix ? `${prefix}:` : "";
 
-    const certificates = certificatesToPublish(publicCert);
+    if (Buffer.isBuffer(publicCert)) {
+      publicCert = publicCert.toString("latin1");
+    }
+
+    // A KeyObject holds a key and never a certificate, so there is no X509Data to build from it.
+    const certificates = typeof publicCert === "string" ? certificatesToPublish(publicCert) : [];
 
     // X509Data requires at least one child: https://www.w3.org/TR/xmldsig-core1/#sec-X509Data
     if (certificates.length === 0) {
