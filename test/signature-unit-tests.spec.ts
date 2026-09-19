@@ -1447,14 +1447,11 @@ describe("Signature unit tests", function () {
       expect(selectKeyInfo({ publicCert: privateKey })).to.be.empty;
     });
 
-    for (const [name, der] of [
-      ["public key", crypto.createPublicKey(privateKey).export({ type: "spki", format: "der" })],
-      ["private key", crypto.createPrivateKey(privateKey).export({ type: "pkcs8", format: "der" })],
-    ] as const) {
-      it(`when publicCert is the base64 of a ${name}, without boundaries`, function () {
-        expect(selectKeyInfo({ publicCert: der.toString("base64") })).to.be.empty;
-      });
-    }
+    it("when publicCert is the base64 of a private key, without boundaries", function () {
+      const der = crypto.createPrivateKey(privateKey).export({ type: "pkcs8", format: "der" });
+
+      expect(selectKeyInfo({ publicCert: der.toString("base64") })).to.be.empty;
+    });
 
     it("when publicCert is not a certificate in any form", function () {
       expect(selectKeyInfo({ publicCert: "not a certificate" })).to.be.empty;

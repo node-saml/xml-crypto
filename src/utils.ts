@@ -408,20 +408,14 @@ function pemText(value: string | Buffer): string {
     : value.toString("base64");
 }
 
-function bareBase64Data(text: string): string {
+// Refuses PEM rather than passing it through as toPem() does, so no key can come out as a certificate.
+export function bareCertificate(value: string): string {
+  const text = normalizePemInput(value);
   const data = text.replace(/\n/g, "");
 
   if (!BASE64_TEXT_REGEX.test(text) || !isBase64Data(data)) {
     throw new Error("Invalid PEM format.");
   }
-
-  return data;
-}
-
-// The canonical base64 of one certificate given without boundaries, as XMLDSig's X509Certificate
-// carries it. PEM is refused here rather than passed through, so no key can come out as one.
-export function bareCertificate(value: string): string {
-  const data = bareBase64Data(normalizePemInput(value));
   assertX509Certificate(data);
 
   return canonicalBase64(data);
@@ -452,19 +446,23 @@ export function toPem(value: string | Buffer, pemLabel?: PemLabel): string {
     return messages.map((message) => formatPemMessage(message.label, message.data)).join("");
   }
 
-  const data = bareBase64Data(text);
+  const data = text.replace(/\n/g, "");
 
-  if (pemLabel == null) {
-    throw new Error("A PEM label is required to wrap base64 data.");
+  if (BASE64_TEXT_REGEX.test(text) && isBase64Data(data)) {
+    if (pemLabel == null) {
+      throw new Error("A PEM label is required to wrap base64 data.");
+    }
+
+    // The label is written into both boundaries, so one that is not a label would produce a
+    // message this parser could not read back, and `-----` in it would produce a second message.
+    if (!isLabel(pemLabel)) {
+      throw new Error("Invalid PEM label.");
+    }
+
+    return formatPemMessage(pemLabel, data);
   }
 
-  // The label is written into both boundaries, so one that is not a label would produce a
-  // message this parser could not read back, and `-----` in it would produce a second message.
-  if (!isLabel(pemLabel)) {
-    throw new Error("Invalid PEM label.");
-  }
-
-  return formatPemMessage(pemLabel, data);
+  throw new Error("Invalid PEM format.");
 }
 
 function collectAncestorNamespaces(
