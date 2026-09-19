@@ -1453,6 +1453,13 @@ describe("Signature unit tests", function () {
       expect(selectKeyInfo({ publicCert: der.toString("base64") })).to.be.empty;
     });
 
+    it("when publicCert is the base64 of a certificate with more data after it", function () {
+      const der = fs.readFileSync("./test/static/client_public.der");
+      const publicCert = Buffer.concat([der, Buffer.from("more")]).toString("base64");
+
+      expect(selectKeyInfo({ publicCert })).to.be.empty;
+    });
+
     it("when publicCert is not a certificate in any form", function () {
       expect(selectKeyInfo({ publicCert: "not a certificate" })).to.be.empty;
     });
