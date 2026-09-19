@@ -408,6 +408,19 @@ function pemText(value: string | Buffer): string {
     : value.toString("base64");
 }
 
+// Refuses PEM rather than passing it through as toPem() does, so no key can come out as a certificate.
+export function bareCertificate(value: string): string {
+  const text = normalizePemInput(value);
+  const data = text.replace(/\n/g, "");
+
+  if (!BASE64_TEXT_REGEX.test(text) || !isBase64Data(data)) {
+    throw new Error("Invalid PEM format.");
+  }
+  assertX509Certificate(data);
+
+  return canonicalBase64(data);
+}
+
 /**
  * Returns a value as canonical PEM: one message per certificate or key, wrapped at 64 characters.
  * The value may be a PEM message, several of them, base64 data with the label supplied by the

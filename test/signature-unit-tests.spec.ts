@@ -1442,6 +1442,27 @@ describe("Signature unit tests", function () {
     it("when publicCert is a KeyObject, which holds a key and never a certificate", function () {
       expect(selectKeyInfo({ publicCert: crypto.createPublicKey(privateKey) })).to.be.empty;
     });
+
+    it("when publicCert is a private key", function () {
+      expect(selectKeyInfo({ publicCert: privateKey })).to.be.empty;
+    });
+
+    it("when publicCert is the base64 of a private key, without boundaries", function () {
+      const der = crypto.createPrivateKey(privateKey).export({ type: "pkcs8", format: "der" });
+
+      expect(selectKeyInfo({ publicCert: der.toString("base64") })).to.be.empty;
+    });
+
+    it("when publicCert is the base64 of a certificate with more data after it", function () {
+      const der = fs.readFileSync("./test/static/client_public.der");
+      const publicCert = Buffer.concat([der, Buffer.from("more")]).toString("base64");
+
+      expect(selectKeyInfo({ publicCert })).to.be.empty;
+    });
+
+    it("when publicCert is not a certificate in any form", function () {
+      expect(selectKeyInfo({ publicCert: "not a certificate" })).to.be.empty;
+    });
   });
 
   describe("getCertFromKeyInfo", function () {
@@ -1504,7 +1525,7 @@ describe("Signature unit tests", function () {
     });
   });
 
-  function signWithPublicCert(publicCert: string) {
+  function signWithPublicCert(publicCert: string | Buffer) {
     const sig = new SignedXml({
       privateKey: fs.readFileSync("./test/static/client.pem"),
       publicCert,
@@ -1525,7 +1546,7 @@ describe("Signature unit tests", function () {
   }
 
   // The text of each X509Certificate that signing with this publicCert puts into KeyInfo.
-  function publishedCertificates(publicCert: string): string[] {
+  function publishedCertificates(publicCert: string | Buffer): string[] {
     const doc = new xmldom.DOMParser().parseFromString(signWithPublicCert(publicCert)());
     const certificates = xpath.select("//*[local-name(.)='X509Certificate']", doc);
     isDomNode.assertIsArrayOfNodes(certificates);
@@ -1562,6 +1583,15 @@ describe("Signature unit tests", function () {
 
     // Published in KeyInfo, this would name a certificate no verifier could load.
     expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("publishes a publicCert given as the base64 of a certificate, without boundaries", function () {
+    const lines = fs.readFileSync("./test/static/client_public.pem", "latin1").trim().split("\n");
+    const data = lines.slice(1, -1);
+
+    expect(publishedCertificates(data.join(""))).to.deep.equal([data.join("")]);
+    expect(publishedCertificates(data.join("\n"))).to.deep.equal([data.join("")]);
+    expect(publishedCertificates(Buffer.from(data.join("\n")))).to.deep.equal([data.join("")]);
   });
 
   it("signs a BER certificate into KeyInfo with its octets as given", function () {
