@@ -1728,12 +1728,10 @@ describe("Signature unit tests", function () {
 
   it("verifies with the first of two certificates, and not the second, which in a chain is the issuer's", function () {
     const bundle = fs.readFileSync("./test/static/client_bundle.pem", "latin1");
-    const publicCert = `${fs.readFileSync("./test/static/client_public.pem", "latin1")}${toPem(
-      pemCertificates(bundle)[0],
-      "CERTIFICATE",
-    )}`;
+    const first = fs.readFileSync("./test/static/client_public.pem", "latin1");
+    const second = toPem(pemCertificates(bundle)[0], "CERTIFICATE");
 
-    function checkSignedBy(privateKey: string) {
+    function checkSignedBy(privateKey: string, publicCert: string) {
       const sig = new SignedXml({
         privateKey,
         canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
@@ -1761,7 +1759,9 @@ describe("Signature unit tests", function () {
       return verifier.checkSignature(xml);
     }
 
-    expect(checkSignedBy(fs.readFileSync("./test/static/client.pem", "latin1"))).to.be.true;
-    expect(() => checkSignedBy(bundle)).to.throw("invalid signature");
+    expect(checkSignedBy(fs.readFileSync("./test/static/client.pem", "latin1"), first + second)).to
+      .be.true;
+    expect(checkSignedBy(bundle, second)).to.be.true;
+    expect(() => checkSignedBy(bundle, first + second)).to.throw("invalid signature");
   });
 });
