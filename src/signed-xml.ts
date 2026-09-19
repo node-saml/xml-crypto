@@ -50,8 +50,9 @@ const warnValidateElementAgainstReferences = deprecate(
   "XML_CRYPTO_VALIDATE_ELEMENT_AGAINST_REFERENCES",
 );
 
-// Node's crypto loads one key from a value and ignores the rest, so these are the values in which
-// it ignores a key the caller may have meant it to use. #608 makes them errors in 7.0.
+// Node's crypto loads one key from a value and ignores the rest. These warn about values that might
+// hold a key it ignores, judged by label alone and erring toward a warning: which messages are keys
+// is Node's to say, and the 7.0 error in #608 has to ask it rather than tighten these labels.
 const emittedKeyWarnings = new Set<string>();
 
 function keyLabels(value: crypto.KeyLike): string[] {
@@ -77,7 +78,7 @@ function warnIfSeveralPrivateKeys(privateKey: crypto.KeyLike) {
   if (keyLabels(privateKey).filter((label) => label.endsWith("PRIVATE KEY")).length > 1) {
     warnOnceForKey(
       "XML_CRYPTO_SEVERAL_PRIVATE_KEYS",
-      "`privateKey` holds more than one private key, and only the first is used to sign. This will be an error in 7.0. Give `privateKey` one private key.",
+      "`privateKey` holds more than one private key, and only one of them is used to sign. This will be an error in 7.0. Give `privateKey` one private key.",
     );
   }
 }
@@ -89,7 +90,7 @@ function warnIfPublicKeyAmongOthers(publicCert: crypto.KeyLike) {
   if (labels.length > 1 && labels.some((label) => label.endsWith("PUBLIC KEY"))) {
     warnOnceForKey(
       "XML_CRYPTO_PUBLIC_KEY_AMONG_OTHERS",
-      "`publicCert` holds a public key together with other keys or certificates, and only its first public key is used to verify. This will be an error in 7.0. Give `publicCert` one key, and verify with each key in turn to trust several.",
+      "`publicCert` holds a public key together with other keys or certificates, and only one of them is used to verify. This will be an error in 7.0. Give `publicCert` one key, and verify with each key in turn to trust several.",
     );
   }
 }

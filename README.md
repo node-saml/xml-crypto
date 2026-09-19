@@ -571,10 +571,9 @@ Signing and verification hand `privateKey` and `publicCert` to Node's crypto, wh
 from a value and ignores the rest.
 
 - `privateKey` holds one private key. A file that also holds its certificate, or its chain, is
-  fine. Given several private keys, signing uses the first.
+  fine.
 - Verification takes one key from `publicCert`. From several certificates it takes the first, which
-  is how a chain given leaf first works, so the chain's issuers are not trusted to sign. A public
-  key is taken before any certificate, wherever it is in the value.
+  is how a chain given leaf first works, so the chain's issuers are not trusted to sign.
 - To trust several independent keys, verify with each in turn, as node-saml does for its `idpCert`
   array.
 
