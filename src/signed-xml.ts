@@ -53,6 +53,20 @@ function certificatesToPublish(publicCert: string): string[] {
   }
 }
 
+let warnedPublicCertWithoutCertificate = false;
+
+function warnPublicCertWithoutCertificate() {
+  if (warnedPublicCertWithoutCertificate) {
+    return;
+  }
+  warnedPublicCertWithoutCertificate = true;
+
+  process.emitWarning(
+    "`publicCert` holds no X.509 certificate, so the signature has no `KeyInfo`. This will be an error in 7.0. Set `publicCert` to a certificate, or leave it unset.",
+    { code: "XML_CRYPTO_PUBLIC_CERT_WITHOUT_CERTIFICATE" },
+  );
+}
+
 const warnOriginalXmlWithIds = deprecate(
   () => {},
   "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. For a detached signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for WS-Security), sign that document, and send it alongside `getSignatureXml()`.",
@@ -1299,6 +1313,14 @@ export class SignedXml {
     const keyInfoContent = this.getKeyInfoContent({ publicCert: this.publicCert, prefix });
     // KeyInfo requires at least one child: https://www.w3.org/TR/xmldsig-core1/#sec-KeyInfo
     if (!keyInfoContent) {
+      // A custom getKeyInfoContent may not use publicCert, and a KeyObject cannot hold a certificate.
+      if (
+        this.getKeyInfoContent === SignedXml.getKeyInfoContent &&
+        (typeof this.publicCert === "string" || Buffer.isBuffer(this.publicCert))
+      ) {
+        warnPublicCertWithoutCertificate();
+      }
+
       return "";
     }
 
