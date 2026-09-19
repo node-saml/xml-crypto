@@ -434,8 +434,7 @@ describe("Utils tests", function () {
       }
 
       it("a message that is opened and never closed", function () {
-        // A ReDoS regression in node-saml. What is asserted is the rejection, since a timer would
-        // measure the runner rather than the pattern.
+        // node-saml's ReDoS regression; the rejection is asserted, not the time it takes.
         const unclosed = `-----BEGIN CERTIFICATE-----\r\n${"AAAA\r\n".repeat(26)}!`;
 
         expect(() => utils.toPem(unclosed)).to.throw("Invalid PEM format.");
