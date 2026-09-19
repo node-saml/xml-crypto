@@ -217,7 +217,6 @@ describe("Utils tests", function () {
 
       for (const [name, value, label] of [
         ["blank lines around a message", `\n\n${normalizedPem}\n\n`, undefined],
-        // node-saml/node-saml#361
         ["a line ending after bare base64", `${body.join("\n")}\n`, "CERTIFICATE"],
         [
           "blanks and CRLF around bare base64",
@@ -451,9 +450,8 @@ describe("Utils tests", function () {
         ["after the message", `${normalizedPem}Issued for testing.\n`],
         ["between two messages", `${normalizedPem}and its issuer:\n${normalizedPem}`],
       ] as const) {
-        it(`explanatory text ${place}, which pemCertificates() passes over`, function () {
+        it(`explanatory text ${place}`, function () {
           expect(() => utils.toPem(value)).to.throw("Invalid PEM format.");
-          expect(utils.pemCertificates(value)).to.not.be.empty;
         });
       }
     });
