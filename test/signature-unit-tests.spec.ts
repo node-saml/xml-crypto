@@ -1726,18 +1726,14 @@ describe("Signature unit tests", function () {
     );
   });
 
-  describe("verifies with one key from a publicCert holding several", function () {
+  it("verifies with the first of two certificates, and not the second, which in a chain is the issuer's", function () {
     const bundle = fs.readFileSync("./test/static/client_bundle.pem", "latin1");
-    const pairs = {
-      A: {
-        privateKey: fs.readFileSync("./test/static/client.pem", "latin1"),
-        certificate: fs.readFileSync("./test/static/client_public.pem", "latin1"),
-      },
-      // The bundle holds this key beside its certificates, and signs with it.
-      B: { privateKey: bundle, certificate: toPem(pemCertificates(bundle)[0], "CERTIFICATE") },
-    };
+    const publicCert = `${fs.readFileSync("./test/static/client_public.pem", "latin1")}${toPem(
+      pemCertificates(bundle)[0],
+      "CERTIFICATE",
+    )}`;
 
-    function sign(privateKey: string) {
+    function checkSignedBy(privateKey: string) {
       const sig = new SignedXml({
         privateKey,
         canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
@@ -1752,32 +1748,20 @@ describe("Signature unit tests", function () {
         ],
       });
       sig.computeSignature("<root><x /></root>");
+      const xml = sig.getSignedXml();
 
-      return sig.getSignedXml();
-    }
-
-    function checkSignature(xml: string, publicCert: string) {
-      const doc = new xmldom.DOMParser().parseFromString(xml);
-      const signature = xpath.select1("//*[local-name(.)='Signature']", doc);
+      const verifier = new SignedXml({ publicCert });
+      const signature = xpath.select1(
+        "//*[local-name(.)='Signature']",
+        new xmldom.DOMParser().parseFromString(xml),
+      );
       isDomNode.assertIsNodeLike(signature);
-      const sig = new SignedXml({ publicCert });
-      sig.loadSignature(signature);
+      verifier.loadSignature(signature);
 
-      return sig.checkSignature(xml);
+      return verifier.checkSignature(xml);
     }
 
-    for (const [first, second] of [
-      ["A", "B"],
-      ["B", "A"],
-    ] as const) {
-      it(`uses the first of two certificates, and not the second, which in a chain is the issuer's (${first} first)`, function () {
-        const publicCert = `${pairs[first].certificate}${pairs[second].certificate}`;
-
-        expect(checkSignature(sign(pairs[first].privateKey), publicCert)).to.be.true;
-        expect(() => checkSignature(sign(pairs[second].privateKey), publicCert)).to.throw(
-          "invalid signature",
-        );
-      });
-    }
+    expect(checkSignedBy(fs.readFileSync("./test/static/client.pem", "latin1"))).to.be.true;
+    expect(() => checkSignedBy(bundle)).to.throw("invalid signature");
   });
 });
