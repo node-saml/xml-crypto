@@ -54,9 +54,8 @@ function certificatesToPublish(publicCert: crypto.KeyLike): string[] {
     return certificates;
   }
 
-  // X509Certificate carries a certificate as bare base64, and getCertFromKeyInfo() reads it so.
   try {
-    return utils.pemCertificates(utils.toPem(publicCert, "CERTIFICATE"));
+    return [utils.bareCertificate(publicCert)];
   } catch {
     // Not a certificate in either form, so there is none to publish, and KeyInfo is optional.
     return [];
