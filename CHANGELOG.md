@@ -1,6 +1,26 @@
 # Changelog
 
-## 6.3.0 (2026-09-18)
+## 6.3.1 (2026-09-21)
+
+### 🐛 Bug Fixes
+
+- [**bug**] fix: read a signing publicCert given as bare base64, and document that it needs a certificate [#610](https://github.com/node-saml/xml-crypto/pull/610)
+
+### 📚 Documentation
+
+- [**documentation**] docs: say that privateKey and publicCert are read for one key each [#611](https://github.com/node-saml/xml-crypto/pull/611)
+
+### ⚙️ Technical Tasks
+
+- [**chore**] test: cover the toPem() cases node-saml's suite has and ours did not [#609](https://github.com/node-saml/xml-crypto/pull/609)
+
+### 🙈 Other
+
+- [**closed**] chore: merge master into 6.x [#613](https://github.com/node-saml/xml-crypto/pull/613)
+
+---
+
+## v6.3.0 (2026-09-18)
 
 ### 🚀 Minor Changes
 
