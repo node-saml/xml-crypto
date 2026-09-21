@@ -38,6 +38,20 @@ function findSignatureElements(node: Node): Element[] {
   return signatures.filter(isDomNode.isElementNode);
 }
 
+function certificatesToPublish(publicCert: string): string[] {
+  const certificates = utils.pemCertificates(publicCert);
+  if (certificates.length > 0) {
+    return certificates;
+  }
+
+  try {
+    return [utils.bareCertificate(publicCert)];
+  } catch {
+    // Not a certificate in either form, so there is none to publish, and KeyInfo is optional.
+    return [];
+  }
+}
+
 const warnOriginalXmlWithIds = deprecate(
   () => {},
   "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. For a detached signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for WS-Security), sign that document, and send it alongside `getSignatureXml()`.",
@@ -229,7 +243,7 @@ export class SignedXml {
     }
 
     // A KeyObject holds a key and never a certificate, so there is no X509Data to build from it.
-    const certificates = typeof publicCert === "string" ? utils.pemCertificates(publicCert) : [];
+    const certificates = typeof publicCert === "string" ? certificatesToPublish(publicCert) : [];
 
     // X509Data requires at least one child: https://www.w3.org/TR/xmldsig-core1/#sec-X509Data
     if (certificates.length === 0) {

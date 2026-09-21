@@ -86,6 +86,8 @@ describe("Utils tests", function () {
         "a line break between quanta": "QUJD\nREVG",
         "a line break anywhere in the data": "QU\nJDRE\nVG",
         "blanks in the data": " QU JD\tREVG ",
+        // RFC 7468 Figure 1 'base64finl': https://www.rfc-editor.org/rfc/rfc7468#section-3
+        "a pad split across a line ending": "QUJDCg=\n=",
       };
 
       const rejected = {
@@ -101,6 +103,8 @@ describe("Utils tests", function () {
         "a character outside the base64 alphabet": "QU-JD",
         "nothing at all": "",
         "only blanks": "    ",
+        "only padding": "==",
+        "a padded line with more data after it": "QUJDCg==\nQUJD",
       };
 
       Object.entries(accepted).forEach(([description, data]) => {
@@ -199,6 +203,31 @@ describe("Utils tests", function () {
           normalizedPem,
         );
       });
+
+      for (const [name, prefix] of [
+        ["a UTF-8 BOM", Buffer.from([0xef, 0xbb, 0xbf])],
+        ["blank lines", Buffer.from("\r\n  \n")],
+      ] as const) {
+        it(`a Buffer holding a PEM file that opens with ${name}, rather than DER`, function () {
+          const file = Buffer.concat([prefix, fs.readFileSync("./test/static/client_public.pem")]);
+
+          expect(utils.toPem(file)).to.equal(normalizedPem);
+        });
+      }
+
+      for (const [name, value, label] of [
+        ["blank lines around a message", `\n\n${normalizedPem}\n\n`, undefined],
+        ["a line ending after bare base64", `${body.join("\n")}\n`, "CERTIFICATE"],
+        [
+          "blanks and CRLF around bare base64",
+          `\r\n  \r\n${body.join("\r\n")}\r\n\t\r\n`,
+          "CERTIFICATE",
+        ],
+      ] as const) {
+        it(name, function () {
+          expect(utils.toPem(value, label)).to.equal(normalizedPem);
+        });
+      }
 
       it("several certificates in one value", function () {
         const bundle = fs.readFileSync("./test/static/client_bundle.pem", "latin1");
@@ -381,6 +410,49 @@ describe("Utils tests", function () {
           "Invalid PEM format.",
         );
       });
+    });
+
+    describe("rejects a value it cannot account for whole", function () {
+      const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
+      const lines = normalizedPem.trim().split("\n");
+      const header = lines[0];
+      const footer = lines[lines.length - 1];
+      const body = lines.slice(1, -1);
+      const last = body.length - 1;
+
+      for (const [place, value] of [
+        ["the header's line", [`${header}${body[0]}`, ...body.slice(1), footer].join("\n")],
+        [
+          "the footer's line",
+          [header, ...body.slice(0, last), `${body[last]}${footer}`].join("\n"),
+        ],
+        ["both boundaries' line", `${header}${body.join("")}${footer}`],
+      ] as const) {
+        it(`data on ${place}`, function () {
+          expect(() => utils.toPem(value)).to.throw("Invalid PEM format.");
+        });
+      }
+
+      it("a message that is opened and never closed", function () {
+        // node-saml's ReDoS regression; the rejection is asserted, not the time it takes.
+        const unclosed = `-----BEGIN CERTIFICATE-----\r\n${"AAAA\r\n".repeat(26)}!`;
+
+        expect(() => utils.toPem(unclosed)).to.throw("Invalid PEM format.");
+      });
+
+      it("a header followed directly by its footer", function () {
+        expect(() => utils.toPem(`${header}\n${footer}\n`)).to.throw("Invalid PEM format.");
+      });
+
+      for (const [place, value] of [
+        ["before the message", `subject=/CN=client\n${normalizedPem}`],
+        ["after the message", `${normalizedPem}Issued for testing.\n`],
+        ["between two messages", `${normalizedPem}and its issuer:\n${normalizedPem}`],
+      ] as const) {
+        it(`explanatory text ${place}`, function () {
+          expect(() => utils.toPem(value)).to.throw("Invalid PEM format.");
+        });
+      }
     });
   });
 
