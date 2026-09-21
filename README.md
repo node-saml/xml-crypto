@@ -567,8 +567,8 @@ MIIBxDCCAW6gAwIBAgIQxUSX...
 
 ### One key per value
 
-Signing and verification hand `privateKey` and `publicCert` to Node's crypto, which loads one key
-from a value and ignores the rest.
+`privateKey` when signing, and `publicCert` when verifying, are passed to Node's crypto, which uses
+one key from the value.
 
 - `privateKey` holds one private key. A file that also holds its certificate, or its chain, is
   fine.
