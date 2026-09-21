@@ -1,6 +1,6 @@
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
-import { SignedXml, createOptionalCallbackFunction } from "../src/index";
+import { SignedXml, createOptionalCallbackFunction, pemCertificates, toPem } from "../src/index";
 import * as fs from "fs";
 import * as crypto from "crypto";
 import { expect } from "chai";
@@ -1754,5 +1754,44 @@ describe("Signature unit tests", function () {
     expect(uriAttribute, "Reference element should have the correct URI attribute value").to.equal(
       "#unique-id",
     );
+  });
+
+  it("verifies with the first of two certificates, and not the second, which in a chain is the issuer's", function () {
+    const bundle = fs.readFileSync("./test/static/client_bundle.pem", "latin1");
+    const first = fs.readFileSync("./test/static/client_public.pem", "latin1");
+    const second = toPem(pemCertificates(bundle)[0], "CERTIFICATE");
+
+    function checkSignedBy(privateKey: string, publicCert: string) {
+      const sig = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        transforms: [
+          "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+          "http://www.w3.org/2001/10/xml-exc-c14n#",
+        ],
+      });
+      sig.computeSignature("<root><x /></root>");
+      const xml = sig.getSignedXml();
+
+      const verifier = new SignedXml({ publicCert });
+      const signature = xpath.select1(
+        "//*[local-name(.)='Signature']",
+        new xmldom.DOMParser().parseFromString(xml),
+      );
+      isDomNode.assertIsNodeLike(signature);
+      verifier.loadSignature(signature);
+
+      return verifier.checkSignature(xml);
+    }
+
+    expect(checkSignedBy(fs.readFileSync("./test/static/client.pem", "latin1"), first + second)).to
+      .be.true;
+    expect(checkSignedBy(bundle, second)).to.be.true;
+    expect(() => checkSignedBy(bundle, first + second)).to.throw("invalid signature");
   });
 });
