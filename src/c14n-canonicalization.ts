@@ -162,19 +162,14 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     }
 
     if (utils.isArrayHasLength(ancestorNamespaces)) {
-      // Remove namespaces which are already present in nsListToRender
+      // The apex's own declaration shadows an ancestor's binding of the same prefix, default
+      // included. https://www.w3.org/TR/REC-xml-names/#scoping
       for (const ancestorNamespace of ancestorNamespaces) {
-        let alreadyListed = false;
-        for (const nsToRender of nsListToRender) {
-          if (
-            nsToRender.prefix === ancestorNamespace.prefix &&
-            nsToRender.namespaceURI === ancestorNamespace.namespaceURI
-          ) {
-            alreadyListed = true;
-          }
-        }
+        const isShadowed =
+          nsListToRender.some((ns) => ns.prefix === ancestorNamespace.prefix) ||
+          (!ancestorNamespace.prefix && localDefaultNs !== null);
 
-        if (!alreadyListed) {
+        if (!isShadowed) {
           nsListToRender.push(ancestorNamespace);
           if (!ancestorNamespace.prefix) {
             newDefaultNs = ancestorNamespace.namespaceURI;

@@ -334,6 +334,34 @@ describe("C14N non-exclusive canonicalization tests", function () {
           new Canonicalization(),
         );
       });
+
+      for (const [xml, ancestorNamespace, expected] of [
+        [
+          '<x xmlns:p="urn:two"><p:y/></x>',
+          { prefix: "p", namespaceURI: "urn:one" },
+          '<x xmlns:p="urn:two"><p:y></p:y></x>',
+        ],
+        [
+          '<p:x xmlns:p="urn:p" xmlns="urn:two"><y/></p:x>',
+          { prefix: "", namespaceURI: "urn:one" },
+          '<p:x xmlns="urn:two" xmlns:p="urn:p"><y></y></p:x>',
+        ],
+        [
+          '<p:x xmlns:p="urn:p" xmlns=""><y/></p:x>',
+          { prefix: "", namespaceURI: "urn:one" },
+          '<p:x xmlns:p="urn:p"><y></y></p:x>',
+        ],
+      ] as const) {
+        it(`renders ${xml}'s own declaration over the caller's ancestor namespace ${JSON.stringify(ancestorNamespace)}`, function () {
+          const doc = new xmldom.DOMParser().parseFromString(xml);
+
+          const result = new Canonicalization().process(doc.documentElement, {
+            ancestorNamespaces: [ancestorNamespace],
+          });
+
+          expect(result).to.equal(expected);
+        });
+      }
     });
 
     describe(`${Canonicalization.name}: subset namespace declarations`, function () {
