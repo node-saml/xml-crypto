@@ -434,6 +434,15 @@ describe("C14N non-exclusive canonicalization tests", function () {
           new Canonicalization(),
         );
       });
+
+      it("renders a rebinding declared after the attribute that uses it", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:p="urn:one"><child p:attr="x" xmlns:p="urn:two"/></root>',
+          "/root",
+          '<root xmlns:p="urn:one"><child xmlns:p="urn:two" p:attr="x"></child></root>',
+          new Canonicalization(),
+        );
+      });
     });
   }
 });
