@@ -565,6 +565,16 @@ export function findAncestorNs(
   return findAncestorNsForElement(docSubset[0]);
 }
 
+export function isPrefixInScope(
+  prefixesInScope: NamespacePrefix[],
+  prefix: string,
+  namespaceURI: string,
+): boolean {
+  // Bindings are pushed outermost first, so the last one for a prefix shadows the rest.
+  const binding = prefixesInScope.filter((ns) => ns.prefix === prefix).pop();
+  return binding !== undefined && binding.namespaceURI === namespaceURI;
+}
+
 export function validateDigestValue(digest, expectedDigest) {
   const buffer = Buffer.from(digest, "base64");
   const expectedBuffer = Buffer.from(expectedDigest, "base64");

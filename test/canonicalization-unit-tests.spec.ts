@@ -73,6 +73,22 @@ describe("Canonicalization unit tests", function () {
         expect(result).to.equal('<target type="b:Kind"></target>');
       });
     });
+
+    describe(`${Canonicalization.name}: rebound prefixes`, function () {
+      it("renders a rebinding back to the URI an outer ancestor declares", function () {
+        // Only the nearest output ancestor utilizing the prefix can make its declaration redundant.
+        // https://www.w3.org/TR/xml-exc-c14n/#sec-Specification
+        const xml =
+          '<p:root xmlns:p="urn:one"><p:a xmlns:p="urn:two"><p:b xmlns:p="urn:one"/></p:a></p:root>';
+        const doc = new xmldom.DOMParser().parseFromString(xml);
+
+        const result = new Canonicalization().process(doc.documentElement, {});
+
+        expect(result).to.equal(
+          '<p:root xmlns:p="urn:one"><p:a xmlns:p="urn:two"><p:b xmlns:p="urn:one"></p:b></p:a></p:root>',
+        );
+      });
+    });
   }
 
   it("Exclusive canonicalization works on xml with no namespaces", function () {

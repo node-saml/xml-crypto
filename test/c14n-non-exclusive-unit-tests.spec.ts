@@ -404,5 +404,36 @@ describe("C14N non-exclusive canonicalization tests", function () {
         );
       });
     });
+
+    describe(`${Canonicalization.name}: rebound prefixes`, function () {
+      // A declaration is omitted only when the nearest output ancestor binds its prefix to the
+      // same URI. https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+      it("renders a descendant's rebinding of a prefix the apex declares", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:p="urn:one"><p:child xmlns:p="urn:two" p:attr="x"/></root>',
+          "/root",
+          '<root xmlns:p="urn:one"><p:child xmlns:p="urn:two" p:attr="x"></p:child></root>',
+          new Canonicalization(),
+        );
+      });
+
+      it("renders a descendant's rebinding of a prefix hoisted from an ancestor", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:p="urn:one"><x><p:y xmlns:p="urn:two"/></x></root>',
+          "//*[local-name()='x']",
+          '<x xmlns:p="urn:one"><p:y xmlns:p="urn:two"></p:y></x>',
+          new Canonicalization(),
+        );
+      });
+
+      it("renders a rebinding back to the URI an outer ancestor declares", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:p="urn:one"><a xmlns:p="urn:two"><p:b xmlns:p="urn:one"/></a></root>',
+          "/root",
+          '<root xmlns:p="urn:one"><a xmlns:p="urn:two"><p:b xmlns:p="urn:one"></p:b></a></root>',
+          new Canonicalization(),
+        );
+      });
+    });
   }
 });

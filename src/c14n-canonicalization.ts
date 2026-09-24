@@ -76,7 +76,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
    * Create the string of all namespace declarations that should appear on this element
    *
    * @param node The node we now render
-   * @param prefixesInScope The prefixes defined on this node parents which are a part of the output set
+   * @param prefixesInScope The namespaces bound on this node's output ancestors, nearest last
    * @param defaultNs The current default namespace
    * @param defaultNsForPrefix
    * @param ancestorNamespaces Import ancestor namespaces if it is specified
@@ -84,7 +84,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
    */
   renderNs(
     node: Element,
-    prefixesInScope: string[],
+    prefixesInScope: NamespacePrefix[],
     defaultNs: string,
     defaultNsForPrefix: string,
     ancestorNamespaces: NamespacePrefix[],
@@ -96,12 +96,12 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     const nsListToRender: { prefix: string; namespaceURI: string }[] = [];
     const currNs = node.namespaceURI || "";
 
-    if (node.prefix && prefixesInScope.indexOf(node.prefix) === -1) {
-      nsListToRender.push({
-        prefix: node.prefix,
-        namespaceURI: node.namespaceURI || defaultNsForPrefix[node.prefix],
-      });
-      prefixesInScope.push(node.prefix);
+    if (node.prefix) {
+      const namespaceURI = node.namespaceURI || defaultNsForPrefix[node.prefix];
+      if (!utils.isPrefixInScope(prefixesInScope, node.prefix, namespaceURI)) {
+        nsListToRender.push({ prefix: node.prefix, namespaceURI });
+        prefixesInScope.push({ prefix: node.prefix, namespaceURI });
+      }
     }
 
     // The default namespace is independent of a prefixed element's namespaceURI.
@@ -134,23 +134,22 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       for (i = 0; i < node.attributes.length; ++i) {
         attr = node.attributes[i];
 
-        //handle all prefixed attributes that are included in the prefix list and where
-        //the prefix is not defined already. New prefixes can only be defined by `xmlns:`.
-        if (attr.prefix === "xmlns" && prefixesInScope.indexOf(attr.localName) === -1) {
+        if (
+          attr.prefix === "xmlns" &&
+          !utils.isPrefixInScope(prefixesInScope, attr.localName, attr.value)
+        ) {
           nsListToRender.push({ prefix: attr.localName, namespaceURI: attr.value });
-          prefixesInScope.push(attr.localName);
+          prefixesInScope.push({ prefix: attr.localName, namespaceURI: attr.value });
         }
 
-        //handle all prefixed attributes that are not xmlns definitions and where
-        //the prefix is not defined already
         if (
           attr.prefix &&
-          prefixesInScope.indexOf(attr.prefix) === -1 &&
+          !utils.isPrefixInScope(prefixesInScope, attr.prefix, attr.namespaceURI) &&
           attr.prefix !== "xmlns" &&
           attr.prefix !== "xml"
         ) {
           nsListToRender.push({ prefix: attr.prefix, namespaceURI: attr.namespaceURI });
-          prefixesInScope.push(attr.prefix);
+          prefixesInScope.push({ prefix: attr.prefix, namespaceURI: attr.namespaceURI });
         }
       }
     }
@@ -281,10 +280,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     const defaultNsForPrefix = options.defaultNsForPrefix || {};
     const ancestorNamespaces = options.ancestorNamespaces || [];
 
-    const prefixesInScope: string[] = [];
-    for (let i = 0; i < ancestorNamespaces.length; i++) {
-      prefixesInScope.push(ancestorNamespaces[i].prefix);
-    }
+    const prefixesInScope = ancestorNamespaces.slice();
 
     const res = this.processInner(
       node,
