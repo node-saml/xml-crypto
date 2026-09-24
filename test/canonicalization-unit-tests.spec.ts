@@ -1,12 +1,13 @@
 import { expect } from "chai";
 
+import * as xmldom from "@xmldom/xmldom";
+import * as xpath from "xpath";
 import {
   ExclusiveCanonicalization,
   ExclusiveCanonicalizationWithComments,
-} from "../src/exclusive-canonicalization";
-import * as xmldom from "@xmldom/xmldom";
-import * as xpath from "xpath";
-import { findAncestorNs, SignedXml } from "../src/index";
+  findAncestorNs,
+  SignedXml,
+} from "../src/index";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 const compare = function (
