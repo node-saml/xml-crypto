@@ -3,10 +3,10 @@ import { expect } from "chai";
 import {
   C14nCanonicalization,
   C14nCanonicalizationWithComments,
-} from "../src/c14n-canonicalization";
+  findAncestorNs,
+} from "../src/index";
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
-import * as utils from "../src/utils";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 const test_C14nCanonicalization = function (
@@ -21,7 +21,7 @@ const test_C14nCanonicalization = function (
   isDomNode.assertIsNodeLike(node);
   const result = can
     .process(node, {
-      ancestorNamespaces: utils.findAncestorNs(doc, xpathArg),
+      ancestorNamespaces: findAncestorNs(doc, xpathArg),
     })
     .toString();
 
@@ -30,7 +30,7 @@ const test_C14nCanonicalization = function (
 
 const test_findAncestorNs = function (xml, xpath, expected) {
   const doc = new xmldom.DOMParser().parseFromString(xml);
-  const result = utils.findAncestorNs(doc, xpath);
+  const result = findAncestorNs(doc, xpath);
 
   expect(result).to.deep.equal(expected);
 };
@@ -112,6 +112,16 @@ describe("C14N non-exclusive canonicalization tests", function () {
       "<root xmlns='bbb'><child1><ds:child2 xmlns:ds='ddd'><ds:child3></ds:child3></ds:child2></child1></root>";
     const xpath = "//*[local-name()='child2']";
     const expected = [{ prefix: "", namespaceURI: "bbb" }];
+
+    test_findAncestorNs(xml, xpath, expected);
+  });
+
+  it("findAncestorNs: Should not find a default namespace an ancestor undeclares", function () {
+    // xmlns="" leaves no default namespace node, and hides the one declared above it.
+    // https://www.w3.org/TR/1999/REC-xpath-19991116/#namespace-nodes
+    const xml = '<root xmlns="urn:a"><x xmlns=""><p:y xmlns:p="urn:p"/></x></root>';
+    const xpath = "//*[local-name()='y']";
+    const expected = [];
 
     test_findAncestorNs(xml, xpath, expected);
   });
@@ -264,6 +274,18 @@ describe("C14N non-exclusive canonicalization tests", function () {
           new Canonicalization(),
         );
       });
+
+      // The apex has no output ancestor, so xmlns="" never belongs on it.
+      for (const root of ['<root xmlns="urn:A">', "<root>"]) {
+        it(`renders no default namespace on a prefixed apex whose ancestor undeclares it, under ${root}`, function () {
+          test_C14nCanonicalization(
+            `${root}<x xmlns=""><p:y xmlns:p="urn:p"><z></z></p:y></x></root>`,
+            "//*[local-name()='y']",
+            '<p:y xmlns:p="urn:p"><z></z></p:y>',
+            new Canonicalization(),
+          );
+        });
+      }
 
       it("omits a descendant declaration the hoisted ancestor default namespace makes redundant", function () {
         test_C14nCanonicalization(
