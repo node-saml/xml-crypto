@@ -334,6 +334,34 @@ describe("C14N non-exclusive canonicalization tests", function () {
           new Canonicalization(),
         );
       });
+
+      for (const [xml, ancestorNamespace, expected] of [
+        [
+          '<x xmlns:p="urn:two"><p:y/></x>',
+          { prefix: "p", namespaceURI: "urn:one" },
+          '<x xmlns:p="urn:two"><p:y></p:y></x>',
+        ],
+        [
+          '<p:x xmlns:p="urn:p" xmlns="urn:two"><y/></p:x>',
+          { prefix: "", namespaceURI: "urn:one" },
+          '<p:x xmlns="urn:two" xmlns:p="urn:p"><y></y></p:x>',
+        ],
+        [
+          '<p:x xmlns:p="urn:p" xmlns=""><y/></p:x>',
+          { prefix: "", namespaceURI: "urn:one" },
+          '<p:x xmlns:p="urn:p"><y></y></p:x>',
+        ],
+      ] as const) {
+        it(`renders ${xml}'s own declaration over the caller's ancestor namespace ${JSON.stringify(ancestorNamespace)}`, function () {
+          const doc = new xmldom.DOMParser().parseFromString(xml);
+
+          const result = new Canonicalization().process(doc.documentElement, {
+            ancestorNamespaces: [ancestorNamespace],
+          });
+
+          expect(result).to.equal(expected);
+        });
+      }
     });
 
     describe(`${Canonicalization.name}: subset namespace declarations`, function () {
@@ -422,6 +450,46 @@ describe("C14N non-exclusive canonicalization tests", function () {
           '<root xmlns="urn:ancestor"><p:child2 xmlns:p="urn:p" xmlns=""><item/></p:child2></root>',
           "//*[local-name()='child2']",
           '<p:child2 xmlns:p="urn:p"><item></item></p:child2>',
+          new Canonicalization(),
+        );
+      });
+    });
+
+    describe(`${Canonicalization.name}: rebound prefixes`, function () {
+      // A declaration is omitted only when the nearest output ancestor binds its prefix to the
+      // same URI. https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+      it("renders a descendant's rebinding of a prefix the apex declares", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:p="urn:one"><p:child xmlns:p="urn:two" p:attr="x"/></root>',
+          "/root",
+          '<root xmlns:p="urn:one"><p:child xmlns:p="urn:two" p:attr="x"></p:child></root>',
+          new Canonicalization(),
+        );
+      });
+
+      it("renders a descendant's rebinding of a prefix hoisted from an ancestor", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:p="urn:one"><x><p:y xmlns:p="urn:two"/></x></root>',
+          "//*[local-name()='x']",
+          '<x xmlns:p="urn:one"><p:y xmlns:p="urn:two"></p:y></x>',
+          new Canonicalization(),
+        );
+      });
+
+      it("renders a rebinding back to the URI an outer ancestor declares", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:p="urn:one"><a xmlns:p="urn:two"><p:b xmlns:p="urn:one"/></a></root>',
+          "/root",
+          '<root xmlns:p="urn:one"><a xmlns:p="urn:two"><p:b xmlns:p="urn:one"></p:b></a></root>',
+          new Canonicalization(),
+        );
+      });
+
+      it("renders a rebinding declared after the attribute that uses it", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:p="urn:one"><child p:attr="x" xmlns:p="urn:two"/></root>',
+          "/root",
+          '<root xmlns:p="urn:one"><child xmlns:p="urn:two" p:attr="x"></child></root>',
           new Canonicalization(),
         );
       });
