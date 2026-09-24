@@ -6,17 +6,6 @@ import type {
 import * as utils from "./utils";
 import * as isDomNode from "@xmldom/is-dom-node";
 
-function isPrefixInScope(prefixesInScope, prefix, namespaceURI) {
-  let ret = false;
-  prefixesInScope.forEach(function (pf) {
-    if (pf.prefix === prefix && pf.namespaceURI === namespaceURI) {
-      ret = true;
-    }
-  });
-
-  return ret;
-}
-
 export class ExclusiveCanonicalization implements CanonicalizationOrTransformationAlgorithm {
   protected includeComments = false;
 
@@ -110,7 +99,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     //handle the namespaceof the node itself
     if (node.prefix) {
       if (
-        !isPrefixInScope(
+        !utils.isPrefixInScope(
           prefixesInScope,
           node.prefix,
           node.namespaceURI || defaultNsForPrefix[node.prefix],
@@ -140,7 +129,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
         //the prefix is not defined already
         if (
           attr.prefix &&
-          !isPrefixInScope(prefixesInScope, attr.localName, attr.value) &&
+          !utils.isPrefixInScope(prefixesInScope, attr.localName, attr.value) &&
           inclusiveNamespacesPrefixList.indexOf(attr.localName) >= 0
         ) {
           nsListToRender.push({ prefix: attr.localName, namespaceURI: attr.value });
@@ -151,7 +140,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
         //the prefix is not defined already
         if (
           attr.prefix &&
-          !isPrefixInScope(prefixesInScope, attr.prefix, attr.namespaceURI) &&
+          !utils.isPrefixInScope(prefixesInScope, attr.prefix, attr.namespaceURI) &&
           attr.prefix !== "xmlns" &&
           attr.prefix !== "xml"
         ) {

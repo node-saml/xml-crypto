@@ -526,7 +526,10 @@ export function findAncestorNsForElement(node: Element): NamespacePrefix[] {
   const returningNs: NamespacePrefix[] = [];
   const subsetNsPrefixes = findSubsetNSPrefixes(node);
   for (const ancestorNs of ancestorNsWithoutDuplicate) {
-    if (!subsetNsPrefixes.has(ancestorNs.prefix)) {
+    // An undeclaration has done its work by shadowing outer bindings; it is no namespace node.
+    // https://www.w3.org/TR/1999/REC-xpath-19991116/#namespace-nodes
+    const isUndeclaration = ancestorNs.namespaceURI === "";
+    if (!isUndeclaration && !subsetNsPrefixes.has(ancestorNs.prefix)) {
       returningNs.push(ancestorNs);
     }
   }
@@ -563,6 +566,16 @@ export function findAncestorNs(
   }
 
   return findAncestorNsForElement(docSubset[0]);
+}
+
+export function isPrefixInScope(
+  prefixesInScope: NamespacePrefix[],
+  prefix: string,
+  namespaceURI: string,
+): boolean {
+  // Bindings are pushed outermost first, so the last one for a prefix shadows the rest.
+  const binding = prefixesInScope.filter((ns) => ns.prefix === prefix).pop();
+  return binding !== undefined && binding.namespaceURI === namespaceURI;
 }
 
 export function validateDigestValue(digest, expectedDigest) {

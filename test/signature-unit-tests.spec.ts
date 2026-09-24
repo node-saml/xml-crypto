@@ -75,6 +75,55 @@ describe("Signature unit tests", function () {
     });
   });
 
+  describe("rejects a prefix rebound after signing", function () {
+    const cases = [
+      {
+        canonicalizationAlgorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+        xml: '<root xmlns:p="urn:one"><p:child/></root>',
+        rebind: (xml: string) => xml.replace("<p:child", '<p:child xmlns:p="urn:two"'),
+      },
+      {
+        canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+        xml: '<p:root xmlns:p="urn:one"><p:a xmlns:p="urn:two"><p:b/></p:a></p:root>',
+        rebind: (xml: string) => xml.replace("<p:b", '<p:b xmlns:p="urn:one"'),
+      },
+    ];
+
+    function verify(xml: string): boolean {
+      const sig = new SignedXml({ publicCert: fs.readFileSync("./test/static/client_public.pem") });
+      const signature = xpath.select1(
+        "//*[local-name(.)='Signature']",
+        new xmldom.DOMParser().parseFromString(xml),
+      );
+      isDomNode.assertIsNodeLike(signature);
+      sig.loadSignature(signature);
+      return sig.checkSignature(xml);
+    }
+
+    for (const { canonicalizationAlgorithm, xml, rebind } of cases) {
+      it(`with ${canonicalizationAlgorithm}`, function () {
+        const sig = new SignedXml({
+          privateKey: fs.readFileSync("./test/static/client.pem"),
+          canonicalizationAlgorithm,
+          signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        });
+        sig.addReference({
+          xpath: "/*",
+          digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+          transforms: [
+            "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+            canonicalizationAlgorithm,
+          ],
+        });
+        sig.computeSignature(xml);
+        const signedXml = sig.getSignedXml();
+
+        expect(verify(signedXml)).to.be.true;
+        expect(verify(rebind(signedXml))).to.be.false;
+      });
+    }
+  });
+
   describe("verify adds ID", function () {
     function nodeExists(doc, xpathArg) {
       if (!doc && !xpathArg) {
