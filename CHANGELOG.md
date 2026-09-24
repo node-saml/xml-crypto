@@ -1,6 +1,19 @@
 # Changelog
 
-## 6.3.1 (2026-09-21)
+## 6.3.2 (2026-09-24)
+
+### 🐛 Bug Fixes
+
+- [**bug**] [**security**] fix: render a namespace declaration that rebinds an in-scope prefix [#615](https://github.com/node-saml/xml-crypto/pull/615)
+- [**bug**] fix: don't hoist an ancestor's namespace undeclaration onto the c14n subset root [#617](https://github.com/node-saml/xml-crypto/pull/617)
+
+### 🙈 Other
+
+- [**closed**] chore: merge master into 6.x [#619](https://github.com/node-saml/xml-crypto/pull/619)
+
+---
+
+## v6.3.1 (2026-09-21)
 
 ### 🐛 Bug Fixes
 
