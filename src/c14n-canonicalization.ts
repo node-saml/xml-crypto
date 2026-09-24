@@ -76,18 +76,21 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
    * Create the string of all namespace declarations that should appear on this element
    *
    * @param node The node we now render
-   * @param prefixesInScope The namespaces bound on this node's output ancestors, nearest last
+   * @param prefixesInScope The prefixes defined on this node parents which are a part of the output set
    * @param defaultNs The current default namespace
    * @param defaultNsForPrefix
    * @param ancestorNamespaces Import ancestor namespaces if it is specified
+   * @param namespacesInScope The namespaces bound on this node's output ancestors, nearest last.
+   *   Without it, a prefix in `prefixesInScope` counts as in scope whatever it is bound to.
    * @api private
    */
   renderNs(
     node: Element,
-    prefixesInScope: NamespacePrefix[],
+    prefixesInScope: string[],
     defaultNs: string,
     defaultNsForPrefix: string,
     ancestorNamespaces: NamespacePrefix[],
+    namespacesInScope?: NamespacePrefix[],
   ): RenderedNamespace {
     let i;
     let attr;
@@ -96,11 +99,20 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     const nsListToRender: { prefix: string; namespaceURI: string }[] = [];
     const currNs = node.namespaceURI || "";
 
+    const isInScope = (prefix: string, namespaceURI: string) =>
+      namespacesInScope
+        ? utils.isPrefixInScope(namespacesInScope, prefix, namespaceURI)
+        : prefixesInScope.indexOf(prefix) !== -1;
+    const renderDeclaration = (prefix: string, namespaceURI: string) => {
+      nsListToRender.push({ prefix, namespaceURI });
+      prefixesInScope.push(prefix);
+      namespacesInScope?.push({ prefix, namespaceURI });
+    };
+
     if (node.prefix) {
       const namespaceURI = node.namespaceURI || defaultNsForPrefix[node.prefix];
-      if (!utils.isPrefixInScope(prefixesInScope, node.prefix, namespaceURI)) {
-        nsListToRender.push({ prefix: node.prefix, namespaceURI });
-        prefixesInScope.push({ prefix: node.prefix, namespaceURI });
+      if (!isInScope(node.prefix, namespaceURI)) {
+        renderDeclaration(node.prefix, namespaceURI);
       }
     }
 
@@ -134,22 +146,17 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       for (i = 0; i < node.attributes.length; ++i) {
         attr = node.attributes[i];
 
-        if (
-          attr.prefix === "xmlns" &&
-          !utils.isPrefixInScope(prefixesInScope, attr.localName, attr.value)
-        ) {
-          nsListToRender.push({ prefix: attr.localName, namespaceURI: attr.value });
-          prefixesInScope.push({ prefix: attr.localName, namespaceURI: attr.value });
+        if (attr.prefix === "xmlns" && !isInScope(attr.localName, attr.value)) {
+          renderDeclaration(attr.localName, attr.value);
         }
 
         if (
           attr.prefix &&
-          !utils.isPrefixInScope(prefixesInScope, attr.prefix, attr.namespaceURI) &&
+          !isInScope(attr.prefix, attr.namespaceURI) &&
           attr.prefix !== "xmlns" &&
           attr.prefix !== "xml"
         ) {
-          nsListToRender.push({ prefix: attr.prefix, namespaceURI: attr.namespaceURI });
-          prefixesInScope.push({ prefix: attr.prefix, namespaceURI: attr.namespaceURI });
+          renderDeclaration(attr.prefix, attr.namespaceURI);
         }
       }
     }
@@ -194,7 +201,14 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
   /**
    * @param node Node
    */
-  processInner(node, prefixesInScope, defaultNs, defaultNsForPrefix, ancestorNamespaces) {
+  processInner(
+    node,
+    prefixesInScope,
+    defaultNs,
+    defaultNsForPrefix,
+    ancestorNamespaces,
+    namespacesInScope?: NamespacePrefix[],
+  ) {
     if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }
@@ -211,13 +225,21 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
         defaultNs,
         defaultNsForPrefix,
         ancestorNamespaces,
+        namespacesInScope,
       );
       const res = ["<", node.tagName, ns.rendered, this.renderAttrs(node), ">"];
 
       for (i = 0; i < node.childNodes.length; ++i) {
         pfxCopy = prefixesInScope.slice(0);
         res.push(
-          this.processInner(node.childNodes[i], pfxCopy, ns.newDefaultNs, defaultNsForPrefix, []),
+          this.processInner(
+            node.childNodes[i],
+            pfxCopy,
+            ns.newDefaultNs,
+            defaultNsForPrefix,
+            [],
+            namespacesInScope?.slice(0),
+          ),
         );
       }
 
@@ -280,7 +302,10 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     const defaultNsForPrefix = options.defaultNsForPrefix || {};
     const ancestorNamespaces = options.ancestorNamespaces || [];
 
-    const prefixesInScope = ancestorNamespaces.slice();
+    const prefixesInScope: string[] = [];
+    for (let i = 0; i < ancestorNamespaces.length; i++) {
+      prefixesInScope.push(ancestorNamespaces[i].prefix);
+    }
 
     const res = this.processInner(
       node,
@@ -288,6 +313,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       defaultNs,
       defaultNsForPrefix,
       ancestorNamespaces,
+      ancestorNamespaces.slice(),
     );
     return res;
   }
