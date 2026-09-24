@@ -116,6 +116,16 @@ describe("C14N non-exclusive canonicalization tests", function () {
     test_findAncestorNs(xml, xpath, expected);
   });
 
+  it("findAncestorNs: Should not find a default namespace an ancestor undeclares", function () {
+    // xmlns="" leaves no default namespace node, and hides the one declared above it.
+    // https://www.w3.org/TR/1999/REC-xpath-19991116/#namespace-nodes
+    const xml = '<root xmlns="urn:a"><x xmlns=""><p:y xmlns:p="urn:p"/></x></root>';
+    const xpath = "//*[local-name()='y']";
+    const expected = [];
+
+    test_findAncestorNs(xml, xpath, expected);
+  });
+
   it("findAncestorNs: Should not find namespace when both has no prefix", function () {
     const xml = "<root xmlns='bbb'><child1><child2 xmlns='ddd'></child2></child1></root>";
     const xpath = "//*[local-name()='child2']";
@@ -264,6 +274,18 @@ describe("C14N non-exclusive canonicalization tests", function () {
           new Canonicalization(),
         );
       });
+
+      // The apex has no output ancestor, so xmlns="" never belongs on it.
+      for (const root of ['<root xmlns="urn:A">', "<root>"]) {
+        it(`renders no default namespace on a prefixed apex whose ancestor undeclares it, under ${root}`, function () {
+          test_C14nCanonicalization(
+            `${root}<x xmlns=""><p:y xmlns:p="urn:p"><z></z></p:y></x></root>`,
+            "//*[local-name()='y']",
+            '<p:y xmlns:p="urn:p"><z></z></p:y>',
+            new Canonicalization(),
+          );
+        });
+      }
 
       it("omits a descendant declaration the hoisted ancestor default namespace makes redundant", function () {
         test_C14nCanonicalization(
