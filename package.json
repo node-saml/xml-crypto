@@ -61,7 +61,7 @@
     "nyc": "^15.1.0",
     "prettier": "^3.9.6",
     "prettier-plugin-packagejson": "^3.0.2",
-    "release-it": "^16.3.0",
+    "release-it": "^21.0.2",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
