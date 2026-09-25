@@ -27,10 +27,41 @@ import * as hashAlgorithms from "./hash-algorithms";
 import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
 
+type SigningReferenceTarget = { node: Element; digestValue?: string };
+
+function findSignatureElements(node: Node): Element[] {
+  const signatures = xpath.select(
+    ".//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+    node,
+  );
+  isDomNode.assertIsArrayOfNodes(signatures);
+  return signatures.filter(isDomNode.isElementNode);
+}
+
+function certificatesToPublish(publicCert: string): string[] {
+  const certificates = utils.pemCertificates(publicCert);
+  if (certificates.length > 0) {
+    return certificates;
+  }
+
+  try {
+    return [utils.bareCertificate(publicCert)];
+  } catch {
+    // Not a certificate in either form, so there is none to publish, and KeyInfo is optional.
+    return [];
+  }
+}
+
 const warnOriginalXmlWithIds = deprecate(
   () => {},
-  "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`.",
+  "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. For a detached signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for WS-Security), sign that document, and send it alongside `getSignatureXml()`.",
   "XML_CRYPTO_GET_ORIGINAL_XML_WITH_IDS",
+);
+
+const warnValidateElementAgainstReferences = deprecate(
+  () => {},
+  "`validateElementAgainstReferences()` is deprecated and will be removed in a future version. After `checkSignature()` succeeds, use the XML that `getSignedReferences()` returns instead of nodes from the original document.",
+  "XML_CRYPTO_VALIDATE_ELEMENT_AGAINST_REFERENCES",
 );
 
 export class SignedXml {
@@ -196,7 +227,7 @@ export class SignedXml {
    * Builds the contents of a KeyInfo element as an XML string.
    *
    * For example, if the value of the prefix argument is 'foo', then
-   * the resultant XML string will be "<foo:X509Data></foo:X509Data>"
+   * the resultant XML string will be "<foo:X509Data><foo:X509Certificate>...</foo:X509Certificate></foo:X509Data>"
    *
    * @return an XML string representation of the contents of a KeyInfo element, or `null` if no `KeyInfo` element should be included
    */
@@ -207,26 +238,21 @@ export class SignedXml {
 
     prefix = prefix ? `${prefix}:` : "";
 
-    let x509Certs = "";
     if (Buffer.isBuffer(publicCert)) {
       publicCert = publicCert.toString("latin1");
     }
 
-    let publicCertMatches: string[] = [];
-    if (typeof publicCert === "string") {
-      publicCertMatches = publicCert.match(utils.EXTRACT_X509_CERTS) || [];
+    // A KeyObject holds a key and never a certificate, so there is no X509Data to build from it.
+    const certificates = typeof publicCert === "string" ? certificatesToPublish(publicCert) : [];
+
+    // X509Data requires at least one child: https://www.w3.org/TR/xmldsig-core1/#sec-X509Data
+    if (certificates.length === 0) {
+      return null;
     }
 
-    if (publicCertMatches.length > 0) {
-      x509Certs = publicCertMatches
-        .map(
-          (c) =>
-            `<${prefix}X509Certificate>${utils
-              .pemToDer(c)
-              .toString("base64")}</${prefix}X509Certificate>`,
-        )
-        .join("");
-    }
+    const x509Certs = certificates
+      .map((cert) => `<${prefix}X509Certificate>${cert}</${prefix}X509Certificate>`)
+      .join("");
 
     return `<${prefix}X509Data>${x509Certs}</${prefix}X509Data>`;
   }
@@ -241,8 +267,8 @@ export class SignedXml {
   static getCertFromKeyInfo(keyInfo?: Node | null): string | null {
     if (keyInfo != null) {
       const cert = xpath.select1(".//*[local-name(.)='X509Certificate']", keyInfo);
-      if (isDomNode.isNodeLike(cert)) {
-        return utils.derToPem(cert.textContent ?? "", "CERTIFICATE");
+      if (isDomNode.isElementNode(cert)) {
+        return utils.toPem(cert.textContent, "CERTIFICATE");
       }
     }
 
@@ -261,7 +287,7 @@ export class SignedXml {
    * Validates the signature of the provided XML document synchronously using the configured key info provider.
    *
    * @param xml The XML document containing the signature to be validated.
-   * @param callback Callback function to handle the validation result asynchronously.
+   * @param callback Called with the validation result before `checkSignature` returns.
    * @throws Error if the last parameter is provided and is not a function, or if no key info resolver is provided.
    */
   checkSignature(xml: string, callback: (error: Error | null, isValid?: boolean) => void): void;
@@ -272,6 +298,11 @@ export class SignedXml {
     if (callback != null && typeof callback !== "function") {
       throw new Error("Last parameter must be a callback function");
     }
+
+    // Nothing this check has not authenticated may be visible, even if it throws partway. Success
+    // adds to what earlier successful checks on this instance published.
+    const earlierSignedReferences = this.signedReferences;
+    this.signedReferences = [];
 
     this.signedXml = xml;
 
@@ -323,31 +354,23 @@ export class SignedXml {
       this.loadReference(reference);
     }
 
-    /* eslint-disable-next-line deprecation/deprecation */
-    if (!this.getReferences().every((ref) => this.validateReference(ref, doc))) {
-      /* Trustworthiness can only be determined if SignedInfo's (which holds References' DigestValue(s)
-         which were validated at this stage) signature is valid. Execution does not proceed to validate
-         signature phase thus each References' DigestValue must be considered to be untrusted (attacker
-         might have injected any data with new new references and/or recalculated new DigestValue for
-         altered Reference(s)). Returning any content via `signedReferences` would give false sense of
-         trustworthiness if/when SignedInfo's (which holds references' DigestValues) signature is not
-         valid(ated). Put simply: if one fails, they are all not trustworthy.
-      */
-      this.signedReferences = [];
-      this.references.forEach((ref) => {
-        ref.signedReference = undefined;
-      });
-      // TODO: add this breaking change here later on for even more security: `this.references = [];`
+    const canonReferences: string[] = [];
+    for (const ref of this.references) {
+      const canonXml = this.validateReference(ref, doc);
+      if (canonXml === undefined) {
+        // TODO: add this breaking change here later on for even more security: `this.references = [];`
 
-      if (callback) {
-        callback(new Error("Could not validate all references"), false);
-        return;
+        if (callback) {
+          callback(new Error("Could not validate all references"), false);
+          return;
+        }
+
+        // We return false because some references validated, but not all
+        // We should actually be throwing an error here, but that would be a breaking change
+        // See https://www.w3.org/TR/xmldsig-core/#sec-CoreValidation
+        return false;
       }
-
-      // We return false because some references validated, but not all
-      // We should actually be throwing an error here, but that would be a breaking change
-      // See https://www.w3.org/TR/xmldsig-core/#sec-CoreValidation
-      return false;
+      canonReferences.push(canonXml);
     }
 
     // (Stage B authentication step, show that the `signedInfoCanon` is signed)
@@ -363,19 +386,17 @@ export class SignedXml {
     // Check the signature verification to know whether to reset signature value or not.
     const sigRes = signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
     if (sigRes === true) {
+      this.signedReferences = [...earlierSignedReferences, ...canonReferences];
+      this.references.forEach((ref, index) => {
+        ref.signedReference = canonReferences[index];
+      });
+
       if (callback) {
         callback(null, true);
       } else {
         return true;
       }
     } else {
-      // Ideally, we would start by verifying the `signedInfoCanon` first,
-      // but that may cause some breaking changes, so we'll handle that in v7.x.
-      // If we were validating `signedInfoCanon` first, we wouldn't have to reset this array.
-      this.signedReferences = [];
-      this.references.forEach((ref) => {
-        ref.signedReference = undefined;
-      });
       // TODO: add this breaking change here later on for even more security: `this.references = [];`
 
       if (callback) {
@@ -446,7 +467,10 @@ export class SignedXml {
       ancestorNamespaces: ref.ancestorNamespaces,
     };
 
-    return this.getCanonXml(ref.transforms, node, c14nOptions);
+    // Only a same-document URI dereferences without comments; validateReference resolves no
+    // XPointer: https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document
+    const discardComments = ref.uri === "" || ref.uri.startsWith("#");
+    return this.canonicalize(ref.transforms, node, c14nOptions, { discardComments });
   }
 
   private calculateSignatureValue(doc: Document, callback?: ErrorFirstCallback<string>) {
@@ -494,7 +518,12 @@ export class SignedXml {
     }
   }
 
+  /**
+   * @deprecated Will be removed in a future version. After {@link checkSignature} succeeds, use
+   * the XML that {@link getSignedReferences} returns instead of nodes from the original document.
+   */
   validateElementAgainstReferences(elemOrXpath: Element | string, doc: Document): Reference {
+    warnValidateElementAgainstReferences();
     let elem: Element;
     if (typeof elemOrXpath === "string") {
       const firstElem = xpath.select1(elemOrXpath, doc);
@@ -528,7 +557,7 @@ export class SignedXml {
     throw new Error("No references passed validation");
   }
 
-  private validateReference(ref: Reference, doc: Document) {
+  private validateReference(ref: Reference, doc: Document): string | undefined {
     const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
     let elem: xpath.SelectSingleReturnType = null;
 
@@ -573,7 +602,7 @@ export class SignedXml {
         `invalid signature: the signature references an element with uri ${ref.uri} but could not find such element in the xml`,
       );
       ref.validationError = validationError;
-      return false;
+      return undefined;
     }
 
     const canonXml = this.getCanonReferenceXml(doc, ref, elem);
@@ -586,16 +615,10 @@ export class SignedXml {
       );
       ref.validationError = validationError;
 
-      return false;
+      return undefined;
     }
-    // This step can only be done after we have verified the `signedInfo`.
-    // We verified that they have same hash,
-    // thus the `canonXml` and _only_ the `canonXml` can be trusted.
-    // Append this to `signedReferences`.
-    this.signedReferences.push(canonXml);
-    ref.signedReference = canonXml;
 
-    return true;
+    return canonXml;
   }
 
   findSignatures(doc: Node): Node[] {
@@ -961,25 +984,20 @@ export class SignedXml {
       }
     }
 
-    // Add IDs for all non-self references upfront
+    const referenceTargets = new Map<Reference, SigningReferenceTarget[]>();
     for (const ref of this.getReferences()) {
-      if (ref.isEmptyUri) {
-        continue;
-      } // No specific nodes to ID for empty URI
-
-      const nodes = xpath.selectWithResolver(
-        ref.xpath ?? "",
-        doc,
-        this.namespaceResolver,
-      ) as Element[];
-      for (const node of nodes) {
+      const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+      isDomNode.assertIsArrayOfNodes(nodes);
+      const targets = nodes.map((node) => {
         isDomNode.assertIsElementNode(node);
-        this.ensureHasId(node);
-      }
+        return { node };
+      });
+      referenceTargets.set(ref, targets);
     }
+    this.ensureTargetsHaveIds(referenceTargets);
 
     // Capture original with IDs (no sig yet)
-    this.originalXmlWithIds = doc.toString();
+    this.originalXmlWithIds = this.serialize(doc);
 
     // automatic insertion of `:`
     if (prefix) {
@@ -1034,30 +1052,36 @@ export class SignedXml {
       }
     }
 
-    if (location.action === "append") {
-      referenceNode.appendChild(signatureElem);
-    } else if (location.action === "prepend") {
-      referenceNode.insertBefore(signatureElem, referenceNode.firstChild);
-    } else if (location.action === "before") {
-      if (referenceNode.parentNode == null) {
-        throw new Error(
-          "`location.reference` refers to the root node (by default), so we can't insert `before`",
-        );
-      }
-      referenceNode.parentNode.insertBefore(signatureElem, referenceNode);
-    } else if (location.action === "after") {
-      if (referenceNode.parentNode == null) {
-        throw new Error(
-          "`location.reference` refers to the root node (by default), so we can't insert `after`",
-        );
-      }
-      referenceNode.parentNode.insertBefore(signatureElem, referenceNode.nextSibling);
-    }
-
     const previousSignatureNode = this.signatureNode;
     this.signatureNode = signatureElem;
     try {
-      this.addAllReferences(doc, signatureElem, prefix);
+      for (const [ref, targets] of referenceTargets) {
+        for (const target of targets) {
+          target.digestValue = this.calculateReferenceDigest(ref, target.node);
+        }
+      }
+
+      if (location.action === "append") {
+        referenceNode.appendChild(signatureElem);
+      } else if (location.action === "prepend") {
+        referenceNode.insertBefore(signatureElem, referenceNode.firstChild);
+      } else if (location.action === "before") {
+        if (referenceNode.parentNode == null) {
+          throw new Error(
+            "`location.reference` refers to the root node (by default), so we can't insert `before`",
+          );
+        }
+        referenceNode.parentNode.insertBefore(signatureElem, referenceNode);
+      } else if (location.action === "after") {
+        if (referenceNode.parentNode == null) {
+          throw new Error(
+            "`location.reference` refers to the root node (by default), so we can't insert `after`",
+          );
+        }
+        referenceNode.parentNode.insertBefore(signatureElem, referenceNode.nextSibling);
+      }
+
+      this.addAllReferences(doc, signatureElem, referenceTargets, prefix);
     } catch (error) {
       this.signatureNode = previousSignatureNode;
       throw error;
@@ -1083,8 +1107,8 @@ export class SignedXml {
         } else {
           this.signatureValue = signature || "";
           signatureElem.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
-          this.signatureXml = signatureElem.toString();
-          this.signedXml = doc.toString();
+          this.signatureXml = this.serialize(signatureElem);
+          this.signedXml = this.serialize(doc);
           callback(null, this);
         }
       });
@@ -1092,15 +1116,63 @@ export class SignedXml {
       // Synchronous flow
       this.calculateSignatureValue(doc);
       signatureElem.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
-      this.signatureXml = signatureElem.toString();
-      this.signedXml = doc.toString();
+      this.signatureXml = this.serialize(signatureElem);
+      this.signedXml = this.serialize(doc);
     }
   }
 
-  /**
-   * Adds all references to the SignedInfo after the signature placeholder is inserted.
-   */
-  private addAllReferences(doc: Document, signatureElem: Element, prefix?: string): void {
+  // The signer parses its input, so a carriage return reaches the DOM only through a character
+  // reference in text or an attribute value, and xmldom escapes only the attribute. Written raw, it
+  // would parse back as a line feed: https://www.w3.org/TR/xml/#sec-line-ends
+  private serialize(node: Node): string {
+    return node.toString().replace(/\r/g, "&#xD;");
+  }
+
+  private ensureTargetsHaveIds(referenceTargets: Map<Reference, SigningReferenceTarget[]>): void {
+    for (const [ref, targets] of referenceTargets) {
+      if (!ref.isEmptyUri) {
+        for (const { node } of targets) {
+          this.ensureHasId(node);
+        }
+      }
+    }
+  }
+
+  private calculateReferenceDigest(ref: Reference, node: Element): string {
+    ref.ancestorNamespaces = utils.findAncestorNsForElement(node);
+    const canonXml = this.canonicalize(
+      ref.transforms,
+      node,
+      {
+        inclusiveNamespacesPrefixList: ref.inclusiveNamespacesPrefixList,
+        ancestorNamespaces: ref.ancestorNamespaces,
+      },
+      { discardComments: true },
+    );
+    return this.findHashAlgorithm(ref.digestAlgorithm).getHash(canonXml);
+  }
+
+  private findSignatureContentTargets(
+    ref: Reference,
+    doc: Document,
+    signatureElem: Element,
+  ): SigningReferenceTarget[] {
+    const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+    isDomNode.assertIsArrayOfNodes(nodes);
+    return nodes
+      .filter((node) => node === signatureElem || utils.isDescendantOf(node, signatureElem))
+      .map((node) => {
+        isDomNode.assertIsElementNode(node);
+        return { node };
+      });
+  }
+
+  private addAllReferences(
+    doc: Document,
+    signatureElem: Element,
+    referenceTargets: Map<Reference, SigningReferenceTarget[]>,
+    prefix?: string,
+  ): void {
     if (!utils.isArrayHasLength(this.references)) {
       return;
     }
@@ -1116,20 +1188,24 @@ export class SignedXml {
     // but we will extract it here for clarity (and also make it support detached signatures in the future)
     const signatureDoc = signatureElem.ownerDocument;
 
-    // Process each reference
-    for (const ref of this.getReferences()) {
-      const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+    const signatureContentTargets = new Map<Reference, SigningReferenceTarget[]>();
+    for (const [ref, inputTargets] of referenceTargets) {
+      if (inputTargets.length === 0) {
+        signatureContentTargets.set(ref, this.findSignatureContentTargets(ref, doc, signatureElem));
+      }
+    }
+    this.ensureTargetsHaveIds(signatureContentTargets);
 
-      if (!utils.isArrayHasLength(nodes)) {
+    for (const [ref, inputTargets] of referenceTargets) {
+      const targets = signatureContentTargets.get(ref) ?? inputTargets;
+
+      if (!utils.isArrayHasLength(targets)) {
         throw new Error(
           `the following xpath cannot be signed because it was not found: ${ref.xpath}`,
         );
       }
 
-      // Process the reference
-      for (const node of nodes) {
-        isDomNode.assertIsElementNode(node);
-
+      for (const { node, digestValue } of targets) {
         // Must not be a reference to Signature, SignedInfo, or a child of SignedInfo
         if (
           node === signatureElem ||
@@ -1194,10 +1270,6 @@ export class SignedXml {
           transformsElem.appendChild(transformElem);
         }
 
-        // Get the canonicalized XML
-        const canonXml = this.getCanonReferenceXml(doc, ref, node);
-
-        // Get the digest algorithm and compute the digest value
         const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
 
         const digestMethodElem = signatureDoc.createElementNS(
@@ -1210,7 +1282,7 @@ export class SignedXml {
           signatureNamespace,
           `${currentPrefix}DigestValue`,
         );
-        digestValueElem.textContent = digestAlgorithm.getHash(canonXml);
+        digestValueElem.textContent = digestValue ?? this.calculateReferenceDigest(ref, node);
 
         referenceElem.appendChild(transformsElem);
         referenceElem.appendChild(digestMethodElem);
@@ -1223,6 +1295,12 @@ export class SignedXml {
   }
 
   private getKeyInfo(prefix) {
+    const keyInfoContent = this.getKeyInfoContent({ publicCert: this.publicCert, prefix });
+    // KeyInfo requires at least one child: https://www.w3.org/TR/xmldsig-core1/#sec-KeyInfo
+    if (!keyInfoContent) {
+      return "";
+    }
+
     const currentPrefix = prefix ? `${prefix}:` : "";
 
     let keyInfoAttrs = "";
@@ -1232,12 +1310,7 @@ export class SignedXml {
       });
     }
 
-    const keyInfoContent = this.getKeyInfoContent({ publicCert: this.publicCert, prefix });
-    if (keyInfoAttrs || keyInfoContent) {
-      return `<${currentPrefix}KeyInfo${keyInfoAttrs}>${keyInfoContent}</${currentPrefix}KeyInfo>`;
-    }
-
-    return "";
+    return `<${currentPrefix}KeyInfo${keyInfoAttrs}>${keyInfoContent}</${currentPrefix}KeyInfo>`;
   }
 
   /**
@@ -1277,13 +1350,22 @@ export class SignedXml {
     node: Node,
     options: CanonicalizationOrTransformationAlgorithmProcessOptions = {},
   ) {
+    return this.canonicalize(transforms, node, options, { discardComments: false });
+  }
+
+  private canonicalize(
+    transforms: Reference["transforms"],
+    node: Node,
+    options: CanonicalizationOrTransformationAlgorithmProcessOptions,
+    { discardComments }: { discardComments: boolean },
+  ) {
     options.defaultNsForPrefix = options.defaultNsForPrefix ?? SignedXml.defaultNsForPrefix;
     options.signatureNode = this.signatureNode;
 
     const canonXml = node.cloneNode(true); // Deep clone
     if (transforms.includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
       const signaturePath: number[] = [];
-      let signatureAncestor = this.signatureNode;
+      let signatureAncestor = this.findLoadedSignature(node);
       while (signatureAncestor?.parentNode && signatureAncestor !== node) {
         signaturePath.push(
           Array.from<Node>(signatureAncestor.parentNode.childNodes).indexOf(signatureAncestor),
@@ -1296,24 +1378,81 @@ export class SignedXml {
           .reduce((clonedNode, index) => clonedNode.childNodes[index], canonXml);
       }
     }
+    if (discardComments) {
+      const comments = xpath.select(".//comment()", canonXml);
+      isDomNode.assertIsArrayOfNodes(comments);
+      comments.forEach((comment) => comment.parentNode?.removeChild(comment));
+    }
     let transformedXml: Node | string = canonXml;
+    let transformOptions = options;
 
-    transforms.forEach((transformName) => {
-      if (isDomNode.isNodeLike(transformedXml)) {
-        // If, after processing, `transformedNode` is a string, we can't do anymore transforms on it
-        const transform = this.findCanonicalizationAlgorithm(transformName);
-        transformedXml = transform.process(transformedXml, options);
+    // Octets are parsed into a node-set for the next transform, and a node-set left at the end is
+    // converted to octets with C14N: https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
+    for (const transformName of transforms) {
+      if (!isDomNode.isNodeLike(transformedXml)) {
+        transformedXml = this.parseTransformInput(transformedXml, transformName);
+        // The parsed octets are a new document, so the referenced node's ancestors are gone.
+        transformOptions = {
+          ...options,
+          ancestorNamespaces: [],
+          defaultNs: "",
+          signatureNode: this.findLoadedSignature(transformedXml) ?? options.signatureNode,
+        };
       }
-      //TODO: currently transform.process may return either Node or String value (enveloped transformation returns Node, exclusive-canonicalization returns String).
-      //This either needs to be more explicit in the API, or all should return the same.
-      //exclusive-canonicalization returns String since it builds the Xml by hand. If it had used xmldom it would incorrectly minimize empty tags
-      //to <x/> instead of <x></x> and also incorrectly handle some delicate line break issues.
-      //enveloped transformation returns Node since if it would return String consider this case:
-      //<x xmlns:p='ns'><p:y/></x>
-      //if only y is the node to sign then a string would be <p:y/> without the definition of the p namespace. probably xmldom toString() should have added it.
-    });
+      transformedXml = this.findCanonicalizationAlgorithm(transformName).process(
+        transformedXml,
+        transformOptions,
+      );
+    }
+
+    if (isDomNode.isNodeLike(transformedXml)) {
+      transformedXml = this.findCanonicalizationAlgorithm(
+        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+      ).process(transformedXml, transformOptions);
+    }
 
     return transformedXml.toString();
+  }
+
+  // checkSignature() parses its own copy of the document, and octets a transform returns are parsed
+  // again, so the loaded signature is found by its SignatureValue. A copy carrying the same value
+  // could stand in for it, so refuse to guess.
+  private findLoadedSignature(node: Node): Node | null {
+    const doc = node.ownerDocument ?? node;
+    if (this.signatureNode == null || this.signatureNode.ownerDocument === doc) {
+      return this.signatureNode;
+    }
+
+    const signatureValue = utils.findChildren(this.signatureNode, "SignatureValue")[0]?.textContent;
+    if (!signatureValue) {
+      return null;
+    }
+
+    const matches = findSignatureElements(doc).filter(
+      (signature) =>
+        utils.findChildren(signature, "SignatureValue")[0]?.textContent === signatureValue,
+    );
+    if (matches.length > 1) {
+      throw new Error(
+        "Cannot validate a document which contains multiple Signature elements with the same SignatureValue, in order to prevent signature wrapping attack.",
+      );
+    }
+    return matches[0] ?? null;
+  }
+
+  private parseTransformInput(octets: string, transformName: string): Element {
+    const parseErrors: string[] = [];
+    const doc = new xmldom.DOMParser({
+      errorHandler: (_level, message) => parseErrors.push(String(message)),
+    }).parseFromString(octets);
+
+    if (parseErrors.length > 0 || doc.documentElement == null) {
+      throw new Error(
+        `Cannot apply transform ${transformName}: the output of the previous transform is not well-formed XML`,
+      );
+    }
+
+    return doc.documentElement;
   }
 
   /**
@@ -1433,7 +1572,9 @@ export class SignedXml {
    *
    * @returns The original XML with IDs.
    * @deprecated Will be removed in a future version. Use the `location` option of
-   * {@link computeSignature} to place the signature, then {@link getSignedXml}.
+   * {@link computeSignature} to place the signature, then {@link getSignedXml}. For a detached
+   * signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for
+   * WS-Security), sign that document, and send it alongside {@link getSignatureXml}.
    */
   getOriginalXmlWithIds(): string {
     warnOriginalXmlWithIds();

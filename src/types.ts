@@ -26,6 +26,25 @@ export type HashAlgorithmType =
   | "http://www.w3.org/2001/04/xmlenc#sha512"
   | string;
 
+/**
+ * The label carried by both boundaries of a PEM message. The values listed are the ones RFC 7468
+ * defines; any other label its grammar allows is accepted too, when it is not empty and not over
+ * 48 characters, because OpenSSL and the wider ecosystem use others, such as `RSA PRIVATE KEY`.
+ *
+ * @see https://www.rfc-editor.org/rfc/rfc7468
+ */
+export type PemLabel =
+  | "CERTIFICATE"
+  | "X509 CRL"
+  | "CERTIFICATE REQUEST"
+  | "PKCS7"
+  | "CMS"
+  | "PRIVATE KEY"
+  | "ENCRYPTED PRIVATE KEY"
+  | "ATTRIBUTE CERTIFICATE"
+  | "PUBLIC KEY"
+  | string;
+
 export type SignatureAlgorithmType =
   | "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
   | "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
@@ -193,6 +212,9 @@ export interface SignatureAlgorithm {
    * @param key a public cert, public key, or private key can be passed here
    */
   verifySignature(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
+  /**
+   * `SignedXml.checkSignature` calls only the synchronous form.
+   */
   verifySignature(
     material: string,
     key: crypto.KeyLike,
@@ -253,12 +275,14 @@ export function createOptionalCallbackFunction<T, A extends unknown[]>(
   return ((...args: A | [...A, ErrorFirstCallback<T>]) => {
     const possibleCallback = args[args.length - 1];
     if (isErrorFirstCallback(possibleCallback)) {
+      let result: T;
       try {
-        const result = syncVersion(...(args.slice(0, -1) as A));
-        possibleCallback(null, result);
+        result = syncVersion(...(args.slice(0, -1) as A));
       } catch (err) {
         possibleCallback(err instanceof Error ? err : new Error("Unknown error"));
+        return;
       }
+      possibleCallback(null, result);
     } else {
       return syncVersion(...(args as A));
     }

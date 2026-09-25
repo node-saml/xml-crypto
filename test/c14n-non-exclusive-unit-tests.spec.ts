@@ -3,10 +3,10 @@ import { expect } from "chai";
 import {
   C14nCanonicalization,
   C14nCanonicalizationWithComments,
-} from "../src/c14n-canonicalization";
+  findAncestorNs,
+} from "../src/index";
 import * as xmldom from "@xmldom/xmldom";
 import * as xpath from "xpath";
-import * as utils from "../src/utils";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 const test_C14nCanonicalization = function (
@@ -21,7 +21,7 @@ const test_C14nCanonicalization = function (
   isDomNode.assertIsNodeLike(node);
   const result = can
     .process(node, {
-      ancestorNamespaces: utils.findAncestorNs(doc, xpathArg),
+      ancestorNamespaces: findAncestorNs(doc, xpathArg),
     })
     .toString();
 
@@ -30,7 +30,7 @@ const test_C14nCanonicalization = function (
 
 const test_findAncestorNs = function (xml, xpath, expected) {
   const doc = new xmldom.DOMParser().parseFromString(xml);
-  const result = utils.findAncestorNs(doc, xpath);
+  const result = findAncestorNs(doc, xpath);
 
   expect(result).to.deep.equal(expected);
 };
@@ -112,6 +112,16 @@ describe("C14N non-exclusive canonicalization tests", function () {
       "<root xmlns='bbb'><child1><ds:child2 xmlns:ds='ddd'><ds:child3></ds:child3></ds:child2></child1></root>";
     const xpath = "//*[local-name()='child2']";
     const expected = [{ prefix: "", namespaceURI: "bbb" }];
+
+    test_findAncestorNs(xml, xpath, expected);
+  });
+
+  it("findAncestorNs: Should not find a default namespace an ancestor undeclares", function () {
+    // xmlns="" leaves no default namespace node, and hides the one declared above it.
+    // https://www.w3.org/TR/1999/REC-xpath-19991116/#namespace-nodes
+    const xml = '<root xmlns="urn:a"><x xmlns=""><p:y xmlns:p="urn:p"/></x></root>';
+    const xpath = "//*[local-name()='y']";
+    const expected = [];
 
     test_findAncestorNs(xml, xpath, expected);
   });
@@ -250,6 +260,110 @@ describe("C14N non-exclusive canonicalization tests", function () {
   });
 
   for (const Canonicalization of [C14nCanonicalization, C14nCanonicalizationWithComments]) {
+    describe(`${Canonicalization.name}: hoisted ancestor namespaces`, function () {
+      // A hoisted ancestor default namespace becomes the default the subset's descendants are
+      // canonicalized against. The rationale is spelled out in §4.7: the empty default is kept on
+      // output "so that e3 does not take on the default namespace qualification of e1".
+      // https://www.w3.org/TR/xml-c14n/#ProcessingModel
+      // https://www.w3.org/TR/xml-c14n/#PropagateDefaultNSDecl
+      it('renders xmlns="" on a descendant when the apex hoists an ancestor default namespace', function () {
+        test_C14nCanonicalization(
+          '<root xmlns="urn:A"><p:x xmlns:p="urn:p"><y xmlns=""></y></p:x></root>',
+          "//*[local-name()='x']",
+          '<p:x xmlns="urn:A" xmlns:p="urn:p"><y xmlns=""></y></p:x>',
+          new Canonicalization(),
+        );
+      });
+
+      // The apex has no output ancestor, so xmlns="" never belongs on it.
+      for (const root of ['<root xmlns="urn:A">', "<root>"]) {
+        it(`renders no default namespace on a prefixed apex whose ancestor undeclares it, under ${root}`, function () {
+          test_C14nCanonicalization(
+            `${root}<x xmlns=""><p:y xmlns:p="urn:p"><z></z></p:y></x></root>`,
+            "//*[local-name()='y']",
+            '<p:y xmlns:p="urn:p"><z></z></p:y>',
+            new Canonicalization(),
+          );
+        });
+      }
+
+      it("omits a descendant declaration the hoisted ancestor default namespace makes redundant", function () {
+        test_C14nCanonicalization(
+          '<root xmlns="urn:A"><p:x xmlns:p="urn:p"><y xmlns="urn:A"></y></p:x></root>',
+          "//*[local-name()='x']",
+          '<p:x xmlns="urn:A" xmlns:p="urn:p"><y></y></p:x>',
+          new Canonicalization(),
+        );
+      });
+
+      it("renders the hoisted ancestor default namespace once when the apex inherits it", function () {
+        test_C14nCanonicalization(
+          '<root xmlns="urn:A"><x xmlns:p="urn:p"><y xmlns=""></y></x></root>',
+          "//*[local-name()='x']",
+          '<x xmlns="urn:A" xmlns:p="urn:p"><y xmlns=""></y></x>',
+          new Canonicalization(),
+        );
+      });
+
+      it("prefers the apex's own default namespace over the hoisted ancestor one", function () {
+        test_C14nCanonicalization(
+          '<root xmlns="urn:A"><x xmlns:p="urn:p" xmlns="urn:B"><y></y></x></root>',
+          "//*[local-name()='x']",
+          '<x xmlns="urn:B" xmlns:p="urn:p"><y></y></x>',
+          new Canonicalization(),
+        );
+      });
+
+      // A declaration on the apex shadows the ancestor one binding the same prefix, so the
+      // element must not resolve against the outer binding — in its descendants or its own name.
+      // https://www.w3.org/TR/REC-xml-names/#scoping
+      it("renders the apex's redeclaration of an ancestor prefix, not the ancestor binding", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:q="urn:old"><x xmlns:p="urn:p" xmlns:q="urn:new"><q:y></q:y></x></root>',
+          "//*[local-name()='x']",
+          '<x xmlns:p="urn:p" xmlns:q="urn:new"><q:y></q:y></x>',
+          new Canonicalization(),
+        );
+      });
+
+      it("renders the apex's redeclaration of the prefix in its own name", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:q="urn:old"><q:x xmlns:p="urn:p" xmlns:q="urn:new"><y></y></q:x></root>',
+          "//*[local-name()='x']",
+          '<q:x xmlns:p="urn:p" xmlns:q="urn:new"><y></y></q:x>',
+          new Canonicalization(),
+        );
+      });
+
+      for (const [xml, ancestorNamespace, expected] of [
+        [
+          '<x xmlns:p="urn:two"><p:y/></x>',
+          { prefix: "p", namespaceURI: "urn:one" },
+          '<x xmlns:p="urn:two"><p:y></p:y></x>',
+        ],
+        [
+          '<p:x xmlns:p="urn:p" xmlns="urn:two"><y/></p:x>',
+          { prefix: "", namespaceURI: "urn:one" },
+          '<p:x xmlns="urn:two" xmlns:p="urn:p"><y></y></p:x>',
+        ],
+        [
+          '<p:x xmlns:p="urn:p" xmlns=""><y/></p:x>',
+          { prefix: "", namespaceURI: "urn:one" },
+          '<p:x xmlns:p="urn:p"><y></y></p:x>',
+        ],
+      ] as const) {
+        it(`renders ${xml}'s own declaration over the caller's ancestor namespace ${JSON.stringify(ancestorNamespace)}`, function () {
+          const doc = new xmldom.DOMParser().parseFromString(xml);
+
+          const result = new Canonicalization().process(doc.documentElement, {
+            ancestorNamespaces: [ancestorNamespace],
+          });
+
+          expect(result).to.equal(expected);
+        });
+      }
+    });
+
     describe(`${Canonicalization.name}: subset namespace declarations`, function () {
       it("does not duplicate the default namespace when the subset declares a prefixed namespace", function () {
         // Render the inherited default namespace exactly once on the subset root.
@@ -336,6 +450,46 @@ describe("C14N non-exclusive canonicalization tests", function () {
           '<root xmlns="urn:ancestor"><p:child2 xmlns:p="urn:p" xmlns=""><item/></p:child2></root>',
           "//*[local-name()='child2']",
           '<p:child2 xmlns:p="urn:p"><item></item></p:child2>',
+          new Canonicalization(),
+        );
+      });
+    });
+
+    describe(`${Canonicalization.name}: rebound prefixes`, function () {
+      // A declaration is omitted only when the nearest output ancestor binds its prefix to the
+      // same URI. https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel
+      it("renders a descendant's rebinding of a prefix the apex declares", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:p="urn:one"><p:child xmlns:p="urn:two" p:attr="x"/></root>',
+          "/root",
+          '<root xmlns:p="urn:one"><p:child xmlns:p="urn:two" p:attr="x"></p:child></root>',
+          new Canonicalization(),
+        );
+      });
+
+      it("renders a descendant's rebinding of a prefix hoisted from an ancestor", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:p="urn:one"><x><p:y xmlns:p="urn:two"/></x></root>',
+          "//*[local-name()='x']",
+          '<x xmlns:p="urn:one"><p:y xmlns:p="urn:two"></p:y></x>',
+          new Canonicalization(),
+        );
+      });
+
+      it("renders a rebinding back to the URI an outer ancestor declares", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:p="urn:one"><a xmlns:p="urn:two"><p:b xmlns:p="urn:one"/></a></root>',
+          "/root",
+          '<root xmlns:p="urn:one"><a xmlns:p="urn:two"><p:b xmlns:p="urn:one"></p:b></a></root>',
+          new Canonicalization(),
+        );
+      });
+
+      it("renders a rebinding declared after the attribute that uses it", function () {
+        test_C14nCanonicalization(
+          '<root xmlns:p="urn:one"><child p:attr="x" xmlns:p="urn:two"/></root>',
+          "/root",
+          '<root xmlns:p="urn:one"><child xmlns:p="urn:two" p:attr="x"></child></root>',
           new Canonicalization(),
         );
       });

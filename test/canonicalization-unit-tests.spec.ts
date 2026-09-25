@@ -1,12 +1,13 @@
 import { expect } from "chai";
 
+import * as xmldom from "@xmldom/xmldom";
+import * as xpath from "xpath";
 import {
   ExclusiveCanonicalization,
   ExclusiveCanonicalizationWithComments,
-} from "../src/exclusive-canonicalization";
-import * as xmldom from "@xmldom/xmldom";
-import * as xpath from "xpath";
-import { findAncestorNs, SignedXml } from "../src/index";
+  findAncestorNs,
+  SignedXml,
+} from "../src/index";
 import * as isDomNode from "@xmldom/is-dom-node";
 
 const compare = function (
@@ -71,6 +72,22 @@ describe("Canonicalization unit tests", function () {
         });
 
         expect(result).to.equal('<target type="b:Kind"></target>');
+      });
+    });
+
+    describe(`${Canonicalization.name}: rebound prefixes`, function () {
+      it("renders a rebinding back to the URI an outer ancestor declares", function () {
+        // Only the nearest output ancestor utilizing the prefix can make its declaration redundant.
+        // https://www.w3.org/TR/xml-exc-c14n/#sec-Specification
+        const xml =
+          '<p:root xmlns:p="urn:one"><p:a xmlns:p="urn:two"><p:b xmlns:p="urn:one"/></p:a></p:root>';
+        const doc = new xmldom.DOMParser().parseFromString(xml);
+
+        const result = new Canonicalization().process(doc.documentElement, {});
+
+        expect(result).to.equal(
+          '<p:root xmlns:p="urn:one"><p:a xmlns:p="urn:two"><p:b xmlns:p="urn:one"></p:b></p:a></p:root>',
+        );
       });
     });
   }
@@ -463,28 +480,48 @@ describe("Canonicalization unit tests", function () {
     expect(res).to.equal('<p:y xmlns:p="myns"></p:y>');
   });
 
-  it("Shouldn't continue processing transforms if we end up with a string as a result of a transform", function () {
+  it("Parses the string a transform returns for the transform that follows it", function () {
     const doc = new xmldom.DOMParser().parseFromString(
       '<x xmlns:p="myns"><p:y><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y></x>',
     );
-    const node1 = xpath.select1("//*[local-name(.)='y']", doc);
-    const node2 = xpath.select1("//*[local-name(.)='y']", doc);
-    isDomNode.assertIsNodeLike(node1);
-    isDomNode.assertIsNodeLike(node2);
+    const node = xpath.select1("//*[local-name(.)='y']", doc);
+    isDomNode.assertIsNodeLike(node);
+
     const sig = new SignedXml();
-    const res1 = sig.getCanonXml(
+    const res = sig.getCanonXml(
       [
         "http://www.w3.org/2001/10/xml-exc-c14n#",
         "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
       ],
-      node1,
+      node,
     );
-    const res2 = sig.getCanonXml(["http://www.w3.org/2001/10/xml-exc-c14n#"], node2);
-    expect(res1)
-      .to.equal(res2)
-      .to.equal(
-        '<p:y xmlns:p="myns"><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#"></ds:Signature></p:y>',
-      );
+    expect(res).to.equal('<p:y xmlns:p="myns"></p:y>');
+  });
+
+  it("Throws when a transform follows one that returns malformed XML", function () {
+    const doc = new xmldom.DOMParser().parseFromString("<x><y></y></x>");
+    const node = xpath.select1("//*[local-name(.)='y']", doc);
+    isDomNode.assertIsNodeLike(node);
+
+    const sig = new SignedXml();
+    sig.CanonicalizationAlgorithms["urn:test:malformed"] = class {
+      process() {
+        return "<y>";
+      }
+
+      getAlgorithmName() {
+        return "urn:test:malformed";
+      }
+    };
+
+    expect(() =>
+      sig.getCanonXml(
+        ["urn:test:malformed", "http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+        node,
+      ),
+    ).to.throw(
+      "Cannot apply transform http://www.w3.org/2000/09/xmldsig#enveloped-signature: the output of the previous transform is not well-formed XML",
+    );
   });
 
   it("Enveloped-signature canonicalization respects current node", function () {
@@ -500,7 +537,7 @@ describe("Canonicalization unit tests", function () {
     const sig = new SignedXml();
     const transforms = ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"];
     const res = sig.getCanonXml(transforms, node);
-    expect(res).to.equal("<y/>");
+    expect(res).to.equal("<y></y>");
   });
 
   it("Enveloped-signature canonicalization preserves nested signatures when removing a direct child", function () {

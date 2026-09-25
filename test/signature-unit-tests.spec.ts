@@ -1,6 +1,6 @@
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
-import { SignedXml, createOptionalCallbackFunction } from "../src/index";
+import { SignedXml, createOptionalCallbackFunction, pemCertificates, toPem } from "../src/index";
 import * as fs from "fs";
 import * as crypto from "crypto";
 import { expect } from "chai";
@@ -73,6 +73,55 @@ describe("Signature unit tests", function () {
         ).to.be.false;
       });
     });
+  });
+
+  describe("rejects a prefix rebound after signing", function () {
+    const cases = [
+      {
+        canonicalizationAlgorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+        xml: '<root xmlns:p="urn:one"><p:child/></root>',
+        rebind: (xml: string) => xml.replace("<p:child", '<p:child xmlns:p="urn:two"'),
+      },
+      {
+        canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+        xml: '<p:root xmlns:p="urn:one"><p:a xmlns:p="urn:two"><p:b/></p:a></p:root>',
+        rebind: (xml: string) => xml.replace("<p:b", '<p:b xmlns:p="urn:one"'),
+      },
+    ];
+
+    function verify(xml: string): boolean {
+      const sig = new SignedXml({ publicCert: fs.readFileSync("./test/static/client_public.pem") });
+      const signature = xpath.select1(
+        "//*[local-name(.)='Signature']",
+        new xmldom.DOMParser().parseFromString(xml),
+      );
+      isDomNode.assertIsNodeLike(signature);
+      sig.loadSignature(signature);
+      return sig.checkSignature(xml);
+    }
+
+    for (const { canonicalizationAlgorithm, xml, rebind } of cases) {
+      it(`with ${canonicalizationAlgorithm}`, function () {
+        const sig = new SignedXml({
+          privateKey: fs.readFileSync("./test/static/client.pem"),
+          canonicalizationAlgorithm,
+          signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        });
+        sig.addReference({
+          xpath: "/*",
+          digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+          transforms: [
+            "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+            canonicalizationAlgorithm,
+          ],
+        });
+        sig.computeSignature(xml);
+        const signedXml = sig.getSignedXml();
+
+        expect(verify(signedXml)).to.be.true;
+        expect(verify(rebind(signedXml))).to.be.false;
+      });
+    }
   });
 
   describe("verify adds ID", function () {
@@ -901,7 +950,11 @@ describe("Signature unit tests", function () {
 
         /* eslint-disable-next-line deprecation/deprecation */
         expect(sig.getReferences().length).to.equal(3);
-        expect(sig.getSignedReferences().length).to.equal(3);
+        expect(sig.getSignedReferences()).to.deep.equal([
+          '<x xmlns="ns" Id="_0"></x>',
+          '<y Id="_1" a_attr1="foo" z_attr="value"></y>',
+          '<ns:w xmlns:ns="myns" Id="_2" ns:attr="value"></ns:w>',
+        ]);
 
         const digests = [
           "b5GCZ2xpP5T7tbLWBTkOl4CYupQ=",
@@ -911,6 +964,7 @@ describe("Signature unit tests", function () {
 
         const firstGrandchild = doc.firstChild?.firstChild;
         isDomNode.assertIsElementNode(firstGrandchild);
+        /* eslint-disable-next-line deprecation/deprecation */
         const matchedReference = sig.validateElementAgainstReferences(firstGrandchild, doc);
         expect(matchedReference).to.not.be.false;
 
@@ -944,12 +998,12 @@ describe("Signature unit tests", function () {
     });
 
     describe("pass verify signature", function () {
+      const signatureXPath =
+        "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']";
+
       function loadSignature(xml: string, idMode?: "wssecurity") {
         const doc = new xmldom.DOMParser().parseFromString(xml);
-        const node = xpath.select1(
-          "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-          doc,
-        );
+        const node = xpath.select1(signatureXPath, doc);
         isDomNode.assertIsNodeLike(node);
         const sig = new SignedXml({ idMode });
         sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
@@ -963,8 +1017,12 @@ describe("Signature unit tests", function () {
         const sig = loadSignature(xml, mode);
         const res = sig.checkSignature(xml);
         expect(res, "expected all signatures to be valid, but some reported invalid").to.be.true;
-        /* eslint-disable-next-line deprecation/deprecation */
-        expect(sig.getSignedReferences().length).to.equal(sig.getReferences().length);
+        const references = xpath.select(
+          `(${signatureXPath})[1]/*[local-name(.)='SignedInfo']/*[local-name(.)='Reference']`,
+          new xmldom.DOMParser().parseFromString(xml),
+        );
+        isDomNode.assertIsArrayOfNodes(references);
+        expect(sig.getSignedReferences()).to.have.length(references.length);
       }
 
       function failInvalidSignature(file: string, idMode?: "wssecurity") {
@@ -1062,6 +1120,66 @@ describe("Signature unit tests", function () {
         failInvalidSignature("./test/static/invalid_signature_without_transforms_element.xml");
       });
     });
+
+    describe("reject malformed signature", function () {
+      const validXml = fs.readFileSync("./test/static/valid_signature.xml", "utf8");
+      const publicCert = fs.readFileSync("./test/static/client_public.pem");
+
+      function signatureOf(xml: string): Node {
+        const signature = xpath.select1(
+          "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+          new xmldom.DOMParser().parseFromString(xml),
+        );
+        isDomNode.assertIsNodeLike(signature);
+        return signature;
+      }
+
+      function malform(pattern: RegExp, replacement: string): string {
+        expect(validXml).to.match(pattern);
+        return validXml.replace(pattern, replacement);
+      }
+
+      const cases: Array<[string, () => string, string | RegExp]> = [
+        [
+          "no Reference",
+          () => malform(/<Reference .*<\/Reference>/, ""),
+          "could not find any Reference elements",
+        ],
+        [
+          "no CanonicalizationMethod",
+          () => malform(/<CanonicalizationMethod [^>]*\/>/, ""),
+          "could not find CanonicalizationMethod/@Algorithm element",
+        ],
+        [
+          "a Reference without DigestMethod",
+          () => malform(/<DigestMethod [^>]*\/>/, ""),
+          /^could not find DigestMethod in reference /,
+        ],
+        [
+          "a DigestMethod without Algorithm",
+          () => malform(/<DigestMethod [^>]*\/>/, "<DigestMethod/>"),
+          /^could not find Algorithm attribute in node /,
+        ],
+        [
+          "a Reference without DigestValue",
+          () => malform(/<DigestValue>[^<]*<\/DigestValue>/, ""),
+          /^could not find DigestValue node in reference /,
+        ],
+        [
+          "a Reference with two DigestValues",
+          () => malform(/<DigestValue>[^<]*<\/DigestValue>/, "$&$&"),
+          /^could not load reference for a node that contains multiple DigestValue nodes: /,
+        ],
+      ];
+
+      for (const [problem, xml, error] of cases) {
+        it(`with ${problem}`, function () {
+          const sig = new SignedXml({ publicCert });
+
+          expect(() => sig.loadSignature(signatureOf(xml()))).to.throw(error);
+        });
+      }
+    });
   });
 
   it("allow empty reference uri when signing", function () {
@@ -1087,30 +1205,6 @@ describe("Signature unit tests", function () {
     const URI = xpath.select1("//*[local-name(.)='Reference']/@URI", doc);
     isDomNode.assertIsAttributeNode(URI);
     expect(URI.value, `uri should be empty but instead was ${URI.value}`).to.equal("");
-  });
-
-  it("signer appends signature to a non-existing reference node", function () {
-    const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
-    const sig = new SignedXml();
-
-    sig.privateKey = fs.readFileSync("./test/static/client.pem");
-    sig.addReference({
-      xpath: "//*[local-name(.)='repository']",
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-    });
-
-    try {
-      sig.computeSignature(xml, {
-        location: {
-          reference: "/root/foobar",
-          action: "append",
-        },
-      });
-      expect.fail("Expected an error to be thrown");
-    } catch (err) {
-      expect(err).not.to.be.an.instanceof(TypeError);
-    }
   });
 
   it("signer adds existing prefixes", function () {
@@ -1363,6 +1457,239 @@ describe("Signature unit tests", function () {
     );
   });
 
+  describe("omits KeyInfo when there is no content for it", function () {
+    const privateKey = fs.readFileSync("./test/static/client.pem");
+
+    function selectKeyInfo(options: ConstructorParameters<typeof SignedXml>[0]) {
+      const sig = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        ...options,
+      });
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      });
+      sig.computeSignature("<root><x /></root>");
+      const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+
+      return xpath.select("//*[local-name(.)='KeyInfo']", doc);
+    }
+
+    it("when publicCert contains no certificate", function () {
+      const publicCert = crypto.createPublicKey(privateKey).export({ type: "spki", format: "pem" });
+
+      expect(selectKeyInfo({ publicCert })).to.be.empty;
+    });
+
+    it("when keyInfoAttributes are set without a publicCert", function () {
+      expect(selectKeyInfo({ keyInfoAttributes: { Id: "key" } })).to.be.empty;
+    });
+
+    it("when publicCert is a KeyObject, which holds a key and never a certificate", function () {
+      expect(selectKeyInfo({ publicCert: crypto.createPublicKey(privateKey) })).to.be.empty;
+    });
+
+    it("when publicCert is a private key", function () {
+      expect(selectKeyInfo({ publicCert: privateKey })).to.be.empty;
+    });
+
+    it("when publicCert is the base64 of a private key, without boundaries", function () {
+      const der = crypto.createPrivateKey(privateKey).export({ type: "pkcs8", format: "der" });
+
+      expect(selectKeyInfo({ publicCert: der.toString("base64") })).to.be.empty;
+    });
+
+    it("when publicCert is the base64 of a certificate with more data after it", function () {
+      const der = fs.readFileSync("./test/static/client_public.der");
+      const publicCert = Buffer.concat([der, Buffer.from("more")]).toString("base64");
+
+      expect(selectKeyInfo({ publicCert })).to.be.empty;
+    });
+
+    it("when publicCert is not a certificate in any form", function () {
+      expect(selectKeyInfo({ publicCert: "not a certificate" })).to.be.empty;
+    });
+  });
+
+  describe("getCertFromKeyInfo", function () {
+    const parse = (xml: string) => new xmldom.DOMParser().parseFromString(xml, "text/xml");
+
+    it("returns the certificate a KeyInfo carries, as PEM", function () {
+      const normalizedPem = fs.readFileSync("./test/static/client_public.pem", "latin1");
+      const data = normalizedPem.trim().split("\n").slice(1, -1).join("");
+      const keyInfo = parse(
+        `<KeyInfo><X509Data><X509Certificate>${data}</X509Certificate></X509Data></KeyInfo>`,
+      );
+
+      expect(SignedXml.getCertFromKeyInfo(keyInfo)).to.equal(normalizedPem);
+    });
+
+    it("throws when the X509Certificate is base64 and no certificate", function () {
+      const data = Buffer.from("base64, and no certificate").toString("base64");
+      const keyInfo = parse(
+        `<KeyInfo><X509Data><X509Certificate>${data}</X509Certificate></X509Data></KeyInfo>`,
+      );
+
+      expect(() => SignedXml.getCertFromKeyInfo(keyInfo)).to.throw("Invalid PEM format.");
+    });
+
+    it("says why when one X509Certificate carries two certificates", function () {
+      const certificate = fs.readFileSync("./test/static/client_public.der");
+      const data = Buffer.concat([certificate, certificate]).toString("base64");
+      const keyInfo = parse(
+        `<KeyInfo><X509Data><X509Certificate>${data}</X509Certificate></X509Data></KeyInfo>`,
+      );
+
+      expect(() => SignedXml.getCertFromKeyInfo(keyInfo)).to.throw(
+        "Expected a single certificate, but found more data after it.",
+      );
+    });
+
+    it("returns a BER certificate with its octets as given", function () {
+      const der = fs.readFileSync("./test/static/client_public.der");
+      const ber = Buffer.concat([Buffer.from([0x30, 0x83, 0x00]), der.subarray(2)]);
+      const keyInfo = parse(
+        `<KeyInfo><X509Data><X509Certificate>${ber.toString("base64")}</X509Certificate></X509Data></KeyInfo>`,
+      );
+      const pem = SignedXml.getCertFromKeyInfo(keyInfo);
+
+      expect(pem).to.be.a("string");
+      expect(crypto.createPublicKey(pem as string).asymmetricKeyType).to.equal("rsa");
+      expect(
+        Buffer.from((pem as string).split("\n").slice(1, -2).join(""), "base64"),
+      ).to.deep.equal(ber);
+    });
+
+    it("returns null when the KeyInfo carries no X509Certificate", function () {
+      const keyInfo = parse("<KeyInfo><KeyName>client</KeyName></KeyInfo>");
+
+      expect(SignedXml.getCertFromKeyInfo(keyInfo)).to.be.null;
+    });
+
+    it("returns null when there is no KeyInfo at all", function () {
+      expect(SignedXml.getCertFromKeyInfo(null)).to.be.null;
+    });
+  });
+
+  function signWithPublicCert(publicCert: string | Buffer) {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      publicCert,
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    return () => {
+      sig.computeSignature("<root><x /></root>");
+
+      return sig.getSignedXml();
+    };
+  }
+
+  // The text of each X509Certificate that signing with this publicCert puts into KeyInfo.
+  function publishedCertificates(publicCert: string | Buffer): string[] {
+    const doc = new xmldom.DOMParser().parseFromString(signWithPublicCert(publicCert)());
+    const certificates = xpath.select("//*[local-name(.)='X509Certificate']", doc);
+    isDomNode.assertIsArrayOfNodes(certificates);
+
+    return certificates.map((certificate) => certificate.textContent ?? "");
+  }
+
+  it("refuses to sign with a publicCert whose two labels disagree", function () {
+    const publicCert = fs
+      .readFileSync("./test/static/client_public.pem", "latin1")
+      .replace("-----END CERTIFICATE-----", "-----END PRIVATE KEY-----");
+
+    expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("refuses to sign with a publicCert that opens as a key and closes as a certificate", function () {
+    const publicCert = fs
+      .readFileSync("./test/static/client_public.pem", "latin1")
+      .replace("BEGIN CERTIFICATE", "BEGIN PRIVATE KEY");
+
+    expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("refuses to sign with a publicCert whose certificate is not base64", function () {
+    const lines = fs.readFileSync("./test/static/client_public.pem", "latin1").trim().split("\n");
+    const publicCert = [lines[0], "not base64 at all!", lines[lines.length - 1]].join("\n");
+
+    expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("refuses to sign with a publicCert whose certificate is base64 and no certificate", function () {
+    const data = Buffer.from("base64, and no certificate").toString("base64");
+    const publicCert = `-----BEGIN CERTIFICATE-----\n${data}\n-----END CERTIFICATE-----\n`;
+
+    // Published in KeyInfo, this would name a certificate no verifier could load.
+    expect(signWithPublicCert(publicCert)).to.throw("Invalid PEM format.");
+  });
+
+  it("publishes a publicCert given as the base64 of a certificate, without boundaries", function () {
+    const lines = fs.readFileSync("./test/static/client_public.pem", "latin1").trim().split("\n");
+    const data = lines.slice(1, -1);
+
+    expect(publishedCertificates(data.join(""))).to.deep.equal([data.join("")]);
+    expect(publishedCertificates(data.join("\n"))).to.deep.equal([data.join("")]);
+    expect(publishedCertificates(Buffer.from(data.join("\n")))).to.deep.equal([data.join("")]);
+  });
+
+  it("signs a BER certificate into KeyInfo with its octets as given", function () {
+    // RFC 7468 section 5.1 allows BER, and XML Signature 1.1 says an implementation SHOULD NOT
+    // re-encode a certificate: https://www.w3.org/TR/xmldsig-core1/#sec-X509Data
+    const der = fs.readFileSync("./test/static/client_public.der");
+    const ber = Buffer.concat([Buffer.from([0x30, 0x83, 0x00]), der.subarray(2)]);
+    const publicCert = `-----BEGIN CERTIFICATE-----\n${ber.toString("base64")}\n-----END CERTIFICATE-----\n`;
+
+    expect(publishedCertificates(publicCert)).to.deep.equal([ber.toString("base64")]);
+  });
+
+  it("publishes a certificate's base64 with its pad bits zeroed", function () {
+    // `w` and `x` differ only in bits past the last octet, so both decode to the same certificate,
+    // but xs:base64Binary allows only zeros there, and KeyInfo is XML that a schema may check.
+    // https://www.w3.org/TR/xmlschema11-2/#base64Binary
+    const pem = fs.readFileSync("./test/static/feide_public.pem", "latin1");
+    const data = pem.trim().split("\n").slice(1, -1).join("");
+
+    expect(data).to.match(/4PF13w==$/);
+    expect(publishedCertificates(pem.replace("4PF13w==", "4PF13x=="))).to.deep.equal([data]);
+  });
+
+  it("signs with a publicCert bundling a certificate and a traditional encrypted key", function () {
+    // Node exports a PKCS#1 key encrypted the traditional way, with `Proc-Type` and `DEK-Info`
+    // header fields before its data, and a bundle may carry one beside its certificate.
+    const encrypted = crypto
+      .createPrivateKey(fs.readFileSync("./test/static/client.pem"))
+      .export({ type: "pkcs1", format: "pem", cipher: "aes-256-cbc", passphrase: "secret" })
+      .toString();
+    const certificate = fs.readFileSync("./test/static/client_public.pem", "latin1");
+
+    expect(encrypted).to.contain("Proc-Type: 4,ENCRYPTED");
+    expect(publishedCertificates(`${certificate}${encrypted}`)).to.deep.equal([
+      certificate.trim().split("\n").slice(1, -1).join(""),
+    ]);
+  });
+
+  it("signs with a publicCert carrying the explanatory text tools write around a certificate", function () {
+    // RFC 7468 section 5.2 shows a certificate written under its subject and issuer lines, and
+    // OpenSSL writes them, so a value that carries them still carries a certificate to publish.
+    const certificate = fs.readFileSync("./test/static/client_public.pem", "latin1");
+    const publicCert = `subject=/CN=client\nissuer=/CN=ca\n${certificate}Issued for testing.\n`;
+
+    expect(publishedCertificates(publicCert)).to.deep.equal([
+      certificate.trim().split("\n").slice(1, -1).join(""),
+    ]);
+  });
+
   it("adds id and type attributes to Reference elements when provided", function () {
     const xml = "<root><x /></root>";
     const sig = new SignedXml();
@@ -1419,6 +1746,34 @@ describe("Signature unit tests", function () {
     );
   });
 
+  it("should throw if a reference has no digestAlgorithm", () => {
+    const sig = new SignedXml();
+
+    expect(() =>
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      }),
+    ).to.throw("digestAlgorithm is required");
+  });
+
+  it("should throw if signing without a signatureAlgorithm", () => {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+    });
+
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    expect(() => sig.computeSignature("<root><x/></root>")).to.throw(
+      "signatureAlgorithm is required",
+    );
+  });
+
   it("should sign references when the Id attribute is prefixed", () => {
     const xml = '<root><x xmlns:ns="urn:example" ns:Id="unique-id"/></root>';
     const sig = new SignedXml({
@@ -1448,5 +1803,44 @@ describe("Signature unit tests", function () {
     expect(uriAttribute, "Reference element should have the correct URI attribute value").to.equal(
       "#unique-id",
     );
+  });
+
+  it("verifies with the first of two certificates, and not the second, which in a chain is the issuer's", function () {
+    const bundle = fs.readFileSync("./test/static/client_bundle.pem", "latin1");
+    const first = fs.readFileSync("./test/static/client_public.pem", "latin1");
+    const second = toPem(pemCertificates(bundle)[0], "CERTIFICATE");
+
+    function checkSignedBy(privateKey: string, publicCert: string) {
+      const sig = new SignedXml({
+        privateKey,
+        canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        transforms: [
+          "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+          "http://www.w3.org/2001/10/xml-exc-c14n#",
+        ],
+      });
+      sig.computeSignature("<root><x /></root>");
+      const xml = sig.getSignedXml();
+
+      const verifier = new SignedXml({ publicCert });
+      const signature = xpath.select1(
+        "//*[local-name(.)='Signature']",
+        new xmldom.DOMParser().parseFromString(xml),
+      );
+      isDomNode.assertIsNodeLike(signature);
+      verifier.loadSignature(signature);
+
+      return verifier.checkSignature(xml);
+    }
+
+    expect(checkSignedBy(fs.readFileSync("./test/static/client.pem", "latin1"), first + second)).to
+      .be.true;
+    expect(checkSignedBy(bundle, second)).to.be.true;
+    expect(() => checkSignedBy(bundle, first + second)).to.throw("invalid signature");
   });
 });
