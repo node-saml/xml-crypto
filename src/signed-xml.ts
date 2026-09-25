@@ -720,20 +720,8 @@ export class SignedXml {
       this.loadReference(reference);
     }
 
-    const signatureValue = xpath.select1(
-      ".//*[local-name(.)='SignatureValue']/text()",
-      signatureNode,
-    );
-
-    if (isDomNode.isTextNode(signatureValue)) {
-      this.signatureValue = signatureValue.data.replace(/\r?\n/g, "");
-    }
-
-    const keyInfo = xpath.select1(".//*[local-name(.)='KeyInfo']", signatureNode);
-
-    if (isDomNode.isNodeLike(keyInfo)) {
-      this.keyInfo = keyInfo;
-    }
+    this.signatureValue = findSignatureValue(signatureNode) ?? "";
+    this.keyInfo = utils.findChildren(signatureNode, "KeyInfo")[0] ?? null;
   }
 
   /**

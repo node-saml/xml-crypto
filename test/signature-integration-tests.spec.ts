@@ -567,6 +567,23 @@ describe("Signature integration tests", function () {
         );
         expect(verifier.getSignedReferences()).to.be.empty;
       });
+
+      it(`should reject a copy that nests the genuine SignatureValue ahead of its own, enveloped-signature ${order} canonicalization`, function () {
+        const { signedXml, signatureXml } = sign(
+          "<response><assertion><role>user</role></assertion></response>",
+          "//assertion",
+          transforms,
+        );
+        const nested = signatureXml.replace(
+          /<SignatureValue>[^<]*<\/SignatureValue>/,
+          (genuine) => `<Object>${genuine}</Object><SignatureValue>AAAA</SignatureValue>`,
+        );
+        const tampered = injectCopy(signedXml, nested, "<role>user</role>");
+
+        const verifier = createVerifier(firstSignatureIn(tampered));
+        expect(() => verifier.checkSignature(tampered)).to.throw(/invalid signature/);
+        expect(verifier.getSignedReferences()).to.be.empty;
+      });
     }
   });
 
