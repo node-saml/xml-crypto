@@ -442,8 +442,8 @@ export class SignedXml {
       }
     }
 
-    // Inclusive C14N renders the namespaces in scope of this signature's SignedInfo, so take them
-    // from its place in the document, not from whichever SignedInfo comes first.
+    // A loaded signature can be a copy without its ancestors, so find it in the document to get
+    // the namespaces its SignedInfo inherits: https://www.w3.org/TR/xml-c14n#ProcessingModel
     const signatureInDoc = this.findLoadedSignature(doc) ?? this.signatureNode;
     const signedInfoInDoc = utils.findChildren(signatureInDoc, "SignedInfo")[0];
     if (signedInfoInDoc == null) {
