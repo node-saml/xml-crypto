@@ -350,12 +350,14 @@ A `SignedXml` object provides the following methods:
 
 To sign xml documents:
 
-- `addReference({ xpath, transforms, digestAlgorithm, id, type })` - adds a reference to a xml element where:
+- `addReference({ xpath, transforms, digestAlgorithm, id, type, isEmptyUri, inclusiveNamespacesPrefixList })` - adds a reference to a xml element where:
   - `xpath` - a string containing a XPath expression referencing a xml element
   - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array
   - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing-algorithms)
   - `id` - an optional `Id` attribute to add to the reference element
   - `type` - the optional `Type` attribute to add to the reference element (represented as a URI)
+  - `isEmptyUri` - optional, default `false` - when `true`, the reference is written as `URI=""`, which [refers to the whole document](https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document), and no `Id` is added to the referenced element. `xpath` must then select the document element, for example `/*`: a signature that references any other element this way doesn't verify
+  - `inclusiveNamespacesPrefixList` - an optional array of namespace prefixes that exclusive canonicalization of this reference renders even where they aren't visibly used. It is written as the [`InclusiveNamespaces` `PrefixList`](https://www.w3.org/TR/xml-exc-c14n/#def-InclusiveNamespaces-PrefixList) of each of the reference's `Transform` elements
 - `computeSignature(xml, [options])` - compute the signature of the given xml where:
   - `xml` - a string containing a xml document
   - `options` - an object with the following properties:
