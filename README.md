@@ -388,10 +388,10 @@ To verify xml documents:
 
 #### One instance per document
 
-Create a new `SignedXml` for each document you sign or verify. An instance keeps what earlier calls added to it:
+Create a new `SignedXml` for each document you sign or verify. An instance keeps state between calls:
 
-- Every `addReference()` call adds a reference that each later `computeSignature()` call signs. Calling `addReference()` for each document on a reused instance adds one more `Reference` to every new signature.
-- `getSignedReferences()` returns the references of every successful `checkSignature()` call on the instance. On a reused instance, that includes the content of documents checked earlier.
+- `computeSignature()` signs every reference the instance holds. `addReference()` adds one, so calling it for each document on a reused instance adds one more `Reference` to every new signature. `checkSignature()` replaces them with the references of the signature it checks.
+- `getSignedReferences()` returns the references of each successful `checkSignature()` call since the last failed one, which empties it. On a reused instance, that can include the content of documents checked earlier.
 
 ## Customizing Algorithms
 
