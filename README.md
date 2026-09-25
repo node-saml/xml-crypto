@@ -386,6 +386,13 @@ To verify xml documents:
 - `getSignedReferences()` - returns the canonical XML of each reference, only after `checkSignature` succeeds
 - `validateElementAgainstReferences(elemOrXpath, doc)` - **[deprecated]** after `checkSignature` succeeds, use the XML that `getSignedReferences()` returns instead of nodes from the original document
 
+#### One instance per signature
+
+Create a new `SignedXml` for each signature you create or verify, including each signature in a document that has more than one. An instance keeps state between calls:
+
+- `computeSignature()` signs every reference the instance holds. `addReference()` adds one, so calling it for each signature on a reused instance adds one more `Reference` to every new signature. `checkSignature()` replaces them with the references of the signature it checks.
+- `getSignedReferences()` returns the references of each successful `checkSignature()` call since the last failed one, which empties it. On a reused instance, that can include content that earlier signatures cover.
+
 ## Customizing Algorithms
 
 The following sample shows how to sign a message using custom algorithms.
