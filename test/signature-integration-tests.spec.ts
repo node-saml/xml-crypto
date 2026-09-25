@@ -1,6 +1,12 @@
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
-import { SignedXml, SignedXmlOptions } from "../src/index";
+import {
+  C14nCanonicalization,
+  ComputeSignatureOptionsLocation,
+  SignedXml,
+  SignedXmlOptions,
+} from "../src/index";
+import * as crypto from "crypto";
 import * as fs from "fs";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
@@ -474,6 +480,21 @@ describe("Signature integration tests", function () {
     [exclusiveCanonicalization, envelopedSignature],
   ];
 
+  const signatureValueSpellings: Record<string, (value: string) => string> = {
+    "line-wrapped": (value) => `${value.slice(0, 40)}\n${value.slice(40)}`,
+    "without padding": (value) => value.replace(/=+$/, ""),
+    "in the base64url alphabet": (value) => value.replace(/\+/g, "-").replace(/\//g, "_"),
+  };
+
+  function respellSignatureValue(xml: string, respell: (value: string) => string) {
+    const respelled = xml.replace(
+      /<SignatureValue>([^<]*)<\/SignatureValue>/,
+      (_, value: string) => `<SignatureValue>${respell(value)}</SignatureValue>`,
+    );
+    expect(respelled, "the respelling must change the SignatureValue").not.to.equal(xml);
+    return respelled;
+  }
+
   describe("copies of the enveloped signature", function () {
     function sign(xml: string, reference: string, transforms: string[]) {
       const signer = new SignedXml({
@@ -505,6 +526,8 @@ describe("Signature integration tests", function () {
 
     const lastSignatureIn = (xml: string) =>
       new SignedXml().findSignatures(new xmldom.DOMParser().parseFromString(xml)).pop() as Node;
+    const firstSignatureIn = (xml: string) =>
+      new SignedXml().findSignatures(new xmldom.DOMParser().parseFromString(xml))[0];
 
     for (const transforms of envelopedTransformOrders) {
       const order = transforms[0] === envelopedSignature ? "before" : "after";
@@ -541,6 +564,41 @@ describe("Signature integration tests", function () {
         expect(() => verifier.checkSignature(tampered)).to.throw(
           "Cannot validate a document which contains multiple Signature elements with the same SignatureValue",
         );
+        expect(verifier.getSignedReferences()).to.be.empty;
+      });
+
+      for (const [spelling, respell] of Object.entries(signatureValueSpellings)) {
+        it(`should reject a copy whose SignatureValue is ${spelling}, enveloped-signature ${order} canonicalization`, function () {
+          const { signedXml, signatureXml } = sign(
+            "<response><assertion><role>user</role></assertion></response>",
+            "//assertion",
+            transforms,
+          );
+          const respelled = respellSignatureValue(signatureXml, respell);
+          const tampered = injectCopy(signedXml, respelled, "<role>user</role>");
+
+          const verifier = createVerifier(firstSignatureIn(tampered));
+          expect(() => verifier.checkSignature(tampered)).to.throw(
+            "Cannot validate a document which contains multiple Signature elements with the same SignatureValue",
+          );
+          expect(verifier.getSignedReferences()).to.be.empty;
+        });
+      }
+
+      it(`should reject a copy that nests the genuine SignatureValue ahead of its own, enveloped-signature ${order} canonicalization`, function () {
+        const { signedXml, signatureXml } = sign(
+          "<response><assertion><role>user</role></assertion></response>",
+          "//assertion",
+          transforms,
+        );
+        const nested = signatureXml.replace(
+          /<SignatureValue>[^<]*<\/SignatureValue>/,
+          (genuine) => `<Object>${genuine}</Object><SignatureValue>AAAA</SignatureValue>`,
+        );
+        const tampered = injectCopy(signedXml, nested, "<role>user</role>");
+
+        const verifier = createVerifier(firstSignatureIn(tampered));
+        expect(() => verifier.checkSignature(tampered)).to.throw(/invalid signature/);
         expect(verifier.getSignedReferences()).to.be.empty;
       });
     }
@@ -1185,5 +1243,202 @@ describe("Signature integration tests", function () {
     expect(() => verifier.checkSignature(signed)).to.throw(
       /in order to prevent signature wrapping attack/,
     );
+  });
+
+  it("rejects a loaded signature without a SignatureValue, even after loading one with it", function () {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    sig.computeSignature("<root><x>trusted</x></root>");
+    const withoutValue = sig
+      .getSignatureXml()
+      .replace(/<SignatureValue>[^<]*<\/SignatureValue>/, "");
+
+    const verifier = new SignedXml({
+      publicCert: fs.readFileSync("./test/static/client_public.pem"),
+    });
+    verifier.loadSignature(sig.getSignatureXml());
+    verifier.loadSignature(withoutValue);
+
+    expect(() => verifier.checkSignature(sig.getSignedXml())).to.throw(/invalid signature/);
+  });
+
+  it("rejects a document whose copy of the loaded signature has no SignedInfo", function () {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+    sig.addReference({
+      xpath: "/*",
+      transforms: ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    sig.computeSignature("<root xmlns:p='urn:p'><item>trusted</item></root>");
+
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const signedInfo = xpath.select1("//*[local-name(.)='SignedInfo']", doc);
+    isDomNode.assertIsNodeLike(signedInfo);
+    signedInfo.parentNode?.removeChild(signedInfo);
+    const tampered = doc.toString();
+
+    const verifier = new SignedXml({
+      publicCert: fs.readFileSync("./test/static/client_public.pem"),
+    });
+    verifier.loadSignature(sig.getSignatureXml());
+
+    expect(() => verifier.checkSignature(tampered)).to.throw(
+      /could not find SignedInfo element in the message/,
+    );
+  });
+
+  describe("a loaded signature checked against a document that spells its SignatureValue differently", function () {
+    const publicCert = fs.readFileSync("./test/static/client_public.pem");
+
+    function signWithInheritedNamespace() {
+      const sig = new SignedXml({
+        privateKey: fs.readFileSync("./test/static/client.pem"),
+        canonicalizationAlgorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      sig.addReference({
+        xpath: "//*[local-name(.)='item']",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      });
+      sig.computeSignature('<root xmlns:q="urn:q"><item>trusted</item></root>');
+      return sig;
+    }
+
+    function loadFromOriginal(sig: SignedXml) {
+      const verifier = new SignedXml({ publicCert });
+      verifier.loadSignature(
+        verifier.findSignatures(new xmldom.DOMParser().parseFromString(sig.getSignedXml()))[0],
+      );
+      return verifier;
+    }
+
+    for (const [spelling, respell] of Object.entries(signatureValueSpellings)) {
+      it(`verifies it in the namespace context it has in the checked document, SignatureValue ${spelling}`, function () {
+        const sig = signWithInheritedNamespace();
+        const verifier = new SignedXml({ publicCert });
+        verifier.loadSignature(sig.getSignatureXml());
+
+        expect(verifier.checkSignature(respellSignatureValue(sig.getSignedXml(), respell))).to.be
+          .true;
+      });
+
+      it(`rejects it when it is valid only in the loaded copy's namespace context, SignatureValue ${spelling}`, function () {
+        const sig = signWithInheritedNamespace();
+        const withoutNamespace = sig.getSignedXml().replace(' xmlns:q="urn:q"', "");
+
+        expect(() =>
+          loadFromOriginal(sig).checkSignature(respellSignatureValue(withoutNamespace, respell)),
+        ).to.throw(/invalid signature/);
+      });
+    }
+
+    it("rejects it when it is valid only in the loaded copy's namespace context and the checked document's SignatureValue differs", function () {
+      const sig = signWithInheritedNamespace();
+      const withoutNamespace = sig.getSignedXml().replace(' xmlns:q="urn:q"', "");
+      const otherValue = respellSignatureValue(
+        withoutNamespace,
+        (value) => `AAAA${value.slice(4)}`,
+      );
+
+      expect(() => loadFromOriginal(sig).checkSignature(otherValue)).to.throw(/invalid signature/);
+    });
+  });
+
+  describe("inclusive canonicalization of SignedInfo in a document with two signatures", function () {
+    const c14n = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    const samlp = "urn:oasis:names:tc:SAML:2.0:protocol";
+    const saml = "urn:oasis:names:tc:SAML:2.0:assertion";
+    const unsigned =
+      `<samlp:Response xmlns:samlp="${samlp}" xmlns:saml="${saml}" ID="_r1">` +
+      "<saml:Issuer>idp</saml:Issuer>" +
+      '<saml:Assertion xmlns:xs="http://www.w3.org/2001/XMLSchema" ID="_a1">' +
+      "<saml:Issuer>idp</saml:Issuer></saml:Assertion></samlp:Response>";
+
+    function sign(xml: string, xpath: string, location: ComputeSignatureOptionsLocation) {
+      const sig = new SignedXml({
+        privateKey: fs.readFileSync("./test/static/client.pem"),
+        canonicalizationAlgorithm: c14n,
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      sig.addReference({
+        xpath,
+        transforms: ["http://www.w3.org/2000/09/xmldsig#enveloped-signature", c14n],
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      });
+      sig.computeSignature(xml, { prefix: "ds", location });
+      return sig.getSignedXml();
+    }
+
+    function signAssertion() {
+      return sign(unsigned, "//*[local-name(.)='Assertion']", {
+        reference: "//*[local-name(.)='Assertion']/*[local-name(.)='Issuer']",
+        action: "after",
+      });
+    }
+
+    function checkEachSignature(xml: string) {
+      const doc = new xmldom.DOMParser().parseFromString(xml);
+      return new SignedXml().findSignatures(doc).map((signature) => {
+        const verifier = new SignedXml({
+          publicCert: fs.readFileSync("./test/static/client_public.pem"),
+        });
+        verifier.loadSignature(signature);
+        return verifier.checkSignature(xml);
+      });
+    }
+
+    it("verifies a signature whose SignedInfo is not the first in the document", function () {
+      const signed = sign(signAssertion(), "/*", {
+        reference: "/*/*[local-name(.)='Issuer']",
+        action: "after",
+      });
+
+      expect(checkEachSignature(signed)).to.deep.equal([true, true]);
+    });
+
+    it("signs SignedInfo with the namespaces in scope of its own Signature", function () {
+      const signed = sign(signAssertion(), "/*", { reference: "/*", action: "append" });
+
+      const doc = new xmldom.DOMParser().parseFromString(signed);
+      const responseSignature = xpath.select1("/*/*[local-name(.)='Signature']", doc);
+      isDomNode.assertIsElementNode(responseSignature);
+      const signedInfo = xpath.select1("./*[local-name(.)='SignedInfo']", responseSignature);
+      const signatureValue = xpath.select1(
+        "string(./*[local-name(.)='SignatureValue'])",
+        responseSignature,
+      );
+      isDomNode.assertIsNodeLike(signedInfo);
+      expect(signatureValue).to.be.a("string");
+
+      const canonicalSignedInfo = new C14nCanonicalization().process(signedInfo, {
+        ancestorNamespaces: [
+          { prefix: "samlp", namespaceURI: samlp },
+          { prefix: "saml", namespaceURI: saml },
+        ],
+      });
+      expect(
+        crypto.verify(
+          "sha256",
+          Buffer.from(canonicalSignedInfo),
+          fs.readFileSync("./test/static/client_public.pem"),
+          Buffer.from(String(signatureValue), "base64"),
+        ),
+        "SignatureValue must cover SignedInfo without the Assertion's xmlns:xs",
+      ).to.be.true;
+      expect(checkEachSignature(signed)).to.deep.equal([true, true]);
+    });
   });
 });

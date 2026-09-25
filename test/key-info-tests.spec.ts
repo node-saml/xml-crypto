@@ -42,4 +42,39 @@ describe("KeyInfo tests", function () {
 
     expect(keyInfo).to.be.undefined;
   });
+
+  it("passes getCertFromKeyInfo the Signature's own KeyInfo, not one inside an Object", function () {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    sig.computeSignature("<root><x /></root>");
+    const signedXml = sig
+      .getSignedXml()
+      .replace(
+        "</Signature>",
+        "<Object><KeyInfo><KeyName>nested</KeyName></KeyInfo></Object></Signature>",
+      );
+
+    const keyInfos: (Node | null | undefined)[] = [];
+    const verifier = new SignedXml({
+      publicCert: fs.readFileSync("./test/static/client_public.pem"),
+      getCertFromKeyInfo: (keyInfo) => {
+        keyInfos.push(keyInfo);
+        return null;
+      },
+    });
+    verifier.loadSignature(
+      verifier.findSignatures(new xmldom.DOMParser().parseFromString(signedXml))[0],
+    );
+
+    expect(verifier.checkSignature(signedXml)).to.be.true;
+    expect(keyInfos.map((keyInfo) => keyInfo?.toString() ?? null)).to.deep.equal([null]);
+  });
 });
