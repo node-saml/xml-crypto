@@ -32,6 +32,31 @@ export function findAttr(element: Element, localName: string, namespace?: string
   return null;
 }
 
+// xsd:anyURI whiteSpace=collapse. https://www.w3.org/TR/xmlschema-2/#anyURI
+// Used only in unsupported-algorithm diagnostics; Algorithm values are not
+// normalized on read. Unconditional collapse is unsafe for consumers that
+// ban algorithms by comparing the raw attribute string (#548 / #576).
+function collapseAnyUri(value: string): string {
+  return value.replace(/[\t\n\r ]+/g, " ").replace(/^ +| +$/g, "");
+}
+
+export function formatUnsupportedAlgorithmMessage(
+  kind: "signature" | "canonicalization" | "hash",
+  name: string,
+  isSupportedWhenCollapsed: (collapsed: string) => boolean,
+): string {
+  const base = `${kind} algorithm ${JSON.stringify(name)} is not supported`;
+  const collapsed = collapseAnyUri(name);
+  if (collapsed !== name && isSupportedWhenCollapsed(collapsed)) {
+    return (
+      `${base}; after collapsing XML whitespace it matches the supported ` +
+      `algorithm ${JSON.stringify(collapsed)}. Algorithm attribute whitespace ` +
+      `is not collapsed`
+    );
+  }
+  return base;
+}
+
 export function findChildren(node: Node | Document, localName: string, namespace?: string) {
   const element = (node as Document).documentElement ?? node;
   const res: Element[] = [];

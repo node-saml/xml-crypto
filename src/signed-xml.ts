@@ -493,9 +493,14 @@ export class SignedXml {
     const algo = this.SignatureAlgorithms[name];
     if (algo) {
       return new algo();
-    } else {
-      throw new Error(`signature algorithm '${name}' is not supported`);
     }
+    throw new Error(
+      utils.formatUnsupportedAlgorithmMessage(
+        "signature",
+        name,
+        (collapsed) => this.SignatureAlgorithms[collapsed as SignatureAlgorithmType] != null,
+      ),
+    );
   }
 
   private findCanonicalizationAlgorithm(name: CanonicalizationOrTransformAlgorithmType) {
@@ -506,16 +511,29 @@ export class SignedXml {
       }
     }
 
-    throw new Error(`canonicalization algorithm '${name}' is not supported`);
+    throw new Error(
+      utils.formatUnsupportedAlgorithmMessage(
+        "canonicalization",
+        String(name),
+        (collapsed) =>
+          this.CanonicalizationAlgorithms[collapsed as CanonicalizationOrTransformAlgorithmType] !=
+          null,
+      ),
+    );
   }
 
   private findHashAlgorithm(name: HashAlgorithmType) {
     const algo = this.HashAlgorithms[name];
     if (algo) {
       return new algo();
-    } else {
-      throw new Error(`hash algorithm '${name}' is not supported`);
     }
+    throw new Error(
+      utils.formatUnsupportedAlgorithmMessage(
+        "hash",
+        name,
+        (collapsed) => this.HashAlgorithms[collapsed as HashAlgorithmType] != null,
+      ),
+    );
   }
 
   /**
