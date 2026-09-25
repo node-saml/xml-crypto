@@ -1,6 +1,12 @@
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
-import { SignedXml, SignedXmlOptions } from "../src/index";
+import {
+  C14nCanonicalization,
+  ComputeSignatureOptionsLocation,
+  SignedXml,
+  SignedXmlOptions,
+} from "../src/index";
+import * as crypto from "crypto";
 import * as fs from "fs";
 import { expect } from "chai";
 import * as isDomNode from "@xmldom/is-dom-node";
@@ -1185,5 +1191,90 @@ describe("Signature integration tests", function () {
     expect(() => verifier.checkSignature(signed)).to.throw(
       /in order to prevent signature wrapping attack/,
     );
+  });
+
+  describe("inclusive canonicalization of SignedInfo in a document with two signatures", function () {
+    const c14n = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    const samlp = "urn:oasis:names:tc:SAML:2.0:protocol";
+    const saml = "urn:oasis:names:tc:SAML:2.0:assertion";
+    const unsigned =
+      `<samlp:Response xmlns:samlp="${samlp}" xmlns:saml="${saml}" ID="_r1">` +
+      "<saml:Issuer>idp</saml:Issuer>" +
+      '<saml:Assertion xmlns:xs="http://www.w3.org/2001/XMLSchema" ID="_a1">' +
+      "<saml:Issuer>idp</saml:Issuer></saml:Assertion></samlp:Response>";
+
+    function sign(xml: string, xpath: string, location: ComputeSignatureOptionsLocation) {
+      const sig = new SignedXml({
+        privateKey: fs.readFileSync("./test/static/client.pem"),
+        canonicalizationAlgorithm: c14n,
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      sig.addReference({
+        xpath,
+        transforms: ["http://www.w3.org/2000/09/xmldsig#enveloped-signature", c14n],
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      });
+      sig.computeSignature(xml, { prefix: "ds", location });
+      return sig.getSignedXml();
+    }
+
+    function signAssertion() {
+      return sign(unsigned, "//*[local-name(.)='Assertion']", {
+        reference: "//*[local-name(.)='Assertion']/*[local-name(.)='Issuer']",
+        action: "after",
+      });
+    }
+
+    function checkEachSignature(xml: string) {
+      const doc = new xmldom.DOMParser().parseFromString(xml);
+      return new SignedXml().findSignatures(doc).map((signature) => {
+        const verifier = new SignedXml({
+          publicCert: fs.readFileSync("./test/static/client_public.pem"),
+        });
+        verifier.loadSignature(signature);
+        return verifier.checkSignature(xml);
+      });
+    }
+
+    it("verifies a signature whose SignedInfo is not the first in the document", function () {
+      const signed = sign(signAssertion(), "/*", {
+        reference: "/*/*[local-name(.)='Issuer']",
+        action: "after",
+      });
+
+      expect(checkEachSignature(signed)).to.deep.equal([true, true]);
+    });
+
+    it("signs SignedInfo with the namespaces in scope of its own Signature", function () {
+      const signed = sign(signAssertion(), "/*", { reference: "/*", action: "append" });
+
+      const doc = new xmldom.DOMParser().parseFromString(signed);
+      const responseSignature = xpath.select1("/*/*[local-name(.)='Signature']", doc);
+      isDomNode.assertIsElementNode(responseSignature);
+      const signedInfo = xpath.select1("./*[local-name(.)='SignedInfo']", responseSignature);
+      const signatureValue = xpath.select1(
+        "string(./*[local-name(.)='SignatureValue'])",
+        responseSignature,
+      );
+      isDomNode.assertIsNodeLike(signedInfo);
+      expect(signatureValue).to.be.a("string");
+
+      const canonicalSignedInfo = new C14nCanonicalization().process(signedInfo, {
+        ancestorNamespaces: [
+          { prefix: "samlp", namespaceURI: samlp },
+          { prefix: "saml", namespaceURI: saml },
+        ],
+      });
+      expect(
+        crypto.verify(
+          "sha256",
+          Buffer.from(canonicalSignedInfo),
+          fs.readFileSync("./test/static/client_public.pem"),
+          Buffer.from(String(signatureValue), "base64"),
+        ),
+        "SignatureValue must cover SignedInfo without the Assertion's xmlns:xs",
+      ).to.be.true;
+      expect(checkEachSignature(signed)).to.deep.equal([true, true]);
+    });
   });
 });

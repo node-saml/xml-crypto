@@ -442,10 +442,11 @@ export class SignedXml {
       }
     }
 
-    /**
-     * Search for ancestor namespaces before canonicalization.
-     */
-    const ancestorNamespaces = utils.findAncestorNs(doc, "//*[local-name()='SignedInfo']");
+    // Inclusive C14N renders the namespaces in scope of this signature's SignedInfo, so take them
+    // from its place in the document, not from whichever SignedInfo comes first.
+    const signatureInDoc = this.findLoadedSignature(doc) ?? this.signatureNode;
+    const signedInfoInDoc = utils.findChildren(signatureInDoc, "SignedInfo")[0] ?? signedInfo[0];
+    const ancestorNamespaces = utils.findAncestorNsForElement(signedInfoInDoc);
 
     const c14nOptions = {
       ancestorNamespaces: ancestorNamespaces,
