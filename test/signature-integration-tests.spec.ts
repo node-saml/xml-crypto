@@ -480,6 +480,21 @@ describe("Signature integration tests", function () {
     [exclusiveCanonicalization, envelopedSignature],
   ];
 
+  const signatureValueSpellings: Record<string, (value: string) => string> = {
+    "line-wrapped": (value) => `${value.slice(0, 40)}\n${value.slice(40)}`,
+    "without padding": (value) => value.replace(/=+$/, ""),
+    "in the base64url alphabet": (value) => value.replace(/\+/g, "-").replace(/\//g, "_"),
+  };
+
+  function respellSignatureValue(xml: string, respell: (value: string) => string) {
+    const respelled = xml.replace(
+      /<SignatureValue>([^<]*)<\/SignatureValue>/,
+      (_, value: string) => `<SignatureValue>${respell(value)}</SignatureValue>`,
+    );
+    expect(respelled, "the respelling must change the SignatureValue").not.to.equal(xml);
+    return respelled;
+  }
+
   describe("copies of the enveloped signature", function () {
     function sign(xml: string, reference: string, transforms: string[]) {
       const signer = new SignedXml({
@@ -552,21 +567,23 @@ describe("Signature integration tests", function () {
         expect(verifier.getSignedReferences()).to.be.empty;
       });
 
-      it(`should reject a copy whose SignatureValue differs only in whitespace, enveloped-signature ${order} canonicalization`, function () {
-        const { signedXml, signatureXml } = sign(
-          "<response><assertion><role>user</role></assertion></response>",
-          "//assertion",
-          transforms,
-        );
-        const rewrapped = signatureXml.replace(/<SignatureValue>(.{40})/, "<SignatureValue>$1\n");
-        const tampered = injectCopy(signedXml, rewrapped, "<role>user</role>");
+      for (const [spelling, respell] of Object.entries(signatureValueSpellings)) {
+        it(`should reject a copy whose SignatureValue is ${spelling}, enveloped-signature ${order} canonicalization`, function () {
+          const { signedXml, signatureXml } = sign(
+            "<response><assertion><role>user</role></assertion></response>",
+            "//assertion",
+            transforms,
+          );
+          const respelled = respellSignatureValue(signatureXml, respell);
+          const tampered = injectCopy(signedXml, respelled, "<role>user</role>");
 
-        const verifier = createVerifier(firstSignatureIn(tampered));
-        expect(() => verifier.checkSignature(tampered)).to.throw(
-          "Cannot validate a document which contains multiple Signature elements with the same SignatureValue",
-        );
-        expect(verifier.getSignedReferences()).to.be.empty;
-      });
+          const verifier = createVerifier(firstSignatureIn(tampered));
+          expect(() => verifier.checkSignature(tampered)).to.throw(
+            "Cannot validate a document which contains multiple Signature elements with the same SignatureValue",
+          );
+          expect(verifier.getSignedReferences()).to.be.empty;
+        });
+      }
 
       it(`should reject a copy that nests the genuine SignatureValue ahead of its own, enveloped-signature ${order} canonicalization`, function () {
         const { signedXml, signatureXml } = sign(
@@ -1228,6 +1245,31 @@ describe("Signature integration tests", function () {
     );
   });
 
+  it("rejects a loaded signature without a SignatureValue, even after loading one with it", function () {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    sig.computeSignature("<root><x>trusted</x></root>");
+    const withoutValue = sig
+      .getSignatureXml()
+      .replace(/<SignatureValue>[^<]*<\/SignatureValue>/, "");
+
+    const verifier = new SignedXml({
+      publicCert: fs.readFileSync("./test/static/client_public.pem"),
+    });
+    verifier.loadSignature(sig.getSignatureXml());
+    verifier.loadSignature(withoutValue);
+
+    expect(() => verifier.checkSignature(sig.getSignedXml())).to.throw(/invalid signature/);
+  });
+
   it("rejects a document whose copy of the loaded signature has no SignedInfo", function () {
     const sig = new SignedXml({
       privateKey: fs.readFileSync("./test/static/client.pem"),
@@ -1257,7 +1299,7 @@ describe("Signature integration tests", function () {
     );
   });
 
-  describe("a loaded signature whose SignatureValue is wrapped differently in the checked document", function () {
+  describe("a loaded signature checked against a document that spells its SignatureValue differently", function () {
     const publicCert = fs.readFileSync("./test/static/client_public.pem");
 
     function signWithInheritedNamespace() {
@@ -1275,28 +1317,43 @@ describe("Signature integration tests", function () {
       return sig;
     }
 
-    const wrapSignatureValue = (xml: string) =>
-      xml.replace(/<SignatureValue>(.{40})/, "<SignatureValue>$1\n");
-
-    it("verifies it in the namespace context it has in the checked document", function () {
-      const sig = signWithInheritedNamespace();
-      const verifier = new SignedXml({ publicCert });
-      verifier.loadSignature(sig.getSignatureXml());
-
-      expect(verifier.checkSignature(wrapSignatureValue(sig.getSignedXml()))).to.be.true;
-    });
-
-    it("rejects it when it is valid only in the loaded copy's namespace context", function () {
-      const sig = signWithInheritedNamespace();
+    function loadFromOriginal(sig: SignedXml) {
       const verifier = new SignedXml({ publicCert });
       verifier.loadSignature(
         verifier.findSignatures(new xmldom.DOMParser().parseFromString(sig.getSignedXml()))[0],
       );
-      const withoutNamespace = sig.getSignedXml().replace(' xmlns:q="urn:q"', "");
+      return verifier;
+    }
 
-      expect(() => verifier.checkSignature(wrapSignatureValue(withoutNamespace))).to.throw(
-        /invalid signature/,
+    for (const [spelling, respell] of Object.entries(signatureValueSpellings)) {
+      it(`verifies it in the namespace context it has in the checked document, SignatureValue ${spelling}`, function () {
+        const sig = signWithInheritedNamespace();
+        const verifier = new SignedXml({ publicCert });
+        verifier.loadSignature(sig.getSignatureXml());
+
+        expect(verifier.checkSignature(respellSignatureValue(sig.getSignedXml(), respell))).to.be
+          .true;
+      });
+
+      it(`rejects it when it is valid only in the loaded copy's namespace context, SignatureValue ${spelling}`, function () {
+        const sig = signWithInheritedNamespace();
+        const withoutNamespace = sig.getSignedXml().replace(' xmlns:q="urn:q"', "");
+
+        expect(() =>
+          loadFromOriginal(sig).checkSignature(respellSignatureValue(withoutNamespace, respell)),
+        ).to.throw(/invalid signature/);
+      });
+    }
+
+    it("rejects it when it is valid only in the loaded copy's namespace context and the checked document's SignatureValue differs", function () {
+      const sig = signWithInheritedNamespace();
+      const withoutNamespace = sig.getSignedXml().replace(' xmlns:q="urn:q"', "");
+      const otherValue = respellSignatureValue(
+        withoutNamespace,
+        (value) => `AAAA${value.slice(4)}`,
       );
+
+      expect(() => loadFromOriginal(sig).checkSignature(otherValue)).to.throw(/invalid signature/);
     });
   });
 
