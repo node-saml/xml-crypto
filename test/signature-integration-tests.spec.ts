@@ -1193,6 +1193,35 @@ describe("Signature integration tests", function () {
     );
   });
 
+  it("rejects a document whose copy of the loaded signature has no SignedInfo", function () {
+    const sig = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+      signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+    });
+    sig.addReference({
+      xpath: "/*",
+      transforms: ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    sig.computeSignature("<root xmlns:p='urn:p'><item>trusted</item></root>");
+
+    const doc = new xmldom.DOMParser().parseFromString(sig.getSignedXml());
+    const signedInfo = xpath.select1("//*[local-name(.)='SignedInfo']", doc);
+    isDomNode.assertIsNodeLike(signedInfo);
+    signedInfo.parentNode?.removeChild(signedInfo);
+    const tampered = doc.toString();
+
+    const verifier = new SignedXml({
+      publicCert: fs.readFileSync("./test/static/client_public.pem"),
+    });
+    verifier.loadSignature(sig.getSignatureXml());
+
+    expect(() => verifier.checkSignature(tampered)).to.throw(
+      /could not find SignedInfo element in the message/,
+    );
+  });
+
   describe("inclusive canonicalization of SignedInfo in a document with two signatures", function () {
     const c14n = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
     const samlp = "urn:oasis:names:tc:SAML:2.0:protocol";

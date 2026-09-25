@@ -445,7 +445,10 @@ export class SignedXml {
     // Inclusive C14N renders the namespaces in scope of this signature's SignedInfo, so take them
     // from its place in the document, not from whichever SignedInfo comes first.
     const signatureInDoc = this.findLoadedSignature(doc) ?? this.signatureNode;
-    const signedInfoInDoc = utils.findChildren(signatureInDoc, "SignedInfo")[0] ?? signedInfo[0];
+    const signedInfoInDoc = utils.findChildren(signatureInDoc, "SignedInfo")[0];
+    if (signedInfoInDoc == null) {
+      throw new Error("could not find SignedInfo element in the message");
+    }
     const ancestorNamespaces = utils.findAncestorNsForElement(signedInfoInDoc);
 
     const c14nOptions = {
