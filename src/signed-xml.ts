@@ -38,6 +38,12 @@ function findSignatureElements(node: Node): Element[] {
   return signatures.filter(isDomNode.isElementNode);
 }
 
+// SignatureValue is base64Binary, so whitespace in it carries no value:
+// https://www.w3.org/TR/xmldsig-core1/#sec-SignatureValue
+function findSignatureValue(signature: Node): string | undefined {
+  return utils.findChildren(signature, "SignatureValue")[0]?.textContent?.replace(/[\t\n\r ]/g, "");
+}
+
 function certificatesToPublish(publicCert: string): string[] {
   const certificates = utils.pemCertificates(publicCert);
   if (certificates.length > 0) {
@@ -1427,14 +1433,13 @@ export class SignedXml {
       return this.signatureNode;
     }
 
-    const signatureValue = utils.findChildren(this.signatureNode, "SignatureValue")[0]?.textContent;
+    const signatureValue = findSignatureValue(this.signatureNode);
     if (!signatureValue) {
       return null;
     }
 
     const matches = findSignatureElements(doc).filter(
-      (signature) =>
-        utils.findChildren(signature, "SignatureValue")[0]?.textContent === signatureValue,
+      (signature) => findSignatureValue(signature) === signatureValue,
     );
     if (matches.length > 1) {
       throw new Error(
