@@ -38,6 +38,16 @@ function findSignatureElements(node: Node): Element[] {
   return signatures.filter(isDomNode.isElementNode);
 }
 
+// SignatureValue is base64Binary, so whitespace in it carries no value:
+// https://www.w3.org/TR/xmldsig-core1/#sec-SignatureValue
+function findSignatureValue(signature: Node): string | undefined {
+  return utils.findChildren(signature, "SignatureValue")[0]?.textContent?.replace(/[\t\n\r ]/g, "");
+}
+
+function decodeSignatureValue(signature: Node): Buffer {
+  return Buffer.from(findSignatureValue(signature) ?? "", "base64");
+}
+
 function certificatesToPublish(publicCert: string): string[] {
   const certificates = utils.pemCertificates(publicCert);
   if (certificates.length > 0) {
@@ -442,16 +452,26 @@ export class SignedXml {
       }
     }
 
-    /**
-     * Search for ancestor namespaces before canonicalization.
-     */
-    const ancestorNamespaces = utils.findAncestorNs(doc, "//*[local-name()='SignedInfo']");
-
     const c14nOptions = {
-      ancestorNamespaces: ancestorNamespaces,
+      ancestorNamespaces: this.findSignedInfoAncestorNamespaces(doc),
     };
 
     return this.getCanonXml([this.canonicalizationAlgorithm], signedInfo[0], c14nOptions);
+  }
+
+  // The checked document gives SignedInfo the namespaces it inherits, not wherever a loaded copy
+  // came from: https://www.w3.org/TR/xml-c14n#ProcessingModel
+  private findSignedInfoAncestorNamespaces(doc: Document) {
+    const signatureInDoc = this.findLoadedSignature(doc);
+    if (signatureInDoc == null) {
+      return [];
+    }
+
+    const signedInfoInDoc = utils.findChildren(signatureInDoc, "SignedInfo")[0];
+    if (signedInfoInDoc == null) {
+      throw new Error("could not find SignedInfo element in the message");
+    }
+    return utils.findAncestorNsForElement(signedInfoInDoc);
   }
 
   private getCanonReferenceXml(doc: Document, ref: Reference, node: Node) {
@@ -710,20 +730,8 @@ export class SignedXml {
       this.loadReference(reference);
     }
 
-    const signatureValue = xpath.select1(
-      ".//*[local-name(.)='SignatureValue']/text()",
-      signatureNode,
-    );
-
-    if (isDomNode.isTextNode(signatureValue)) {
-      this.signatureValue = signatureValue.data.replace(/\r?\n/g, "");
-    }
-
-    const keyInfo = xpath.select1(".//*[local-name(.)='KeyInfo']", signatureNode);
-
-    if (isDomNode.isNodeLike(keyInfo)) {
-      this.keyInfo = keyInfo;
-    }
+    this.signatureValue = findSignatureValue(signatureNode) ?? "";
+    this.keyInfo = utils.findChildren(signatureNode, "KeyInfo")[0] ?? null;
   }
 
   /**
@@ -1415,22 +1423,21 @@ export class SignedXml {
   }
 
   // checkSignature() parses its own copy of the document, and octets a transform returns are parsed
-  // again, so the loaded signature is found by its SignatureValue. A copy carrying the same value
-  // could stand in for it, so refuse to guess.
+  // again, so the loaded signature is found by the SignatureValue bytes verification decodes. A copy
+  // carrying the same value could stand in for it, so refuse to guess.
   private findLoadedSignature(node: Node): Node | null {
     const doc = node.ownerDocument ?? node;
     if (this.signatureNode == null || this.signatureNode.ownerDocument === doc) {
       return this.signatureNode;
     }
 
-    const signatureValue = utils.findChildren(this.signatureNode, "SignatureValue")[0]?.textContent;
-    if (!signatureValue) {
+    const signatureValue = decodeSignatureValue(this.signatureNode);
+    if (signatureValue.length === 0) {
       return null;
     }
 
-    const matches = findSignatureElements(doc).filter(
-      (signature) =>
-        utils.findChildren(signature, "SignatureValue")[0]?.textContent === signatureValue,
+    const matches = findSignatureElements(doc).filter((signature) =>
+      decodeSignatureValue(signature).equals(signatureValue),
     );
     if (matches.length > 1) {
       throw new Error(
