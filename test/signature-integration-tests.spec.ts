@@ -453,6 +453,141 @@ describe("Signature integration tests", function () {
     });
   });
 
+  describe("InclusiveNamespaces on a reference", function () {
+    const envelopedSignature = "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
+    const exclusiveC14n = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    const exclusiveC14nWithComments = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments";
+    const xml = '<root xmlns:b="urn:b"><x>text</x></root>';
+    // Nothing uses `b`, so exclusive canonicalization renders it only when it reads the PrefixList.
+    const signedReference = xml;
+
+    function verify(signedXml: string, configure?: (verifier: SignedXml) => void) {
+      const verifier = new SignedXml({
+        publicCert: fs.readFileSync("./test/static/client_public.pem"),
+      });
+      configure?.(verifier);
+      verifier.loadSignature(
+        verifier.findSignatures(new xmldom.DOMParser().parseFromString(signedXml))[0],
+      );
+      const valid = verifier.checkSignature(signedXml);
+
+      return { valid, signedReferences: verifier.getSignedReferences() };
+    }
+
+    for (const fixture of [
+      "inclusive_namespaces_exc_c14n.xml",
+      "inclusive_namespaces_exc_c14n_with_comments.xml",
+      "inclusive_namespaces_enveloped_signature_after_exc_c14n.xml",
+      "inclusive_namespaces_in_with_comments_namespace.xml",
+      // PrefixList="a&#x9;b" is white space delimited: https://www.w3.org/TR/xml-exc-c14n/#sec-Use
+      "inclusive_namespaces_prefix_list_with_tab.xml",
+    ]) {
+      it(`should verify ${fixture}`, function () {
+        const result = verify(fs.readFileSync(`./test/static/${fixture}`, "utf8"));
+
+        expect(result.valid).to.be.true;
+        expect(result.signedReferences).to.deep.equal([signedReference]);
+      });
+    }
+
+    it("should verify a PrefixList that only a later exclusive canonicalization carries", function () {
+      // The first transform has no PrefixList, so it drops the unused `b`, and the second parses its
+      // octets, so its PrefixList has nothing to keep:
+      // https://www.w3.org/TR/xml-exc-c14n/#sec-Specification
+      // https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
+      const result = verify(
+        fs.readFileSync("./test/static/inclusive_namespaces_on_second_of_two_exc_c14n.xml", "utf8"),
+      );
+
+      expect(result.valid).to.be.true;
+      expect(result.signedReferences).to.deep.equal(["<root><x>text</x></root>"]);
+    });
+
+    it("should give each transform its own PrefixList when a custom transform sits between", function () {
+      // The first exclusive canonicalization drops the unused `b`, the custom transform declares it
+      // again, and the last one's PrefixList keeps it:
+      // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
+      class DeclareB {
+        process(node: Node) {
+          (node as Element).setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:b", "urn:b");
+          return node;
+        }
+
+        getAlgorithmName() {
+          return "urn:xml-crypto:test:declare-b";
+        }
+      }
+
+      const result = verify(
+        fs.readFileSync("./test/static/inclusive_namespaces_after_custom_transform.xml", "utf8"),
+        (verifier) => {
+          verifier.CanonicalizationAlgorithms["urn:xml-crypto:test:declare-b"] = DeclareB;
+        },
+      );
+
+      expect(result.valid).to.be.true;
+      expect(result.signedReferences).to.deep.equal(['<x xmlns:b="urn:b" Id="target">text</x>']);
+    });
+
+    it("should sign a loaded reference with its current PrefixList", function () {
+      const signedXml = fs.readFileSync("./test/static/inclusive_namespaces_exc_c14n.xml", "utf8");
+      const sig = new SignedXml({
+        privateKey: fs.readFileSync("./test/static/client.pem"),
+        publicCert: fs.readFileSync("./test/static/client_public.pem"),
+        canonicalizationAlgorithm: exclusiveC14n,
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      sig.loadSignature(sig.findSignatures(new xmldom.DOMParser().parseFromString(signedXml))[0]);
+      expect(sig.checkSignature(signedXml)).to.be.true;
+      const [reference] = sig.getReferences();
+      reference.xpath = "/*";
+      reference.isEmptyUri = true;
+      reference.inclusiveNamespacesPrefixList = ["c"];
+      sig.computeSignature('<root xmlns:b="urn:b" xmlns:c="urn:c"><x>text</x></root>');
+
+      const result = verify(sig.getSignedXml());
+
+      expect(result.valid).to.be.true;
+      expect(result.signedReferences).to.deep.equal(['<root xmlns:c="urn:c"><x>text</x></root>']);
+    });
+
+    for (const { description, transforms } of [
+      {
+        description: "exclusive canonicalization after enveloped-signature",
+        transforms: [envelopedSignature, exclusiveC14n],
+      },
+      {
+        description: "exclusive canonicalization with comments",
+        transforms: [envelopedSignature, exclusiveC14nWithComments],
+      },
+      {
+        description: "enveloped-signature after exclusive canonicalization",
+        transforms: [exclusiveC14n, envelopedSignature],
+      },
+    ]) {
+      it(`should verify its own signature for ${description}`, function () {
+        const sig = new SignedXml({
+          privateKey: fs.readFileSync("./test/static/client.pem"),
+          canonicalizationAlgorithm: exclusiveC14n,
+          signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        });
+        sig.addReference({
+          xpath: "/*",
+          isEmptyUri: true,
+          transforms,
+          digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+          inclusiveNamespacesPrefixList: ["b"],
+        });
+        sig.computeSignature(xml);
+
+        const result = verify(sig.getSignedXml());
+
+        expect(result.valid).to.be.true;
+        expect(result.signedReferences).to.deep.equal([signedReference]);
+      });
+    }
+  });
+
   it("should still verify a loaded signature after signing another document fails", function () {
     const signedXml = fs.readFileSync("./test/static/valid_signature.xml", "utf8");
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
