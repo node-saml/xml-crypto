@@ -453,6 +453,77 @@ describe("Signature integration tests", function () {
     });
   });
 
+  describe("InclusiveNamespaces on a reference", function () {
+    const envelopedSignature = "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
+    const exclusiveC14n = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    const exclusiveC14nWithComments = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments";
+    const xml = '<root xmlns:b="urn:b"><x>text</x></root>';
+    // Nothing uses `b`, so exclusive canonicalization renders it only when it reads the PrefixList.
+    const signedReference = xml;
+
+    function verify(signedXml: string) {
+      const verifier = new SignedXml({
+        publicCert: fs.readFileSync("./test/static/client_public.pem"),
+      });
+      verifier.loadSignature(
+        verifier.findSignatures(new xmldom.DOMParser().parseFromString(signedXml))[0],
+      );
+      const valid = verifier.checkSignature(signedXml);
+
+      return { valid, signedReferences: verifier.getSignedReferences() };
+    }
+
+    for (const fixture of [
+      "dotnet_inclusive_namespaces_exc_c14n.xml",
+      "dotnet_inclusive_namespaces_exc_c14n_with_comments.xml",
+      "dotnet_inclusive_namespaces_enveloped_signature_after_exc_c14n.xml",
+      "inclusive_namespaces_in_with_comments_namespace.xml",
+    ]) {
+      it(`should verify ${fixture}`, function () {
+        const result = verify(fs.readFileSync(`./test/static/${fixture}`, "utf8"));
+
+        expect(result.valid).to.be.true;
+        expect(result.signedReferences).to.deep.equal([signedReference]);
+      });
+    }
+
+    for (const { description, transforms } of [
+      {
+        description: "exclusive canonicalization after enveloped-signature",
+        transforms: [envelopedSignature, exclusiveC14n],
+      },
+      {
+        description: "exclusive canonicalization with comments",
+        transforms: [envelopedSignature, exclusiveC14nWithComments],
+      },
+      {
+        description: "enveloped-signature after exclusive canonicalization",
+        transforms: [exclusiveC14n, envelopedSignature],
+      },
+    ]) {
+      it(`should verify its own signature for ${description}`, function () {
+        const sig = new SignedXml({
+          privateKey: fs.readFileSync("./test/static/client.pem"),
+          canonicalizationAlgorithm: exclusiveC14n,
+          signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        });
+        sig.addReference({
+          xpath: "/*",
+          isEmptyUri: true,
+          transforms,
+          digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+          inclusiveNamespacesPrefixList: ["b"],
+        });
+        sig.computeSignature(xml);
+
+        const result = verify(sig.getSignedXml());
+
+        expect(result.valid).to.be.true;
+        expect(result.signedReferences).to.deep.equal([signedReference]);
+      });
+    }
+  });
+
   it("should still verify a loaded signature after signing another document fails", function () {
     const signedXml = fs.readFileSync("./test/static/valid_signature.xml", "utf8");
     const doc = new xmldom.DOMParser().parseFromString(signedXml);

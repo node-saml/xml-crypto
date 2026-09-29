@@ -44,6 +44,19 @@ function findSignatureValue(signature: Node): string | undefined {
   return utils.findChildren(signature, "SignatureValue")[0]?.textContent?.replace(/[\t\n\r ]/g, "");
 }
 
+// A Transform carries only its own algorithm's parameters, and InclusiveNamespaces belongs to
+// exclusive canonicalization, in this namespace for both identifiers:
+// https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
+// https://www.w3.org/TR/xml-exc-c14n/#sec-Use
+const exclusiveC14nNamespace = "http://www.w3.org/2001/10/xml-exc-c14n#";
+
+function isExclusiveC14n(algorithm: string | undefined): boolean {
+  return (
+    algorithm === exclusiveC14nNamespace ||
+    algorithm === "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"
+  );
+}
+
 function decodeSignatureValue(signature: Node): Buffer {
   return Buffer.from(findSignatureValue(signature) ?? "", "base64");
 }
@@ -780,11 +793,12 @@ export class SignedXml {
         }
       }
 
-      // This is a little strange, we are looking for children of the last child of `transformsNode`
-      const inclusiveNamespaces = utils.findChildren(
-        transformsAll[transformsAll.length - 1],
-        "InclusiveNamespaces",
-      );
+      const exclusiveC14nTransform = transformsAll
+        .filter((transform) => isExclusiveC14n(utils.findAttr(transform, "Algorithm")?.value))
+        .pop();
+      const inclusiveNamespaces = exclusiveC14nTransform
+        ? utils.findChildren(exclusiveC14nTransform, "InclusiveNamespaces")
+        : [];
       if (utils.isArrayHasLength(inclusiveNamespaces)) {
         // Should really only be one prefix list, but maybe there's some circumstances where more than one to let's handle it
         inclusiveNamespacesPrefixList = inclusiveNamespaces
@@ -1263,9 +1277,12 @@ export class SignedXml {
           );
           transformElem.setAttribute("Algorithm", transform.getAlgorithmName());
 
-          if (utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList)) {
+          if (
+            utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList) &&
+            isExclusiveC14n(transform.getAlgorithmName())
+          ) {
             const inclusiveNamespacesElem = signatureDoc.createElementNS(
-              transform.getAlgorithmName(),
+              exclusiveC14nNamespace,
               "InclusiveNamespaces",
             );
             inclusiveNamespacesElem.setAttribute(
