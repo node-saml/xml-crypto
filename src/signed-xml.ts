@@ -44,6 +44,19 @@ function findSignatureValue(signature: Node): string | undefined {
   return utils.findChildren(signature, "SignatureValue")[0]?.textContent?.replace(/[\t\n\r ]/g, "");
 }
 
+// A Transform carries only its own algorithm's parameters, and InclusiveNamespaces belongs to
+// exclusive canonicalization, in this namespace for both identifiers:
+// https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
+// https://www.w3.org/TR/xml-exc-c14n/#sec-Use
+const exclusiveC14nNamespace = "http://www.w3.org/2001/10/xml-exc-c14n#";
+
+function isExclusiveC14n(algorithm: string | undefined): boolean {
+  return (
+    algorithm === exclusiveC14nNamespace ||
+    algorithm === "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"
+  );
+}
+
 function decodeSignatureValue(signature: Node): Buffer {
   return Buffer.from(findSignatureValue(signature) ?? "", "base64");
 }
@@ -120,6 +133,12 @@ export class SignedXml {
    * @see {@link Reference}
    */
   private references: Reference[] = [];
+
+  /**
+   * The PrefixList each Transform of a loaded {@link Reference} carries, in transform order, which
+   * verification applies.
+   */
+  private loadedPrefixLists = new WeakMap<Reference, string[][]>();
 
   /**
    * Contains the canonicalized XML of the references that were validly signed.
@@ -483,14 +502,26 @@ export class SignedXml {
     }
 
     const c14nOptions = {
-      inclusiveNamespacesPrefixList: ref.inclusiveNamespacesPrefixList,
       ancestorNamespaces: ref.ancestorNamespaces,
     };
 
     // Only a same-document URI dereferences without comments; validateReference resolves no
     // XPointer: https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document
     const discardComments = ref.uri === "" || ref.uri.startsWith("#");
-    return this.canonicalize(ref.transforms, node, c14nOptions, { discardComments });
+    return this.canonicalize(ref.transforms, node, c14nOptions, {
+      discardComments,
+      prefixLists: this.loadedPrefixLists.get(ref) ?? this.getSigningPrefixLists(ref),
+    });
+  }
+
+  // Signing gives the reference's current list to the exclusive canonicalization transforms, the
+  // ones createReferences writes it under, so the digest matches the Transforms it serializes.
+  private getSigningPrefixLists(ref: Reference): string[][] {
+    return ref.transforms.map((transform) =>
+      isExclusiveC14n(this.findCanonicalizationAlgorithm(transform).getAlgorithmName())
+        ? ref.inclusiveNamespacesPrefixList
+        : [],
+    );
   }
 
   private calculateSignatureValue(doc: Document, callback?: ErrorFirstCallback<string>) {
@@ -767,7 +798,9 @@ export class SignedXml {
     }
 
     const transforms: string[] = [];
-    let inclusiveNamespacesPrefixList: string[] = [];
+    // A Transform's content governs only that transform, so each one keeps the PrefixList it
+    // carries: https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
+    const prefixLists: string[][] = [];
     nodes = utils.findChildren(refNode, "Transforms");
     if (nodes.length !== 0) {
       const transformsNode = nodes[0];
@@ -777,25 +810,29 @@ export class SignedXml {
 
         if (transformAttr) {
           transforms.push(transformAttr.value);
+          // PrefixList is NMTOKENS, delimited by XML white space:
+          // https://www.w3.org/TR/xml-exc-c14n/#sec-Use
+          prefixLists.push(
+            utils
+              .findChildren(transform, "InclusiveNamespaces")
+              .flatMap((namespace) =>
+                (namespace.getAttribute("PrefixList") ?? "").split(/[ \t\r\n]+/),
+              )
+              .filter((value) => value.length > 0),
+          );
         }
       }
-
-      // This is a little strange, we are looking for children of the last child of `transformsNode`
-      const inclusiveNamespaces = utils.findChildren(
-        transformsAll[transformsAll.length - 1],
-        "InclusiveNamespaces",
-      );
-      if (utils.isArrayHasLength(inclusiveNamespaces)) {
-        // Should really only be one prefix list, but maybe there's some circumstances where more than one to let's handle it
-        inclusiveNamespacesPrefixList = inclusiveNamespaces
-          .flatMap((namespace) => (namespace.getAttribute("PrefixList") ?? "").split(" "))
-          .filter((value) => value.length > 0);
-      }
     }
+
+    // A Reference exposes one list, so it reports the last exclusive transform's. An implicit
+    // transform has no Transform to carry parameters, so it takes that list.
+    const inclusiveNamespacesPrefixList =
+      prefixLists.filter((_, index) => isExclusiveC14n(transforms[index])).pop() ?? [];
 
     if (utils.isArrayHasLength(this.implicitTransforms)) {
       this.implicitTransforms.forEach(function (t) {
         transforms.push(t);
+        prefixLists.push(inclusiveNamespacesPrefixList);
       });
     }
 
@@ -826,6 +863,7 @@ export class SignedXml {
       inclusiveNamespacesPrefixList,
       isEmptyUri: false,
     });
+    this.loadedPrefixLists.set(this.references[this.references.length - 1], prefixLists);
   }
 
   /**
@@ -1152,10 +1190,9 @@ export class SignedXml {
       ref.transforms,
       node,
       {
-        inclusiveNamespacesPrefixList: ref.inclusiveNamespacesPrefixList,
         ancestorNamespaces: ref.ancestorNamespaces,
       },
-      { discardComments: true },
+      { discardComments: true, prefixLists: this.getSigningPrefixLists(ref) },
     );
     return this.findHashAlgorithm(ref.digestAlgorithm).getHash(canonXml);
   }
@@ -1263,9 +1300,12 @@ export class SignedXml {
           );
           transformElem.setAttribute("Algorithm", transform.getAlgorithmName());
 
-          if (utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList)) {
+          if (
+            utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList) &&
+            isExclusiveC14n(transform.getAlgorithmName())
+          ) {
             const inclusiveNamespacesElem = signatureDoc.createElementNS(
-              transform.getAlgorithmName(),
+              exclusiveC14nNamespace,
               "InclusiveNamespaces",
             );
             inclusiveNamespacesElem.setAttribute(
@@ -1365,7 +1405,10 @@ export class SignedXml {
     transforms: Reference["transforms"],
     node: Node,
     options: CanonicalizationOrTransformationAlgorithmProcessOptions,
-    { discardComments }: { discardComments: boolean },
+    {
+      discardComments,
+      prefixLists,
+    }: { discardComments: boolean; prefixLists?: ReadonlyArray<string[]> },
   ) {
     options.defaultNsForPrefix = options.defaultNsForPrefix ?? SignedXml.defaultNsForPrefix;
     options.signatureNode = this.signatureNode;
@@ -1396,7 +1439,7 @@ export class SignedXml {
 
     // Octets are parsed into a node-set for the next transform, and a node-set left at the end is
     // converted to octets with C14N: https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
-    for (const transformName of transforms) {
+    for (const [index, transformName] of transforms.entries()) {
       if (!isDomNode.isNodeLike(transformedXml)) {
         transformedXml = this.parseTransformInput(transformedXml, transformName);
         // The parsed octets are a new document, so the referenced node's ancestors are gone.
@@ -1407,9 +1450,13 @@ export class SignedXml {
           signatureNode: this.findLoadedSignature(transformedXml) ?? options.signatureNode,
         };
       }
+      // Each transform takes only the parameters of its own Transform:
+      // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
       transformedXml = this.findCanonicalizationAlgorithm(transformName).process(
         transformedXml,
-        transformOptions,
+        prefixLists
+          ? { ...transformOptions, inclusiveNamespacesPrefixList: prefixLists[index] ?? [] }
+          : transformOptions,
       );
     }
 
