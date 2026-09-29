@@ -475,9 +475,9 @@ describe("Signature integration tests", function () {
     }
 
     for (const fixture of [
-      "dotnet_inclusive_namespaces_exc_c14n.xml",
-      "dotnet_inclusive_namespaces_exc_c14n_with_comments.xml",
-      "dotnet_inclusive_namespaces_enveloped_signature_after_exc_c14n.xml",
+      "inclusive_namespaces_exc_c14n.xml",
+      "inclusive_namespaces_exc_c14n_with_comments.xml",
+      "inclusive_namespaces_enveloped_signature_after_exc_c14n.xml",
       "inclusive_namespaces_in_with_comments_namespace.xml",
       // PrefixList="a&#x9;b" is white space delimited: https://www.w3.org/TR/xml-exc-c14n/#sec-Use
       "inclusive_namespaces_prefix_list_with_tab.xml",
@@ -496,10 +496,7 @@ describe("Signature integration tests", function () {
       // https://www.w3.org/TR/xml-exc-c14n/#sec-Specification
       // https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
       const result = verify(
-        fs.readFileSync(
-          "./test/static/dotnet_inclusive_namespaces_on_second_of_two_exc_c14n.xml",
-          "utf8",
-        ),
+        fs.readFileSync("./test/static/inclusive_namespaces_on_second_of_two_exc_c14n.xml", "utf8"),
       );
 
       expect(result.valid).to.be.true;
@@ -507,8 +504,8 @@ describe("Signature integration tests", function () {
     });
 
     it("should give each transform its own PrefixList when a custom transform sits between", function () {
-      // .NET signed this with an equivalent transform. The first exclusive canonicalization drops the
-      // unused `b`, the custom transform declares it again, and the last one's PrefixList keeps it:
+      // The first exclusive canonicalization drops the unused `b`, the custom transform declares it
+      // again, and the last one's PrefixList keeps it:
       // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
       class DeclareB {
         process(node: Node) {
@@ -522,10 +519,7 @@ describe("Signature integration tests", function () {
       }
 
       const result = verify(
-        fs.readFileSync(
-          "./test/static/dotnet_inclusive_namespaces_after_custom_transform.xml",
-          "utf8",
-        ),
+        fs.readFileSync("./test/static/inclusive_namespaces_after_custom_transform.xml", "utf8"),
         (verifier) => {
           verifier.CanonicalizationAlgorithms["urn:xml-crypto:test:declare-b"] = DeclareB;
         },
