@@ -111,17 +111,29 @@ describe("Algorithm URI whitespace diagnostics", function () {
     const raw = "http://example.invalid/not-an-algorithm           ";
     const xml = wrapAlgorithm(signBook(), "SignatureMethod", RSA_SHA1, raw);
     const sig = load(xml);
-    expect(() => sig.checkSignature(xml)).to.throw(
-      `signature algorithm ${JSON.stringify(raw)} is not supported`,
-    );
+    expect(() => sig.checkSignature(xml))
+      .to.throw(Error)
+      .with.property("message", `signature algorithm ${JSON.stringify(raw)} is not supported`);
+  });
+
+  it("does not report an inherited Object property as a supported algorithm", function () {
+    const raw = " constructor ";
+    const xml = wrapAlgorithm(signBook(), "SignatureMethod", RSA_SHA1, raw);
+    const sig = load(xml);
+    expect(() => sig.checkSignature(xml))
+      .to.throw(Error)
+      .with.property("message", `signature algorithm ${JSON.stringify(raw)} is not supported`);
   });
 
   it("does not treat NBSP as Algorithm whitespace", function () {
     const raw = `\u00A0${C14N}`;
     const xml = wrapAlgorithm(signBook(), "CanonicalizationMethod", C14N, raw);
-    expect(() => load(xml)).to.throw(
-      `canonicalization algorithm ${JSON.stringify(raw)} is not supported`,
-    );
+    expect(() => load(xml))
+      .to.throw(Error)
+      .with.property(
+        "message",
+        `canonicalization algorithm ${JSON.stringify(raw)} is not supported`,
+      );
   });
 });
 

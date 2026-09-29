@@ -546,11 +546,7 @@ export class SignedXml {
       return new algo();
     }
     throw new Error(
-      utils.formatUnsupportedAlgorithmMessage(
-        "signature",
-        name,
-        (collapsed) => this.SignatureAlgorithms[collapsed as SignatureAlgorithmType] != null,
-      ),
+      utils.formatUnsupportedAlgorithmMessage("signature", name, this.SignatureAlgorithms),
     );
   }
 
@@ -566,9 +562,7 @@ export class SignedXml {
       utils.formatUnsupportedAlgorithmMessage(
         "canonicalization",
         String(name),
-        (collapsed) =>
-          this.CanonicalizationAlgorithms[collapsed as CanonicalizationOrTransformAlgorithmType] !=
-          null,
+        this.CanonicalizationAlgorithms,
       ),
     );
   }
@@ -578,13 +572,7 @@ export class SignedXml {
     if (algo) {
       return new algo();
     }
-    throw new Error(
-      utils.formatUnsupportedAlgorithmMessage(
-        "hash",
-        name,
-        (collapsed) => this.HashAlgorithms[collapsed as HashAlgorithmType] != null,
-      ),
-    );
+    throw new Error(utils.formatUnsupportedAlgorithmMessage("hash", name, this.HashAlgorithms));
   }
 
   /**

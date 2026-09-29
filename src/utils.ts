@@ -43,11 +43,13 @@ function collapseAnyUri(value: string): string {
 export function formatUnsupportedAlgorithmMessage(
   kind: "signature" | "canonicalization" | "hash",
   name: string,
-  isSupportedWhenCollapsed: (collapsed: string) => boolean,
+  registry: object,
 ): string {
   const base = `${kind} algorithm ${JSON.stringify(name)} is not supported`;
   const collapsed = collapseAnyUri(name);
-  if (collapsed !== name && isSupportedWhenCollapsed(collapsed)) {
+  // Own properties only: the registries are object literals, so `registry["constructor"]` is
+  // inherited from Object.prototype and names no algorithm.
+  if (collapsed !== name && Object.prototype.hasOwnProperty.call(registry, collapsed)) {
     return (
       `${base}; after collapsing XML whitespace it matches the supported ` +
       `algorithm ${JSON.stringify(collapsed)}. Algorithm attribute whitespace ` +
