@@ -461,10 +461,11 @@ describe("Signature integration tests", function () {
     // Nothing uses `b`, so exclusive canonicalization renders it only when it reads the PrefixList.
     const signedReference = xml;
 
-    function verify(signedXml: string) {
+    function verify(signedXml: string, configure?: (verifier: SignedXml) => void) {
       const verifier = new SignedXml({
         publicCert: fs.readFileSync("./test/static/client_public.pem"),
       });
+      configure?.(verifier);
       verifier.loadSignature(
         verifier.findSignatures(new xmldom.DOMParser().parseFromString(signedXml))[0],
       );
@@ -501,6 +502,35 @@ describe("Signature integration tests", function () {
 
       expect(result.valid).to.be.true;
       expect(result.signedReferences).to.deep.equal(["<root><x>text</x></root>"]);
+    });
+
+    it("should give each transform its own PrefixList when a custom transform sits between", function () {
+      // .NET signed this with an equivalent transform. The first exclusive canonicalization drops the
+      // unused `b`, the custom transform declares it again, and the last one's PrefixList keeps it:
+      // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
+      class DeclareB {
+        process(node: Node) {
+          (node as Element).setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:b", "urn:b");
+          return node;
+        }
+
+        getAlgorithmName() {
+          return "urn:xml-crypto:test:declare-b";
+        }
+      }
+
+      const result = verify(
+        fs.readFileSync(
+          "./test/static/dotnet_inclusive_namespaces_after_custom_transform.xml",
+          "utf8",
+        ),
+        (verifier) => {
+          verifier.CanonicalizationAlgorithms["urn:xml-crypto:test:declare-b"] = DeclareB;
+        },
+      );
+
+      expect(result.valid).to.be.true;
+      expect(result.signedReferences).to.deep.equal(['<x xmlns:b="urn:b" Id="target">text</x>']);
     });
 
     for (const { description, transforms } of [
