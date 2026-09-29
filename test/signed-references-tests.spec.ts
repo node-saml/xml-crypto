@@ -44,7 +44,7 @@ describe("Signed references", function () {
       "the SignatureMethod is not enabled",
       (xml) => xml.replace(rsaSha256, hmacSha1),
       { publicCert },
-      `signature algorithm '${hmacSha1}' is not supported`,
+      `signature algorithm ${JSON.stringify(hmacSha1)} is not supported`,
     ],
     [
       "there is no SignatureMethod",
@@ -60,7 +60,7 @@ describe("Signed references", function () {
           "$1urn:example:unknown",
         ),
       { publicCert },
-      "hash algorithm 'urn:example:unknown' is not supported",
+      `hash algorithm ${JSON.stringify("urn:example:unknown")} is not supported`,
     ],
     [
       "the id the second Reference points at is not unique",
