@@ -813,10 +813,14 @@ export class SignedXml {
 
         if (transformAttr) {
           transforms.push(transformAttr.value);
+          // PrefixList is NMTOKENS, delimited by XML white space:
+          // https://www.w3.org/TR/xml-exc-c14n/#sec-Use
           prefixLists.push(
             utils
               .findChildren(transform, "InclusiveNamespaces")
-              .flatMap((namespace) => (namespace.getAttribute("PrefixList") ?? "").split(" "))
+              .flatMap((namespace) =>
+                (namespace.getAttribute("PrefixList") ?? "").split(/[ \t\r\n]+/),
+              )
               .filter((value) => value.length > 0),
           );
         }

@@ -479,6 +479,8 @@ describe("Signature integration tests", function () {
       "dotnet_inclusive_namespaces_exc_c14n_with_comments.xml",
       "dotnet_inclusive_namespaces_enveloped_signature_after_exc_c14n.xml",
       "inclusive_namespaces_in_with_comments_namespace.xml",
+      // PrefixList="a&#x9;b" is white space delimited: https://www.w3.org/TR/xml-exc-c14n/#sec-Use
+      "inclusive_namespaces_prefix_list_with_tab.xml",
     ]) {
       it(`should verify ${fixture}`, function () {
         const result = verify(fs.readFileSync(`./test/static/${fixture}`, "utf8"));
