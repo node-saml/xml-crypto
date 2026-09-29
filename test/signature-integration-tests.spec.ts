@@ -529,6 +529,28 @@ describe("Signature integration tests", function () {
       expect(result.signedReferences).to.deep.equal(['<x xmlns:b="urn:b" Id="target">text</x>']);
     });
 
+    it("should sign a loaded reference with its current PrefixList", function () {
+      const signedXml = fs.readFileSync("./test/static/inclusive_namespaces_exc_c14n.xml", "utf8");
+      const sig = new SignedXml({
+        privateKey: fs.readFileSync("./test/static/client.pem"),
+        publicCert: fs.readFileSync("./test/static/client_public.pem"),
+        canonicalizationAlgorithm: exclusiveC14n,
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      sig.loadSignature(sig.findSignatures(new xmldom.DOMParser().parseFromString(signedXml))[0]);
+      expect(sig.checkSignature(signedXml)).to.be.true;
+      const [reference] = sig.getReferences();
+      reference.xpath = "/*";
+      reference.isEmptyUri = true;
+      reference.inclusiveNamespacesPrefixList = ["c"];
+      sig.computeSignature('<root xmlns:b="urn:b" xmlns:c="urn:c"><x>text</x></root>');
+
+      const result = verify(sig.getSignedXml());
+
+      expect(result.valid).to.be.true;
+      expect(result.signedReferences).to.deep.equal(['<root xmlns:c="urn:c"><x>text</x></root>']);
+    });
+
     for (const { description, transforms } of [
       {
         description: "exclusive canonicalization after enveloped-signature",

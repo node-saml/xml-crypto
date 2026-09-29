@@ -135,7 +135,8 @@ export class SignedXml {
   private references: Reference[] = [];
 
   /**
-   * The PrefixList each Transform of a loaded {@link Reference} carries, in transform order.
+   * The PrefixList each Transform of a loaded {@link Reference} carries, in transform order, which
+   * verification applies.
    */
   private loadedPrefixLists = new WeakMap<Reference, string[][]>();
 
@@ -509,21 +510,17 @@ export class SignedXml {
     const discardComments = ref.uri === "" || ref.uri.startsWith("#");
     return this.canonicalize(ref.transforms, node, c14nOptions, {
       discardComments,
-      prefixLists: this.getPrefixLists(ref),
+      prefixLists: this.loadedPrefixLists.get(ref) ?? this.getSigningPrefixLists(ref),
     });
   }
 
-  // A transform canonicalizes with the PrefixList its own Transform carries: for a loaded reference,
-  // the list read from each; for one being signed, the reference's list, which createReferences
-  // writes only under exclusive canonicalization transforms.
-  private getPrefixLists(ref: Reference): string[][] {
-    return (
-      this.loadedPrefixLists.get(ref) ??
-      ref.transforms.map((transform) =>
-        isExclusiveC14n(this.findCanonicalizationAlgorithm(transform).getAlgorithmName())
-          ? ref.inclusiveNamespacesPrefixList
-          : [],
-      )
+  // Signing gives the reference's current list to the exclusive canonicalization transforms, the
+  // ones createReferences writes it under, so the digest matches the Transforms it serializes.
+  private getSigningPrefixLists(ref: Reference): string[][] {
+    return ref.transforms.map((transform) =>
+      isExclusiveC14n(this.findCanonicalizationAlgorithm(transform).getAlgorithmName())
+        ? ref.inclusiveNamespacesPrefixList
+        : [],
     );
   }
 
@@ -1195,7 +1192,7 @@ export class SignedXml {
       {
         ancestorNamespaces: ref.ancestorNamespaces,
       },
-      { discardComments: true, prefixLists: this.getPrefixLists(ref) },
+      { discardComments: true, prefixLists: this.getSigningPrefixLists(ref) },
     );
     return this.findHashAlgorithm(ref.digestAlgorithm).getHash(canonXml);
   }
