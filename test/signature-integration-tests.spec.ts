@@ -487,6 +487,22 @@ describe("Signature integration tests", function () {
       });
     }
 
+    it("should verify a PrefixList that only a later exclusive canonicalization carries", function () {
+      // The first transform has no PrefixList, so it drops the unused `b`, and the second parses its
+      // octets, so its PrefixList has nothing to keep:
+      // https://www.w3.org/TR/xml-exc-c14n/#sec-Specification
+      // https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
+      const result = verify(
+        fs.readFileSync(
+          "./test/static/dotnet_inclusive_namespaces_on_second_of_two_exc_c14n.xml",
+          "utf8",
+        ),
+      );
+
+      expect(result.valid).to.be.true;
+      expect(result.signedReferences).to.deep.equal(["<root><x>text</x></root>"]);
+    });
+
     for (const { description, transforms } of [
       {
         description: "exclusive canonicalization after enveloped-signature",

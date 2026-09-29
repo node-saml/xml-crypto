@@ -793,17 +793,26 @@ export class SignedXml {
         }
       }
 
-      const exclusiveC14nTransform = transformsAll
+      // A PrefixList governs only its own Transform. Exclusive canonicalization drops a declaration
+      // its element doesn't visibly use unless the list names the prefix, and the next transform
+      // parses those octets, so nothing later restores it. An unused declaration therefore survives
+      // only if every exclusive transform's list names it, and applying just those prefixes at every
+      // exclusive transform renders the same output:
+      // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
+      // https://www.w3.org/TR/xml-exc-c14n/#sec-Specification
+      // https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
+      const prefixLists = transformsAll
         .filter((transform) => isExclusiveC14n(utils.findAttr(transform, "Algorithm")?.value))
-        .pop();
-      const inclusiveNamespaces = exclusiveC14nTransform
-        ? utils.findChildren(exclusiveC14nTransform, "InclusiveNamespaces")
-        : [];
-      if (utils.isArrayHasLength(inclusiveNamespaces)) {
-        // Should really only be one prefix list, but maybe there's some circumstances where more than one to let's handle it
-        inclusiveNamespacesPrefixList = inclusiveNamespaces
-          .flatMap((namespace) => (namespace.getAttribute("PrefixList") ?? "").split(" "))
-          .filter((value) => value.length > 0);
+        .map((transform) =>
+          utils
+            .findChildren(transform, "InclusiveNamespaces")
+            .flatMap((namespace) => (namespace.getAttribute("PrefixList") ?? "").split(" "))
+            .filter((value) => value.length > 0),
+        );
+      if (utils.isArrayHasLength(prefixLists)) {
+        inclusiveNamespacesPrefixList = prefixLists.reduce((kept, list) =>
+          kept.filter((prefix) => list.includes(prefix)),
+        );
       }
     }
 
