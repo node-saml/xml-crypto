@@ -34,7 +34,7 @@ describe("signature location errors", function () {
           location: { reference: "/*", action },
         }),
       ).to.throw(
-        ``location.reference` refers to the root element, so we can't insert \`${action}\``,
+        "`location.reference` refers to the root element, so we can't insert `" + action + "`",
       );
     });
 
@@ -46,7 +46,7 @@ describe("signature location errors", function () {
           location: { reference: "//@id", action },
         }),
       ).to.throw(
-        ``location.reference` selects a node without a parent, so we can't insert \`${action}\``,
+        "`location.reference` selects a node without a parent, so we can't insert `" + action + "`",
       );
     });
 
