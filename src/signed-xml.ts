@@ -136,10 +136,6 @@ export class SignedXml {
    */
   private references: Reference[] = [];
 
-  /**
-   * The PrefixList each Transform of a loaded {@link Reference} carries, in transform order, which
-   * verification applies.
-   */
   private loadedPrefixLists = new WeakMap<Reference, string[][]>();
 
   /**
@@ -806,8 +802,6 @@ export class SignedXml {
     }
 
     const transforms: string[] = [];
-    // A Transform's content governs only that transform, so each one keeps the PrefixList it
-    // carries: https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
     const prefixLists: string[][] = [];
     nodes = utils.findChildren(refNode, "Transforms");
     if (nodes.length !== 0) {
@@ -1458,8 +1452,6 @@ export class SignedXml {
           signatureNode: this.findLoadedSignature(transformedXml) ?? options.signatureNode,
         };
       }
-      // Each transform takes only the parameters of its own Transform:
-      // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
       transformedXml = this.findCanonicalizationAlgorithm(transformName).process(
         transformedXml,
         prefixLists

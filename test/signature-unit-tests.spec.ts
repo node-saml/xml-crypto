@@ -1256,10 +1256,6 @@ describe("Signature unit tests", function () {
     const exclusiveC14n = "http://www.w3.org/2001/10/xml-exc-c14n#";
     const exclusiveC14nWithComments = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments";
     const c14n = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
-    // A Transform carries only its own algorithm's parameters, and PrefixList belongs to exclusive
-    // canonicalization, in its namespace for both identifiers:
-    // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
-    // https://www.w3.org/TR/xml-exc-c14n/#sec-Use
     const prefixList = `{${exclusiveC14n}}InclusiveNamespaces PrefixList="prefix1 prefix2"`;
 
     const cases: { description: string; parameters: [string, string[]][] }[] = [
