@@ -44,17 +44,20 @@ function findSignatureValue(signature: Node): string | undefined {
   return utils.findChildren(signature, "SignatureValue")[0]?.textContent?.replace(/[\t\n\r ]/g, "");
 }
 
-// A Transform carries only its own algorithm's parameters, and InclusiveNamespaces belongs to
-// exclusive canonicalization, in this namespace for both identifiers:
+// A Transform carries only its own algorithm's parameters. InclusiveNamespaces belongs to exclusive
+// canonicalization, in this namespace for both identifiers; Canonical XML 1.0 and the enveloped
+// signature transform take none. A custom algorithm defines its own, so it gets the caller's list:
 // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
 // https://www.w3.org/TR/xml-exc-c14n/#sec-Use
 const exclusiveC14nNamespace = "http://www.w3.org/2001/10/xml-exc-c14n#";
+const transformsWithoutParameters = [
+  "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
+  "http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments",
+  "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+];
 
-function isExclusiveC14n(algorithm: string | undefined): boolean {
-  return (
-    algorithm === exclusiveC14nNamespace ||
-    algorithm === "http://www.w3.org/2001/10/xml-exc-c14n#WithComments"
-  );
+function takesInclusiveNamespaces(algorithm: string): boolean {
+  return !transformsWithoutParameters.includes(algorithm);
 }
 
 function decodeSignatureValue(signature: Node): Buffer {
@@ -514,11 +517,11 @@ export class SignedXml {
     });
   }
 
-  // Signing gives the reference's current list to the exclusive canonicalization transforms, the
-  // ones createReferences writes it under, so the digest matches the Transforms it serializes.
+  // Signing gives the reference's current list to the transforms that take it, the ones
+  // createReferences writes it under, so the digest matches the Transforms it serializes.
   private getSigningPrefixLists(ref: Reference): string[][] {
     return ref.transforms.map((transform) =>
-      isExclusiveC14n(this.findCanonicalizationAlgorithm(transform).getAlgorithmName())
+      takesInclusiveNamespaces(this.findCanonicalizationAlgorithm(transform).getAlgorithmName())
         ? ref.inclusiveNamespacesPrefixList
         : [],
     );
@@ -830,10 +833,10 @@ export class SignedXml {
       }
     }
 
-    // A Reference exposes one list, so it reports the last exclusive transform's. An implicit
-    // transform has no Transform to carry parameters, so it takes that list.
+    // A Reference exposes one list, so it reports the last one a transform that takes it carries.
+    // An implicit transform has no Transform to carry parameters, so it takes that list.
     const inclusiveNamespacesPrefixList =
-      prefixLists.filter((_, index) => isExclusiveC14n(transforms[index])).pop() ?? [];
+      prefixLists.filter((_, index) => takesInclusiveNamespaces(transforms[index])).pop() ?? [];
 
     if (utils.isArrayHasLength(this.implicitTransforms)) {
       this.implicitTransforms.forEach(function (t) {
@@ -1308,7 +1311,7 @@ export class SignedXml {
 
           if (
             utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList) &&
-            isExclusiveC14n(transform.getAlgorithmName())
+            takesInclusiveNamespaces(transform.getAlgorithmName())
           ) {
             const inclusiveNamespacesElem = signatureDoc.createElementNS(
               exclusiveC14nNamespace,

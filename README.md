@@ -357,7 +357,7 @@ To sign xml documents:
   - `id` - an optional `Id` attribute to add to the reference element
   - `type` - the optional `Type` attribute to add to the reference element (represented as a URI)
   - `isEmptyUri` - optional, default `false` - when `true`, the reference is written as `URI=""`, which [refers to the whole document](https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document), and no `Id` is added to the referenced element. `xpath` must then select the document element, for example `/*`: a signature that references any other element this way doesn't verify
-  - `inclusiveNamespacesPrefixList` - an optional array of namespace prefixes that exclusive canonicalization of this reference renders even where they aren't visibly used. It is written as the [`InclusiveNamespaces` `PrefixList`](https://www.w3.org/TR/xml-exc-c14n/#def-InclusiveNamespaces-PrefixList) parameter of the reference's exclusive canonicalization transform
+  - `inclusiveNamespacesPrefixList` - an optional array of namespace prefixes that exclusive canonicalization of this reference renders even where they aren't visibly used. It is written as the [`InclusiveNamespaces` `PrefixList`](https://www.w3.org/TR/xml-exc-c14n/#def-InclusiveNamespaces-PrefixList) parameter of the reference's exclusive canonicalization and custom transforms
 - `computeSignature(xml, [options])` - compute the signature of the given xml where:
   - `xml` - a string containing a xml document
   - `options` - an object with the following properties:

@@ -3,6 +3,7 @@ import * as xmldom from "@xmldom/xmldom";
 import {
   C14nCanonicalization,
   ComputeSignatureOptionsLocation,
+  ExclusiveCanonicalization,
   SignedXml,
   SignedXmlOptions,
 } from "../src/index";
@@ -471,7 +472,11 @@ describe("Signature integration tests", function () {
       );
       const valid = verifier.checkSignature(signedXml);
 
-      return { valid, signedReferences: verifier.getSignedReferences() };
+      return {
+        valid,
+        signedReferences: verifier.getSignedReferences(),
+        references: verifier.getReferences(),
+      };
     }
 
     for (const fixture of [
@@ -586,6 +591,44 @@ describe("Signature integration tests", function () {
         expect(result.signedReferences).to.deep.equal([signedReference]);
       });
     }
+
+    it("should sign the PrefixList for a custom exclusive canonicalization", function () {
+      const customExclusiveC14n = "urn:xml-crypto:test:custom-exc-c14n";
+      class CustomExclusiveC14n extends ExclusiveCanonicalization {
+        getAlgorithmName() {
+          return customExclusiveC14n;
+        }
+      }
+      const registerCustom = (sig: SignedXml) => {
+        sig.CanonicalizationAlgorithms[customExclusiveC14n] = CustomExclusiveC14n;
+      };
+      const sig = new SignedXml({
+        privateKey: fs.readFileSync("./test/static/client.pem"),
+        canonicalizationAlgorithm: exclusiveC14n,
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+      });
+      registerCustom(sig);
+      sig.addReference({
+        xpath: "/*",
+        isEmptyUri: true,
+        transforms: [envelopedSignature, customExclusiveC14n],
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        inclusiveNamespacesPrefixList: ["b"],
+      });
+      sig.computeSignature(xml);
+      const signedXml = sig.getSignedXml();
+
+      const result = verify(signedXml, registerCustom);
+      const rebound = verify(
+        signedXml.replace('xmlns:b="urn:b"', 'xmlns:b="urn:evil"'),
+        registerCustom,
+      );
+
+      expect(result.valid).to.be.true;
+      expect(result.signedReferences).to.deep.equal([signedReference]);
+      expect(result.references[0].inclusiveNamespacesPrefixList).to.deep.equal(["b"]);
+      expect(rebound.valid).to.be.false;
+    });
   });
 
   it("should still verify a loaded signature after signing another document fails", function () {
