@@ -1117,7 +1117,7 @@ export class SignedXml {
         referenceNode.appendChild(signatureElem);
       } else if (location.action === "prepend") {
         referenceNode.insertBefore(signatureElem, referenceNode.firstChild);
-      } else if (location.action === "before" || location.action === "after") {
+      } else {
         const parentNode = referenceNode.parentNode;
         if (referenceNode === doc.documentElement) {
           throw new Error(
