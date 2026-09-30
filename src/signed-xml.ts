@@ -1119,9 +1119,16 @@ export class SignedXml {
         referenceNode.insertBefore(signatureElem, referenceNode.firstChild);
       } else if (location.action === "before" || location.action === "after") {
         const parentNode = referenceNode.parentNode;
-        if (isDomNode.isDocumentNode(parentNode)) {
+        if (referenceNode === doc.documentElement) {
           throw new Error(
             "`location.reference` refers to the root element, so we can't insert `" +
+              location.action +
+              "`",
+          );
+        }
+        if (isDomNode.isDocumentNode(parentNode)) {
+          throw new Error(
+            "`location.reference` selects a document-level node, so we can't insert `" +
               location.action +
               "`",
           );
