@@ -6,6 +6,11 @@
 depended on by security-sensitive projects such as `node-saml`, so a bug here can become
 an authentication bypass downstream. Treat every change as security-relevant.
 
+## Purpose and scope
+
+Keep the library secure, spec-compliant, and easy to use. Verify a concrete security,
+correctness, conformance, or usability problem before proposing or doing work.
+
 ## Layout
 
 - `src/` — TypeScript source; the only code that ships.
