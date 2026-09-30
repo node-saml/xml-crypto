@@ -37,10 +37,7 @@ describe("SignedXml constructor options", function () {
     const signedXml = signer.getSignedXml();
     const doc = new xmldom.DOMParser().parseFromString(signedXml);
     const item = xpath.select1("//*[local-name(.)='item']", doc);
-    const referenceUri = xpath.select1(
-      "string(//*[local-name(.)='Reference']/@URI)",
-      doc,
-    );
+    const referenceUri = xpath.select1("string(//*[local-name(.)='Reference']/@URI)", doc);
     isDomNode.assertIsElementNode(item);
 
     expect(referenceUri).to.equal("#item-1");
