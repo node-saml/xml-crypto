@@ -1121,12 +1121,16 @@ export class SignedXml {
         const parentNode = referenceNode.parentNode;
         if (isDomNode.isDocumentNode(parentNode)) {
           throw new Error(
-            ``location.reference` refers to the root element, so we can't insert \`${location.action}\``,
+            "`location.reference` refers to the root element, so we can't insert `" +
+              location.action +
+              "`",
           );
         }
         if (parentNode == null) {
           throw new Error(
-            ``location.reference` selects a node without a parent, so we can't insert \`${location.action}\``,
+            "`location.reference` selects a node without a parent, so we can't insert `" +
+              location.action +
+              "`",
           );
         }
         parentNode.insertBefore(
