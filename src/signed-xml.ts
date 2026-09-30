@@ -1119,25 +1119,9 @@ export class SignedXml {
         referenceNode.insertBefore(signatureElem, referenceNode.firstChild);
       } else {
         const parentNode = referenceNode.parentNode;
-        if (referenceNode === doc.documentElement) {
-          throw new Error(
-            `\`location.reference\` refers to the root element, so we can't insert \`${
-              location.action
-            }\``,
-          );
-        }
-        if (isDomNode.isDocumentNode(parentNode)) {
-          throw new Error(
-            `\`location.reference\` selects a document-level node, so we can't insert \`${
-              location.action
-            }\``,
-          );
-        }
         if (parentNode == null) {
           throw new Error(
-            `\`location.reference\` selects a node without a parent, so we can't insert \`${
-              location.action
-            }\``,
+            `\`location.reference\` selects a node without a parent, so we can't insert \`${location.action}\``,
           );
         }
         parentNode.insertBefore(

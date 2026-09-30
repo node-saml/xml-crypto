@@ -432,6 +432,28 @@ describe("Signature unit tests", function () {
     );
   });
 
+  for (const action of ["before", "after"] as const) {
+    it(`signer rejects inserting signature ${action} a node without a parent`, function () {
+      const sig = new SignedXml();
+
+      sig.privateKey = fs.readFileSync("./test/static/client.pem");
+      sig.addReference({
+        xpath: "//*[local-name(.)='repository']",
+        digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      });
+
+      sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+      sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+
+      expect(() =>
+        sig.computeSignature('<root><repository id="r">github</repository></root>', {
+          location: { reference: "//@id", action },
+        }),
+      ).to.throw(`selects a node without a parent, so we can't insert \`${action}\``);
+    });
+  }
+
   it("signer creates signature with correct structure", function () {
     class DummyDigest {
       getHash = function () {
