@@ -44,9 +44,8 @@ function findSignatureValue(signature: Node): string | undefined {
   return utils.findChildren(signature, "SignatureValue")[0]?.textContent?.replace(/[\t\n\r ]/g, "");
 }
 
-// A Transform carries only its own algorithm's parameters. InclusiveNamespaces belongs to exclusive
-// canonicalization, in this namespace for both identifiers; Canonical XML 1.0 and the enveloped
-// signature transform take none. A custom algorithm defines its own, so it gets the caller's list:
+// A Transform carries only its own algorithm's parameters, and InclusiveNamespaces belongs to
+// exclusive canonicalization, in this namespace for both identifiers:
 // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
 // https://www.w3.org/TR/xml-exc-c14n/#sec-Use
 const exclusiveC14nNamespace = "http://www.w3.org/2001/10/xml-exc-c14n#";
