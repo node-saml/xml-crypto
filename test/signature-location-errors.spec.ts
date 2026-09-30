@@ -50,6 +50,20 @@ describe("signature location errors", function () {
       );
     });
 
+    it(`reports a document-level processing instruction for ${action}`, function () {
+      const signer = createSigner();
+
+      expect(() =>
+        signer.computeSignature("<?pi data?><root><a>trusted</a></root>", {
+          location: { reference: "/processing-instruction()", action },
+        }),
+      ).to.throw(
+        "`location.reference` selects a document-level node, so we can't insert `" +
+          action +
+          "`",
+      );
+    });
+
     it(`still accepts a text node for ${action}`, function () {
       const signer = createSigner();
       signer.computeSignature("<root><a>trusted</a>text</root>", {
