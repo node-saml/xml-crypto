@@ -1,12 +1,12 @@
 import * as fs from "fs";
 import * as xmldom from "@xmldom/xmldom";
 import { expect } from "chai";
-import * as isDomNode from "@xmldom/is-dom-node";
 import { SignedXml, SignedXmlOptions } from "../src/index";
 
 const exclusiveC14n = "http://www.w3.org/2001/10/xml-exc-c14n#";
+const envelopedSignature = "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
 
-function sign(xml: string, options: SignedXmlOptions = {}) {
+function sign(xml: string, options: SignedXmlOptions = {}, transforms = [exclusiveC14n]) {
   const signer = new SignedXml({
     ...options,
     privateKey: fs.readFileSync("./test/static/client.pem"),
@@ -15,23 +15,18 @@ function sign(xml: string, options: SignedXmlOptions = {}) {
   });
   signer.addReference({
     xpath: "//*[local-name(.)='item']",
-    transforms: [exclusiveC14n],
+    transforms,
     digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
   });
   signer.computeSignature(xml);
   return signer.getSignedXml();
 }
 
-function verify(
-  signedXml: string,
-  options: SignedXmlOptions = {},
-  configure?: (verifier: SignedXml) => void,
-) {
+function verify(signedXml: string, options: SignedXmlOptions = {}) {
   const verifier = new SignedXml({
     ...options,
     publicCert: fs.readFileSync("./test/static/client_public.pem"),
   });
-  configure?.(verifier);
   verifier.loadSignature(
     verifier.findSignatures(new xmldom.DOMParser().parseFromString(signedXml))[0],
   );
@@ -52,30 +47,15 @@ describe("SignedXml constructor options", function () {
   });
 
   it("applies implicitTransforms when verifying", function () {
-    const stripNote = "urn:xml-crypto:test:strip-note";
-    class StripNote {
-      process(node: Node) {
-        isDomNode.assertIsElementNode(node);
-        node.removeAttribute("note");
-        return node;
-      }
+    const embedded = sign('<root><item Id="item">trusted</item></root>', {}, [
+      envelopedSignature,
+    ]).replace("<root>", '<root xmlns:env="urn:envelope">');
 
-      getAlgorithmName() {
-        return stripNote;
-      }
-    }
-    const registerStripNote = (verifier: SignedXml) => {
-      verifier.CanonicalizationAlgorithms[stripNote] = StripNote;
-    };
-    const annotated = sign('<root><item Id="item">trusted</item></root>').replace(
-      '<item Id="item">',
-      '<item Id="item" note="added">',
-    );
-
-    const withoutImplicit = verify(annotated, {}, registerStripNote);
-    const withImplicit = verify(annotated, { implicitTransforms: [stripNote] }, registerStripNote);
+    const withoutImplicit = verify(embedded);
+    const withImplicit = verify(embedded, { implicitTransforms: [exclusiveC14n] });
 
     expect(withoutImplicit.valid).to.be.false;
     expect(withImplicit.valid).to.be.true;
+    expect(withImplicit.signedReferences).to.deep.equal(['<item Id="item">trusted</item>']);
   });
 });
