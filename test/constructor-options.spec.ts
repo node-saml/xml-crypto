@@ -6,7 +6,7 @@ import { SignedXml, SignedXmlOptions } from "../src/index";
 const exclusiveC14n = "http://www.w3.org/2001/10/xml-exc-c14n#";
 const envelopedSignature = "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
 
-function sign(xml: string, options: SignedXmlOptions = {}, transforms = [exclusiveC14n]) {
+function sign(xml: string, transforms: string[], options: SignedXmlOptions = {}) {
   const signer = new SignedXml({
     ...options,
     privateKey: fs.readFileSync("./test/static/client.pem"),
@@ -38,7 +38,11 @@ function verify(signedXml: string, options: SignedXmlOptions = {}) {
 describe("SignedXml constructor options", function () {
   it("reuses the ID in idAttribute when signing and finds it when verifying", function () {
     const options = { idAttribute: "AssertionID" };
-    const signedXml = sign('<root><item AssertionID="item-1">trusted</item></root>', options);
+    const signedXml = sign(
+      '<root><item AssertionID="item-1">trusted</item></root>',
+      [exclusiveC14n],
+      options,
+    );
 
     const result = verify(signedXml, options);
 
@@ -47,7 +51,7 @@ describe("SignedXml constructor options", function () {
   });
 
   it("applies implicitTransforms when verifying", function () {
-    const embedded = sign('<root><item Id="item">trusted</item></root>', {}, [
+    const embedded = sign('<root><item Id="item">trusted</item></root>', [
       envelopedSignature,
     ]).replace("<root>", '<root xmlns:env="urn:envelope">');
 
