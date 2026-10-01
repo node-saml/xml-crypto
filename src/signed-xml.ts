@@ -1117,20 +1117,17 @@ export class SignedXml {
         referenceNode.appendChild(signatureElem);
       } else if (location.action === "prepend") {
         referenceNode.insertBefore(signatureElem, referenceNode.firstChild);
-      } else if (location.action === "before") {
-        if (referenceNode.parentNode == null) {
+      } else {
+        const parentNode = referenceNode.parentNode;
+        if (parentNode == null) {
           throw new Error(
-            "`location.reference` refers to the root node (by default), so we can't insert `before`",
+            `\`location.reference\` selects a node without a parent, so we can't insert \`${location.action}\``,
           );
         }
-        referenceNode.parentNode.insertBefore(signatureElem, referenceNode);
-      } else if (location.action === "after") {
-        if (referenceNode.parentNode == null) {
-          throw new Error(
-            "`location.reference` refers to the root node (by default), so we can't insert `after`",
-          );
-        }
-        referenceNode.parentNode.insertBefore(signatureElem, referenceNode.nextSibling);
+        parentNode.insertBefore(
+          signatureElem,
+          location.action === "before" ? referenceNode : referenceNode.nextSibling,
+        );
       }
 
       this.addAllReferences(doc, signatureElem, referenceTargets, prefix);
