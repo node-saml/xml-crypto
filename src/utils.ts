@@ -94,6 +94,11 @@ export function encodeSpecialCharactersInText(text: string): string {
   });
 }
 
+export function renderProcessingInstruction(node: ProcessingInstruction): string {
+  const data = node.data ? ` ${node.data}` : "";
+  return `<?${node.target}${data}?>`;
+}
+
 /*
  * RFC 7468 'textualmsg', with the deviations below.
  * https://www.rfc-editor.org/rfc/rfc7468

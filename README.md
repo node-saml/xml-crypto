@@ -37,6 +37,9 @@ attribute values.
 Ordinary attributes whose names start with `xmlns`, such as `xmlnsRole`, are part of the canonical
 output. Exclusive canonicalization takes `PrefixList` bindings only from namespace declarations.
 
+Processing instructions inside signed content are rendered with their target and `<? ?>`
+delimiters.
+
 ### Comments in referenced content
 
 A `Reference` whose `URI` is empty or `#` followed by an ID, such as `#item`, removes comments from

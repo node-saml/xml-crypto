@@ -207,6 +207,9 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }
+    if (isDomNode.isProcessingInstructionNode(node)) {
+      return utils.renderProcessingInstruction(node);
+    }
     if (node.data) {
       return utils.encodeSpecialCharactersInText(node.data);
     }
