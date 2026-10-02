@@ -94,6 +94,11 @@ export function encodeSpecialCharactersInText(text: string): string {
   });
 }
 
+export function renderProcessingInstruction(node: ProcessingInstruction): string {
+  const data = node.data ? ` ${node.data}` : "";
+  return `<?${node.target}${data}?>`;
+}
+
 /*
  * RFC 7468 'textualmsg', with the deviations below.
  * https://www.rfc-editor.org/rfc/rfc7468
@@ -465,6 +470,26 @@ export function toPem(value: string | Buffer, pemLabel?: PemLabel): string {
   throw new Error("Invalid PEM format.");
 }
 
+export type InheritedXmlAttribute = { localName: string; value: string };
+
+export function findAncestorXmlAttributes(node: Node): InheritedXmlAttribute[] {
+  const attributes = new Map<string, string>();
+  let ancestor = node.parentNode;
+  while (isDomNode.isElementNode(ancestor)) {
+    for (let i = 0; i < ancestor.attributes.length; i++) {
+      const attr = ancestor.attributes[i];
+      if (
+        attr.namespaceURI === "http://www.w3.org/XML/1998/namespace" &&
+        !attributes.has(attr.localName)
+      ) {
+        attributes.set(attr.localName, attr.value);
+      }
+    }
+    ancestor = ancestor.parentNode;
+  }
+  return Array.from(attributes, ([localName, value]) => ({ localName, value }));
+}
+
 function collectAncestorNamespaces(
   node: Element,
   nsArray: NamespacePrefix[] = [],
@@ -482,7 +507,7 @@ function collectAncestorNamespaces(
   if (parent.attributes && parent.attributes.length > 0) {
     for (let i = 0; i < parent.attributes.length; i++) {
       const attr = parent.attributes[i];
-      if (attr && attr.nodeName && attr.nodeName.search(/^xmlns:?/) !== -1) {
+      if (attr && (attr.nodeName === "xmlns" || attr.nodeName.startsWith("xmlns:"))) {
         nsArray.push({
           prefix: attr.nodeName.replace(/^xmlns:?/, ""),
           namespaceURI: attr.nodeValue || "",

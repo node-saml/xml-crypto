@@ -7,6 +7,10 @@ import type {
 import * as utils from "./utils";
 import * as isDomNode from "@xmldom/is-dom-node";
 
+type C14nOptionsWithXmlAttributes = CanonicalizationOrTransformationAlgorithmProcessOptions & {
+  ancestorXmlAttributes?: utils.InheritedXmlAttribute[];
+};
+
 export class C14nCanonicalization implements CanonicalizationOrTransformationAlgorithm {
   protected includeComments = false;
 
@@ -55,8 +59,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     if (node.attributes) {
       for (i = 0; i < node.attributes.length; ++i) {
         attr = node.attributes[i];
-        //ignore namespace definition attributes
-        if (attr.name.indexOf("xmlns") === 0) {
+        if (attr.name === "xmlns" || attr.prefix === "xmlns") {
           continue;
         }
         attrListToRender.push(attr);
@@ -138,7 +141,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
 
     if (nodeDefaultNs !== defaultNs) {
       newDefaultNs = nodeDefaultNs;
-      res.push(' xmlns="', newDefaultNs, '"');
+      res.push(' xmlns="', utils.encodeSpecialCharactersInAttribute(newDefaultNs), '"');
     }
 
     //handle the attributes namespace
@@ -183,10 +186,11 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     //render namespaces
     res.push(
       ...nsListToRender.map((attr) => {
+        const namespaceURI = utils.encodeSpecialCharactersInAttribute(attr.namespaceURI);
         if (attr.prefix) {
-          return ` xmlns:${attr.prefix}="${attr.namespaceURI}"`;
+          return ` xmlns:${attr.prefix}="${namespaceURI}"`;
         }
-        return ` xmlns="${attr.namespaceURI}"`;
+        return ` xmlns="${namespaceURI}"`;
       }),
     );
 
@@ -206,6 +210,9 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
   ) {
     if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
+    }
+    if (isDomNode.isProcessingInstructionNode(node)) {
+      return utils.renderProcessingInstruction(node);
     }
     if (node.data) {
       return utils.encodeSpecialCharactersInText(node.data);
@@ -296,6 +303,24 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     const defaultNs = options.defaultNs || "";
     const defaultNsForPrefix = options.defaultNsForPrefix || {};
     const ancestorNamespaces = options.ancestorNamespaces || [];
+    const inheritedXmlAttributes =
+      (options as C14nOptionsWithXmlAttributes).ancestorXmlAttributes ??
+      utils.findAncestorXmlAttributes(node);
+    let canonicalNode = node;
+    if (isDomNode.isElementNode(node) && inheritedXmlAttributes.length > 0) {
+      const clone = node.cloneNode(true);
+      isDomNode.assertIsElementNode(clone);
+      for (const attr of inheritedXmlAttributes) {
+        if (!clone.hasAttributeNS("http://www.w3.org/XML/1998/namespace", attr.localName)) {
+          clone.setAttributeNS(
+            "http://www.w3.org/XML/1998/namespace",
+            `xml:${attr.localName}`,
+            attr.value,
+          );
+        }
+      }
+      canonicalNode = clone;
+    }
 
     const prefixesInScope: string[] = [];
     for (let i = 0; i < ancestorNamespaces.length; i++) {
@@ -303,7 +328,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     }
 
     const res = this.processInner(
-      node,
+      canonicalNode,
       prefixesInScope,
       defaultNs,
       defaultNsForPrefix,

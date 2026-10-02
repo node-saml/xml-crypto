@@ -55,8 +55,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     if (node.attributes) {
       for (i = 0; i < node.attributes.length; ++i) {
         attr = node.attributes[i];
-        //ignore namespace definition attributes
-        if (attr.name.indexOf("xmlns") === 0) {
+        if (attr.name === "xmlns" || attr.prefix === "xmlns") {
           continue;
         }
         attrListToRender.push(attr);
@@ -114,10 +113,17 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
           namespaceURI: node.namespaceURI || defaultNsForPrefix[node.prefix],
         });
       }
-    } else if (defaultNs !== currNs) {
-      //new default ns
-      newDefaultNs = node.namespaceURI;
-      res.push(' xmlns="', newDefaultNs, '"');
+    }
+
+    const currentDefaultNs = node.prefix
+      ? (node.getAttributeNode("xmlns")?.value ?? defaultNs)
+      : currNs;
+    if (
+      (!node.prefix || inclusiveNamespacesPrefixList.includes("#default")) &&
+      defaultNs !== currentDefaultNs
+    ) {
+      newDefaultNs = currentDefaultNs;
+      res.push(' xmlns="', utils.encodeSpecialCharactersInAttribute(newDefaultNs), '"');
     }
 
     //handle the attributes namespace
@@ -128,7 +134,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
         //handle all prefixed attributes that are included in the prefix list and where
         //the prefix is not defined already
         if (
-          attr.prefix &&
+          attr.prefix === "xmlns" &&
           !utils.isPrefixInScope(prefixesInScope, attr.localName, attr.value) &&
           inclusiveNamespacesPrefixList.indexOf(attr.localName) >= 0
         ) {
@@ -154,7 +160,8 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
 
     //render namespaces
     for (const p of nsListToRender) {
-      res.push(" xmlns:", p.prefix, '="', p.namespaceURI, '"');
+      const namespaceURI = utils.encodeSpecialCharactersInAttribute(p.namespaceURI);
+      res.push(" xmlns:", p.prefix, '="', namespaceURI, '"');
     }
 
     return { rendered: res.join(""), newDefaultNs: newDefaultNs };
@@ -172,6 +179,9 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
   ) {
     if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
+    }
+    if (isDomNode.isProcessingInstructionNode(node)) {
+      return utils.renderProcessingInstruction(node);
     }
     if (node.data) {
       return utils.encodeSpecialCharactersInText(node.data);
@@ -286,7 +296,15 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
       inclusiveNamespacesPrefixList.forEach(function (prefix) {
         if (ancestorNamespaces) {
           ancestorNamespaces.forEach(function (ancestorNamespace) {
-            if (prefix === ancestorNamespace.prefix) {
+            if (prefix === "#default" && ancestorNamespace.prefix === "") {
+              if (!elem.hasAttribute("xmlns")) {
+                elem.setAttributeNS(
+                  "http://www.w3.org/2000/xmlns/",
+                  "xmlns",
+                  ancestorNamespace.namespaceURI,
+                );
+              }
+            } else if (prefix === ancestorNamespace.prefix) {
               elem.setAttributeNS(
                 "http://www.w3.org/2000/xmlns/",
                 `xmlns:${prefix}`,
