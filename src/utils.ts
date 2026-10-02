@@ -487,7 +487,7 @@ function collectAncestorNamespaces(
   if (parent.attributes && parent.attributes.length > 0) {
     for (let i = 0; i < parent.attributes.length; i++) {
       const attr = parent.attributes[i];
-      if (attr && attr.nodeName && attr.nodeName.search(/^xmlns:?/) !== -1) {
+      if (attr && (attr.nodeName === "xmlns" || attr.nodeName.startsWith("xmlns:"))) {
         nsArray.push({
           prefix: attr.nodeName.replace(/^xmlns:?/, ""),
           namespaceURI: attr.nodeValue || "",
