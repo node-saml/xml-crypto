@@ -156,4 +156,14 @@ describe("inherited context in signed references", function () {
     expect(changedElement).not.to.equal(signedXml);
     expect(verify(changedElement)).to.be.false;
   });
+  it("canonicalizes inherited xml:lang through getCanonXml", function () {
+    const doc = new xmldom.DOMParser().parseFromString(
+      '<root xml:lang="en"><item>value</item></root>',
+    );
+    const item = doc.getElementsByTagName("item")[0];
+
+    expect(new SignedXml().getCanonXml([inclusiveC14n], item)).to.equal(
+      '<item xml:lang="en">value</item>',
+    );
+  });
 });
