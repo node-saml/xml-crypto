@@ -19,9 +19,13 @@ function verify(xml: string) {
 
 describe("attributes whose names begin with xmlns", function () {
   it("does not treat an ordinary ancestor attribute as a namespace declaration", function () {
-    const doc = new xmldom.DOMParser().parseFromString('<root xmlnsRole="user"><item/></root>');
+    const doc = new xmldom.DOMParser().parseFromString(
+      '<root xmlns:p="urn:test" xmlnsRole="user"><item/></root>',
+    );
 
-    expect(findAncestorNs(doc, "/root/item")).to.deep.equal([]);
+    expect(findAncestorNs(doc, "/root/item")).to.deep.equal([
+      { prefix: "p", namespaceURI: "urn:test" },
+    ]);
   });
 
   for (const transform of [inclusiveC14n, exclusiveC14n]) {
