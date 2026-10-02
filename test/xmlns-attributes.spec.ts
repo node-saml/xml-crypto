@@ -1,12 +1,20 @@
 import * as fs from "fs";
 import * as xmldom from "@xmldom/xmldom";
 import { expect } from "chai";
-import { SignedXml } from "../src/index";
+import { findAncestorNs, SignedXml } from "../src/index";
 
 const inclusiveC14n = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
 const exclusiveC14n = "http://www.w3.org/2001/10/xml-exc-c14n#";
 
 describe("attributes whose names begin with xmlns", function () {
+  it("does not treat an ordinary ancestor attribute as a namespace declaration", function () {
+    const doc = new xmldom.DOMParser().parseFromString(
+      '<root xmlnsRole="user"><item/></root>',
+    );
+
+    expect(findAncestorNs(doc, "/root/item")).to.deep.equal([]);
+  });
+
   for (const transform of [inclusiveC14n, exclusiveC14n]) {
     it(`rejects changes to an ordinary attribute under ${transform}`, function () {
       const signer = new SignedXml({
