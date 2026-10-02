@@ -312,7 +312,11 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       isDomNode.assertIsElementNode(clone);
       for (const attr of inheritedXmlAttributes) {
         if (!clone.hasAttributeNS("http://www.w3.org/XML/1998/namespace", attr.localName)) {
-          clone.setAttributeNS("http://www.w3.org/XML/1998/namespace", `xml:${attr.localName}`, attr.value);
+          clone.setAttributeNS(
+            "http://www.w3.org/XML/1998/namespace",
+            `xml:${attr.localName}`,
+            attr.value,
+          );
         }
       }
       canonicalNode = clone;
