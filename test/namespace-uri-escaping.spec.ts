@@ -16,7 +16,7 @@ const namespaceCases = [
 describe("Namespace declarations in signed references", function () {
   for (const [algorithmName, canonicalizationAlgorithm] of canonicalizations) {
     for (const { name, element, declaration } of namespaceCases) {
-      it(`rejects a hidden role with ${name} namespace and ${algorithmName} c14n`, function () {
+      it(`rejects a hidden Access attribute with ${name} namespace and ${algorithmName} c14n`, function () {
         const signer = new SignedXml({
           privateKey: fs.readFileSync("./test/static/client.pem"),
           canonicalizationAlgorithm,
@@ -28,20 +28,20 @@ describe("Namespace declarations in signed references", function () {
           digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
         });
         signer.computeSignature(
-          `<root><${element} ${declaration}="urn:test" role="user">value</${element}></root>`,
+          `<root><${element} ${declaration}="urn:test" Access="user">value</${element}></root>`,
         );
 
         const signedXml = signer.getSignedXml();
-        const original = `${declaration}="urn:test" role="user"`;
+        const original = `${declaration}="urn:test" Access="user"`;
         expect(signedXml).to.include(original);
         const tampered = signedXml.replace(
           original,
-          `${declaration}="urn:test&quot; role=&quot;user"`,
+          `${declaration}="urn:test&quot; Access=&quot;user"`,
         );
         const item = new xmldom.DOMParser()
           .parseFromString(tampered)
           .getElementsByTagName(element)[0];
-        expect(item.hasAttribute("role")).to.be.false;
+        expect(item.hasAttribute("Access")).to.be.false;
         expect(item.namespaceURI).to.equal('urn:test" role="user');
 
         const verifier = new SignedXml({
