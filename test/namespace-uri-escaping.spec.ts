@@ -44,13 +44,17 @@ describe("Namespace declarations in signed references", function () {
         expect(item.hasAttribute("Access")).to.be.false;
         expect(item.namespaceURI).to.equal('urn:test" Access="user');
 
-        const verifier = new SignedXml({
-          publicCert: fs.readFileSync("./test/static/client_public.pem"),
-        });
-        verifier.loadSignature(signer.getSignatureXml());
-        expect(verifier.checkSignature(signedXml)).to.be.true;
-        expect(verifier.checkSignature(tampered)).to.be.false;
-        expect(verifier.getSignedReferences()).to.be.empty;
+        const createVerifier = () => {
+          const verifier = new SignedXml({
+            publicCert: fs.readFileSync("./test/static/client_public.pem"),
+          });
+          verifier.loadSignature(signer.getSignatureXml());
+          return verifier;
+        };
+        expect(createVerifier().checkSignature(signedXml)).to.be.true;
+        const tamperedVerifier = createVerifier();
+        expect(tamperedVerifier.checkSignature(tampered)).to.be.false;
+        expect(tamperedVerifier.getSignedReferences()).to.be.empty;
       });
     }
   }
