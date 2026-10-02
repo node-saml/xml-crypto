@@ -15,6 +15,10 @@
 
 ### Canonicalization output
 
+Ordinary attributes whose names start with `xmlns`, such as `xmlnsRole`, remain in signed
+canonical output. Exclusive canonicalization takes `PrefixList` bindings only from namespace
+declarations. Existing signatures over these cases may fail verification.
+
 Inclusive canonicalization (`http://www.w3.org/TR/2001/REC-xml-c14n-20010315` and its
 `#WithComments` variant) renders namespace declarations as the
 [C14N specification](https://www.w3.org/TR/2001/REC-xml-c14n-20010315#ProcessingModel) requires,
