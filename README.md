@@ -29,7 +29,7 @@ including when:
 
 Exclusive canonicalization (`http://www.w3.org/2001/10/xml-exc-c14n#` and its `#WithComments`
 variant) renders the last case the same way when the redeclared prefix is listed in the
-\`InclusiveNamespaces\` \`PrefixList\`.
+`InclusiveNamespaces` `PrefixList`.
 
 Ordinary attributes whose names start with `xmlns`, such as `xmlnsRole`, are part of the canonical
 output. Exclusive canonicalization takes `PrefixList` bindings only from namespace declarations.
