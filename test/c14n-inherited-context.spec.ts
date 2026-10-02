@@ -166,4 +166,31 @@ describe("inherited context in signed references", function () {
       '<item xml:lang="en">value</item>',
     );
   });
+  it("keeps a local default namespace over an ancestor's value", function () {
+    const signer = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: exclusiveC14n,
+      signatureAlgorithm: rsaSha256,
+    });
+    signer.addReference({
+      xpath: "//*[local-name(.)='item']",
+      transforms: [exclusiveC14n],
+      digestAlgorithm: sha256,
+      inclusiveNamespacesPrefixList: ["#default"],
+    });
+    signer.computeSignature(
+      '<root xmlns="urn:ancestor"><p:item xmlns:p="urn:item" xmlns="urn:local">value</p:item></root>',
+    );
+
+    const signedXml = signer.getSignedXml();
+    expect(verify(signedXml)).to.be.true;
+
+    const changedAncestor = signedXml.replace('xmlns="urn:ancestor"', 'xmlns="urn:other"');
+    expect(changedAncestor).not.to.equal(signedXml);
+    expect(verify(changedAncestor)).to.be.true;
+
+    const changedElement = signedXml.replace('xmlns="urn:local"', 'xmlns="urn:other"');
+    expect(changedElement).not.to.equal(signedXml);
+    expect(verify(changedElement)).to.be.false;
+  });
 });
