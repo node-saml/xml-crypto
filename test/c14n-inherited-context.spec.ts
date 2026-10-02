@@ -42,6 +42,30 @@ describe("inherited context in signed references", function () {
     expect(verify(tamperedXml)).to.be.false;
   });
 
+  it("protects a default namespace inherited by a prefixed reference", function () {
+    const signer = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: exclusiveC14n,
+      signatureAlgorithm: rsaSha256,
+    });
+    signer.addReference({
+      xpath: "//*[local-name(.)='item']",
+      transforms: [exclusiveC14n],
+      digestAlgorithm: sha256,
+      inclusiveNamespacesPrefixList: ["#default"],
+    });
+    signer.computeSignature(
+      '<root xmlns="urn:trusted"><p:item xmlns:p="urn:item" type="Role">value</p:item></root>',
+    );
+
+    const signedXml = signer.getSignedXml();
+    expect(verify(signedXml)).to.be.true;
+
+    const tamperedXml = signedXml.replace('xmlns="urn:trusted"', 'xmlns="urn:attacker"');
+    expect(tamperedXml).not.to.equal(signedXml);
+    expect(verify(tamperedXml)).to.be.false;
+  });
+
   it("protects inherited xml:lang under inclusive C14N", function () {
     const signer = new SignedXml({
       privateKey: fs.readFileSync("./test/static/client.pem"),
@@ -61,5 +85,26 @@ describe("inherited context in signed references", function () {
     const tamperedXml = signedXml.replace('xml:lang="en"', 'xml:lang="fr"');
     expect(tamperedXml).not.to.equal(signedXml);
     expect(verify(tamperedXml)).to.be.false;
+  });
+
+  it("protects inherited xml:lang when SignedInfo uses inclusive C14N", function () {
+    const signer = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: inclusiveC14n,
+      signatureAlgorithm: rsaSha256,
+    });
+    signer.addReference({
+      xpath: "//*[local-name(.)='item']",
+      transforms: [exclusiveC14n],
+      digestAlgorithm: sha256,
+    });
+    signer.computeSignature('<root xml:lang="en"><item>value</item></root>');
+
+    const signedXml = signer.getSignedXml();
+    expect(verify(signedXml)).to.be.true;
+
+    const tamperedXml = signedXml.replace('xml:lang="en"', 'xml:lang="fr"');
+    expect(tamperedXml).not.to.equal(signedXml);
+    expect(() => verify(tamperedXml)).to.throw(/invalid signature/);
   });
 });
