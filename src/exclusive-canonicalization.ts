@@ -55,8 +55,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     if (node.attributes) {
       for (i = 0; i < node.attributes.length; ++i) {
         attr = node.attributes[i];
-        //ignore namespace definition attributes
-        if (attr.name.indexOf("xmlns") === 0) {
+        if (attr.name === "xmlns" || attr.prefix === "xmlns") {
           continue;
         }
         attrListToRender.push(attr);
