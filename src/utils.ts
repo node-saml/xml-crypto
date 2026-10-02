@@ -470,6 +470,26 @@ export function toPem(value: string | Buffer, pemLabel?: PemLabel): string {
   throw new Error("Invalid PEM format.");
 }
 
+export type InheritedXmlAttribute = { localName: string; value: string };
+
+export function findAncestorXmlAttributes(node: Node): InheritedXmlAttribute[] {
+  const attributes = new Map<string, string>();
+  let ancestor = node.parentNode;
+  while (isDomNode.isElementNode(ancestor)) {
+    for (let i = 0; i < ancestor.attributes.length; i++) {
+      const attr = ancestor.attributes[i];
+      if (
+        attr.namespaceURI === "http://www.w3.org/XML/1998/namespace" &&
+        !attributes.has(attr.localName)
+      ) {
+        attributes.set(attr.localName, attr.value);
+      }
+    }
+    ancestor = ancestor.parentNode;
+  }
+  return Array.from(attributes, ([localName, value]) => ({ localName, value }));
+}
+
 function collectAncestorNamespaces(
   node: Element,
   nsArray: NamespacePrefix[] = [],

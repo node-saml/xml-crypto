@@ -28,6 +28,9 @@ import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
 
 type SigningReferenceTarget = { node: Element; digestValue?: string };
+type C14nOptionsWithXmlAttributes = CanonicalizationOrTransformationAlgorithmProcessOptions & {
+  ancestorXmlAttributes?: utils.InheritedXmlAttribute[];
+};
 
 function findSignatureElements(node: Node): Element[] {
   const signatures = xpath.select(
@@ -471,26 +474,27 @@ export class SignedXml {
       }
     }
 
-    const c14nOptions = {
-      ancestorNamespaces: this.findSignedInfoAncestorNamespaces(doc),
-    };
+    const c14nOptions = this.findSignedInfoAncestorContext(doc);
 
     return this.getCanonXml([this.canonicalizationAlgorithm], signedInfo[0], c14nOptions);
   }
 
-  // The checked document gives SignedInfo the namespaces it inherits, not wherever a loaded copy
+  // The checked document gives SignedInfo its inherited context, not wherever a loaded copy
   // came from: https://www.w3.org/TR/xml-c14n#ProcessingModel
-  private findSignedInfoAncestorNamespaces(doc: Document) {
+  private findSignedInfoAncestorContext(doc: Document): C14nOptionsWithXmlAttributes {
     const signatureInDoc = this.findLoadedSignature(doc);
     if (signatureInDoc == null) {
-      return [];
+      return { ancestorNamespaces: [], ancestorXmlAttributes: [] };
     }
 
     const signedInfoInDoc = utils.findChildren(signatureInDoc, "SignedInfo")[0];
     if (signedInfoInDoc == null) {
       throw new Error("could not find SignedInfo element in the message");
     }
-    return utils.findAncestorNsForElement(signedInfoInDoc);
+    return {
+      ancestorNamespaces: utils.findAncestorNsForElement(signedInfoInDoc),
+      ancestorXmlAttributes: utils.findAncestorXmlAttributes(signedInfoInDoc),
+    };
   }
 
   private getCanonReferenceXml(doc: Document, ref: Reference, node: Node) {
@@ -503,6 +507,7 @@ export class SignedXml {
 
     const c14nOptions = {
       ancestorNamespaces: ref.ancestorNamespaces,
+      ancestorXmlAttributes: utils.findAncestorXmlAttributes(node),
     };
 
     // Only a same-document URI dereferences without comments; validateReference resolves no
@@ -1188,6 +1193,7 @@ export class SignedXml {
       node,
       {
         ancestorNamespaces: ref.ancestorNamespaces,
+        ancestorXmlAttributes: utils.findAncestorXmlAttributes(node),
       },
       { discardComments: true, prefixLists: this.getSigningPrefixLists(ref) },
     );
@@ -1401,13 +1407,15 @@ export class SignedXml {
   private canonicalize(
     transforms: Reference["transforms"],
     node: Node,
-    options: CanonicalizationOrTransformationAlgorithmProcessOptions,
+    options: C14nOptionsWithXmlAttributes,
     {
       discardComments,
       prefixLists,
     }: { discardComments: boolean; prefixLists?: ReadonlyArray<string[]> },
   ) {
     options.defaultNsForPrefix = options.defaultNsForPrefix ?? SignedXml.defaultNsForPrefix;
+    options.ancestorXmlAttributes =
+      options.ancestorXmlAttributes ?? utils.findAncestorXmlAttributes(node);
     options.signatureNode = this.signatureNode;
 
     const canonXml = node.cloneNode(true); // Deep clone
@@ -1443,6 +1451,7 @@ export class SignedXml {
         transformOptions = {
           ...options,
           ancestorNamespaces: [],
+          ancestorXmlAttributes: [],
           defaultNs: "",
           signatureNode: this.findLoadedSignature(transformedXml) ?? options.signatureNode,
         };

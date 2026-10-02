@@ -113,9 +113,16 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
           namespaceURI: node.namespaceURI || defaultNsForPrefix[node.prefix],
         });
       }
-    } else if (defaultNs !== currNs) {
-      //new default ns
-      newDefaultNs = currNs;
+    }
+
+    const currentDefaultNs = node.prefix
+      ? (node.getAttributeNode("xmlns")?.value ?? defaultNs)
+      : currNs;
+    if (
+      (!node.prefix || inclusiveNamespacesPrefixList.includes("#default")) &&
+      defaultNs !== currentDefaultNs
+    ) {
+      newDefaultNs = currentDefaultNs;
       res.push(' xmlns="', utils.encodeSpecialCharactersInAttribute(newDefaultNs), '"');
     }
 
@@ -289,7 +296,15 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
       inclusiveNamespacesPrefixList.forEach(function (prefix) {
         if (ancestorNamespaces) {
           ancestorNamespaces.forEach(function (ancestorNamespace) {
-            if (prefix === ancestorNamespace.prefix) {
+            if (prefix === "#default" && ancestorNamespace.prefix === "") {
+              if (!elem.hasAttribute("xmlns")) {
+                elem.setAttributeNS(
+                  "http://www.w3.org/2000/xmlns/",
+                  "xmlns",
+                  ancestorNamespace.namespaceURI,
+                );
+              }
+            } else if (prefix === ancestorNamespace.prefix) {
               elem.setAttributeNS(
                 "http://www.w3.org/2000/xmlns/",
                 `xmlns:${prefix}`,
