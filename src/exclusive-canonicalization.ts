@@ -116,7 +116,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
       }
     } else if (defaultNs !== currNs) {
       //new default ns
-      newDefaultNs = node.namespaceURI;
+      newDefaultNs = currNs;
       res.push(' xmlns="', utils.encodeSpecialCharactersInAttribute(newDefaultNs), '"');
     }
 
