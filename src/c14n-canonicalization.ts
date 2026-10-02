@@ -137,7 +137,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
 
     if (nodeDefaultNs !== defaultNs) {
       newDefaultNs = nodeDefaultNs;
-      res.push(' xmlns="', newDefaultNs, '"');
+      res.push(' xmlns="', utils.encodeSpecialCharactersInAttribute(newDefaultNs), '"');
     }
 
     //handle the attributes namespace
@@ -182,10 +182,11 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     //render namespaces
     res.push(
       ...nsListToRender.map((attr) => {
+        const namespaceURI = utils.encodeSpecialCharactersInAttribute(attr.namespaceURI);
         if (attr.prefix) {
-          return ` xmlns:${attr.prefix}="${attr.namespaceURI}"`;
+          return ` xmlns:${attr.prefix}="${namespaceURI}"`;
         }
-        return ` xmlns="${attr.namespaceURI}"`;
+        return ` xmlns="${namespaceURI}"`;
       }),
     );
 
