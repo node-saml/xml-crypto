@@ -57,5 +57,4 @@ describe("processing instructions in signed references", function () {
       );
     });
   }
-
 });
