@@ -31,6 +31,9 @@ Exclusive canonicalization (`http://www.w3.org/2001/10/xml-exc-c14n#` and its `#
 variant) renders the last case the same way when the redeclared prefix is listed in the
 `InclusiveNamespaces` `PrefixList`.
 
+Inclusive and exclusive canonicalization escape namespace declaration values as they escape
+attribute values.
+
 ### Comments in referenced content
 
 A `Reference` whose `URI` is empty or `#` followed by an ID, such as `#item`, removes comments from
