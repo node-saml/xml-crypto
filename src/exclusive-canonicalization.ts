@@ -115,7 +115,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
       }
     }
 
-    const currentDefaultNs = node.prefix ? node.lookupNamespaceURI(null) || "" : currNs;
+    const currentDefaultNs = node.prefix ? node.getAttribute("xmlns") ?? defaultNs : currNs;
     if (
       (!node.prefix || inclusiveNamespacesPrefixList.includes("#default")) &&
       defaultNs !== currentDefaultNs
