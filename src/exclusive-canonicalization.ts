@@ -173,6 +173,9 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }
+    if (node.nodeType === 7) {
+      return utils.renderProcessingInstruction(node as ProcessingInstruction);
+    }
     if (node.data) {
       return utils.encodeSpecialCharactersInText(node.data);
     }

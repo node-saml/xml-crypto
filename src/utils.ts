@@ -94,6 +94,32 @@ export function encodeSpecialCharactersInText(text: string): string {
   });
 }
 
+export function renderProcessingInstruction(node: ProcessingInstruction): string {
+  let beforeDocument = "";
+  let afterDocument = "";
+
+  if (node.parentNode === node.ownerDocument) {
+    let next: Node | null = node.nextSibling;
+    while (next !== null && next !== node.ownerDocument.documentElement) {
+      next = next.nextSibling;
+    }
+    if (next !== null) {
+      afterDocument = "\n";
+    } else {
+      let previous: Node | null = node.previousSibling;
+      while (previous !== null && previous !== node.ownerDocument.documentElement) {
+        previous = previous.previousSibling;
+      }
+      if (previous !== null) {
+        beforeDocument = "\n";
+      }
+    }
+  }
+
+  const data = node.data ? ` ${node.data}` : "";
+  return `${beforeDocument}<?${node.target}${data}?>${afterDocument}`;
+}
+
 /*
  * RFC 7468 'textualmsg', with the deviations below.
  * https://www.rfc-editor.org/rfc/rfc7468
