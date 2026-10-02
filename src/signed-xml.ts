@@ -1414,6 +1414,8 @@ export class SignedXml {
     }: { discardComments: boolean; prefixLists?: ReadonlyArray<string[]> },
   ) {
     options.defaultNsForPrefix = options.defaultNsForPrefix ?? SignedXml.defaultNsForPrefix;
+    options.ancestorXmlAttributes =
+      options.ancestorXmlAttributes ?? utils.findAncestorXmlAttributes(node);
     options.signatureNode = this.signatureNode;
 
     const canonXml = node.cloneNode(true); // Deep clone
