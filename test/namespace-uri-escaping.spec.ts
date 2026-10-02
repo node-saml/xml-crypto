@@ -16,7 +16,7 @@ const namespaceCases = [
 describe("Namespace declarations in signed references", function () {
   for (const [algorithmName, canonicalizationAlgorithm] of canonicalizations) {
     for (const { name, element, declaration } of namespaceCases) {
-      it(`rejects a hidden Access attribute with ${name} namespace and ${algorithmName} c14n`, function () {
+      it(`rejects hidden Access in ${name} namespace under ${algorithmName} c14n`, function () {
         const signer = new SignedXml({
           privateKey: fs.readFileSync("./test/static/client.pem"),
           canonicalizationAlgorithm,
@@ -42,7 +42,7 @@ describe("Namespace declarations in signed references", function () {
           .parseFromString(tampered)
           .getElementsByTagName(element)[0];
         expect(item.hasAttribute("Access")).to.be.false;
-        expect(item.namespaceURI).to.equal('urn:test" role="user');
+        expect(item.namespaceURI).to.equal('urn:test" Access="user');
 
         const verifier = new SignedXml({
           publicCert: fs.readFileSync("./test/static/client_public.pem"),
