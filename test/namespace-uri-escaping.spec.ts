@@ -16,7 +16,7 @@ const namespaceCases = [
 describe("Namespace declarations in signed references", function () {
   for (const [algorithmName, canonicalizationAlgorithm] of canonicalizations) {
     for (const { name, element, declaration } of namespaceCases) {
-      it(`rejects an attribute hidden in a ${name} namespace URI with ${algorithmName} canonicalization`, function () {
+      it(`rejects a hidden role with ${name} namespace and ${algorithmName} c14n`, function () {
         const signer = new SignedXml({
           privateKey: fs.readFileSync("./test/static/client.pem"),
           canonicalizationAlgorithm,
@@ -38,8 +38,10 @@ describe("Namespace declarations in signed references", function () {
           original,
           `${declaration}="urn:test&quot; role=&quot;user"`,
         );
-        const item = new xmldom.DOMParser().parseFromString(tampered).getElementsByTagName(element)[0];
-        expect(item.getAttribute("role")).to.equal(null);
+        const item = new xmldom.DOMParser()
+          .parseFromString(tampered)
+          .getElementsByTagName(element)[0];
+        expect(item.hasAttribute("role")).to.be.false;
         expect(item.namespaceURI).to.equal('urn:test" role="user');
 
         const verifier = new SignedXml({
