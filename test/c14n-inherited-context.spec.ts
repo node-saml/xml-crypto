@@ -107,4 +107,53 @@ describe("inherited context in signed references", function () {
     expect(tamperedXml).not.to.equal(signedXml);
     expect(() => verify(tamperedXml)).to.throw(/invalid signature/);
   });
+  it("rejects a default namespace added to a prefixed reference", function () {
+    const signer = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: exclusiveC14n,
+      signatureAlgorithm: rsaSha256,
+    });
+    signer.addReference({
+      xpath: "//*[local-name(.)='item']",
+      transforms: [exclusiveC14n],
+      digestAlgorithm: sha256,
+      inclusiveNamespacesPrefixList: ["#default"],
+    });
+    signer.computeSignature('<root><p:item xmlns:p="urn:item">value</p:item></root>');
+
+    const signedXml = signer.getSignedXml();
+    expect(verify(signedXml)).to.be.true;
+
+    const tamperedXml = signedXml.replace(
+      'xmlns:p="urn:item"',
+      'xmlns="urn:attacker" xmlns:p="urn:item"',
+    );
+    expect(tamperedXml).not.to.equal(signedXml);
+    expect(verify(tamperedXml)).to.be.false;
+  });
+
+  it("keeps an element's own xml:lang over its ancestor's value", function () {
+    const signer = new SignedXml({
+      privateKey: fs.readFileSync("./test/static/client.pem"),
+      canonicalizationAlgorithm: exclusiveC14n,
+      signatureAlgorithm: rsaSha256,
+    });
+    signer.addReference({
+      xpath: "//*[local-name(.)='item']",
+      transforms: [inclusiveC14n],
+      digestAlgorithm: sha256,
+    });
+    signer.computeSignature('<root xml:lang="en"><item xml:lang="fr">value</item></root>');
+
+    const signedXml = signer.getSignedXml();
+    expect(verify(signedXml)).to.be.true;
+
+    const changedAncestor = signedXml.replace('xml:lang="en"', 'xml:lang="de"');
+    expect(changedAncestor).not.to.equal(signedXml);
+    expect(verify(changedAncestor)).to.be.true;
+
+    const changedElement = signedXml.replace('xml:lang="fr"', 'xml:lang="de"');
+    expect(changedElement).not.to.equal(signedXml);
+    expect(verify(changedElement)).to.be.false;
+  });
 });
