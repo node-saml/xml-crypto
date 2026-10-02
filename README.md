@@ -29,7 +29,7 @@ including when:
 
 Exclusive canonicalization (`http://www.w3.org/2001/10/xml-exc-c14n#` and its `#WithComments`
 variant) renders the last case the same way when the redeclared prefix is listed in the
-\`InclusiveNamespaces\` \`PrefixList\`.
+`InclusiveNamespaces` `PrefixList`.
 
 Inclusive and exclusive canonicalization escape namespace declaration values as they escape
 attribute values.
