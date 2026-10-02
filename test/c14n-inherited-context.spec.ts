@@ -31,10 +31,11 @@ describe("inherited context in signed references", function () {
       inclusiveNamespacesPrefixList: ["#default"],
     });
     signer.computeSignature(
-      '<root><p:item xmlns:p="urn:item" xmlns="urn:trusted" type="Role">value</p:item></root>',
+      '<root><p:item xmlns:p="urn:item" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="urn:trusted" xsi:type="Role">value</p:item></root>',
     );
 
     const signedXml = signer.getSignedXml();
+    expect(signedXml).to.include('PrefixList="#default"');
     expect(verify(signedXml)).to.be.true;
 
     const tamperedXml = signedXml.replace('xmlns="urn:trusted"', 'xmlns="urn:attacker"');
