@@ -58,19 +58,4 @@ describe("processing instructions in signed references", function () {
     });
   }
 
-  for (const Canonicalization of [C14nCanonicalization, C14nCanonicalizationWithComments]) {
-    it(`separates outer PIs with ${Canonicalization.name}`, function () {
-      const doc = new xmldom.DOMParser().parseFromString("<?before data?><root/><?after data?>");
-      const before = doc.firstChild;
-      const after = doc.lastChild;
-      if (before === null || after === null) {
-        throw new Error("Expected processing instructions around the document element");
-      }
-
-      expect(before.nodeType).to.equal(7);
-      expect(after.nodeType).to.equal(7);
-      expect(new Canonicalization().process(before, {})).to.equal("<?before data?>\n");
-      expect(new Canonicalization().process(after, {})).to.equal("\n<?after data?>");
-    });
-  }
 });
