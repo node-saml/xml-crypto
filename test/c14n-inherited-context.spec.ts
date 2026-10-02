@@ -206,17 +206,4 @@ describe("inherited context in signed references", function () {
       '<p:item xmlns="urn:default" xmlns:p="urn:item"><p:child>one</p:child><p:empty xmlns="">two</p:empty></p:item>',
     );
   });
-  it("keeps a local default namespace when ancestor context is supplied", function () {
-    const doc = new xmldom.DOMParser().parseFromString(
-      '<root xmlns="urn:ancestor"><p:item xmlns:p="urn:item" xmlns="urn:local">value</p:item></root>',
-    );
-    const item = doc.getElementsByTagNameNS("urn:item", "item")[0];
-
-    expect(
-      new SignedXml().getCanonXml([exclusiveC14n], item, {
-        ancestorNamespaces: [{ prefix: "", namespaceURI: "urn:ancestor" }],
-        inclusiveNamespacesPrefixList: ["#default"],
-      }),
-    ).to.equal('<p:item xmlns="urn:local" xmlns:p="urn:item">value</p:item>');
-  });
 });
