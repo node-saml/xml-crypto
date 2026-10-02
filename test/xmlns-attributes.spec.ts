@@ -6,6 +6,17 @@ import { findAncestorNs, SignedXml } from "../src/index";
 const inclusiveC14n = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
 const exclusiveC14n = "http://www.w3.org/2001/10/xml-exc-c14n#";
 
+function verify(xml: string) {
+  const verifier = new SignedXml({
+    publicCert: fs.readFileSync("./test/static/client_public.pem"),
+  });
+  verifier.loadSignature(verifier.findSignatures(new xmldom.DOMParser().parseFromString(xml))[0]);
+  return {
+    valid: verifier.checkSignature(xml),
+    signedReferences: verifier.getSignedReferences(),
+  };
+}
+
 describe("attributes whose names begin with xmlns", function () {
   it("does not treat an ordinary ancestor attribute as a namespace declaration", function () {
     const doc = new xmldom.DOMParser().parseFromString('<root xmlnsRole="user"><item/></root>');
@@ -28,18 +39,13 @@ describe("attributes whose names begin with xmlns", function () {
       signer.computeSignature('<root><item Id="signed" xmlnsRole="user"/></root>');
 
       const signedXml = signer.getSignedXml();
-      const verifier = new SignedXml({
-        publicCert: fs.readFileSync("./test/static/client_public.pem"),
-      });
-      verifier.loadSignature(
-        verifier.findSignatures(new xmldom.DOMParser().parseFromString(signedXml))[0],
-      );
-      expect(verifier.checkSignature(signedXml)).to.be.true;
+      expect(verify(signedXml).valid).to.be.true;
 
       const tamperedXml = signedXml.replace('xmlnsRole="user"', 'xmlnsRole="admin"');
       expect(tamperedXml).not.to.equal(signedXml);
-      expect(verifier.checkSignature(tamperedXml)).to.be.false;
-      expect(verifier.getSignedReferences()).to.be.empty;
+      const result = verify(tamperedXml);
+      expect(result.valid).to.be.false;
+      expect(result.signedReferences).to.be.empty;
     });
   }
 });
