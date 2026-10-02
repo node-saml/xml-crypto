@@ -127,7 +127,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
         //handle all prefixed attributes that are included in the prefix list and where
         //the prefix is not defined already
         if (
-          attr.prefix &&
+          attr.prefix === "xmlns" &&
           !utils.isPrefixInScope(prefixesInScope, attr.localName, attr.value) &&
           inclusiveNamespacesPrefixList.indexOf(attr.localName) >= 0
         ) {
