@@ -193,4 +193,17 @@ describe("inherited context in signed references", function () {
     expect(changedElement).not.to.equal(signedXml);
     expect(verify(changedElement)).to.be.false;
   });
+  it("retains the default namespace on prefixed descendants until explicitly reset", function () {
+    const doc = new xmldom.DOMParser().parseFromString(
+      '<p:item xmlns:p="urn:item" xmlns="urn:default"><p:child>one</p:child><p:empty xmlns="">two</p:empty></p:item>',
+    );
+
+    expect(
+      new SignedXml().getCanonXml([exclusiveC14n], doc.documentElement, {
+        inclusiveNamespacesPrefixList: ["#default"],
+      }),
+    ).to.equal(
+      '<p:item xmlns="urn:default" xmlns:p="urn:item"><p:child>one</p:child><p:empty xmlns="">two</p:empty></p:item>',
+    );
+  });
 });
