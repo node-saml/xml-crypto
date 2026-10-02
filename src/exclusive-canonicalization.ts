@@ -116,8 +116,8 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
       }
     } else if (defaultNs !== currNs) {
       //new default ns
-      newDefaultNs = node.namespaceURI;
-      res.push(' xmlns="', newDefaultNs, '"');
+      newDefaultNs = currNs;
+      res.push(' xmlns="', utils.encodeSpecialCharactersInAttribute(newDefaultNs), '"');
     }
 
     //handle the attributes namespace
@@ -154,7 +154,8 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
 
     //render namespaces
     for (const p of nsListToRender) {
-      res.push(" xmlns:", p.prefix, '="', p.namespaceURI, '"');
+      const namespaceURI = utils.encodeSpecialCharactersInAttribute(p.namespaceURI);
+      res.push(" xmlns:", p.prefix, '="', namespaceURI, '"');
     }
 
     return { rendered: res.join(""), newDefaultNs: newDefaultNs };
