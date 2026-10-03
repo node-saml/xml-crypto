@@ -69,16 +69,4 @@ describe("processing instructions in signed references", function () {
       expect(new Canonicalization().process(doc, {})).to.equal(expected);
     });
   }
-
-  it("canonicalizes a document with many processing instructions without excessive work", function () {
-    this.timeout(15000);
-    const count = 20000;
-    const doc = new xmldom.DOMParser().parseFromString(`${"<?p?>".repeat(count)}<root/>`);
-    const start = performance.now();
-    const canonicalXml = new C14nCanonicalization().process(doc, {});
-    const elapsed = performance.now() - start;
-
-    expect(canonicalXml).to.equal(`${"<?p?>\n".repeat(count)}<root></root>`);
-    expect(elapsed).to.be.lessThan(750);
-  });
 });

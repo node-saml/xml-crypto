@@ -103,7 +103,7 @@ export function isCanonicalDocumentChild(node: Node): boolean {
   return (
     isDomNode.isElementNode(node) ||
     isDomNode.isCommentNode(node) ||
-    // xmldom exposes the XML declaration as a PI, but Canonical XML excludes it.
+    // Canonical XML excludes the XML declaration.
     (isDomNode.isProcessingInstructionNode(node) && node.target.toLowerCase() !== "xml")
   );
 }
