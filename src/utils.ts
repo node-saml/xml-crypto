@@ -96,7 +96,37 @@ export function encodeSpecialCharactersInText(text: string): string {
 
 export function renderProcessingInstruction(node: ProcessingInstruction): string {
   const data = node.data ? ` ${node.data}` : "";
-  return `<?${node.target}${data}?>`;
+  const rendered = `<?${node.target}${data}?>`;
+  if (node.parentNode !== node.ownerDocument) {
+    return rendered;
+  }
+
+  let nextNode = node.nextSibling;
+  while (nextNode != null) {
+    if (nextNode === node.ownerDocument.documentElement) {
+      return `${rendered}\n`;
+    }
+    nextNode = nextNode.nextSibling;
+  }
+  return `\n${rendered}`;
+}
+
+export function isCanonicalDocumentChild(node: Node): boolean {
+  return (
+    isDomNode.isElementNode(node) ||
+    isDomNode.isCommentNode(node) ||
+    // xmldom exposes the XML declaration as a PI, but Canonical XML excludes it.
+    (isDomNode.isProcessingInstructionNode(node) && node.target.toLowerCase() !== "xml")
+  );
+}
+
+export function hasDocumentLevelProcessingInstruction(doc: Document): boolean {
+  for (let child = doc.firstChild; child != null; child = child.nextSibling) {
+    if (isDomNode.isProcessingInstructionNode(child) && child.target.toLowerCase() !== "xml") {
+      return true;
+    }
+  }
+  return false;
 }
 
 /*

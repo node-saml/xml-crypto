@@ -208,6 +208,25 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     ancestorNamespaces,
     namespacesInScope?: NamespacePrefix[],
   ) {
+    if (isDomNode.isDocumentNode(node)) {
+      const res: string[] = [];
+      for (let i = 0; i < node.childNodes.length; i++) {
+        const child = node.childNodes[i];
+        if (utils.isCanonicalDocumentChild(child)) {
+          res.push(
+            this.processInner(
+              child,
+              prefixesInScope,
+              defaultNs,
+              defaultNsForPrefix,
+              ancestorNamespaces,
+              namespacesInScope,
+            ),
+          );
+        }
+      }
+      return res.join("");
+    }
     if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }

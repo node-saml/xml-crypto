@@ -618,7 +618,7 @@ export class SignedXml {
     let elem: xpath.SelectSingleReturnType = null;
 
     if (uri === "") {
-      elem = xpath.select1("//*", doc);
+      elem = utils.hasDocumentLevelProcessingInstruction(doc) ? doc : xpath.select1("//*", doc);
     } else if (uri?.indexOf("'") !== -1) {
       // xpath injection
       throw new Error("Cannot validate a uri with quotes inside it");
@@ -1187,13 +1187,21 @@ export class SignedXml {
   }
 
   private calculateReferenceDigest(ref: Reference, node: Element): string {
-    ref.ancestorNamespaces = utils.findAncestorNsForElement(node);
+    const referenceNode =
+      ref.isEmptyUri &&
+      node === node.ownerDocument.documentElement &&
+      utils.hasDocumentLevelProcessingInstruction(node.ownerDocument)
+        ? node.ownerDocument
+        : node;
+    ref.ancestorNamespaces = isDomNode.isDocumentNode(referenceNode)
+      ? []
+      : utils.findAncestorNsForElement(node);
     const canonXml = this.canonicalize(
       ref.transforms,
-      node,
+      referenceNode,
       {
         ancestorNamespaces: ref.ancestorNamespaces,
-        ancestorXmlAttributes: utils.findAncestorXmlAttributes(node),
+        ancestorXmlAttributes: utils.findAncestorXmlAttributes(referenceNode),
       },
       { discardComments: true, prefixLists: this.getSigningPrefixLists(ref) },
     );
@@ -1419,6 +1427,7 @@ export class SignedXml {
     options.signatureNode = this.signatureNode;
 
     const canonXml = node.cloneNode(true); // Deep clone
+    const preserveDocument = isDomNode.isDocumentNode(node);
     if (transforms.includes("http://www.w3.org/2000/09/xmldsig#enveloped-signature")) {
       const signaturePath: number[] = [];
       let signatureAncestor = this.findLoadedSignature(node);
@@ -1446,7 +1455,7 @@ export class SignedXml {
     // converted to octets with C14N: https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
     for (const [index, transformName] of transforms.entries()) {
       if (!isDomNode.isNodeLike(transformedXml)) {
-        transformedXml = this.parseTransformInput(transformedXml, transformName);
+        transformedXml = this.parseTransformInput(transformedXml, transformName, preserveDocument);
         // The parsed octets are a new document, so the referenced node's ancestors are gone.
         transformOptions = {
           ...options,
@@ -1500,7 +1509,11 @@ export class SignedXml {
     return matches[0] ?? null;
   }
 
-  private parseTransformInput(octets: string, transformName: string): Element {
+  private parseTransformInput(
+    octets: string,
+    transformName: string,
+    preserveDocument: boolean,
+  ): Element | Document {
     const parseErrors: string[] = [];
     const doc = new xmldom.DOMParser({
       errorHandler: (_level, message) => parseErrors.push(String(message)),
@@ -1512,7 +1525,7 @@ export class SignedXml {
       );
     }
 
-    return doc.documentElement;
+    return preserveDocument ? doc : doc.documentElement;
   }
 
   /**

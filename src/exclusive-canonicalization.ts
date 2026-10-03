@@ -177,6 +177,24 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     defaultNsForPrefix,
     inclusiveNamespacesPrefixList: string[],
   ) {
+    if (isDomNode.isDocumentNode(node)) {
+      const res: string[] = [];
+      for (let i = 0; i < node.childNodes.length; i++) {
+        const child = node.childNodes[i];
+        if (utils.isCanonicalDocumentChild(child)) {
+          res.push(
+            this.processInner(
+              child,
+              prefixesInScope,
+              defaultNs,
+              defaultNsForPrefix,
+              inclusiveNamespacesPrefixList,
+            ),
+          );
+        }
+      }
+      return res.join("");
+    }
     if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
     }
@@ -264,8 +282,12 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
    *
    * @api public
    */
-  process(elem: Element, options: CanonicalizationOrTransformationAlgorithmProcessOptions): string {
+  process(
+    elem: Element | Document,
+    options: CanonicalizationOrTransformationAlgorithmProcessOptions,
+  ): string {
     options = options || {};
+    const referenceElement = isDomNode.isDocumentNode(elem) ? elem.documentElement : elem;
     let inclusiveNamespacesPrefixList = options.inclusiveNamespacesPrefixList || [];
     const defaultNs = options.defaultNs || "";
     const defaultNsForPrefix = options.defaultNsForPrefix || {};
@@ -297,15 +319,15 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
         if (ancestorNamespaces) {
           ancestorNamespaces.forEach(function (ancestorNamespace) {
             if (prefix === "#default" && ancestorNamespace.prefix === "") {
-              if (!elem.hasAttribute("xmlns")) {
-                elem.setAttributeNS(
+              if (!referenceElement.hasAttribute("xmlns")) {
+                referenceElement.setAttributeNS(
                   "http://www.w3.org/2000/xmlns/",
                   "xmlns",
                   ancestorNamespace.namespaceURI,
                 );
               }
             } else if (prefix === ancestorNamespace.prefix) {
-              elem.setAttributeNS(
+              referenceElement.setAttributeNS(
                 "http://www.w3.org/2000/xmlns/",
                 `xmlns:${prefix}`,
                 ancestorNamespace.namespaceURI,
