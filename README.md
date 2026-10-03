@@ -40,6 +40,10 @@ output. Exclusive canonicalization takes `PrefixList` bindings only from namespa
 Processing instructions inside signed content are rendered with their target and `<? ?>`
 delimiters.
 
+An empty-`URI` `Reference` signs processing instructions outside the document element. They appear
+in `getSignedReferences()` when the transforms preserve them. When such instructions exist, a custom
+transform receives the `Document` node rather than the document element.
+
 ### Comments in referenced content
 
 A `Reference` whose `URI` is empty or `#` followed by an ID, such as `#item`, removes comments from

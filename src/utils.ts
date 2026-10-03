@@ -99,6 +99,23 @@ export function renderProcessingInstruction(node: ProcessingInstruction): string
   return `<?${node.target}${data}?>`;
 }
 
+export function isCanonicalDocumentChild(node: Node): boolean {
+  return (
+    isDomNode.isElementNode(node) ||
+    // xmldom exposes the XML declaration as a PI, but Canonical XML excludes it.
+    (isDomNode.isProcessingInstructionNode(node) && node.target.toLowerCase() !== "xml")
+  );
+}
+
+export function hasDocumentLevelProcessingInstruction(doc: Document): boolean {
+  for (let child = doc.firstChild; child != null; child = child.nextSibling) {
+    if (isDomNode.isProcessingInstructionNode(child) && child.target.toLowerCase() !== "xml") {
+      return true;
+    }
+  }
+  return false;
+}
+
 /*
  * RFC 7468 'textualmsg', with the deviations below.
  * https://www.rfc-editor.org/rfc/rfc7468
