@@ -1193,15 +1193,13 @@ export class SignedXml {
       utils.hasDocumentLevelProcessingInstruction(node.ownerDocument)
         ? node.ownerDocument
         : node;
-    ref.ancestorNamespaces = isDomNode.isDocumentNode(referenceNode)
-      ? []
-      : utils.findAncestorNsForElement(node);
+    ref.ancestorNamespaces = utils.findAncestorNsForElement(node);
     const canonXml = this.canonicalize(
       ref.transforms,
       referenceNode,
       {
         ancestorNamespaces: ref.ancestorNamespaces,
-        ancestorXmlAttributes: utils.findAncestorXmlAttributes(referenceNode),
+        ancestorXmlAttributes: utils.findAncestorXmlAttributes(node),
       },
       { discardComments: true, prefixLists: this.getSigningPrefixLists(ref) },
     );

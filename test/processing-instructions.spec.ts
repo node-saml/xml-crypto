@@ -56,5 +56,29 @@ describe("processing instructions in signed references", function () {
         "<root><?action a & b?><?empty?></root>",
       );
     });
+
+    it(`canonicalizes processing instructions outside the document element with ${algorithm}`, function () {
+      const doc = new xmldom.DOMParser().parseFromString(
+        '<?xml version="1.0"?>\n<?xml-stylesheet   href="doc.xsl"\n   type="text/xsl"   ?>\n<!DOCTYPE doc SYSTEM "doc.dtd">\n<doc>Hello, world!<!-- Comment 1 --></doc>\n<?pi-without-data    ?>\n<!-- Comment 2 -->\n<!-- Comment 3 -->',
+      );
+      const stylesheet = '<?xml-stylesheet href="doc.xsl"\n   type="text/xsl"   ?>';
+      const expected = algorithm.endsWith("#WithComments")
+        ? `${stylesheet}\n<doc>Hello, world!<!-- Comment 1 --></doc>\n<?pi-without-data?>\n<!-- Comment 2 -->\n<!-- Comment 3 -->`
+        : `${stylesheet}\n<doc>Hello, world!</doc>\n<?pi-without-data?>`;
+
+      expect(new Canonicalization().process(doc, {})).to.equal(expected);
+    });
   }
+
+  it("canonicalizes a document with many processing instructions without excessive work", function () {
+    this.timeout(15000);
+    const count = 20000;
+    const doc = new xmldom.DOMParser().parseFromString(`${"<?p?>".repeat(count)}<root/>`);
+    const start = performance.now();
+    const canonicalXml = new C14nCanonicalization().process(doc, {});
+    const elapsed = performance.now() - start;
+
+    expect(canonicalXml).to.equal(`${"<?p?>\n".repeat(count)}<root></root>`);
+    expect(elapsed).to.be.lessThan(750);
+  });
 });

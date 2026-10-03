@@ -212,6 +212,12 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       const res: string[] = [];
       for (let i = 0; i < node.childNodes.length; i++) {
         const child = node.childNodes[i];
+        if (isDomNode.isCommentNode(child)) {
+          if (this.includeComments) {
+            res.push(this.renderComment(child, true));
+          }
+          continue;
+        }
         if (utils.isCanonicalDocumentChild(child)) {
           res.push(
             this.processInner(
@@ -225,7 +231,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
           );
         }
       }
-      return res.join("");
+      return res.join("\n");
     }
     if (isDomNode.isCommentNode(node)) {
       return this.renderComment(node);
@@ -272,9 +278,14 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
   }
 
   // Thanks to deoxxa/xml-c14n for comment renderer
-  renderComment(node: Comment) {
+  renderComment(node: Comment, documentChild = false) {
     if (!this.includeComments) {
       return "";
+    }
+
+    const encodedText = utils.encodeSpecialCharactersInText(node.data);
+    if (documentChild) {
+      return `<!--${encodedText}-->`;
     }
 
     const isOutsideDocument = node.ownerDocument === node.parentNode;
@@ -306,8 +317,6 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
 
     const afterDocument = isAfterDocument ? "\n" : "";
     const beforeDocument = isBeforeDocument ? "\n" : "";
-    const encodedText = utils.encodeSpecialCharactersInText(node.data);
-
     return `${afterDocument}<!--${encodedText}-->${beforeDocument}`;
   }
 

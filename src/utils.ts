@@ -96,19 +96,7 @@ export function encodeSpecialCharactersInText(text: string): string {
 
 export function renderProcessingInstruction(node: ProcessingInstruction): string {
   const data = node.data ? ` ${node.data}` : "";
-  const rendered = `<?${node.target}${data}?>`;
-  if (node.parentNode !== node.ownerDocument) {
-    return rendered;
-  }
-
-  let nextNode = node.nextSibling;
-  while (nextNode != null) {
-    if (nextNode === node.ownerDocument.documentElement) {
-      return `${rendered}\n`;
-    }
-    nextNode = nextNode.nextSibling;
-  }
-  return `\n${rendered}`;
+  return `<?${node.target}${data}?>`;
 }
 
 export function isCanonicalDocumentChild(node: Node): boolean {
