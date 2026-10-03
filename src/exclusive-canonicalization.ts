@@ -287,16 +287,16 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
   }
 
   /**
-   * Perform canonicalization of the given element node
+   * Perform canonicalization of the given node
    *
    * @api public
    */
   process(
-    elem: Element | Document,
+    node: Element | Document,
     options: CanonicalizationOrTransformationAlgorithmProcessOptions,
   ): string {
     options = options || {};
-    const referenceElement = isDomNode.isDocumentNode(elem) ? elem.documentElement : elem;
+    const elem = isDomNode.isDocumentNode(node) ? node.documentElement : node;
     let inclusiveNamespacesPrefixList = options.inclusiveNamespacesPrefixList || [];
     const defaultNs = options.defaultNs || "";
     const defaultNsForPrefix = options.defaultNsForPrefix || {};
@@ -306,7 +306,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
      * If the inclusiveNamespacesPrefixList has not been explicitly provided then look it up in CanonicalizationMethod/InclusiveNamespaces
      */
     if (!utils.isArrayHasLength(inclusiveNamespacesPrefixList)) {
-      const CanonicalizationMethod = utils.findChildren(elem, "CanonicalizationMethod");
+      const CanonicalizationMethod = utils.findChildren(node, "CanonicalizationMethod");
       if (CanonicalizationMethod.length !== 0) {
         const inclusiveNamespaces = utils.findChildren(
           CanonicalizationMethod[0],
@@ -328,15 +328,15 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
         if (ancestorNamespaces) {
           ancestorNamespaces.forEach(function (ancestorNamespace) {
             if (prefix === "#default" && ancestorNamespace.prefix === "") {
-              if (!referenceElement.hasAttribute("xmlns")) {
-                referenceElement.setAttributeNS(
+              if (!elem.hasAttribute("xmlns")) {
+                elem.setAttributeNS(
                   "http://www.w3.org/2000/xmlns/",
                   "xmlns",
                   ancestorNamespace.namespaceURI,
                 );
               }
             } else if (prefix === ancestorNamespace.prefix) {
-              referenceElement.setAttributeNS(
+              elem.setAttributeNS(
                 "http://www.w3.org/2000/xmlns/",
                 `xmlns:${prefix}`,
                 ancestorNamespace.namespaceURI,
@@ -348,7 +348,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     }
 
     const res = this.processInner(
-      elem,
+      node,
       [],
       defaultNs,
       defaultNsForPrefix,
