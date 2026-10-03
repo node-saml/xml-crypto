@@ -102,7 +102,6 @@ export function renderProcessingInstruction(node: ProcessingInstruction): string
 export function isCanonicalDocumentChild(node: Node): boolean {
   return (
     isDomNode.isElementNode(node) ||
-    isDomNode.isCommentNode(node) ||
     // Canonical XML excludes the XML declaration.
     (isDomNode.isProcessingInstructionNode(node) && node.target.toLowerCase() !== "xml")
   );
