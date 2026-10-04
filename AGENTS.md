@@ -6,13 +6,18 @@
 depended on by security-sensitive projects such as `node-saml`, so a bug here can become
 an authentication bypass downstream. Treat every change as security-relevant.
 
+## Purpose and scope
+
+Keep the library secure, spec-compliant, and easy to use. Verify a concrete security,
+correctness, conformance, or usability problem before proposing or doing work.
+
 ## Layout
 
 - `src/` — TypeScript source; the only code that ships.
 - `src/index.ts` — the public barrel. Anything re-exported here is public API.
 - `src/signed-xml.ts` — the core signing and verification logic.
 - `test/*.spec.ts` — Mocha specs.
-- `test/static/`, `test/validators/` — fixtures. See the warning below.
+- `test/static/` — fixtures. See the warning below.
 - `lib/` — build output. Generated; never edit.
 
 ## Commands
@@ -28,10 +33,10 @@ Run `npm run build && npm test && npm run lint` before calling work done.
 
 ### Fixtures are byte-sensitive
 
-`test/static/` and `test/validators/` contain XML signature fixtures. Canonicalization
-and digests depend on the exact bytes, so reformatting whitespace silently invalidates
-signatures and the failure can look unrelated. `.prettierignore` excludes both
-directories — keep it that way, and never run a formatter over them.
+`test/static/` contains XML signature fixtures. Canonicalization and digests depend on
+the exact bytes, so reformatting whitespace silently invalidates signatures and the
+failure can look unrelated. `.prettierignore` excludes that directory — keep it that
+way, and never run a formatter over it.
 
 ### The supported Node floor is real
 

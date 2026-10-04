@@ -432,6 +432,28 @@ describe("Signature unit tests", function () {
     );
   });
 
+  for (const action of ["before", "after"] as const) {
+    it(`signer rejects inserting signature ${action} a node without a parent`, function () {
+      const sig = new SignedXml();
+
+      sig.privateKey = fs.readFileSync("./test/static/client.pem");
+      sig.addReference({
+        xpath: "//*[local-name(.)='repository']",
+        digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+      });
+
+      sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+      sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+
+      expect(() =>
+        sig.computeSignature('<root><repository id="r">github</repository></root>', {
+          location: { reference: "//@id", action },
+        }),
+      ).to.throw(`selects a node without a parent, so we can't insert \`${action}\``);
+    });
+  }
+
   it("signer creates signature with correct structure", function () {
     class DummyDigest {
       getHash = function () {
@@ -1251,41 +1273,83 @@ describe("Signature unit tests", function () {
     expect(result.includes(assertionId)).to.be.true;
   });
 
-  it("creates InclusiveNamespaces element when inclusiveNamespacesPrefixList is set on Reference", function () {
-    const xml = "<root><x /></root>";
-    const sig = new SignedXml();
-    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+  describe("InclusiveNamespaces on a reference", function () {
+    const envelopedSignature = "http://www.w3.org/2000/09/xmldsig#enveloped-signature";
+    const exclusiveC14n = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    const exclusiveC14nWithComments = "http://www.w3.org/2001/10/xml-exc-c14n#WithComments";
+    const c14n = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    // A Transform carries only its own algorithm's parameters, and PrefixList belongs to exclusive
+    // canonicalization, in its namespace for both identifiers:
+    // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
+    // https://www.w3.org/TR/xml-exc-c14n/#sec-Use
+    const prefixList = `{${exclusiveC14n}}InclusiveNamespaces PrefixList="prefix1 prefix2"`;
 
-    sig.addReference({
-      xpath: "//*[local-name(.)='root']",
-      transforms: ["http://www.w3.org/2000/09/xmldsig#enveloped-signature"],
-      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-      uri: "",
-      digestValue: "",
-      inclusiveNamespacesPrefixList: ["prefix1", "prefix2"],
-    });
+    const cases: { description: string; parameters: [string, string[]][] }[] = [
+      {
+        description: "exclusive canonicalization after enveloped-signature",
+        parameters: [
+          [envelopedSignature, []],
+          [exclusiveC14n, [prefixList]],
+        ],
+      },
+      {
+        description: "exclusive canonicalization with comments",
+        parameters: [
+          [envelopedSignature, []],
+          [exclusiveC14nWithComments, [prefixList]],
+        ],
+      },
+      {
+        description: "enveloped-signature after exclusive canonicalization",
+        parameters: [
+          [exclusiveC14n, [prefixList]],
+          [envelopedSignature, []],
+        ],
+      },
+      {
+        description: "inclusive canonicalization",
+        parameters: [
+          [envelopedSignature, []],
+          [c14n, []],
+        ],
+      },
+    ];
 
-    sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
-    sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
-    sig.computeSignature(xml);
-    const signedXml = sig.getSignedXml();
+    for (const { description, parameters } of cases) {
+      it(`writes the PrefixList only as a parameter of exclusive canonicalization, for ${description}`, function () {
+        const sig = new SignedXml({
+          privateKey: fs.readFileSync("./test/static/client.pem"),
+          canonicalizationAlgorithm: exclusiveC14n,
+          signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+        });
+        sig.addReference({
+          xpath: "/*",
+          isEmptyUri: true,
+          transforms: parameters.map(([algorithm]) => algorithm),
+          digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+          inclusiveNamespacesPrefixList: ["prefix1", "prefix2"],
+        });
+        sig.computeSignature("<root><x /></root>");
 
-    const doc = new xmldom.DOMParser().parseFromString(signedXml);
-    const inclusiveNamespaces = xpath.select(
-      "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']/*[local-name(.)='InclusiveNamespaces']",
-      doc.documentElement,
-    );
-    isDomNode.assertIsArrayOfNodes(inclusiveNamespaces);
-    expect(inclusiveNamespaces.length, "InclusiveNamespaces element should exist").to.equal(1);
-
-    const firstNamespace = inclusiveNamespaces[0];
-    isDomNode.assertIsElementNode(firstNamespace);
-
-    const prefixListAttribute = firstNamespace.getAttribute("PrefixList");
-    expect(
-      prefixListAttribute,
-      "InclusiveNamespaces element should have the correct PrefixList attribute value",
-    ).to.equal("prefix1 prefix2");
+        const transforms = xpath.select(
+          "//*[local-name(.)='Reference']/*[local-name(.)='Transforms']/*[local-name(.)='Transform']",
+          new xmldom.DOMParser().parseFromString(sig.getSignatureXml()),
+        );
+        isDomNode.assertIsArrayOfNodes(transforms);
+        expect(
+          transforms
+            .filter(isDomNode.isElementNode)
+            .map((transform) => [
+              transform.getAttribute("Algorithm"),
+              Array.from<Node>(transform.childNodes).map((child) =>
+                isDomNode.isElementNode(child)
+                  ? `{${child.namespaceURI}}${child.localName} PrefixList="${child.getAttribute("PrefixList")}"`
+                  : child.toString(),
+              ),
+            ]),
+        ).to.deep.equal(parameters);
+      });
+    }
   });
 
   it("does not create InclusiveNamespaces element when inclusiveNamespacesPrefixList is not set on Reference", function () {

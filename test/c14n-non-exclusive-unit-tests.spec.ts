@@ -165,6 +165,13 @@ describe("C14N non-exclusive canonicalization tests", function () {
     test_findAncestorNs(xml, xpath, expected);
   });
 
+  it("findAncestorNs: Returns no namespaces when the XPath selects nothing", function () {
+    const xml = "<root xmlns:aaa='bbb'><child1></child1></root>";
+    const xpath = "/root/missing";
+
+    test_findAncestorNs(xml, xpath, []);
+  });
+
   // Tests for c14nCanonicalization
   it("C14n: Correctly picks up root ancestor namespace", function () {
     const xml = "<root xmlns:aaa='bbb'><child1><child2></child2></child1></root>";
