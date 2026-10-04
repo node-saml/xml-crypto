@@ -56,5 +56,17 @@ describe("processing instructions in signed references", function () {
         "<root><?action a & b?><?empty?></root>",
       );
     });
+
+    it(`canonicalizes processing instructions outside the document element with ${algorithm}`, function () {
+      const doc = new xmldom.DOMParser().parseFromString(
+        '<?xml version="1.0"?>\n<?xml-stylesheet   href="doc.xsl"\n   type="text/xsl"   ?>\n<!DOCTYPE doc SYSTEM "doc.dtd">\n<doc>Hello, world!<!-- Comment 1 --></doc>\n<?pi-without-data    ?>\n<!-- Comment 2 -->\n<!-- Comment 3 -->',
+      );
+      const stylesheet = '<?xml-stylesheet href="doc.xsl"\n   type="text/xsl"   ?>';
+      const expected = algorithm.endsWith("#WithComments")
+        ? `${stylesheet}\n<doc>Hello, world!<!-- Comment 1 --></doc>\n<?pi-without-data?>\n<!-- Comment 2 -->\n<!-- Comment 3 -->`
+        : `${stylesheet}\n<doc>Hello, world!</doc>\n<?pi-without-data?>`;
+
+      expect(new Canonicalization().process(doc, {})).to.equal(expected);
+    });
   }
 });
