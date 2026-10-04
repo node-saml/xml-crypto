@@ -478,6 +478,8 @@ describe("Signature integration tests", function () {
       "inclusive_namespaces_exc_c14n.xml",
       "inclusive_namespaces_exc_c14n_with_comments.xml",
       "inclusive_namespaces_enveloped_signature_after_exc_c14n.xml",
+      // Signed by xml-crypto 6.3.2, which wrote InclusiveNamespaces outside the exc-c14n namespace:
+      // https://github.com/node-saml/xml-crypto/issues/633
       "inclusive_namespaces_in_with_comments_namespace.xml",
       // PrefixList="a&#x9;b" is white space delimited: https://www.w3.org/TR/xml-exc-c14n/#sec-Use
       "inclusive_namespaces_prefix_list_with_tab.xml",
