@@ -11,7 +11,8 @@ module.exports = {
   prefix: "",
   onlyMilestones: false,
   ignoreTagsWith: [],
-  ignoreLabels: [],
+  // Dependabot adds these next to "dependencies"; they say nothing a reader needs.
+  ignoreLabels: ["javascript", "github_actions", "java"],
   // The master-side copies of changes already released from 6.x, which git cannot tell
   // are the same change as the commits that shipped.
   ignoreIssuesWith: ["duplicate"],
