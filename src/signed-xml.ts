@@ -90,6 +90,12 @@ const warnValidateElementAgainstReferences = deprecate(
   "XML_CRYPTO_VALIDATE_ELEMENT_AGAINST_REFERENCES",
 );
 
+const warnEnvelopedSignatureAfterCanonicalization = deprecate(
+  () => {},
+  "Applying `enveloped-signature` after a transform that returns a string, such as a canonicalization, is deprecated and will throw in a future version. List `enveloped-signature` before any canonicalization in the `Reference`.",
+  "XML_CRYPTO_ENVELOPED_SIGNATURE_AFTER_CANONICALIZATION",
+);
+
 export class SignedXml {
   idMode?: "wssecurity";
   idAttributes: string[];
@@ -1444,6 +1450,7 @@ export class SignedXml {
     }
     let transformedXml: Node | string = canonXml;
     let transformOptions = options;
+    let parsedFromOctets = false;
 
     // Octets are parsed into a node-set for the next transform, and a node-set left at the end is
     // converted to octets with C14N: https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
@@ -1458,6 +1465,15 @@ export class SignedXml {
           defaultNs: "",
           signatureNode: this.findLoadedSignature(transformedXml) ?? options.signatureNode,
         };
+        parsedFromOctets = true;
+      }
+      // enveloped-signature takes only a node-set from its parent document:
+      // https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature
+      if (
+        parsedFromOctets &&
+        transformName === "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
+      ) {
+        warnEnvelopedSignatureAfterCanonicalization();
       }
       // Each transform takes only the parameters of its own Transform:
       // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
