@@ -1,6 +1,39 @@
 # Changelog
 
-## 6.3.2 (2026-09-24)
+## 6.3.3 (2026-10-05)
+
+### 🐛 Bug Fixes
+
+- [**security**] fix: include document PIs in empty-URI XML signatures [#645](https://github.com/node-saml/xml-crypto/pull/645)
+- [**bug**] [**security**] fix: canonicalize processing instructions in signed references [#641](https://github.com/node-saml/xml-crypto/pull/641)
+- [**bug**] [**security**] fix: distinguish namespace declarations from ordinary attributes [#640](https://github.com/node-saml/xml-crypto/pull/640)
+- [**bug**] [**security**] fix: escape namespace values during canonicalization [#639](https://github.com/node-saml/xml-crypto/pull/639)
+- [**bug**] fix: name the parentless location.reference error correctly [#634](https://github.com/node-saml/xml-crypto/pull/634)
+- [**bug**] fix: diagnose Algorithm URI whitespace [#576](https://github.com/node-saml/xml-crypto/pull/576)
+- [**bug**] fix: write a reference's InclusiveNamespaces only as its exclusive C14N parameter [#632](https://github.com/node-saml/xml-crypto/pull/632)
+- [**bug**] [**security**] fix: canonicalize SignedInfo in its own signature's context and identify the loaded signature by its decoded SignatureValue [#623](https://github.com/node-saml/xml-crypto/pull/623)
+
+### 📚 Documentation
+
+- [**documentation**] [**chore**] doc: record who signed each InclusiveNamespaces fixture [#646](https://github.com/node-saml/xml-crypto/pull/646)
+- [**documentation**] docs: say to use one SignedXml instance per signature [#624](https://github.com/node-saml/xml-crypto/pull/624)
+- [**documentation**] docs: document the isEmptyUri and inclusiveNamespacesPrefixList options of addReference() [#625](https://github.com/node-saml/xml-crypto/pull/625)
+
+### ⚙️ Technical Tasks
+
+- [**chore**] revert: diagnose Algorithm URI whitespace (#576) [#638](https://github.com/node-saml/xml-crypto/pull/638)
+- [**chore**] test: cover implicitTransforms and idAttribute [#635](https://github.com/node-saml/xml-crypto/pull/635)
+- [**chore**] chore: remove unused C# and Java interop validators [#566](https://github.com/node-saml/xml-crypto/pull/566)
+
+### 🙈 Other
+
+- [**closed**] chore: merge master into 6.x [#650](https://github.com/node-saml/xml-crypto/pull/650)
+- [**closed**] fix: protect inherited context in XML canonicalization [#643](https://github.com/node-saml/xml-crypto/pull/643)
+- [**closed**] docs: clarify project purpose and scope [#637](https://github.com/node-saml/xml-crypto/pull/637)
+
+---
+
+## v6.3.2 (2026-09-24)
 
 ### 🐛 Bug Fixes
 
