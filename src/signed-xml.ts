@@ -171,6 +171,7 @@ export class SignedXml {
   HashAlgorithms: Record<HashAlgorithmType, new () => HashAlgorithm> = {
     "http://www.w3.org/2000/09/xmldsig#sha1": hashAlgorithms.Sha1,
     "http://www.w3.org/2001/04/xmlenc#sha256": hashAlgorithms.Sha256,
+    "http://www.w3.org/2001/04/xmldsig-more#sha384": hashAlgorithms.Sha384,
     "http://www.w3.org/2001/04/xmlenc#sha512": hashAlgorithms.Sha512,
   };
 
@@ -183,6 +184,7 @@ export class SignedXml {
     "http://www.w3.org/2000/09/xmldsig#rsa-sha1": signatureAlgorithms.RsaSha1,
     "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256": signatureAlgorithms.RsaSha256,
     "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1": signatureAlgorithms.RsaSha256Mgf1,
+    "http://www.w3.org/2001/04/xmldsig-more#rsa-sha384": signatureAlgorithms.RsaSha384,
     "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512": signatureAlgorithms.RsaSha512,
     // Disabled by default due to key confusion concerns.
     // 'http://www.w3.org/2000/09/xmldsig#hmac-sha1': SignatureAlgorithms.HmacSha1

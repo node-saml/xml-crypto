@@ -139,6 +139,7 @@ deprecated and stay exported.
 
 - SHA1 digests <http://www.w3.org/2000/09/xmldsig#sha1>
 - SHA256 digests <http://www.w3.org/2001/04/xmlenc#sha256>
+- SHA384 digests <http://www.w3.org/2001/04/xmldsig-more#sha384>
 - SHA512 digests <http://www.w3.org/2001/04/xmlenc#sha512>
 
 ### Signature Algorithms
@@ -146,6 +147,7 @@ deprecated and stay exported.
 - RSA-SHA1 <http://www.w3.org/2000/09/xmldsig#rsa-sha1>
 - RSA-SHA256 <http://www.w3.org/2001/04/xmldsig-more#rsa-sha256>
 - RSA-SHA256 with MGF1 <http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1>
+- RSA-SHA384 <http://www.w3.org/2001/04/xmldsig-more#rsa-sha384>
 - RSA-SHA512 <http://www.w3.org/2001/04/xmldsig-more#rsa-sha512>
 
 HMAC-SHA1 is also available but it is disabled by default

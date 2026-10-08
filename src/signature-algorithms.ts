@@ -100,6 +100,32 @@ export class RsaSha256Mgf1 implements SignatureAlgorithm {
   };
 }
 
+export class RsaSha384 implements SignatureAlgorithm {
+  getSignature = createOptionalCallbackFunction(
+    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+      const signer = crypto.createSign("RSA-SHA384");
+      signer.update(signedInfo);
+      const res = signer.sign(privateKey, "base64");
+
+      return res;
+    },
+  );
+
+  verifySignature = createOptionalCallbackFunction(
+    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+      const verifier = crypto.createVerify("RSA-SHA384");
+      verifier.update(material);
+      const res = verifier.verify(key, signatureValue, "base64");
+
+      return res;
+    },
+  );
+
+  getAlgorithmName = () => {
+    return "http://www.w3.org/2001/04/xmldsig-more#rsa-sha384";
+  };
+}
+
 export class RsaSha512 implements SignatureAlgorithm {
   getSignature = createOptionalCallbackFunction(
     (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
