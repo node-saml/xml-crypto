@@ -1,8 +1,8 @@
 import { X509Certificate } from "crypto";
-import { deprecate } from "util";
 import * as xpath from "xpath";
 import type { NamespacePrefix, PemLabel } from "./types";
 import * as isDomNode from "@xmldom/is-dom-node";
+import { deprecate } from "util";
 
 export function isArrayHasLength(array: unknown): array is unknown[] {
   return Array.isArray(array) && array.length > 0;
