@@ -607,37 +607,3 @@ describe("Canonicalization unit tests", function () {
     );
   });
 });
-
-describe("ExclusiveCanonicalization renderNs() and processInner(), public until 7.0", function () {
-  function parseRoot() {
-    const doc = new xmldom.DOMParser().parseFromString(
-      '<root xmlns:a="urn:a"><a:child>text</a:child></root>',
-      "text/xml",
-    );
-    const root = xpath.select1("/*", doc);
-    isDomNode.assertIsElementNode(root);
-    return root;
-  }
-
-  it("canonicalizes through processInner() called directly", function () {
-    const canonicalization = new ExclusiveCanonicalization();
-    const root = parseRoot();
-
-    /* eslint-disable-next-line deprecation/deprecation */
-    expect(canonicalization.processInner(root, [], "", {}, [])).to.equal(
-      canonicalization.process(root, {}),
-    );
-  });
-
-  it("uses an override of renderNs()", function () {
-    class WithoutNamespaces extends ExclusiveCanonicalization {
-      renderNs() {
-        return { rendered: "", newDefaultNs: "" };
-      }
-    }
-
-    expect(new WithoutNamespaces().process(parseRoot(), {})).to.equal(
-      "<root><a:child>text</a:child></root>",
-    );
-  });
-});
