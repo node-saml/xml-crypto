@@ -71,14 +71,21 @@ string is parsed into a new document and the next transform is applied to that, 
 [reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
 requires. Every built-in canonicalization algorithm returns a string, so:
 
-- `enveloped-signature` after a canonicalization removes the `Signature`, including one inside the
-  referenced element.
-- The result of a `#WithComments` canonicalization followed by `enveloped-signature` is
-  [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
 - Exclusive canonicalization after inclusive canonicalization omits inherited namespace declarations
   that the referenced element does not use.
 - A custom transform after a canonicalization receives the parsed document.
 - A transform throws when the string returned by the transform before it is not well-formed XML.
+
+`enveloped-signature` is the exception. XMLDSig applies it only to
+[a node-set from its parent XML document](https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature),
+which the parsed document is not, so list `enveloped-signature` before any canonicalization. Applying
+it after a transform that returns a string is deprecated, when signing and when verifying, and will
+throw in 7.0. Until then it prints a `DeprecationWarning`, and:
+
+- `enveloped-signature` after a canonicalization removes the `Signature`, including one inside the
+  referenced element.
+- The result of a `#WithComments` canonicalization followed by `enveloped-signature` is
+  [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
 
 ### Copies of an enveloped signature
 
@@ -111,6 +118,30 @@ The error for a value the parser cannot read is `Invalid PEM format.`, in place 
 as that file rather than base64-encoded, which is what made it a message with a body of
 base64-encoded PEM. Both forms of PEM the parser does read produce the same canonical output.
 
+### Input that 7.0 rejects
+
+Each of these works in 6.x, prints a `DeprecationWarning`, and is rejected in 7.0.
+
+When verifying:
+
+- a `Reference` whose `URI` is neither empty nor `#` followed by an ID. It is resolved as a
+  same-document ID all the same, though only those two forms are
+  [same-document references](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel).
+- a `Transform` with no `Algorithm` attribute, which is skipped. The
+  [schema](https://www.w3.org/TR/xmldsig-core1/#sec-Transforms) requires the attribute.
+- an `InclusiveNamespaces` element outside the `http://www.w3.org/2001/10/xml-exc-c14n#`
+  [namespace](https://www.w3.org/TR/xml-exc-c14n/#sec-Use), whose `PrefixList` is applied all the
+  same. xml-crypto 6.3.2 and earlier wrote one when signing with `xml-exc-c14n#WithComments` and a
+  prefix list, so documents signed that way need signing again.
+
+When signing:
+
+- a `location.reference` that selects a text node, a comment or a processing instruction, which
+  `before` and `after` place the `Signature` next to.
+- `isEmptyUri: true` on a reference whose `xpath` selects anything but the document element.
+  `URI=""` identifies [the whole document](https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document),
+  so the signature this produces does not verify.
+
 ### Deprecated ahead of 7.0
 
 These exports are deprecated and will be removed in 7.0:
@@ -128,11 +159,18 @@ Calling one prints a `DeprecationWarning` naming its replacement. The three rege
 `util.deprecate` needs a call to intercept — so TypeScript users see the `@deprecated` tag and
 JavaScript users get no signal until the names go away.
 
+`renderNs()` and `processInner()` on `C14nCanonicalization` and `ExclusiveCanonicalization` are
+deprecated and will be private in 7.0; call `process()` instead. Calling either one from outside
+`process()`, or overriding one in a subclass, prints a `DeprecationWarning`.
+
 `toPem`, `pemToDer`, `pemCertificates`, `normalizePem` and `findAncestorNs` are **not**
 deprecated and stay exported.
 
 `getReferences()` and `references` are deprecated. Do not use them to obtain signed XML; use
 `getSignedReferences()` instead, as shown in [Verifying Xml documents](#verifying-xml-documents).
+
+`enveloped-signature` after a transform that returns a string is deprecated; see
+[Transforms that follow a canonicalization](#transforms-that-follow-a-canonicalization).
 
 ## Supported Algorithms
 
@@ -663,6 +701,16 @@ Rejected, with an error rather than a certificate:
   certificate cut short, or one with more bytes after it. Node's
   [`X509Certificate`](https://nodejs.org/api/crypto.html#class-x509certificate) decides whether
   the data is a certificate, so it is judged as X.509 and not by its base64 alone.
+- a `PRIVATE KEY` or `RSA PRIVATE KEY` whose data Node cannot read as a private key under that
+  label: PKCS #1 data labelled `PRIVATE KEY`, a public key, or base64 of something else. Node's
+  [`crypto.createPrivateKey()`](https://nodejs.org/api/crypto.html#cryptocreateprivatekeykey)
+  decides, so the answer follows the Node version: Node 16 refuses PKCS #8 data labelled
+  `RSA PRIVATE KEY`, and later versions read it. Base64 does not say whether a key is PKCS #8,
+  which is `PRIVATE KEY`, or PKCS #1, which is `RSA PRIVATE KEY`, so a caller that takes either as
+  bare base64 tries `PRIVATE KEY` first and `RSA PRIVATE KEY` second. In that order each key comes
+  out under its own label on every supported Node version. Tried the other way round, PKCS #8 data
+  comes out labelled `RSA PRIVATE KEY` on a Node version that reads it so, and Node 16 then refuses
+  that PEM.
 - a header with no data under it, and a blank line in the middle of a message's data.
 - a boundary sharing its line with other text.
   [Figure 1](https://www.rfc-editor.org/rfc/rfc7468#section-3) gives an encapsulation boundary a

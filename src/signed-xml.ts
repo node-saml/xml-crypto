@@ -64,6 +64,30 @@ function decodeSignatureValue(signature: Node): Buffer {
   return Buffer.from(findSignatureValue(signature) ?? "", "base64");
 }
 
+const warnReferenceUriWithoutFragment = deprecate(
+  () => {},
+  'Resolving a `Reference` whose `URI` is neither empty nor starts with "#" as a same-document ID is deprecated, and such a signature will not verify in version 7.0. A same-document `URI` is empty, or "#" followed by an ID.',
+  "XML_CRYPTO_REFERENCE_URI_WITHOUT_FRAGMENT",
+);
+
+const warnTransformWithoutAlgorithm = deprecate(
+  () => {},
+  "Skipping a `Transform` that has no `Algorithm` attribute is deprecated, and a signature that has one will not verify in version 7.0.",
+  "XML_CRYPTO_TRANSFORM_WITHOUT_ALGORITHM",
+);
+
+const warnLocationReferenceNotElement = deprecate(
+  () => {},
+  "A `location.reference` that selects a node other than an element is deprecated and will throw in version 7.0. Select the element to place the signature in or next to.",
+  "XML_CRYPTO_LOCATION_REFERENCE_NOT_ELEMENT",
+);
+
+const warnEmptyUriNotDocumentElement = deprecate(
+  () => {},
+  '`isEmptyUri: true` on a reference whose `xpath` selects anything but the document element is deprecated and will throw in version 7.0. `URI=""` identifies the whole document, so the signature this produces does not verify.',
+  "XML_CRYPTO_EMPTY_URI_NOT_DOCUMENT_ELEMENT",
+);
+
 function certificatesToPublish(publicCert: string): string[] {
   const certificates = utils.pemCertificates(publicCert);
   if (certificates.length > 0) {
@@ -94,6 +118,12 @@ const warnValidateElementAgainstReferences = deprecate(
   () => {},
   "`validateElementAgainstReferences()` is deprecated and will be removed in a future version. After `checkSignature()` succeeds, use the XML that `getSignedReferences()` returns instead of nodes from the original document.",
   "XML_CRYPTO_VALIDATE_ELEMENT_AGAINST_REFERENCES",
+);
+
+const warnEnvelopedSignatureAfterCanonicalization = deprecate(
+  () => {},
+  "Applying `enveloped-signature` after a transform that returns a string, such as a canonicalization, is deprecated and will throw in a future version. List `enveloped-signature` before any canonicalization in the `Reference`.",
+  "XML_CRYPTO_ENVELOPED_SIGNATURE_AFTER_CANONICALIZATION",
 );
 
 export class SignedXml {
@@ -622,6 +652,12 @@ export class SignedXml {
     const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
     let elem: xpath.SelectSingleReturnType = null;
 
+    // Only an empty URI and a fragment are same-document references:
+    // https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
+    if (uri !== "" && uri === ref.uri) {
+      warnReferenceUriWithoutFragment();
+    }
+
     if (uri === "") {
       elem = utils.hasDocumentLevelProcessingInstruction(doc) ? doc : xpath.select1("//*", doc);
     } else if (uri?.indexOf("'") !== -1) {
@@ -820,16 +856,19 @@ export class SignedXml {
 
         if (transformAttr) {
           transforms.push(transformAttr.value);
+          const inclusiveNamespaces = utils.findChildren(transform, "InclusiveNamespaces");
+          inclusiveNamespaces.forEach(execC14n.warnUnlessExclusiveC14nNamespace);
           // PrefixList is NMTOKENS, delimited by XML white space:
           // https://www.w3.org/TR/xml-exc-c14n/#sec-Use
           prefixLists.push(
-            utils
-              .findChildren(transform, "InclusiveNamespaces")
+            inclusiveNamespaces
               .flatMap((namespace) =>
                 (namespace.getAttribute("PrefixList") ?? "").split(/[ \t\r\n]+/),
               )
               .filter((value) => value.length > 0),
           );
+        } else {
+          warnTransformWithoutAlgorithm();
         }
       }
     }
@@ -1111,6 +1150,10 @@ export class SignedXml {
       }
     }
 
+    if (!isDomNode.isElementNode(referenceNode)) {
+      warnLocationReferenceNotElement();
+    }
+
     const previousSignatureNode = this.signatureNode;
     this.signatureNode = signatureElem;
     try {
@@ -1283,6 +1326,9 @@ export class SignedXml {
         let targetUri: string;
         if (ref.isEmptyUri) {
           targetUri = "";
+          if (node !== node.ownerDocument.documentElement) {
+            warnEmptyUriNotDocumentElement();
+          }
         } else {
           const id = this.ensureHasId(node);
           ref.uri = id;
@@ -1456,6 +1502,7 @@ export class SignedXml {
     }
     let transformedXml: Node | string = canonXml;
     let transformOptions = options;
+    let parsedFromOctets = false;
 
     // Octets are parsed into a node-set for the next transform, and a node-set left at the end is
     // converted to octets with C14N: https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
@@ -1470,6 +1517,15 @@ export class SignedXml {
           defaultNs: "",
           signatureNode: this.findLoadedSignature(transformedXml) ?? options.signatureNode,
         };
+        parsedFromOctets = true;
+      }
+      // enveloped-signature takes only a node-set from its parent document:
+      // https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature
+      if (
+        parsedFromOctets &&
+        transformName === "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
+      ) {
+        warnEnvelopedSignatureAfterCanonicalization();
       }
       // Each transform takes only the parameters of its own Transform:
       // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
