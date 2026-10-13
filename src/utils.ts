@@ -1,4 +1,4 @@
-import { X509Certificate } from "crypto";
+import { X509Certificate, createPrivateKey } from "crypto";
 import * as xpath from "xpath";
 import type { NamespacePrefix, PemLabel } from "./types";
 import * as isDomNode from "@xmldom/is-dom-node";
@@ -349,12 +349,35 @@ export function normalizePem(pem: string): string {
 // same bytes whatever line width, line ending or blanks it arrived with. Only the data is handed
 // to `normalizePem`, which wraps at 64 characters whatever it is given: a boundary broken across
 // two lines would be a message this parser could no longer read back.
-function formatPemMessage(label: string, data: string): string {
+function writePemMessage(label: string, data: string): string {
+  return `-----BEGIN ${label}-----\n${normalizePem(canonicalBase64(data))}-----END ${label}-----\n`;
+}
+
+const PRIVATE_KEY_LABELS = ["PRIVATE KEY", "RSA PRIVATE KEY"];
+
+// Base64 does not say whether it holds PKCS #8 or PKCS #1, and the label does, so Node is asked to
+// read the data under the label it carries: https://www.rfc-editor.org/rfc/rfc7468#section-10
+function assertPrivateKey(label: string, data: string): void {
+  try {
+    createPrivateKey(writePemMessage(label, data));
+  } catch {
+    throw new Error("Invalid PEM format.");
+  }
+}
+
+function assertEncapsulatedData(label: string, data: string): void {
   if (label === "CERTIFICATE") {
     assertX509Certificate(data);
   }
+  if (PRIVATE_KEY_LABELS.includes(label)) {
+    assertPrivateKey(label, data);
+  }
+}
 
-  return `-----BEGIN ${label}-----\n${normalizePem(canonicalBase64(data))}-----END ${label}-----\n`;
+function formatPemMessage(label: string, data: string): string {
+  assertEncapsulatedData(label, data);
+
+  return writePemMessage(label, data);
 }
 
 /**
@@ -393,7 +416,8 @@ export function pemCertificates(pem: string): string[] {
  * Returns the decoded bytes of the one PEM message a value holds, whatever its label.
  *
  * @param pem The PEM message to decode
- * @throws Error if the value is not a single well-formed PEM message
+ * @throws Error if the value is not a single well-formed PEM message, or if its data is not what
+ *   a `CERTIFICATE`, `PRIVATE KEY` or `RSA PRIVATE KEY` label says it is
  */
 export function pemToDer(pem: string): Buffer {
   const text = normalizePemInput(pem);
@@ -410,9 +434,7 @@ export function pemToDer(pem: string): Buffer {
   }
 
   const [{ label, data }] = messages;
-  if (label === "CERTIFICATE") {
-    assertX509Certificate(data);
-  }
+  assertEncapsulatedData(label, data);
 
   return Buffer.from(data, "base64");
 }
@@ -452,8 +474,9 @@ export function bareCertificate(value: string): string {
  *
  * @param value The certificate or key to return as PEM
  * @param pemLabel The label to give base64 data, which needs one; ignored when the value is PEM
- * @throws Error if the value is neither a well-formed PEM nor base64, or if it is base64 and no
- *   label, or an unusable one, was given
+ * @throws Error if the value is neither a well-formed PEM nor base64, if it is base64 and no
+ *   label, or an unusable one, was given, or if the data is not what a `CERTIFICATE`,
+ *   `PRIVATE KEY` or `RSA PRIVATE KEY` label says it is
  */
 export function toPem(value: string | Buffer, pemLabel?: PemLabel): string {
   const text = normalizePemInput(pemText(value));
