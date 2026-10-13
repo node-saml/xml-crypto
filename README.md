@@ -122,6 +122,10 @@ JavaScript users get no signal until the names go away.
 `toPem`, `pemToDer`, `pemCertificates`, `normalizePem` and `findAncestorNs` are **not**
 deprecated and stay exported.
 
+The callback form of `computeSignature()` and `checkSignature()` is deprecated, and so are
+`createOptionalCallbackFunction` and `ErrorFirstCallback`; see
+[Asynchronous signing](#asynchronous-signing).
+
 `getReferences()` and `references` are deprecated. Do not use them to obtain signed XML; use
 `getSignedReferences()` instead, as shown in [Verifying Xml documents](#verifying-xml-documents).
 
@@ -528,6 +532,12 @@ You can always look at the actual code as a sample.
 ## Asynchronous signing
 
 If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, you can create a custom signing algorithm that uses an asynchronous callback. Register it under the URI of the algorithm it implements, which is the `SignatureMethod` a verifier reads.
+
+The callback form of `computeSignature()` and `checkSignature()` is deprecated and will be removed
+in 7.0, which signs and verifies asynchronously through methods that return a promise. Until then
+an asynchronous algorithm such as this one needs the callback, and passing one prints a
+`DeprecationWarning`. `checkSignature()` verifies synchronously whether or not it is given a
+callback, so call it without one.
 
 ```javascript
 const { SignedXml } = require("xml-crypto");

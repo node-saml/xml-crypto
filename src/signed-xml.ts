@@ -78,6 +78,12 @@ function certificatesToPublish(publicCert: string): string[] {
   }
 }
 
+const warnCallbackForm = deprecate(
+  () => {},
+  "The callback form of `computeSignature()` and `checkSignature()` is deprecated and will be removed in version 7.0. Call them without a callback. An asynchronous signature algorithm needs the callback until 7.0, which signs and verifies through methods that return a promise.",
+  "XML_CRYPTO_CALLBACK_FORM",
+);
+
 const warnOriginalXmlWithIds = deprecate(
   () => {},
   "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. For a detached signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for WS-Security), sign that document, and send it alongside `getSignatureXml()`.",
@@ -317,6 +323,7 @@ export class SignedXml {
    * @param xml The XML document containing the signature to be validated.
    * @param callback Called with the validation result before `checkSignature` returns.
    * @throws Error if the last parameter is provided and is not a function, or if no key info resolver is provided.
+   * @deprecated Will be removed in 7.0. Call `checkSignature(xml)` and use what it returns.
    */
   checkSignature(xml: string, callback: (error: Error | null, isValid?: boolean) => void): void;
   checkSignature(
@@ -325,6 +332,9 @@ export class SignedXml {
   ): unknown {
     if (callback != null && typeof callback !== "function") {
       throw new Error("Last parameter must be a callback function");
+    }
+    if (callback) {
+      warnCallbackForm();
     }
 
     // Nothing this check has not authenticated may be visible, even if it throws partway. Success
@@ -532,6 +542,7 @@ export class SignedXml {
       throw new Error("Private key is required to compute signature");
     }
     if (typeof callback === "function") {
+      /* eslint-disable-next-line deprecation/deprecation */
       signer.getSignature(signedInfoCanon, this.privateKey, callback);
     } else {
       this.signatureValue = signer.getSignature(signedInfoCanon, this.privateKey);
@@ -952,6 +963,8 @@ export class SignedXml {
    * @param callback A callback function to handle the signature computation asynchronously.
    * @returns void
    * @throws TypeError If the xml can not be parsed.
+   * @deprecated Will be removed in 7.0. Call `computeSignature(xml)`. An asynchronous signature
+   *   algorithm needs the callback until 7.0, which signs through a method that returns a promise.
    */
   computeSignature(xml: string, callback: ErrorFirstCallback<SignedXml>): void;
 
@@ -973,6 +986,9 @@ export class SignedXml {
    * @param callback A callback function to handle the signature computation asynchronously.
    * @returns void
    * @throws TypeError If the xml can not be parsed, or Error if there were invalid options passed.
+   * @deprecated Will be removed in 7.0. Call `computeSignature(xml, options)`. An asynchronous
+   *   signature algorithm needs the callback until 7.0, which signs through a method that returns
+   *   a promise.
    */
   computeSignature(
     xml: string,
@@ -992,6 +1008,9 @@ export class SignedXml {
     } else {
       callback = callbackParam as ErrorFirstCallback<SignedXml>;
       options = (options ?? {}) as ComputeSignatureOptions;
+    }
+    if (typeof callback === "function") {
+      warnCallbackForm();
     }
 
     const doc = new xmldom.DOMParser().parseFromString(xml);

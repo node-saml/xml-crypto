@@ -201,6 +201,7 @@ export interface SignatureAlgorithm {
    * Sign the given string using the given key
    */
   getSignature(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string;
+  /** @deprecated Will be removed in 7.0, with the callback form of `computeSignature()`. */
   getSignature(
     signedInfo: crypto.BinaryLike,
     privateKey: crypto.KeyLike,
@@ -214,6 +215,8 @@ export interface SignatureAlgorithm {
   verifySignature(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
   /**
    * `SignedXml.checkSignature` calls only the synchronous form.
+   *
+   * @deprecated Will be removed in 7.0, with the callback form of `checkSignature()`.
    */
   verifySignature(
     material: string,

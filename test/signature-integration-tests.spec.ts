@@ -1005,6 +1005,7 @@ describe("Signature integration tests", function () {
               detached === "input IDs" ? '<root Id="_0">trusted</root>' : "<root>trusted</root>";
             if (useCallback) {
               await new Promise<void>((resolve, reject) => {
+                /* eslint-disable-next-line deprecation/deprecation */
                 signer.computeSignature(xml, (err) => (err ? reject(err) : resolve()));
               });
             } else {
@@ -1325,6 +1326,7 @@ describe("Signature integration tests", function () {
         const xml = "<root><item>a&#13;b&#13;&#10;c</item></root>";
         if (useCallback) {
           await new Promise<void>((resolve, reject) => {
+            /* eslint-disable-next-line deprecation/deprecation */
             signer.computeSignature(xml, (err) => (err ? reject(err) : resolve()));
           });
         } else {
