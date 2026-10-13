@@ -102,6 +102,30 @@ The error for a value the parser cannot read is `Invalid PEM format.`, in place 
 as that file rather than base64-encoded, which is what made it a message with a body of
 base64-encoded PEM. Both forms of PEM the parser does read produce the same canonical output.
 
+### Input that 7.0 rejects
+
+Each of these works in 6.x, prints a `DeprecationWarning`, and is rejected in 7.0.
+
+When verifying:
+
+- a `Reference` whose `URI` is neither empty nor `#` followed by an ID. It is resolved as a
+  same-document ID all the same, though only those two forms are
+  [same-document references](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel).
+- a `Transform` with no `Algorithm` attribute, which is skipped. The
+  [schema](https://www.w3.org/TR/xmldsig-core1/#sec-Transforms) requires the attribute.
+- an `InclusiveNamespaces` element outside the `http://www.w3.org/2001/10/xml-exc-c14n#`
+  [namespace](https://www.w3.org/TR/xml-exc-c14n/#sec-Use), whose `PrefixList` is applied all the
+  same. xml-crypto 6.3.2 and earlier wrote one when signing with `xml-exc-c14n#WithComments` and a
+  prefix list, so documents signed that way need signing again.
+
+When signing:
+
+- a `location.reference` that selects a text node, a comment or a processing instruction, which
+  `before` and `after` place the `Signature` next to.
+- `isEmptyUri: true` on a reference whose `xpath` selects anything but the document element.
+  `URI=""` identifies [the whole document](https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document),
+  so the signature this produces does not verify.
+
 ### Deprecated ahead of 7.0
 
 These exports are deprecated and will be removed in 7.0:

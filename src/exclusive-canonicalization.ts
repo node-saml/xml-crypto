@@ -5,6 +5,20 @@ import type {
 } from "./types";
 import * as utils from "./utils";
 import * as isDomNode from "@xmldom/is-dom-node";
+import { deprecate } from "util";
+
+const warnInclusiveNamespacesNamespace = deprecate(
+  () => {},
+  "Reading an `InclusiveNamespaces` element that is not in the `http://www.w3.org/2001/10/xml-exc-c14n#` namespace is deprecated, and a signature that has one will not verify in version 7.0. xml-crypto 6.3.2 and earlier wrote one when signing with `xml-exc-c14n#WithComments` and a prefix list, so sign those documents again.",
+  "XML_CRYPTO_INCLUSIVE_NAMESPACES_NAMESPACE",
+);
+
+// https://www.w3.org/TR/xml-exc-c14n/#sec-Use
+export function warnUnlessExclusiveC14nNamespace(inclusiveNamespaces: Element): void {
+  if (inclusiveNamespaces.namespaceURI !== "http://www.w3.org/2001/10/xml-exc-c14n#") {
+    warnInclusiveNamespacesNamespace();
+  }
+}
 
 export class ExclusiveCanonicalization implements CanonicalizationOrTransformationAlgorithm {
   protected includeComments = false;
@@ -313,6 +327,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
           "InclusiveNamespaces",
         );
         if (inclusiveNamespaces.length !== 0) {
+          warnUnlessExclusiveC14nNamespace(inclusiveNamespaces[0]);
           inclusiveNamespacesPrefixList = (
             inclusiveNamespaces[0].getAttribute("PrefixList") || ""
           ).split(" ");
