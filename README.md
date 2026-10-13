@@ -119,6 +119,10 @@ Calling one prints a `DeprecationWarning` naming its replacement. The three rege
 `util.deprecate` needs a call to intercept — so TypeScript users see the `@deprecated` tag and
 JavaScript users get no signal until the names go away.
 
+`renderNs()` and `processInner()` on `C14nCanonicalization` and `ExclusiveCanonicalization` are
+deprecated and will be private in 7.0; call `process()` instead. Calling either one from outside
+`process()`, or overriding one in a subclass, prints a `DeprecationWarning`.
+
 `toPem`, `pemToDer`, `pemCertificates`, `normalizePem` and `findAncestorNs` are **not**
 deprecated and stay exported.
 

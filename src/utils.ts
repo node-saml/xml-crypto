@@ -1,4 +1,5 @@
 import { X509Certificate } from "crypto";
+import { deprecate } from "util";
 import * as xpath from "xpath";
 import type { NamespacePrefix, PemLabel } from "./types";
 import * as isDomNode from "@xmldom/is-dom-node";
@@ -618,6 +619,37 @@ export function isPrefixInScope(
   // Bindings are pushed outermost first, so the last one for a prefix shadows the rest.
   const binding = prefixesInScope.filter((ns) => ns.prefix === prefix).pop();
   return binding !== undefined && binding.namespaceURI === namespaceURI;
+}
+
+const warnCanonicalizationInternals = deprecate(
+  () => {},
+  "`renderNs()` and `processInner()` are deprecated and will be private in version 7.0. Call `process()` instead of calling or overriding them.",
+  "XML_CRYPTO_CANONICALIZATION_INTERNALS",
+);
+
+const canonicalizationsInProcess = new WeakSet<object>();
+
+// process() goes on calling renderNs() and processInner(), so that an override of either still
+// takes effect. That leaves an override, and a call from anywhere else, as the uses to warn about.
+export function insideProcess<T>(canonicalization: object, ownMethods: object, run: () => T): T {
+  const isOverridden = (method: string) =>
+    Reflect.get(canonicalization, method) !== Reflect.get(ownMethods, method);
+  if (["renderNs", "processInner"].some(isOverridden)) {
+    warnCanonicalizationInternals();
+  }
+
+  canonicalizationsInProcess.add(canonicalization);
+  try {
+    return run();
+  } finally {
+    canonicalizationsInProcess.delete(canonicalization);
+  }
+}
+
+export function warnOutsideProcess(canonicalization: object): void {
+  if (!canonicalizationsInProcess.has(canonicalization)) {
+    warnCanonicalizationInternals();
+  }
 }
 
 export function validateDigestValue(digest, expectedDigest) {
