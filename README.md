@@ -660,7 +660,10 @@ Rejected, with an error rather than a certificate:
   decides, so the answer follows the Node version: Node 16 refuses PKCS #8 data labelled
   `RSA PRIVATE KEY`, and later versions read it. Base64 does not say whether a key is PKCS #8,
   which is `PRIVATE KEY`, or PKCS #1, which is `RSA PRIVATE KEY`, so a caller that takes either as
-  bare base64 tries one label and then the other.
+  bare base64 tries `PRIVATE KEY` first and `RSA PRIVATE KEY` second. In that order each key comes
+  out under its own label on every supported Node version. Tried the other way round, PKCS #8 data
+  comes out labelled `RSA PRIVATE KEY` on a Node version that reads it so, and Node 16 then refuses
+  that PEM.
 - a header with no data under it, and a blank line in the middle of a message's data.
 - a boundary sharing its line with other text.
   [Figure 1](https://www.rfc-editor.org/rfc/rfc7468#section-3) gives an encapsulation boundary a
