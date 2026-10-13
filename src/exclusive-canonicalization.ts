@@ -79,6 +79,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
    *                parents which are a part of the output set
    * @param {String} defaultNs. The current default namespace
    * @return {String}
+   * @deprecated Will be private in 7.0. Call {@link process} instead of calling or overriding it.
    * @api private
    */
   renderNs(
@@ -88,6 +89,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     defaultNsForPrefix,
     inclusiveNamespacesPrefixList: string[],
   ) {
+    utils.warnOutsideProcess(this);
     let i;
     let attr;
     const res: string[] = [];
@@ -169,6 +171,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
 
   /**
    * @param node Node
+   * @deprecated Will be private in 7.0. Call {@link process} instead of calling or overriding it.
    */
   processInner(
     node,
@@ -177,6 +180,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     defaultNsForPrefix,
     inclusiveNamespacesPrefixList: string[],
   ) {
+    utils.warnOutsideProcess(this);
     if (isDomNode.isDocumentNode(node)) {
       const res: string[] = [];
       for (let i = 0; i < node.childNodes.length; i++) {
@@ -189,6 +193,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
         }
         if (utils.isCanonicalDocumentChild(child)) {
           res.push(
+            /* eslint-disable-next-line deprecation/deprecation */
             this.processInner(
               child,
               prefixesInScope,
@@ -214,6 +219,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     if (isDomNode.isElementNode(node)) {
       let i;
       let pfxCopy;
+      /* eslint-disable-next-line deprecation/deprecation */
       const ns = this.renderNs(
         node,
         prefixesInScope,
@@ -226,6 +232,7 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
       for (i = 0; i < node.childNodes.length; ++i) {
         pfxCopy = prefixesInScope.slice(0);
         res.push(
+          /* eslint-disable-next-line deprecation/deprecation */
           this.processInner(
             node.childNodes[i],
             pfxCopy,
@@ -347,14 +354,10 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
       });
     }
 
-    const res = this.processInner(
-      node,
-      [],
-      defaultNs,
-      defaultNsForPrefix,
-      inclusiveNamespacesPrefixList,
+    return utils.insideProcess(this, ExclusiveCanonicalization.prototype, () =>
+      /* eslint-disable-next-line deprecation/deprecation */
+      this.processInner(node, [], defaultNs, defaultNsForPrefix, inclusiveNamespacesPrefixList),
     );
-    return res;
   }
 
   getAlgorithmName() {
