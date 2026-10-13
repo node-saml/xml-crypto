@@ -71,14 +71,21 @@ string is parsed into a new document and the next transform is applied to that, 
 [reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
 requires. Every built-in canonicalization algorithm returns a string, so:
 
-- `enveloped-signature` after a canonicalization removes the `Signature`, including one inside the
-  referenced element.
-- The result of a `#WithComments` canonicalization followed by `enveloped-signature` is
-  [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
 - Exclusive canonicalization after inclusive canonicalization omits inherited namespace declarations
   that the referenced element does not use.
 - A custom transform after a canonicalization receives the parsed document.
 - A transform throws when the string returned by the transform before it is not well-formed XML.
+
+`enveloped-signature` is the exception. XMLDSig applies it only to
+[a node-set from its parent XML document](https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature),
+which the parsed document is not, so list `enveloped-signature` before any canonicalization. Applying
+it after a transform that returns a string is deprecated, when signing and when verifying, and will
+throw in 7.0. Until then it prints a `DeprecationWarning`, and:
+
+- `enveloped-signature` after a canonicalization removes the `Signature`, including one inside the
+  referenced element.
+- The result of a `#WithComments` canonicalization followed by `enveloped-signature` is
+  [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
 
 ### Copies of an enveloped signature
 
@@ -124,6 +131,9 @@ deprecated and stay exported.
 
 `getReferences()` and `references` are deprecated. Do not use them to obtain signed XML; use
 `getSignedReferences()` instead, as shown in [Verifying Xml documents](#verifying-xml-documents).
+
+`enveloped-signature` after a transform that returns a string is deprecated; see
+[Transforms that follow a canonicalization](#transforms-that-follow-a-canonicalization).
 
 ## Supported Algorithms
 
