@@ -536,4 +536,20 @@ describe("C14nCanonicalization renderNs() and processInner(), public until 7.0",
       "<root><a:child>text</a:child></root>",
     );
   });
+
+  it("canonicalizes when a subclass calls process() again from inside it", function () {
+    const root = parseRoot();
+    class Reentrant extends C14nCanonicalization {
+      renderAttrs(node: Element) {
+        if (node === root && isDomNode.isElementNode(root.firstChild)) {
+          this.process(root.firstChild, {});
+        }
+        return super.renderAttrs(node);
+      }
+    }
+
+    expect(new Reentrant().process(root, {})).to.equal(
+      new C14nCanonicalization().process(root, {}),
+    );
+  });
 });

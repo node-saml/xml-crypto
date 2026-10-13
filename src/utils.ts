@@ -638,11 +638,16 @@ export function insideProcess<T>(canonicalization: object, ownMethods: object, r
     warnCanonicalizationInternals();
   }
 
+  // A subclass can call process() again from inside it, and the outer call is still running
+  // when the inner one returns.
+  const isOutermost = !canonicalizationsInProcess.has(canonicalization);
   canonicalizationsInProcess.add(canonicalization);
   try {
     return run();
   } finally {
-    canonicalizationsInProcess.delete(canonicalization);
+    if (isOutermost) {
+      canonicalizationsInProcess.delete(canonicalization);
+    }
   }
 }
 
