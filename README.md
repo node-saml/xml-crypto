@@ -657,9 +657,10 @@ Rejected, with an error rather than a certificate:
 - a `PRIVATE KEY` or `RSA PRIVATE KEY` whose data Node cannot read as a private key under that
   label: PKCS #1 data labelled `PRIVATE KEY`, a public key, or base64 of something else. Node's
   [`crypto.createPrivateKey()`](https://nodejs.org/api/crypto.html#cryptocreateprivatekeykey)
-  decides. Base64 does not say whether a key is PKCS #8, which is `PRIVATE KEY`, or PKCS #1, which
-  is `RSA PRIVATE KEY`, so a caller that takes either as bare base64 tries one label and then the
-  other.
+  decides, so the answer follows the Node version: Node 16 refuses PKCS #8 data labelled
+  `RSA PRIVATE KEY`, and later versions read it. Base64 does not say whether a key is PKCS #8,
+  which is `PRIVATE KEY`, or PKCS #1, which is `RSA PRIVATE KEY`, so a caller that takes either as
+  bare base64 tries one label and then the other.
 - a header with no data under it, and a blank line in the middle of a message's data.
 - a boundary sharing its line with other text.
   [Figure 1](https://www.rfc-editor.org/rfc/rfc7468#section-3) gives an encapsulation boundary a
