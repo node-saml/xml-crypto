@@ -71,14 +71,21 @@ string is parsed into a new document and the next transform is applied to that, 
 [reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
 requires. Every built-in canonicalization algorithm returns a string, so:
 
-- `enveloped-signature` after a canonicalization removes the `Signature`, including one inside the
-  referenced element.
-- The result of a `#WithComments` canonicalization followed by `enveloped-signature` is
-  [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
 - Exclusive canonicalization after inclusive canonicalization omits inherited namespace declarations
   that the referenced element does not use.
 - A custom transform after a canonicalization receives the parsed document.
 - A transform throws when the string returned by the transform before it is not well-formed XML.
+
+`enveloped-signature` is the exception. XMLDSig applies it only to
+[a node-set from its parent XML document](https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature),
+which the parsed document is not, so list `enveloped-signature` before any canonicalization. Applying
+it after a transform that returns a string is deprecated, when signing and when verifying, and will
+throw in 7.0. Until then it prints a `DeprecationWarning`, and:
+
+- `enveloped-signature` after a canonicalization removes the `Signature`, including one inside the
+  referenced element.
+- The result of a `#WithComments` canonicalization followed by `enveloped-signature` is
+  [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
 
 ### Copies of an enveloped signature
 
@@ -143,11 +150,18 @@ Calling one prints a `DeprecationWarning` naming its replacement. The three rege
 `util.deprecate` needs a call to intercept — so TypeScript users see the `@deprecated` tag and
 JavaScript users get no signal until the names go away.
 
+`renderNs()` and `processInner()` on `C14nCanonicalization` and `ExclusiveCanonicalization` are
+deprecated and will be private in 7.0; call `process()` instead. Calling either one from outside
+`process()`, or overriding one in a subclass, prints a `DeprecationWarning`.
+
 `toPem`, `pemToDer`, `pemCertificates`, `normalizePem` and `findAncestorNs` are **not**
 deprecated and stay exported.
 
 `getReferences()` and `references` are deprecated. Do not use them to obtain signed XML; use
 `getSignedReferences()` instead, as shown in [Verifying Xml documents](#verifying-xml-documents).
+
+`enveloped-signature` after a transform that returns a string is deprecated; see
+[Transforms that follow a canonicalization](#transforms-that-follow-a-canonicalization).
 
 ## Supported Algorithms
 
@@ -678,6 +692,16 @@ Rejected, with an error rather than a certificate:
   certificate cut short, or one with more bytes after it. Node's
   [`X509Certificate`](https://nodejs.org/api/crypto.html#class-x509certificate) decides whether
   the data is a certificate, so it is judged as X.509 and not by its base64 alone.
+- a `PRIVATE KEY` or `RSA PRIVATE KEY` whose data Node cannot read as a private key under that
+  label: PKCS #1 data labelled `PRIVATE KEY`, a public key, or base64 of something else. Node's
+  [`crypto.createPrivateKey()`](https://nodejs.org/api/crypto.html#cryptocreateprivatekeykey)
+  decides, so the answer follows the Node version: Node 16 refuses PKCS #8 data labelled
+  `RSA PRIVATE KEY`, and later versions read it. Base64 does not say whether a key is PKCS #8,
+  which is `PRIVATE KEY`, or PKCS #1, which is `RSA PRIVATE KEY`, so a caller that takes either as
+  bare base64 tries `PRIVATE KEY` first and `RSA PRIVATE KEY` second. In that order each key comes
+  out under its own label on every supported Node version. Tried the other way round, PKCS #8 data
+  comes out labelled `RSA PRIVATE KEY` on a Node version that reads it so, and Node 16 then refuses
+  that PEM.
 - a header with no data under it, and a blank line in the middle of a message's data.
 - a boundary sharing its line with other text.
   [Figure 1](https://www.rfc-editor.org/rfc/rfc7468#section-3) gives an encapsulation boundary a
