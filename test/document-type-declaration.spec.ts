@@ -3,7 +3,7 @@ import * as fs from "fs";
 import { expect } from "chai";
 
 describe("A document with a DOCTYPE, which 7.0 refuses", function () {
-  it("is still signed and verified", function () {
+  it("is still signed and verified, without the default attribute it declares", function () {
     const sig = new SignedXml({
       privateKey: fs.readFileSync("./test/static/client.pem"),
       canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
@@ -17,7 +17,9 @@ describe("A document with a DOCTYPE, which 7.0 refuses", function () {
         "http://www.w3.org/2001/10/xml-exc-c14n#",
       ],
     });
-    sig.computeSignature("<!DOCTYPE root><root>content</root>");
+    sig.computeSignature(
+      '<!DOCTYPE root [<!ATTLIST root role CDATA "admin">]><root>content</root>',
+    );
     const signedXml = sig.getSignedXml();
 
     const verifier = new SignedXml({
@@ -26,6 +28,7 @@ describe("A document with a DOCTYPE, which 7.0 refuses", function () {
     verifier.loadSignature(sig.getSignatureXml());
 
     expect(signedXml).to.include("<!DOCTYPE root>");
+    expect(signedXml).to.not.include("role");
     expect(verifier.checkSignature(signedXml)).to.be.true;
   });
 });
