@@ -143,10 +143,6 @@ export class SignedXml {
    */
   private references: Reference[] = [];
 
-  /**
-   * The PrefixList each Transform of a loaded {@link Reference} carries, in transform order, which
-   * verification applies.
-   */
   private loadedPrefixLists = new WeakMap<Reference, string[][]>();
 
   /**
