@@ -108,6 +108,12 @@ const warnOriginalXmlWithIds = deprecate(
   "XML_CRYPTO_GET_ORIGINAL_XML_WITH_IDS",
 );
 
+const warnDocumentTypeDeclaration = deprecate(
+  () => {},
+  "Signing or verifying a document that has a document type declaration (`<!DOCTYPE>`) is deprecated and will throw in version 7.0. The declaration is not processed, so an entity it declares is not expanded and a default attribute it declares is not added to what is signed or verified.",
+  "XML_CRYPTO_DOCUMENT_TYPE_DECLARATION",
+);
+
 const warnValidateElementAgainstReferences = deprecate(
   () => {},
   "`validateElementAgainstReferences()` is deprecated and will be removed in a future version. After `checkSignature()` succeeds, use the XML that `getSignedReferences()` returns instead of nodes from the original document.",
@@ -365,6 +371,9 @@ export class SignedXml {
     this.signedXml = xml;
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
+    if (doc.doctype != null) {
+      warnDocumentTypeDeclaration();
+    }
 
     // Reset the references as only references from our re-parsed signedInfo node can be trusted
     this.references = [];
@@ -1034,6 +1043,9 @@ export class SignedXml {
     }
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
+    if (doc.doctype != null) {
+      warnDocumentTypeDeclaration();
+    }
     let xmlNsAttr = "xmlns";
     const signatureAttrs: string[] = [];
     let currentPrefix: string;

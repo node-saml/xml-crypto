@@ -97,6 +97,15 @@ The `enveloped-signature` transform removes only the `Signature` element being v
 - `getCanonXml()` finds the loaded signature in the node's document the same way, and removes nothing
   when the signature is not there.
 
+### Documents with a DOCTYPE
+
+`computeSignature()` and `checkSignature()` do not process a document type declaration. An entity
+it declares is not expanded and a default attribute it declares is not added, though
+[Canonical XML](https://www.w3.org/TR/xml-c14n#Terminology) requires both, so the canonical form is
+not the one an implementation that processes the declaration computes. Signing or verifying a
+document that has a DOCTYPE is deprecated and will throw in 7.0. Until then it prints a
+`DeprecationWarning`.
+
 ### Malformed certificates
 
 A certificate whose encapsulated data is not base64 is rejected rather than decoded as far as it
