@@ -216,7 +216,7 @@ export interface SignatureAlgorithm {
   /**
    * `SignedXml.checkSignature` calls only the synchronous form.
    *
-   * @deprecated Will be removed in 7.0, with the callback form of `checkSignature()`.
+   * @deprecated Will be removed in 7.0.
    */
   verifySignature(
     material: string,
