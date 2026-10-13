@@ -24,18 +24,18 @@ export { findAncestorNs, normalizePem, pemCertificates, pemToDer, toPem } from "
  */
 
 /**
- * @deprecated Will be removed in 7.0, with the callback form of `computeSignature()` and
- *   `checkSignature()` that it adds to a signature algorithm's methods.
+ * @deprecated Will be removed in 7.0. Write a signature algorithm's methods without a callback,
+ *   and give it `getSignatureAsync()` and `verifySignatureAsync()` if it works asynchronously.
  */
 export const createOptionalCallbackFunction = deprecate(
   types.createOptionalCallbackFunction,
-  "`createOptionalCallbackFunction()` is deprecated and will be removed in version 7.0, with the callback form of `computeSignature()` and `checkSignature()`.",
+  "`createOptionalCallbackFunction()` is deprecated and will be removed in version 7.0. Write a signature algorithm's methods without a callback, and give it `getSignatureAsync()` and `verifySignatureAsync()` if it works asynchronously.",
   "XML_CRYPTO_CREATE_OPTIONAL_CALLBACK_FUNCTION",
 );
 
 /**
  * @deprecated Will be removed in 7.0, with the callback form of `computeSignature()` and
- *   `checkSignature()`.
+ *   `checkSignature()`. `computeSignatureAsync()` and `checkSignatureAsync()` return a promise.
  */
 export type ErrorFirstCallback<T> = types.ErrorFirstCallback<T>;
 

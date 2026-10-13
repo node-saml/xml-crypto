@@ -134,8 +134,9 @@ deprecated and will be private in 7.0; call `process()` instead. Calling either 
 deprecated and stay exported.
 
 The callback form of `computeSignature()` and `checkSignature()` is deprecated, and so are
-`createOptionalCallbackFunction` and `ErrorFirstCallback`; see
-[Asynchronous signing](#asynchronous-signing).
+`createOptionalCallbackFunction` and `ErrorFirstCallback`. `computeSignatureAsync()` and
+`checkSignatureAsync()` replace them; see
+[Moving from the callback form](#moving-from-the-callback-form).
 
 `getReferences()` and `references` are deprecated. Do not use them to obtain signed XML; use
 `getSignedReferences()` instead, as shown in [Verifying Xml documents](#verifying-xml-documents).
@@ -396,6 +397,7 @@ To sign xml documents:
     - `attrs` - a hash of attributes and values `attrName: value` to add to the signature root node
     - `location` - customize the location of the signature, pass an object with a `reference` key which should contain a XPath expression to a reference node, an `action` key which should contain one of the following values: `append`, `prepend`, `before`, `after`
     - `existingPrefixes` - A hash of prefixes and namespaces `prefix: namespace` that shouldn't be in the signature because they already exist in the xml
+- `computeSignatureAsync(xml, [options])` - `computeSignature` for a signature algorithm that signs asynchronously; returns a promise for the `SignedXml` instance. See [Asynchronous signing and verification](#asynchronous-signing-and-verification)
 - `getSignedXml()` - returns the original xml document with the signature in it, **must be called only after `computeSignature`**
 - `getSignatureXml()` - returns just the signature part, **must be called only after `computeSignature`**
 - `getOriginalXmlWithIds()` - **[deprecated]** returns the original xml with Id attributes added on relevant elements, **must be called only after `computeSignature`**. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. See [how to specify the location of the signature](#how-to-specify-the-location-of-the-signature). For a detached signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for WS-Security), sign that document, and send it alongside `getSignatureXml()`. Make sure each reference XPath still selects its intended element once those IDs are present, for example by selecting on the ID itself.
@@ -416,6 +418,7 @@ To verify xml documents:
 - `loadSignature(signatureXml)` - loads the signature where:
   - `signatureXml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the signature
 - `checkSignature(xml)` - validates the given xml document and returns `true` if the validation was successful
+- `checkSignatureAsync(xml)` - `checkSignature` for a signature algorithm that verifies asynchronously; returns a promise for `true` if the validation was successful
 - `getSignedReferences()` - returns the canonical XML of each reference, only after `checkSignature` succeeds
 - `validateElementAgainstReferences(elemOrXpath, doc)` - **[deprecated]** after `checkSignature` succeeds, use the XML that `getSignedReferences()` returns instead of nodes from the original document
 
@@ -543,15 +546,9 @@ signXml(xml, "//*[local-name(.)='book']", "client.pem", "result.xml");
 
 You can always look at the actual code as a sample.
 
-## Asynchronous signing
+## Asynchronous signing and verification
 
-If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, you can create a custom signing algorithm that uses an asynchronous callback. Register it under the URI of the algorithm it implements, which is the `SignatureMethod` a verifier reads.
-
-The callback form of `computeSignature()` and `checkSignature()` is deprecated and will be removed
-in 7.0, which signs and verifies asynchronously through methods that return a promise. Until then
-an asynchronous algorithm such as this one needs the callback, and passing one prints a
-`DeprecationWarning`. `checkSignature()` verifies synchronously whether or not it is given a
-callback, so call it without one.
+If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, the signature algorithm has to wait for its answer. Give a custom signature algorithm a `getSignatureAsync()` method that returns a promise, and sign with `computeSignatureAsync()`. Register the algorithm under the URI of the algorithm it implements, which is the `SignatureMethod` a verifier reads.
 
 ```javascript
 const { SignedXml } = require("xml-crypto");
@@ -559,11 +556,18 @@ const crypto = require("crypto");
 const fs = require("fs");
 
 class AsyncRsaSha256 {
-  getSignature(signedInfo, privateKey, callback) {
+  async getSignatureAsync(signedInfo, privateKey) {
     // Do some asynchronous things here, such as calling a signing server.
     const signer = crypto.createSign("RSA-SHA256");
     signer.update(signedInfo);
-    callback(null, signer.sign(privateKey, "base64"));
+    return signer.sign(privateKey, "base64");
+  }
+
+  async verifySignatureAsync(material, key, signatureValue) {
+    // Do some asynchronous things here, too.
+    const verifier = crypto.createVerify("RSA-SHA256");
+    verifier.update(material);
+    return verifier.verify(key, signatureValue, "base64");
   }
 
   getAlgorithmName() {
@@ -571,27 +575,102 @@ class AsyncRsaSha256 {
   }
 }
 
-const xml = "<library><book><name>Harry Potter</name></book></library>";
+async function sign(xml) {
+  const sig = new SignedXml({
+    privateKey: fs.readFileSync("client.pem"),
+    canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+    signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+  });
+  sig.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] = AsyncRsaSha256;
+  sig.addReference({
+    xpath: "//*[local-name(.)='book']",
+    digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+  });
 
-const sig = new SignedXml({
-  privateKey: fs.readFileSync("client.pem"),
-  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
-  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
-});
-sig.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] = AsyncRsaSha256;
-sig.addReference({
-  xpath: "//*[local-name(.)='book']",
-  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
-  transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-});
+  await sig.computeSignatureAsync(xml);
+  return sig;
+}
+
+sign("<library><book><name>Harry Potter</name></book></library>").then((sig) =>
+  fs.writeFileSync("signed.xml", sig.getSignedXml()),
+);
+```
+
+`computeSignatureAsync()` takes what `computeSignature()` takes and resolves with the `SignedXml` instance. `checkSignatureAsync()` does the same for `checkSignature()`: it waits for the algorithm's `verifySignatureAsync()` and resolves with `true` for a valid signature.
+
+```javascript
+async function verify(xml, signature) {
+  const sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
+  sig.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] = AsyncRsaSha256;
+  sig.loadSignature(signature);
+
+  if (!(await sig.checkSignatureAsync(xml))) {
+    throw new Error("Invalid signature");
+  }
+  return sig.getSignedReferences();
+}
+```
+
+Both call `getSignature()` or `verifySignature()` on an algorithm that has no `Async` method, so they work with the built-in algorithms too. The `SignatureAlgorithm` type requires `getSignature()` and `verifySignature()`; an algorithm that only works asynchronously can have them throw.
+
+### Moving from the callback form
+
+The callback form of `computeSignature()` and `checkSignature()` is deprecated and will be removed in 7.0. Passing a callback prints a `DeprecationWarning`.
+
+With a built-in algorithm, or any other that returns its answer, call them without the callback:
+
+```javascript
+// Before
 sig.computeSignature(xml, (err) => {
   if (err) {
-    console.error(err);
-    return;
+    throw err;
   }
   fs.writeFileSync("signed.xml", sig.getSignedXml());
 });
+
+// After
+sig.computeSignature(xml);
+fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
+
+With an algorithm that answers through a callback, return a promise from an `Async` method instead and call the `Async` entry point:
+
+```javascript
+// Before
+class AsyncRsaSha256 {
+  getSignature(signedInfo, privateKey, callback) {
+    signingServer.sign(signedInfo, callback);
+  }
+
+  verifySignature(material, key, signatureValue, callback) {
+    signingServer.verify(material, signatureValue, callback);
+  }
+}
+
+sig.computeSignature(xml, (err) => {
+  if (err) {
+    throw err;
+  }
+  fs.writeFileSync("signed.xml", sig.getSignedXml());
+});
+
+// After
+class AsyncRsaSha256 {
+  getSignatureAsync(signedInfo, privateKey) {
+    return signingServer.sign(signedInfo);
+  }
+
+  verifySignatureAsync(material, key, signatureValue) {
+    return signingServer.verify(material, signatureValue);
+  }
+}
+
+await sig.computeSignatureAsync(xml);
+fs.writeFileSync("signed.xml", sig.getSignedXml());
+```
+
+`createOptionalCallbackFunction` and `ErrorFirstCallback` serve only the callback form. An algorithm needs neither once its methods return their answer or a promise for it.
 
 ## X.509 / Key formats
 

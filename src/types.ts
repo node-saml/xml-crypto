@@ -201,29 +201,41 @@ export interface SignatureAlgorithm {
    * Sign the given string using the given key
    */
   getSignature(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string;
-  /** @deprecated Will be removed in 7.0, with the callback form of `computeSignature()`. */
+  /** @deprecated Will be removed in 7.0. Implement `getSignatureAsync()` instead. */
   getSignature(
     signedInfo: crypto.BinaryLike,
     privateKey: crypto.KeyLike,
     callback?: ErrorFirstCallback<string>,
   ): void;
   /**
+   * Sign the given string using the given key, for an algorithm that has to wait for the
+   * signature. `SignedXml.computeSignatureAsync` calls it in place of `getSignature`.
+   */
+  getSignatureAsync?(signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): Promise<string>;
+  /**
    * Verify the given signature of the given string using key
    *
    * @param key a public cert, public key, or private key can be passed here
    */
   verifySignature(material: string, key: crypto.KeyLike, signatureValue: string): boolean;
-  /**
-   * `SignedXml.checkSignature` calls only the synchronous form.
-   *
-   * @deprecated Will be removed in 7.0.
-   */
+  /** @deprecated Will be removed in 7.0. Implement `verifySignatureAsync()` instead. */
   verifySignature(
     material: string,
     key: crypto.KeyLike,
     signatureValue: string,
     callback?: ErrorFirstCallback<boolean>,
   ): void;
+  /**
+   * Verify the given signature of the given string using key, for an algorithm that has to wait
+   * for the verdict. `SignedXml.checkSignatureAsync` calls it in place of `verifySignature`.
+   *
+   * @param key a public cert, public key, or private key can be passed here
+   */
+  verifySignatureAsync?(
+    material: string,
+    key: crypto.KeyLike,
+    signatureValue: string,
+  ): Promise<boolean>;
 
   getAlgorithmName(): SignatureAlgorithmType;
 }
