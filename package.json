@@ -58,7 +58,7 @@
     "eslint-plugin-deprecation": "^3.0.0",
     "lcov": "^1.16.0",
     "mocha": "^10.8.2",
-    "nyc": "^15.1.0",
+    "nyc": "^18.0.0",
     "prettier": "^3.9.6",
     "prettier-plugin-packagejson": "^3.0.2",
     "release-it": "^16.3.0",
