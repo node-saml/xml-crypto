@@ -53,6 +53,36 @@ export class RsaSha256 implements SignatureAlgorithm {
   };
 }
 
+export class EcdsaSha256 implements SignatureAlgorithm {
+  getSignature = createOptionalCallbackFunction(
+    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+      // Maybe the fix for ts-ignore below?
+      // const parsedPrivateKey = crypto.createPrivateKey(privateKey);
+      const signer = crypto.createSign("SHA256");
+      signer.update(signedInfo);
+      // @ts-ignore
+      const res = signer.sign({ key: privateKey, dsaEncoding: 'ieee-p1363' }, "base64");
+
+      return res;
+    },
+  );
+
+  verifySignature = createOptionalCallbackFunction(
+    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+      const publicKey = crypto.createPublicKey(key);
+      const verifier = crypto.createVerify("SHA256");
+      verifier.update(material);
+      const res = verifier.verify({ key: publicKey, dsaEncoding: 'ieee-p1363' }, signatureValue, "base64");
+
+      return res;
+    },
+  );
+
+  getAlgorithmName = () => {
+    return "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256";
+  };
+}
+
 export class RsaSha256Mgf1 implements SignatureAlgorithm {
   getSignature = createOptionalCallbackFunction(
     (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
@@ -123,6 +153,36 @@ export class RsaSha512 implements SignatureAlgorithm {
 
   getAlgorithmName = () => {
     return "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512";
+  };
+}
+
+export class EcdsaSha512 implements SignatureAlgorithm {
+  getSignature = createOptionalCallbackFunction(
+    (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
+      // Maybe the fix for ts-ignore below?
+      // const parsedPrivateKey = crypto.createPrivateKey(privateKey);
+      const signer = crypto.createSign("SHA512");
+      signer.update(signedInfo);
+      // @ts-ignore
+      const res = signer.sign({ key: privateKey, dsaEncoding: 'ieee-p1363' }, "base64");
+
+      return res;
+    },
+  );
+
+  verifySignature = createOptionalCallbackFunction(
+    (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
+      const publicKey = crypto.createPublicKey(key);
+      const verifier = crypto.createVerify("SHA512");
+      verifier.update(material);
+      const res = verifier.verify({ key: publicKey, dsaEncoding: 'ieee-p1363' }, signatureValue, "base64");
+
+      return res;
+    },
+  );
+
+  getAlgorithmName = () => {
+    return "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512";
   };
 }
 
