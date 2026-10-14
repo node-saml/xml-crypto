@@ -17,7 +17,11 @@ export class Sha1 implements HashAlgorithm {
 export class Sha256 implements HashAlgorithm {
   getHash = function (xml) {
     const shasum = crypto.createHash("sha256");
-    shasum.update(xml, "utf8");
+    if (typeof xml === "string") {
+      shasum.update(xml, "utf8");
+    } else {
+      shasum.update(xml);
+    }
     const res = shasum.digest("base64");
     return res;
   };
