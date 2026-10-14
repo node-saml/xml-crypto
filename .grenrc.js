@@ -11,7 +11,8 @@ module.exports = {
   prefix: "",
   onlyMilestones: false,
   ignoreTagsWith: [],
-  ignoreLabels: [],
+  // Dependabot adds these next to "dependencies"; they say nothing a reader needs.
+  ignoreLabels: ["javascript", "github_actions", "java"],
   // The master-side copies of changes already released from 6.x, which git cannot tell
   // are the same change as the commits that shipped.
   ignoreIssuesWith: ["duplicate"],
@@ -22,11 +23,13 @@ module.exports = {
   },
   tags: "all",
   groupBy: {
-    "Major Changes": ["semver-major", "breaking-change"],
-    "Minor Changes": ["semver-minor", "enhancement", "new-feature"],
+    "Major Changes": ["breaking-change"],
+    "Minor Changes": ["enhancement"],
+    Deprecations: ["deprecation"],
     Dependencies: ["dependencies"],
-    "Bug Fixes": ["semver-patch", "bug", "security"],
+    "Bug Fixes": ["bug", "security"],
     Documentation: ["documentation"],
+    Tests: ["tests"],
     "Technical Tasks": ["chore"],
     Other: ["..."],
   },
@@ -57,8 +60,10 @@ module.exports = {
       const iconMap = {
         Enhancements: "🚀",
         "Minor Changes": "🚀",
+        Deprecations: "⚠️",
         "Bug Fixes": "🐛",
         Documentation: "📚",
+        Tests: "🧪",
         "Technical Tasks": "⚙️",
         "Major Changes": "💣",
         Dependencies: "🔗",

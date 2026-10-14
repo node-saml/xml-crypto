@@ -581,6 +581,50 @@ describe("Utils tests", function () {
     });
   });
 
+  describe("reads a PRIVATE KEY or RSA PRIVATE KEY message's data as a private key", function () {
+    const key = crypto.createPrivateKey(fs.readFileSync("./test/static/client.pem"));
+    const pkcs8 = key.export({ type: "pkcs8", format: "der" });
+    const pkcs1 = key.export({ type: "pkcs1", format: "der" });
+    const publicKey = crypto.createPublicKey(key).export({ type: "spki", format: "der" });
+    const noKey = Buffer.from("base64, and no private key");
+    const wrap = (label: string, der: Buffer) =>
+      `-----BEGIN ${label}-----\n${der.toString("base64")}\n-----END ${label}-----\n`;
+
+    for (const [structure, der, label] of [
+      ["PKCS #8", pkcs8, "PRIVATE KEY"],
+      ["PKCS #1", pkcs1, "RSA PRIVATE KEY"],
+    ] as const) {
+      it(`accepts ${structure} data labelled ${label}, and keeps its octets as given`, function () {
+        expect(utils.pemToDer(utils.toPem(wrap(label, der)))).to.deep.equal(der);
+        expect(utils.pemToDer(utils.toPem(der.toString("base64"), label))).to.deep.equal(der);
+        expect(utils.pemToDer(utils.toPem(der, label))).to.deep.equal(der);
+      });
+    }
+
+    for (const [problem, der, label] of [
+      ["PKCS #1 data labelled PRIVATE KEY", pkcs1, "PRIVATE KEY"],
+      ["a public key labelled PRIVATE KEY", publicKey, "PRIVATE KEY"],
+      ["base64 that is no key, labelled PRIVATE KEY", noKey, "PRIVATE KEY"],
+      ["base64 that is no key, labelled RSA PRIVATE KEY", noKey, "RSA PRIVATE KEY"],
+    ] as const) {
+      it(`refuses ${problem}, in each function that reads one`, function () {
+        expect(() => utils.toPem(wrap(label, der))).to.throw("Invalid PEM format.");
+        expect(() => utils.toPem(der.toString("base64"), label)).to.throw("Invalid PEM format.");
+        expect(() => utils.toPem(der, label)).to.throw("Invalid PEM format.");
+        expect(() => utils.pemToDer(wrap(label, der))).to.throw("Invalid PEM format.");
+      });
+    }
+
+    it("refuses a mislabelled key in a value that also holds its certificate", function () {
+      const certificate = fs.readFileSync("./test/static/client_public.pem", "latin1");
+
+      expect(() => utils.toPem(wrap("PRIVATE KEY", pkcs1) + certificate)).to.throw(
+        "Invalid PEM format.",
+      );
+      expect(utils.pemCertificates(wrap("PRIVATE KEY", pkcs1) + certificate)).to.have.lengthOf(1);
+    });
+  });
+
   describe("pemCertificates", function () {
     const bundle = fs.readFileSync("./test/static/client_bundle.pem", "latin1");
 

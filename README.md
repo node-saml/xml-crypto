@@ -71,14 +71,21 @@ string is parsed into a new document and the next transform is applied to that, 
 [reference processing model](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel)
 requires. Every built-in canonicalization algorithm returns a string, so:
 
-- `enveloped-signature` after a canonicalization removes the `Signature`, including one inside the
-  referenced element.
-- The result of a `#WithComments` canonicalization followed by `enveloped-signature` is
-  [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
 - Exclusive canonicalization after inclusive canonicalization omits inherited namespace declarations
   that the referenced element does not use.
 - A custom transform after a canonicalization receives the parsed document.
 - A transform throws when the string returned by the transform before it is not well-formed XML.
+
+`enveloped-signature` is the exception. XMLDSig applies it only to
+[a node-set from its parent XML document](https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature),
+which the parsed document is not, so list `enveloped-signature` before any canonicalization. Applying
+it after a transform that returns a string is deprecated, when signing and when verifying, and will
+throw in 7.0. Until then it prints a `DeprecationWarning`, and:
+
+- `enveloped-signature` after a canonicalization removes the `Signature`, including one inside the
+  referenced element.
+- The result of a `#WithComments` canonicalization followed by `enveloped-signature` is
+  [canonicalized](#transforms-that-end-in-a-dom-node) without comments.
 
 ### Copies of an enveloped signature
 
@@ -89,6 +96,15 @@ The `enveloped-signature` transform removes only the `Signature` element being v
   contains more than one `Signature` element with that value.
 - `getCanonXml()` finds the loaded signature in the node's document the same way, and removes nothing
   when the signature is not there.
+
+### Documents with a DOCTYPE
+
+`computeSignature()` and `checkSignature()` do not process a document type declaration. An entity
+it declares is not expanded and a default attribute it declares is not added, though
+[Canonical XML](https://www.w3.org/TR/xml-c14n#Terminology) requires both, so the canonical form is
+not the one an implementation that processes the declaration computes. Signing or verifying a
+document that has a DOCTYPE is deprecated and will throw in 7.0. Until then it prints a
+`DeprecationWarning`.
 
 ### Malformed certificates
 
@@ -101,6 +117,30 @@ The error for a value the parser cannot read is `Invalid PEM format.`, in place 
 `Unknown DER format.` that `derToPem()` threw. A `Buffer` holding the bytes of a PEM file is read
 as that file rather than base64-encoded, which is what made it a message with a body of
 base64-encoded PEM. Both forms of PEM the parser does read produce the same canonical output.
+
+### Input that 7.0 rejects
+
+Each of these works in 6.x, prints a `DeprecationWarning`, and is rejected in 7.0.
+
+When verifying:
+
+- a `Reference` whose `URI` is neither empty nor `#` followed by an ID. It is resolved as a
+  same-document ID all the same, though only those two forms are
+  [same-document references](https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel).
+- a `Transform` with no `Algorithm` attribute, which is skipped. The
+  [schema](https://www.w3.org/TR/xmldsig-core1/#sec-Transforms) requires the attribute.
+- an `InclusiveNamespaces` element outside the `http://www.w3.org/2001/10/xml-exc-c14n#`
+  [namespace](https://www.w3.org/TR/xml-exc-c14n/#sec-Use), whose `PrefixList` is applied all the
+  same. xml-crypto 6.3.2 and earlier wrote one when signing with `xml-exc-c14n#WithComments` and a
+  prefix list, so documents signed that way need signing again.
+
+When signing:
+
+- a `location.reference` that selects a text node, a comment or a processing instruction, which
+  `before` and `after` place the `Signature` next to.
+- `isEmptyUri: true` on a reference whose `xpath` selects anything but the document element.
+  `URI=""` identifies [the whole document](https://www.w3.org/TR/xmldsig-core1/#sec-Same-Document),
+  so the signature this produces does not verify.
 
 ### Deprecated ahead of 7.0
 
@@ -119,11 +159,23 @@ Calling one prints a `DeprecationWarning` naming its replacement. The three rege
 `util.deprecate` needs a call to intercept — so TypeScript users see the `@deprecated` tag and
 JavaScript users get no signal until the names go away.
 
+`renderNs()` and `processInner()` on `C14nCanonicalization` and `ExclusiveCanonicalization` are
+deprecated and will be private in 7.0; call `process()` instead. Calling either one from outside
+`process()`, or overriding one in a subclass, prints a `DeprecationWarning`.
+
 `toPem`, `pemToDer`, `pemCertificates`, `normalizePem` and `findAncestorNs` are **not**
 deprecated and stay exported.
 
+The callback form of `computeSignature()` and `checkSignature()` is deprecated, and so are
+`createOptionalCallbackFunction` and `ErrorFirstCallback`. `computeSignatureAsync()` and
+`checkSignatureAsync()` replace them; see
+[Moving from the callback form](#moving-from-the-callback-form).
+
 `getReferences()` and `references` are deprecated. Do not use them to obtain signed XML; use
 `getSignedReferences()` instead, as shown in [Verifying Xml documents](#verifying-xml-documents).
+
+`enveloped-signature` after a transform that returns a string is deprecated; see
+[Transforms that follow a canonicalization](#transforms-that-follow-a-canonicalization).
 
 ## Supported Algorithms
 
@@ -378,6 +430,7 @@ To sign xml documents:
     - `attrs` - a hash of attributes and values `attrName: value` to add to the signature root node
     - `location` - customize the location of the signature, pass an object with a `reference` key which should contain a XPath expression to a reference node, an `action` key which should contain one of the following values: `append`, `prepend`, `before`, `after`
     - `existingPrefixes` - A hash of prefixes and namespaces `prefix: namespace` that shouldn't be in the signature because they already exist in the xml
+- `computeSignatureAsync(xml, [options])` - `computeSignature` for a signature algorithm that signs asynchronously; returns a promise for the `SignedXml` instance. See [Asynchronous signing and verification](#asynchronous-signing-and-verification)
 - `getSignedXml()` - returns the original xml document with the signature in it, **must be called only after `computeSignature`**
 - `getSignatureXml()` - returns just the signature part, **must be called only after `computeSignature`**
 - `getOriginalXmlWithIds()` - **[deprecated]** returns the original xml with Id attributes added on relevant elements, **must be called only after `computeSignature`**. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. See [how to specify the location of the signature](#how-to-specify-the-location-of-the-signature). For a detached signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for WS-Security), sign that document, and send it alongside `getSignatureXml()`. Make sure each reference XPath still selects its intended element once those IDs are present, for example by selecting on the ID itself.
@@ -398,6 +451,7 @@ To verify xml documents:
 - `loadSignature(signatureXml)` - loads the signature where:
   - `signatureXml` - a string or node object (like an [xmldom](https://github.com/xmldom/xmldom) node) containing the xml representation of the signature
 - `checkSignature(xml)` - validates the given xml document and returns `true` if the validation was successful
+- `checkSignatureAsync(xml)` - `checkSignature` for a signature algorithm that verifies asynchronously; returns a promise for `true` if the validation was successful
 - `getSignedReferences()` - returns the canonical XML of each reference, only after `checkSignature` succeeds
 - `validateElementAgainstReferences(elemOrXpath, doc)` - **[deprecated]** after `checkSignature` succeeds, use the XML that `getSignedReferences()` returns instead of nodes from the original document
 
@@ -525,9 +579,9 @@ signXml(xml, "//*[local-name(.)='book']", "client.pem", "result.xml");
 
 You can always look at the actual code as a sample.
 
-## Asynchronous signing
+## Asynchronous signing and verification
 
-If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, you can create a custom signing algorithm that uses an asynchronous callback. Register it under the URI of the algorithm it implements, which is the `SignatureMethod` a verifier reads.
+If the private key is not stored locally, and you wish to use a signing server or Hardware Security Module (HSM) to sign documents, the signature algorithm has to wait for its answer. Give a custom signature algorithm a `getSignatureAsync()` method that returns a promise, and sign with `computeSignatureAsync()`. Register the algorithm under the URI of the algorithm it implements, which is the `SignatureMethod` a verifier reads.
 
 ```javascript
 const { SignedXml } = require("xml-crypto");
@@ -535,11 +589,18 @@ const crypto = require("crypto");
 const fs = require("fs");
 
 class AsyncRsaSha256 {
-  getSignature(signedInfo, privateKey, callback) {
+  async getSignatureAsync(signedInfo, privateKey) {
     // Do some asynchronous things here, such as calling a signing server.
     const signer = crypto.createSign("RSA-SHA256");
     signer.update(signedInfo);
-    callback(null, signer.sign(privateKey, "base64"));
+    return signer.sign(privateKey, "base64");
+  }
+
+  async verifySignatureAsync(material, key, signatureValue) {
+    // Do some asynchronous things here, too.
+    const verifier = crypto.createVerify("RSA-SHA256");
+    verifier.update(material);
+    return verifier.verify(key, signatureValue, "base64");
   }
 
   getAlgorithmName() {
@@ -547,27 +608,102 @@ class AsyncRsaSha256 {
   }
 }
 
-const xml = "<library><book><name>Harry Potter</name></book></library>";
+async function sign(xml) {
+  const sig = new SignedXml({
+    privateKey: fs.readFileSync("client.pem"),
+    canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+    signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
+  });
+  sig.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] = AsyncRsaSha256;
+  sig.addReference({
+    xpath: "//*[local-name(.)='book']",
+    digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+  });
 
-const sig = new SignedXml({
-  privateKey: fs.readFileSync("client.pem"),
-  canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
-  signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
-});
-sig.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] = AsyncRsaSha256;
-sig.addReference({
-  xpath: "//*[local-name(.)='book']",
-  digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
-  transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
-});
+  await sig.computeSignatureAsync(xml);
+  return sig;
+}
+
+sign("<library><book><name>Harry Potter</name></book></library>").then((sig) =>
+  fs.writeFileSync("signed.xml", sig.getSignedXml()),
+);
+```
+
+`computeSignatureAsync()` takes what `computeSignature()` takes and resolves with the `SignedXml` instance. `checkSignatureAsync()` does the same for `checkSignature()`: it waits for the algorithm's `verifySignatureAsync()` and resolves with `true` for a valid signature.
+
+```javascript
+async function verify(xml, signature) {
+  const sig = new SignedXml({ publicCert: fs.readFileSync("client_public.pem") });
+  sig.SignatureAlgorithms["http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"] = AsyncRsaSha256;
+  sig.loadSignature(signature);
+
+  if (!(await sig.checkSignatureAsync(xml))) {
+    throw new Error("Invalid signature");
+  }
+  return sig.getSignedReferences();
+}
+```
+
+Both call `getSignature()` or `verifySignature()` on an algorithm that has no `Async` method, so they work with the built-in algorithms too. The `SignatureAlgorithm` type requires `getSignature()` and `verifySignature()`; an algorithm that only works asynchronously can have them throw.
+
+### Moving from the callback form
+
+The callback form of `computeSignature()` and `checkSignature()` is deprecated and will be removed in 7.0. Passing a callback prints a `DeprecationWarning`.
+
+With a built-in algorithm, or any other that returns its answer, call them without the callback:
+
+```javascript
+// Before
 sig.computeSignature(xml, (err) => {
   if (err) {
-    console.error(err);
-    return;
+    throw err;
   }
   fs.writeFileSync("signed.xml", sig.getSignedXml());
 });
+
+// After
+sig.computeSignature(xml);
+fs.writeFileSync("signed.xml", sig.getSignedXml());
 ```
+
+With an algorithm that answers through a callback, return a promise from an `Async` method instead and call the `Async` entry point:
+
+```javascript
+// Before
+class AsyncRsaSha256 {
+  getSignature(signedInfo, privateKey, callback) {
+    signingServer.sign(signedInfo, callback);
+  }
+
+  verifySignature(material, key, signatureValue, callback) {
+    signingServer.verify(material, signatureValue, callback);
+  }
+}
+
+sig.computeSignature(xml, (err) => {
+  if (err) {
+    throw err;
+  }
+  fs.writeFileSync("signed.xml", sig.getSignedXml());
+});
+
+// After
+class AsyncRsaSha256 {
+  getSignatureAsync(signedInfo, privateKey) {
+    return signingServer.sign(signedInfo);
+  }
+
+  verifySignatureAsync(material, key, signatureValue) {
+    return signingServer.verify(material, signatureValue);
+  }
+}
+
+await sig.computeSignatureAsync(xml);
+fs.writeFileSync("signed.xml", sig.getSignedXml());
+```
+
+`createOptionalCallbackFunction` and `ErrorFirstCallback` serve only the callback form. An algorithm needs neither once its methods return their answer or a promise for it.
 
 ## X.509 / Key formats
 
@@ -654,6 +790,16 @@ Rejected, with an error rather than a certificate:
   certificate cut short, or one with more bytes after it. Node's
   [`X509Certificate`](https://nodejs.org/api/crypto.html#class-x509certificate) decides whether
   the data is a certificate, so it is judged as X.509 and not by its base64 alone.
+- a `PRIVATE KEY` or `RSA PRIVATE KEY` whose data Node cannot read as a private key under that
+  label: PKCS #1 data labelled `PRIVATE KEY`, a public key, or base64 of something else. Node's
+  [`crypto.createPrivateKey()`](https://nodejs.org/api/crypto.html#cryptocreateprivatekeykey)
+  decides, so the answer follows the Node version: Node 16 refuses PKCS #8 data labelled
+  `RSA PRIVATE KEY`, and later versions read it. Base64 does not say whether a key is PKCS #8,
+  which is `PRIVATE KEY`, or PKCS #1, which is `RSA PRIVATE KEY`, so a caller that takes either as
+  bare base64 tries `PRIVATE KEY` first and `RSA PRIVATE KEY` second. In that order each key comes
+  out under its own label on every supported Node version. Tried the other way round, PKCS #8 data
+  comes out labelled `RSA PRIVATE KEY` on a Node version that reads it so, and Node 16 then refuses
+  that PEM.
 - a header with no data under it, and a blank line in the middle of a message's data.
 - a boundary sharing its line with other text.
   [Figure 1](https://www.rfc-editor.org/rfc/rfc7468#section-3) gives an encapsulation boundary a

@@ -22,11 +22,13 @@ describe("Callback invocation", function () {
     const sig = createSigner(fs.readFileSync("./test/static/client.pem"));
 
     const errorsSeen: (string | null)[] = [];
+    /* eslint-disable-next-line deprecation/deprecation */
     const callback: ErrorFirstCallback<SignedXml> = (err) => {
       errorsSeen.push(err ? err.message : null);
       throw new Error("Error Thrown");
     };
 
+    /* eslint-disable-next-line deprecation/deprecation */
     expect(() => sig.computeSignature(xml, callback)).to.throw("Error Thrown");
     expect(errorsSeen).to.deep.equal([null]);
   });
@@ -35,6 +37,7 @@ describe("Callback invocation", function () {
     const sig = createSigner(fs.readFileSync("./test/static/client_public.pem"));
 
     const outcomes: string[] = [];
+    /* eslint-disable-next-line deprecation/deprecation */
     sig.computeSignature(xml, (err) => outcomes.push(err ? "error" : "success"));
 
     expect(outcomes).to.deep.equal(["error"]);

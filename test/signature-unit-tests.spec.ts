@@ -857,6 +857,7 @@ describe("Signature unit tests", function () {
         return true;
       };
 
+      /* eslint-disable-next-line deprecation/deprecation */
       getSignature = createOptionalCallbackFunction(
         (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike) => {
           const signer = crypto.createSign("RSA-SHA1");
@@ -895,6 +896,7 @@ describe("Signature unit tests", function () {
     });
 
     sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
+    /* eslint-disable-next-line deprecation/deprecation */
     sig.computeSignature(xml, function () {
       const signedXml = sig.getSignedXml();
       const expected =

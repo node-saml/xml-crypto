@@ -85,6 +85,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
    * @param ancestorNamespaces Import ancestor namespaces if it is specified
    * @param namespacesInScope The namespaces bound on this node's output ancestors, nearest last.
    *   Without it, a prefix in `prefixesInScope` counts as in scope whatever it is bound to.
+   * @deprecated Will be private in 7.0. Call {@link process} instead of calling or overriding it.
    * @api private
    */
   renderNs(
@@ -95,6 +96,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     ancestorNamespaces: NamespacePrefix[],
     namespacesInScope?: NamespacePrefix[],
   ): RenderedNamespace {
+    utils.warnOutsideProcess(this);
     let i;
     let attr;
     const res: string[] = [];
@@ -199,6 +201,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
 
   /**
    * @param node Node
+   * @deprecated Will be private in 7.0. Call {@link process} instead of calling or overriding it.
    */
   processInner(
     node,
@@ -208,6 +211,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     ancestorNamespaces,
     namespacesInScope?: NamespacePrefix[],
   ) {
+    utils.warnOutsideProcess(this);
     if (isDomNode.isDocumentNode(node)) {
       const res: string[] = [];
       for (let i = 0; i < node.childNodes.length; i++) {
@@ -220,6 +224,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
         }
         if (utils.isCanonicalDocumentChild(child)) {
           res.push(
+            /* eslint-disable-next-line deprecation/deprecation */
             this.processInner(
               child,
               prefixesInScope,
@@ -246,6 +251,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
     if (isDomNode.isElementNode(node)) {
       let i;
       let pfxCopy;
+      /* eslint-disable-next-line deprecation/deprecation */
       const ns = this.renderNs(
         node,
         prefixesInScope,
@@ -259,6 +265,7 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       for (i = 0; i < node.childNodes.length; ++i) {
         pfxCopy = prefixesInScope.slice(0);
         res.push(
+          /* eslint-disable-next-line deprecation/deprecation */
           this.processInner(
             node.childNodes[i],
             pfxCopy,
@@ -355,15 +362,17 @@ export class C14nCanonicalization implements CanonicalizationOrTransformationAlg
       prefixesInScope.push(ancestorNamespaces[i].prefix);
     }
 
-    const res = this.processInner(
-      canonicalNode,
-      prefixesInScope,
-      defaultNs,
-      defaultNsForPrefix,
-      ancestorNamespaces,
-      ancestorNamespaces.slice(),
+    return utils.insideProcess(this, C14nCanonicalization.prototype, () =>
+      /* eslint-disable-next-line deprecation/deprecation */
+      this.processInner(
+        canonicalNode,
+        prefixesInScope,
+        defaultNs,
+        defaultNsForPrefix,
+        ancestorNamespaces,
+        ancestorNamespaces.slice(),
+      ),
     );
-    return res;
   }
 
   getAlgorithmName() {
