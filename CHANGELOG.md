@@ -1,13 +1,40 @@
 # Changelog
 
-## 6.3.3 (2026-10-05)
+## 6.4.0 (2026-10-14)
+
+### 🚀 Minor Changes
+
+- [**bug**] [**enhancement**] [**deprecation**] feat: add computeSignatureAsync() and checkSignatureAsync(), fix asynchronous verification through a callback, and deprecate the callback form [#657](https://github.com/node-saml/xml-crypto/pull/657)
+- [**enhancement**] feat: check private-key data against its label in toPem() and pemToDer() [#658](https://github.com/node-saml/xml-crypto/pull/658)
+
+### ⚠️ Deprecations
+
+- [**deprecation**] chore: deprecate signing and verifying a document that has a DOCTYPE [#661](https://github.com/node-saml/xml-crypto/pull/661)
+- [**deprecation**] chore: warn about input that 7.0 rejects [#660](https://github.com/node-saml/xml-crypto/pull/660)
+- [**deprecation**] chore: deprecate renderNs() and processInner() ahead of 7.0 [#656](https://github.com/node-saml/xml-crypto/pull/656)
+- [**deprecation**] chore: deprecate enveloped-signature after a canonicalization [#649](https://github.com/node-saml/xml-crypto/pull/649)
+
+### 🔗 Dependencies
+
+- [**dependencies**] chore: put the lockfile back in sync for npm 8 [#659](https://github.com/node-saml/xml-crypto/pull/659)
+
+### ⚙️ Technical Tasks
+
+- [**chore**] chore: merge master into 6.x [#662](https://github.com/node-saml/xml-crypto/pull/662)
+- [**chore**] chore: group tests and deprecations in the changelog [#651](https://github.com/node-saml/xml-crypto/pull/651)
+
+---
+
+## v6.3.3 (2026-10-05)
 
 ### 🐛 Bug Fixes
 
-- [**security**] fix: include document PIs in empty-URI XML signatures [#645](https://github.com/node-saml/xml-crypto/pull/645)
+- [**bug**] [**security**] fix: include document PIs in empty-URI XML signatures [#645](https://github.com/node-saml/xml-crypto/pull/645)
+- [**bug**] [**security**] fix: protect inherited context in XML canonicalization [#643](https://github.com/node-saml/xml-crypto/pull/643)
 - [**bug**] [**security**] fix: canonicalize processing instructions in signed references [#641](https://github.com/node-saml/xml-crypto/pull/641)
 - [**bug**] [**security**] fix: distinguish namespace declarations from ordinary attributes [#640](https://github.com/node-saml/xml-crypto/pull/640)
 - [**bug**] [**security**] fix: escape namespace values during canonicalization [#639](https://github.com/node-saml/xml-crypto/pull/639)
+- [**bug**] revert: diagnose Algorithm URI whitespace (#576) [#638](https://github.com/node-saml/xml-crypto/pull/638)
 - [**bug**] fix: name the parentless location.reference error correctly [#634](https://github.com/node-saml/xml-crypto/pull/634)
 - [**bug**] fix: diagnose Algorithm URI whitespace [#576](https://github.com/node-saml/xml-crypto/pull/576)
 - [**bug**] fix: write a reference's InclusiveNamespaces only as its exclusive C14N parameter [#632](https://github.com/node-saml/xml-crypto/pull/632)
@@ -15,21 +42,19 @@
 
 ### 📚 Documentation
 
-- [**documentation**] [**chore**] doc: record who signed each InclusiveNamespaces fixture [#646](https://github.com/node-saml/xml-crypto/pull/646)
+- [**documentation**] doc: record who signed each InclusiveNamespaces fixture [#646](https://github.com/node-saml/xml-crypto/pull/646)
+- [**documentation**] docs: clarify project purpose and scope [#637](https://github.com/node-saml/xml-crypto/pull/637)
 - [**documentation**] docs: say to use one SignedXml instance per signature [#624](https://github.com/node-saml/xml-crypto/pull/624)
 - [**documentation**] docs: document the isEmptyUri and inclusiveNamespacesPrefixList options of addReference() [#625](https://github.com/node-saml/xml-crypto/pull/625)
 
+### 🧪 Tests
+
+- [**tests**] test: cover implicitTransforms and idAttribute [#635](https://github.com/node-saml/xml-crypto/pull/635)
+
 ### ⚙️ Technical Tasks
 
-- [**chore**] revert: diagnose Algorithm URI whitespace (#576) [#638](https://github.com/node-saml/xml-crypto/pull/638)
-- [**chore**] test: cover implicitTransforms and idAttribute [#635](https://github.com/node-saml/xml-crypto/pull/635)
+- [**chore**] chore: merge master into 6.x [#650](https://github.com/node-saml/xml-crypto/pull/650)
 - [**chore**] chore: remove unused C# and Java interop validators [#566](https://github.com/node-saml/xml-crypto/pull/566)
-
-### 🙈 Other
-
-- [**closed**] chore: merge master into 6.x [#650](https://github.com/node-saml/xml-crypto/pull/650)
-- [**closed**] fix: protect inherited context in XML canonicalization [#643](https://github.com/node-saml/xml-crypto/pull/643)
-- [**closed**] docs: clarify project purpose and scope [#637](https://github.com/node-saml/xml-crypto/pull/637)
 
 ---
 
@@ -40,9 +65,9 @@
 - [**bug**] [**security**] fix: render a namespace declaration that rebinds an in-scope prefix [#615](https://github.com/node-saml/xml-crypto/pull/615)
 - [**bug**] fix: don't hoist an ancestor's namespace undeclaration onto the c14n subset root [#617](https://github.com/node-saml/xml-crypto/pull/617)
 
-### 🙈 Other
+### ⚙️ Technical Tasks
 
-- [**closed**] chore: merge master into 6.x [#619](https://github.com/node-saml/xml-crypto/pull/619)
+- [**chore**] chore: merge master into 6.x [#619](https://github.com/node-saml/xml-crypto/pull/619)
 
 ---
 
@@ -56,13 +81,13 @@
 
 - [**documentation**] docs: say that privateKey and publicCert are read for one key each [#611](https://github.com/node-saml/xml-crypto/pull/611)
 
+### 🧪 Tests
+
+- [**tests**] test: cover the toPem() cases node-saml's suite has and ours did not [#609](https://github.com/node-saml/xml-crypto/pull/609)
+
 ### ⚙️ Technical Tasks
 
-- [**chore**] test: cover the toPem() cases node-saml's suite has and ours did not [#609](https://github.com/node-saml/xml-crypto/pull/609)
-
-### 🙈 Other
-
-- [**closed**] chore: merge master into 6.x [#613](https://github.com/node-saml/xml-crypto/pull/613)
+- [**chore**] chore: merge master into 6.x [#613](https://github.com/node-saml/xml-crypto/pull/613)
 
 ---
 
@@ -70,7 +95,7 @@
 
 ### 🚀 Minor Changes
 
-- [**bug**] [**enhancement**] feat: own the PEM parser and validate the encapsulated text [#603](https://github.com/node-saml/xml-crypto/pull/603)
+- [**enhancement**] feat: own the PEM parser and validate the encapsulated text [#603](https://github.com/node-saml/xml-crypto/pull/603)
 
 ### ⚙️ Technical Tasks
 
@@ -84,6 +109,12 @@
 
 - [**enhancement**] Add support for inserting and signing Object elements inside the Signature [#506](https://github.com/node-saml/xml-crypto/pull/506)
 - [**enhancement**] Add support for sha256-rsa-MGF1 signing algorithm (#328) [#488](https://github.com/node-saml/xml-crypto/pull/488)
+
+### ⚠️ Deprecations
+
+- [**deprecation**] chore: deprecate validateElementAgainstReferences() [#592](https://github.com/node-saml/xml-crypto/pull/592)
+- [**deprecation**] chore: deprecate the internal helpers 7.0 withdraws [#567](https://github.com/node-saml/xml-crypto/pull/567)
+- [**deprecation**] Deprecate getOriginalXmlWithIds() [#516](https://github.com/node-saml/xml-crypto/pull/516)
 
 ### 🔗 Dependencies
 
@@ -102,7 +133,7 @@
 - [**bug**] Fix double callback invoke on unhandled exception [#528](https://github.com/node-saml/xml-crypto/pull/528)
 - [**bug**] [**security**] fix: collect all subset namespace prefixes when filtering ancestor namespaces [#541](https://github.com/node-saml/xml-crypto/pull/541)
 - [**bug**] fix: Support nested enveloped signature location (#525) [#526](https://github.com/node-saml/xml-crypto/pull/526)
-- [**security**] fix: use constant-time comparison for HMAC verification (#522) [#523](https://github.com/node-saml/xml-crypto/pull/523)
+- [**bug**] [**security**] fix: use constant-time comparison for HMAC verification (#522) [#523](https://github.com/node-saml/xml-crypto/pull/523)
 - [**bug**] Fix Id attribute handling in addAllReferences [#521](https://github.com/node-saml/xml-crypto/pull/521)
 
 ### 📚 Documentation
@@ -110,26 +141,23 @@
 - [**documentation**] docs: describe the library as it is [#590](https://github.com/node-saml/xml-crypto/pull/590)
 - [**documentation**] docs: note the inclusive canonicalization output change for upgraders [#579](https://github.com/node-saml/xml-crypto/pull/579)
 - [**documentation**] docs: cover detached signatures in the getOriginalXmlWithIds() deprecation [#578](https://github.com/node-saml/xml-crypto/pull/578)
+- [**documentation**] docs: refine code commenting guidelines in AGENTS.md [#574](https://github.com/node-saml/xml-crypto/pull/574)
+- [**documentation**] Add agent instructions [#544](https://github.com/node-saml/xml-crypto/pull/544)
 - [**documentation**] Update README.md to reflect getCertFromKeyInfo changes [#470](https://github.com/node-saml/xml-crypto/pull/470)
 - [**documentation**] Add README sponsors [#518](https://github.com/node-saml/xml-crypto/pull/518)
 - [**documentation**] README.md: Remove obsolete requirement for `openssl` binary [#514](https://github.com/node-saml/xml-crypto/pull/514)
 
+### 🧪 Tests
+
+- [**tests**] test: cover spec-required Signature elements and fail-closed signing errors [#599](https://github.com/node-saml/xml-crypto/pull/599)
+- [**tests**] test: prove behavior through supported APIs instead of deprecated ones [#593](https://github.com/node-saml/xml-crypto/pull/593)
+- [**tests**] test: pin the hoisted ancestor namespace behaviour #541 fixed [#572](https://github.com/node-saml/xml-crypto/pull/572)
+- [**tests**] Tests for sha256-rsa-MGF1 [#515](https://github.com/node-saml/xml-crypto/pull/515)
+
 ### ⚙️ Technical Tasks
 
+- [**chore**] chore: regenerate the changelog with gren 5.1.1 [#601](https://github.com/node-saml/xml-crypto/pull/601)
 - [**chore**] chore: merge master into 6.x [#600](https://github.com/node-saml/xml-crypto/pull/600)
-- [**chore**] test: cover spec-required Signature elements and fail-closed signing errors [#599](https://github.com/node-saml/xml-crypto/pull/599)
-- [**chore**] test: prove behavior through supported APIs instead of deprecated ones [#593](https://github.com/node-saml/xml-crypto/pull/593)
-- [**chore**] chore: deprecate validateElementAgainstReferences() [#592](https://github.com/node-saml/xml-crypto/pull/592)
-- [**chore**] docs: refine code commenting guidelines in AGENTS.md [#574](https://github.com/node-saml/xml-crypto/pull/574)
-- [**chore**] chore: deprecate the internal helpers 7.0 withdraws [#567](https://github.com/node-saml/xml-crypto/pull/567)
-- [**chore**] test: pin the hoisted ancestor namespace behaviour #541 fixed [#572](https://github.com/node-saml/xml-crypto/pull/572)
-- [**chore**] Add agent instructions [#544](https://github.com/node-saml/xml-crypto/pull/544)
-- [**chore**] Deprecate getOriginalXmlWithIds() [#516](https://github.com/node-saml/xml-crypto/pull/516)
-- [**chore**] Tests for sha256-rsa-MGF1 [#515](https://github.com/node-saml/xml-crypto/pull/515)
-
-### 🙈 Other
-
-- [**closed**] chore: regenerate the changelog with gren 5.1.1 [#601](https://github.com/node-saml/xml-crypto/pull/601)
 
 ---
 
@@ -173,7 +201,7 @@
 
 ### 🔗 Dependencies
 
-- [**dependencies**] [**github_actions**] Bump github/codeql-action from 2 to 3 [#434](https://github.com/node-saml/xml-crypto/pull/434)
+- [**dependencies**] Bump github/codeql-action from 2 to 3 [#434](https://github.com/node-saml/xml-crypto/pull/434)
 
 ### 📚 Documentation
 
@@ -197,12 +225,12 @@
 
 ### 🔗 Dependencies
 
-- [**dependencies**] [**javascript**] Bump @typescript-eslint/parser from 6.13.0 to 6.18.1 [#442](https://github.com/node-saml/xml-crypto/pull/442)
-- [**dependencies**] [**javascript**] Bump @typescript-eslint/eslint-plugin from 6.13.0 to 6.18.1 [#441](https://github.com/node-saml/xml-crypto/pull/441)
-- [**dependencies**] [**javascript**] Bump follow-redirects from 1.15.3 to 1.15.4 [#440](https://github.com/node-saml/xml-crypto/pull/440)
-- [**dependencies**] [**javascript**] Bump eslint from 8.54.0 to 8.56.0 [#436](https://github.com/node-saml/xml-crypto/pull/436)
-- [**dependencies**] [**javascript**] Bump @types/node from 16.18.65 to 16.18.69 [#435](https://github.com/node-saml/xml-crypto/pull/435)
-- [**dependencies**] [**javascript**] Bump release-it from 16.2.1 to 16.3.0 [#428](https://github.com/node-saml/xml-crypto/pull/428)
+- [**dependencies**] Bump @typescript-eslint/parser from 6.13.0 to 6.18.1 [#442](https://github.com/node-saml/xml-crypto/pull/442)
+- [**dependencies**] Bump @typescript-eslint/eslint-plugin from 6.13.0 to 6.18.1 [#441](https://github.com/node-saml/xml-crypto/pull/441)
+- [**dependencies**] Bump follow-redirects from 1.15.3 to 1.15.4 [#440](https://github.com/node-saml/xml-crypto/pull/440)
+- [**dependencies**] Bump eslint from 8.54.0 to 8.56.0 [#436](https://github.com/node-saml/xml-crypto/pull/436)
+- [**dependencies**] Bump @types/node from 16.18.65 to 16.18.69 [#435](https://github.com/node-saml/xml-crypto/pull/435)
+- [**dependencies**] Bump release-it from 16.2.1 to 16.3.0 [#428](https://github.com/node-saml/xml-crypto/pull/428)
 
 ---
 
@@ -212,7 +240,7 @@
 
 - [**breaking-change**] Mark `getKeyInfo()` private as it has no public consumers [#412](https://github.com/node-saml/xml-crypto/pull/412)
 - [**breaking-change**] Remove the default for `getKeyInfoContent` forcing a consumer to choose [#411](https://github.com/node-saml/xml-crypto/pull/411)
-- [**documentation**] [**breaking-change**] Remove default for transformation algorithm [#410](https://github.com/node-saml/xml-crypto/pull/410)
+- [**breaking-change**] Remove default for transformation algorithm [#410](https://github.com/node-saml/xml-crypto/pull/410)
 - [**breaking-change**] Remove default for signature algorithm [#408](https://github.com/node-saml/xml-crypto/pull/408)
 - [**breaking-change**] Remove default for digest algorithm [#406](https://github.com/node-saml/xml-crypto/pull/406)
 - [**breaking-change**] Remove default canonicalization algorithm [#405](https://github.com/node-saml/xml-crypto/pull/405)
@@ -229,19 +257,19 @@
 
 ### 🔗 Dependencies
 
-- [**dependencies**] [**javascript**] Bump @typescript-eslint/eslint-plugin from 5.62.0 to 6.13.0 [#422](https://github.com/node-saml/xml-crypto/pull/422)
-- [**dependencies**] [**javascript**] Bump @prettier/plugin-xml from 3.2.1 to 3.2.2 [#423](https://github.com/node-saml/xml-crypto/pull/423)
-- [**dependencies**] [**javascript**] Bump @types/mocha from 10.0.2 to 10.0.6 [#421](https://github.com/node-saml/xml-crypto/pull/421)
-- [**dependencies**] [**javascript**] Bump @types/chai from 4.3.6 to 4.3.11 [#419](https://github.com/node-saml/xml-crypto/pull/419)
-- [**dependencies**] [**javascript**] Bump prettier from 3.0.3 to 3.1.0 [#418](https://github.com/node-saml/xml-crypto/pull/418)
-- [**dependencies**] [**javascript**] Bump typescript from 5.2.2 to 5.3.2 [#415](https://github.com/node-saml/xml-crypto/pull/415)
-- [**dependencies**] [**javascript**] Bump eslint from 8.51.0 to 8.54.0 [#414](https://github.com/node-saml/xml-crypto/pull/414)
-- [**dependencies**] [**github_actions**] Bump actions/setup-node from 3 to 4 [#413](https://github.com/node-saml/xml-crypto/pull/413)
-- [**dependencies**] [**javascript**] Bump @babel/traverse from 7.22.4 to 7.23.2 [#407](https://github.com/node-saml/xml-crypto/pull/407)
-- [**dependencies**] [**github_actions**] Bump actions/checkout from 3 to 4 [#392](https://github.com/node-saml/xml-crypto/pull/392)
-- [**dependencies**] [**javascript**] Bump eslint-plugin-deprecation from 1.4.1 to 2.0.0 [#390](https://github.com/node-saml/xml-crypto/pull/390)
-- [**dependencies**] [**javascript**] Bump typescript from 5.1.6 to 5.2.2 [#383](https://github.com/node-saml/xml-crypto/pull/383)
-- [**dependencies**] [**javascript**] Bump eslint-config-prettier from 8.8.0 to 9.0.0 [#381](https://github.com/node-saml/xml-crypto/pull/381)
+- [**dependencies**] Bump @typescript-eslint/eslint-plugin from 5.62.0 to 6.13.0 [#422](https://github.com/node-saml/xml-crypto/pull/422)
+- [**dependencies**] Bump @prettier/plugin-xml from 3.2.1 to 3.2.2 [#423](https://github.com/node-saml/xml-crypto/pull/423)
+- [**dependencies**] Bump @types/mocha from 10.0.2 to 10.0.6 [#421](https://github.com/node-saml/xml-crypto/pull/421)
+- [**dependencies**] Bump @types/chai from 4.3.6 to 4.3.11 [#419](https://github.com/node-saml/xml-crypto/pull/419)
+- [**dependencies**] Bump prettier from 3.0.3 to 3.1.0 [#418](https://github.com/node-saml/xml-crypto/pull/418)
+- [**dependencies**] Bump typescript from 5.2.2 to 5.3.2 [#415](https://github.com/node-saml/xml-crypto/pull/415)
+- [**dependencies**] Bump eslint from 8.51.0 to 8.54.0 [#414](https://github.com/node-saml/xml-crypto/pull/414)
+- [**dependencies**] Bump actions/setup-node from 3 to 4 [#413](https://github.com/node-saml/xml-crypto/pull/413)
+- [**dependencies**] Bump @babel/traverse from 7.22.4 to 7.23.2 [#407](https://github.com/node-saml/xml-crypto/pull/407)
+- [**dependencies**] Bump actions/checkout from 3 to 4 [#392](https://github.com/node-saml/xml-crypto/pull/392)
+- [**dependencies**] Bump eslint-plugin-deprecation from 1.4.1 to 2.0.0 [#390](https://github.com/node-saml/xml-crypto/pull/390)
+- [**dependencies**] Bump typescript from 5.1.6 to 5.2.2 [#383](https://github.com/node-saml/xml-crypto/pull/383)
+- [**dependencies**] Bump eslint-config-prettier from 8.8.0 to 9.0.0 [#381](https://github.com/node-saml/xml-crypto/pull/381)
 - [**dependencies**] Update dependencies; move to @xmldom-scoped is-dom-node package [#402](https://github.com/node-saml/xml-crypto/pull/402)
 
 ### 🐛 Bug Fixes
@@ -268,10 +296,13 @@
 
 - [**bug**] [**breaking-change**] Fix `pemToDer()` return type [#364](https://github.com/node-saml/xml-crypto/pull/364)
 
+### 🧪 Tests
+
+- [**tests**] Use stricter typing in tests [#366](https://github.com/node-saml/xml-crypto/pull/366)
+
 ### ⚙️ Technical Tasks
 
 - [**chore**] Improve exported typings [#367](https://github.com/node-saml/xml-crypto/pull/367)
-- [**chore**] Use stricter typing in tests [#366](https://github.com/node-saml/xml-crypto/pull/366)
 - [**chore**] Consistently reference `xmldom` [#365](https://github.com/node-saml/xml-crypto/pull/365)
 - [**chore**] Rename `findChilds()` to `findChildren()` [#363](https://github.com/node-saml/xml-crypto/pull/363)
 
@@ -290,12 +321,12 @@
 
 ### 💣 Major Changes
 
-- [**documentation**] [**breaking-change**] Expand the options, move idmode into options, fix types [#323](https://github.com/node-saml/xml-crypto/pull/323)
+- [**breaking-change**] Expand the options, move idmode into options, fix types [#323](https://github.com/node-saml/xml-crypto/pull/323)
 - [**breaking-change**] Refactor classes into their own files [#318](https://github.com/node-saml/xml-crypto/pull/318)
 - [**breaking-change**] Prefer ES6 classes to prototypical inheritance [#316](https://github.com/node-saml/xml-crypto/pull/316)
 - [**breaking-change**] Rename `signingCert` -> `publicCert` and `signingKey` -> `privateKey` [#315](https://github.com/node-saml/xml-crypto/pull/315)
-- [**semver-major**] [**breaking-change**] Add support for <X509Certificate /> in <KeyInfo />; remove `KeyInfoProvider` [#301](https://github.com/node-saml/xml-crypto/pull/301)
-- [**semver-major**] Target an LTS version of Node [#299](https://github.com/node-saml/xml-crypto/pull/299)
+- [**breaking-change**] Add support for <X509Certificate /> in <KeyInfo />; remove `KeyInfoProvider` [#301](https://github.com/node-saml/xml-crypto/pull/301)
+- [**breaking-change**] Target an LTS version of Node [#299](https://github.com/node-saml/xml-crypto/pull/299)
 
 ### 🚀 Minor Changes
 
@@ -303,18 +334,18 @@
 
 ### 🔗 Dependencies
 
-- [**dependencies**] [**javascript**] Bump @xmldom/xmldom from 0.8.8 to 0.8.10 [#358](https://github.com/node-saml/xml-crypto/pull/358)
-- [**dependencies**] [**javascript**] Bump @typescript-eslint/eslint-plugin from 5.60.1 to 5.62.0 [#357](https://github.com/node-saml/xml-crypto/pull/357)
-- [**dependencies**] [**javascript**] Bump @prettier/plugin-xml from 2.2.0 to 3.1.1 [#356](https://github.com/node-saml/xml-crypto/pull/356)
-- [**dependencies**] [**javascript**] Bump prettier from 2.8.8 to 3.0.0 [#350](https://github.com/node-saml/xml-crypto/pull/350)
-- [**dependencies**] [**javascript**] Bump release-it from 15.11.0 to 16.1.3 [#352](https://github.com/node-saml/xml-crypto/pull/352)
-- [**dependencies**] [**javascript**] Bump prettier-plugin-packagejson from 2.4.3 to 2.4.5 [#353](https://github.com/node-saml/xml-crypto/pull/353)
-- [**dependencies**] [**javascript**] Bump @typescript-eslint/parser from 5.60.1 to 5.62.0 [#354](https://github.com/node-saml/xml-crypto/pull/354)
-- [**dependencies**] [**javascript**] Bump typescript from 5.1.5 to 5.1.6 [#351](https://github.com/node-saml/xml-crypto/pull/351)
-- [**dependencies**] [**javascript**] Bump word-wrap from 1.2.3 to 1.2.4 [#348](https://github.com/node-saml/xml-crypto/pull/348)
-- [**dependencies**] [**javascript**] Bump eslint from 8.42.0 to 8.45.0 [#344](https://github.com/node-saml/xml-crypto/pull/344)
+- [**dependencies**] Bump @xmldom/xmldom from 0.8.8 to 0.8.10 [#358](https://github.com/node-saml/xml-crypto/pull/358)
+- [**dependencies**] Bump @typescript-eslint/eslint-plugin from 5.60.1 to 5.62.0 [#357](https://github.com/node-saml/xml-crypto/pull/357)
+- [**dependencies**] Bump @prettier/plugin-xml from 2.2.0 to 3.1.1 [#356](https://github.com/node-saml/xml-crypto/pull/356)
+- [**dependencies**] Bump prettier from 2.8.8 to 3.0.0 [#350](https://github.com/node-saml/xml-crypto/pull/350)
+- [**dependencies**] Bump release-it from 15.11.0 to 16.1.3 [#352](https://github.com/node-saml/xml-crypto/pull/352)
+- [**dependencies**] Bump prettier-plugin-packagejson from 2.4.3 to 2.4.5 [#353](https://github.com/node-saml/xml-crypto/pull/353)
+- [**dependencies**] Bump @typescript-eslint/parser from 5.60.1 to 5.62.0 [#354](https://github.com/node-saml/xml-crypto/pull/354)
+- [**dependencies**] Bump typescript from 5.1.5 to 5.1.6 [#351](https://github.com/node-saml/xml-crypto/pull/351)
+- [**dependencies**] Bump word-wrap from 1.2.3 to 1.2.4 [#348](https://github.com/node-saml/xml-crypto/pull/348)
+- [**dependencies**] Bump eslint from 8.42.0 to 8.45.0 [#344](https://github.com/node-saml/xml-crypto/pull/344)
 - [**dependencies**] Update gren for better support for branches [#340](https://github.com/node-saml/xml-crypto/pull/340)
-- [**dependencies**] [**github_actions**] Bump codecov/codecov-action from 3.1.1 to 3.1.4 [#290](https://github.com/node-saml/xml-crypto/pull/290)
+- [**dependencies**] Bump codecov/codecov-action from 3.1.1 to 3.1.4 [#290](https://github.com/node-saml/xml-crypto/pull/290)
 
 ### 🐛 Bug Fixes
 
@@ -366,9 +397,12 @@
 
 ### 🐛 Bug Fixes
 
-- [**bug**] Fix test case error [#338](https://github.com/node-saml/xml-crypto/pull/338)
 - [**bug**] Fix missing `index.js` on release [#337](https://github.com/node-saml/xml-crypto/pull/337)
 - [**bug**] Fix issue in case when namespace has no prefix [#329](https://github.com/node-saml/xml-crypto/pull/329)
+
+### 🧪 Tests
+
+- [**tests**] Fix test case error [#338](https://github.com/node-saml/xml-crypto/pull/338)
 
 ### ⚙️ Technical Tasks
 
@@ -384,7 +418,7 @@
 - [**enhancement**] Add support for appending attributes to KeyInfo element [#285](https://github.com/node-saml/xml-crypto/pull/285)
 - [**enhancement**] Use inclusiveNamespacesPrefixList to generate InclusiveNamespaces [#284](https://github.com/node-saml/xml-crypto/pull/284)
 - [**enhancement**] build: add release-it to facilitate builds [#275](https://github.com/node-saml/xml-crypto/pull/275)
-- [**enhancement**] [**documentation**] feat: add type declaration [#277](https://github.com/node-saml/xml-crypto/pull/277)
+- [**enhancement**] feat: add type declaration [#277](https://github.com/node-saml/xml-crypto/pull/277)
 - [**enhancement**] make FileKeyInfo extensible for compatibility with TypeScript [#273](https://github.com/node-saml/xml-crypto/pull/273)
 - [**enhancement**] Updated getKeyInfo function with actual implementation [#249](https://github.com/node-saml/xml-crypto/pull/249)
 
@@ -392,14 +426,11 @@
 
 - [**dependencies**] Update dependencies [#296](https://github.com/node-saml/xml-crypto/pull/296)
 - [**dependencies**] Bump minimatch from 3.0.4 to 3.1.2 [#276](https://github.com/node-saml/xml-crypto/pull/276)
-- [**dependencies**] [**javascript**] Bump qs from 6.5.2 to 6.5.3 [#271](https://github.com/node-saml/xml-crypto/pull/271)
-
-### 📚 Documentation
-
-- [**documentation**] [**chore**] Adjust references for `node-saml` organization [#298](https://github.com/node-saml/xml-crypto/pull/298)
+- [**dependencies**] Bump qs from 6.5.2 to 6.5.3 [#271](https://github.com/node-saml/xml-crypto/pull/271)
 
 ### ⚙️ Technical Tasks
 
+- [**chore**] Adjust references for `node-saml` organization [#298](https://github.com/node-saml/xml-crypto/pull/298)
 - [**chore**] Force CI to run on every PR [#286](https://github.com/node-saml/xml-crypto/pull/286)
 - [**chore**] Format code [#289](https://github.com/node-saml/xml-crypto/pull/289)
 - [**chore**] Lint code [#288](https://github.com/node-saml/xml-crypto/pull/288)
@@ -411,9 +442,9 @@
 
 ### 🔗 Dependencies
 
-- [**dependencies**] [**javascript**] Bump ajv and har-validator [#266](https://github.com/node-saml/xml-crypto/pull/266)
-- [**dependencies**] [**javascript**] Bump yargs-parser and tap [#257](https://github.com/node-saml/xml-crypto/pull/257)
-- [**dependencies**] [**javascript**] Bump minimist and tap [#264](https://github.com/node-saml/xml-crypto/pull/264)
+- [**dependencies**] Bump ajv and har-validator [#266](https://github.com/node-saml/xml-crypto/pull/266)
+- [**dependencies**] Bump yargs-parser and tap [#257](https://github.com/node-saml/xml-crypto/pull/257)
+- [**dependencies**] Bump minimist and tap [#264](https://github.com/node-saml/xml-crypto/pull/264)
 
 ---
 
@@ -421,12 +452,12 @@
 
 ### 🔗 Dependencies
 
-- [**dependencies**] [**javascript**] Bump @xmldom/xmldom from 0.7.0 to 0.8.3 [#261](https://github.com/node-saml/xml-crypto/pull/261)
-- [**dependencies**] [**javascript**] Bump handlebars from 4.0.11 to 4.7.7 [#247](https://github.com/node-saml/xml-crypto/pull/247)
-- [**dependencies**] [**javascript**] Bump lodash from 4.17.10 to 4.17.21 [#248](https://github.com/node-saml/xml-crypto/pull/248)
-- [**dependencies**] [**javascript**] Bump hosted-git-info from 2.6.0 to 2.8.9 [#246](https://github.com/node-saml/xml-crypto/pull/246)
-- [**dependencies**] [**javascript**] Bump ejs from 2.6.1 to 3.1.7 [#244](https://github.com/node-saml/xml-crypto/pull/244)
-- [**dependencies**] [**javascript**] Bump path-parse from 1.0.5 to 1.0.7 [#245](https://github.com/node-saml/xml-crypto/pull/245)
+- [**dependencies**] Bump @xmldom/xmldom from 0.7.0 to 0.8.3 [#261](https://github.com/node-saml/xml-crypto/pull/261)
+- [**dependencies**] Bump handlebars from 4.0.11 to 4.7.7 [#247](https://github.com/node-saml/xml-crypto/pull/247)
+- [**dependencies**] Bump lodash from 4.17.10 to 4.17.21 [#248](https://github.com/node-saml/xml-crypto/pull/248)
+- [**dependencies**] Bump hosted-git-info from 2.6.0 to 2.8.9 [#246](https://github.com/node-saml/xml-crypto/pull/246)
+- [**dependencies**] Bump ejs from 2.6.1 to 3.1.7 [#244](https://github.com/node-saml/xml-crypto/pull/244)
+- [**dependencies**] Bump path-parse from 1.0.5 to 1.0.7 [#245](https://github.com/node-saml/xml-crypto/pull/245)
 
 ### ⚙️ Technical Tasks
 
@@ -446,7 +477,7 @@
 
 ### 🔗 Dependencies
 
-- [**dependencies**] [**javascript**] 2.1.5: bump @xmldom/xmldom to 0.7.9 [#263](https://github.com/node-saml/xml-crypto/pull/263)
+- [**dependencies**] 2.1.5: bump @xmldom/xmldom to 0.7.9 [#263](https://github.com/node-saml/xml-crypto/pull/263)
 
 ---
 
@@ -462,8 +493,8 @@
 
 ### 🔗 Dependencies
 
-- [**dependencies**] [**javascript**] [**security**] Update xmldom to 0.7.0 [#236](https://github.com/node-saml/xml-crypto/pull/236)
-- [**dependencies**] [**java**] Bump commons-io from 2.4 to 2.7 in /test/validators/XmlCryptoJava [#229](https://github.com/node-saml/xml-crypto/pull/229)
+- [**dependencies**] [**security**] Update xmldom to 0.7.0 [#236](https://github.com/node-saml/xml-crypto/pull/236)
+- [**dependencies**] Bump commons-io from 2.4 to 2.7 in /test/validators/XmlCryptoJava [#229](https://github.com/node-saml/xml-crypto/pull/229)
 
 ---
 
@@ -483,8 +514,8 @@ _No changelog for this release._
 
 ### 🔗 Dependencies
 
-- [**dependencies**] [**javascript**] Bump xmldom from 0.1.27 to 0.5.0 [#225](https://github.com/node-saml/xml-crypto/pull/225)
-- [**dependencies**] [**java**] Bump junit from 4.12 to 4.13.1 in /test/validators/XmlCryptoJava [#217](https://github.com/node-saml/xml-crypto/pull/217)
+- [**dependencies**] Bump xmldom from 0.1.27 to 0.5.0 [#225](https://github.com/node-saml/xml-crypto/pull/225)
+- [**dependencies**] Bump junit from 4.12 to 4.13.1 in /test/validators/XmlCryptoJava [#217](https://github.com/node-saml/xml-crypto/pull/217)
 
 ### 🐛 Bug Fixes
 
@@ -558,8 +589,11 @@ _No changelog for this release._
 
 ### 🐛 Bug Fixes
 
-- [**bug**] validation instruction typo [#192](https://github.com/node-saml/xml-crypto/pull/192)
 - [**bug**] Fixes line end and white space normalization. [#196](https://github.com/node-saml/xml-crypto/pull/196)
+
+### 📚 Documentation
+
+- [**documentation**] validation instruction typo [#192](https://github.com/node-saml/xml-crypto/pull/192)
 
 ---
 
@@ -720,12 +754,13 @@ _No changelog for this release._
 - [**enhancement**] Support SHA512 hashing algorithm [#76](https://github.com/node-saml/xml-crypto/pull/76)
 - [**enhancement**] HMAC support [#71](https://github.com/node-saml/xml-crypto/pull/71)
 - [**enhancement**] Switch loadSignature to accept string or XML node [#62](https://github.com/node-saml/xml-crypto/pull/62)
-- [**enhancement**] Body Xml Element Canonicalization [#49](https://github.com/node-saml/xml-crypto/pull/49)
+- [**enhancement**] Custom location and ability to add custom attributes to the signature [#57](https://github.com/node-saml/xml-crypto/pull/57)
+- [**enhancement**] add support for prefixed signature [#56](https://github.com/node-saml/xml-crypto/pull/56)
 - [**enhancement**] Updating EnvelopedSignature transform [#31](https://github.com/node-saml/xml-crypto/pull/31)
 - [**enhancement**] Improved string concat and general clean up [#20](https://github.com/node-saml/xml-crypto/pull/20)
 - [**enhancement**] support for InclusiveNamespaces PrefixList [#19](https://github.com/node-saml/xml-crypto/pull/19)
 - [**enhancement**] support specifying reference node to insert signature after [#9](https://github.com/node-saml/xml-crypto/pull/9)
-- [**bug**] [**enhancement**] fix global leaks and support for specifying ID attribute when producing a signature [#6](https://github.com/node-saml/xml-crypto/pull/6)
+- [**enhancement**] fix global leaks and support for specifying ID attribute when producing a signature [#6](https://github.com/node-saml/xml-crypto/pull/6)
 - [**enhancement**] support for specifying id attributes (used on SAML 1.1) and fixed unit tests [#5](https://github.com/node-saml/xml-crypto/pull/5)
 - [**enhancement**] improve ADFS enveloped signature compatibility [#4](https://github.com/node-saml/xml-crypto/pull/4)
 - [**enhancement**] support for sha256 algorithms (hash and sign) [#2](https://github.com/node-saml/xml-crypto/pull/2)
@@ -749,7 +784,12 @@ _No changelog for this release._
 ### 📚 Documentation
 
 - [**documentation**] Correct the hyperlink typo [#75](https://github.com/node-saml/xml-crypto/pull/75)
+- [**documentation**] Documentation update [#58](https://github.com/node-saml/xml-crypto/pull/58)
 - [**documentation**] Add a Bitdeli Badge to README [#21](https://github.com/node-saml/xml-crypto/pull/21)
+
+### 🧪 Tests
+
+- [**tests**] Body Xml Element Canonicalization [#49](https://github.com/node-saml/xml-crypto/pull/49)
 
 ### ⚙️ Technical Tasks
 
