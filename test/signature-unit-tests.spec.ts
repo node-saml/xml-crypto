@@ -10,6 +10,7 @@ const signatureAlgorithms = [
   "http://www.w3.org/2000/09/xmldsig#rsa-sha1",
   "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256",
   "http://www.w3.org/2007/05/xmldsig-more#sha256-rsa-MGF1",
+  "http://www.w3.org/2001/04/xmldsig-more#rsa-sha384",
   "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512",
 ];
 

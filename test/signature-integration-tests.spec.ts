@@ -1578,4 +1578,67 @@ describe("Signature integration tests", function () {
       expect(checkEachSignature(signed)).to.deep.equal([true, true]);
     });
   });
+
+  // https://www.rfc-editor.org/rfc/rfc9231#section-2.1.3
+  // https://www.rfc-editor.org/rfc/rfc9231#section-2.3.3
+  describe("SHA-384", function () {
+    const xml = "<root><x>text</x></root>";
+    const signedByJdk = fs.readFileSync("./test/static/rsa_sha384_signature.xml", "utf8");
+
+    function verify(signedXml: string) {
+      const verifier = new SignedXml({
+        publicCert: fs.readFileSync("./test/static/client_public.pem"),
+      });
+      verifier.loadSignature(
+        verifier.findSignatures(new xmldom.DOMParser().parseFromString(signedXml))[0],
+      );
+      const valid = verifier.checkSignature(signedXml);
+
+      return { valid, signedReferences: verifier.getSignedReferences() };
+    }
+
+    function digestAndSignatureValues(signedXml: string) {
+      const doc = new xmldom.DOMParser().parseFromString(signedXml);
+
+      return ["DigestValue", "SignatureValue"].map((name) =>
+        xpath.select1(`string(//*[local-name(.)='${name}'])`, doc),
+      );
+    }
+
+    it("should verify an rsa-sha384 signature over a sha384 digest", function () {
+      const result = verify(signedByJdk);
+
+      expect(result.valid).to.be.true;
+      expect(result.signedReferences).to.deep.equal([xml]);
+    });
+
+    it("should reject it once the signed content changes", function () {
+      const result = verify(signedByJdk.replace("<x>text</x>", "<x>other</x>"));
+
+      expect(result.valid).to.be.false;
+      expect(result.signedReferences).to.deep.equal([]);
+    });
+
+    it("should write the DigestValue and SignatureValue the JDK writes", function () {
+      const signer = new SignedXml({
+        privateKey: fs.readFileSync("./test/static/client.pem"),
+        canonicalizationAlgorithm: "http://www.w3.org/2001/10/xml-exc-c14n#",
+        signatureAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#rsa-sha384",
+      });
+      signer.addReference({
+        xpath: "/*",
+        isEmptyUri: true,
+        digestAlgorithm: "http://www.w3.org/2001/04/xmldsig-more#sha384",
+        transforms: [
+          "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+          "http://www.w3.org/2001/10/xml-exc-c14n#",
+        ],
+      });
+      signer.computeSignature(xml);
+
+      expect(digestAndSignatureValues(signer.getSignedXml())).to.deep.equal(
+        digestAndSignatureValues(signedByJdk),
+      );
+    });
+  });
 });

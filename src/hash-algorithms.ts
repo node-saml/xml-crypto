@@ -27,6 +27,19 @@ export class Sha256 implements HashAlgorithm {
   };
 }
 
+export class Sha384 implements HashAlgorithm {
+  getHash = function (xml) {
+    const shasum = crypto.createHash("sha384");
+    shasum.update(xml, "utf8");
+    const res = shasum.digest("base64");
+    return res;
+  };
+
+  getAlgorithmName = function () {
+    return "http://www.w3.org/2001/04/xmldsig-more#sha384";
+  };
+}
+
 export class Sha512 implements HashAlgorithm {
   getHash = function (xml) {
     const shasum = crypto.createHash("sha512");
