@@ -1,4 +1,5 @@
 import { deprecate } from "util";
+import * as types from "./types";
 import * as utils from "./utils";
 
 export { C14nCanonicalization, C14nCanonicalizationWithComments } from "./c14n-canonicalization";
@@ -21,6 +22,22 @@ export { findAncestorNs, normalizePem, pemCertificates, pemToDer, toPem } from "
  * helpers as `utils.x`, which stays unwrapped, so no internal call path warns. Warning on our
  * own calls is what made #497 unpleasant.
  */
+
+/**
+ * @deprecated Will be removed in 7.0. Write a signature algorithm's methods without a callback,
+ *   and give it `getSignatureAsync()` and `verifySignatureAsync()` if it works asynchronously.
+ */
+export const createOptionalCallbackFunction = deprecate(
+  types.createOptionalCallbackFunction,
+  "`createOptionalCallbackFunction()` is deprecated and will be removed in version 7.0. Write a signature algorithm's methods without a callback, and give it `getSignatureAsync()` and `verifySignatureAsync()` if it works asynchronously.",
+  "XML_CRYPTO_CREATE_OPTIONAL_CALLBACK_FUNCTION",
+);
+
+/**
+ * @deprecated Will be removed in 7.0, with the callback form of `computeSignature()` and
+ *   `checkSignature()`. `computeSignatureAsync()` and `checkSignatureAsync()` return a promise.
+ */
+export type ErrorFirstCallback<T> = types.ErrorFirstCallback<T>;
 
 /**
  * @deprecated Will be removed in 7.0. This is an internal predicate with no replacement; use

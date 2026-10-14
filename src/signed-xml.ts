@@ -28,6 +28,7 @@ import * as signatureAlgorithms from "./signature-algorithms";
 import * as utils from "./utils";
 
 type SigningReferenceTarget = { node: Element; digestValue?: string };
+type UnsignedSignature = { doc: Document; insertSignatureValue: () => void };
 type C14nOptionsWithXmlAttributes = CanonicalizationOrTransformationAlgorithmProcessOptions & {
   ancestorXmlAttributes?: utils.InheritedXmlAttribute[];
 };
@@ -101,6 +102,12 @@ function certificatesToPublish(publicCert: string): string[] {
     return [];
   }
 }
+
+const warnCallbackForm = deprecate(
+  () => {},
+  "The callback form of `computeSignature()` and `checkSignature()` is deprecated and will be removed in version 7.0. Call them without a callback. For a signature algorithm that works asynchronously, implement `getSignatureAsync()` and `verifySignatureAsync()` on it and call `computeSignatureAsync()` and `checkSignatureAsync()`, which return a promise.",
+  "XML_CRYPTO_CALLBACK_FORM",
+);
 
 const warnOriginalXmlWithIds = deprecate(
   () => {},
@@ -348,11 +355,14 @@ export class SignedXml {
    */
   checkSignature(xml: string): boolean;
   /**
-   * Validates the signature of the provided XML document synchronously using the configured key info provider.
+   * Validates the signature of the provided XML document using the configured key info provider.
+   * The signature algorithm is given a callback to answer through.
    *
    * @param xml The XML document containing the signature to be validated.
-   * @param callback Called with the validation result before `checkSignature` returns.
+   * @param callback Called with the validation result.
    * @throws Error if the last parameter is provided and is not a function, or if no key info resolver is provided.
+   * @deprecated Will be removed in 7.0. Call `checkSignature(xml)`, or `checkSignatureAsync(xml)`
+   *   for a signature algorithm that verifies asynchronously.
    */
   checkSignature(xml: string, callback: (error: Error | null, isValid?: boolean) => void): void;
   checkSignature(
@@ -362,7 +372,93 @@ export class SignedXml {
     if (callback != null && typeof callback !== "function") {
       throw new Error("Last parameter must be a callback function");
     }
+    if (callback) {
+      warnCallbackForm();
+    }
 
+    const pending = this.validateReferences(xml, callback);
+    if (!pending) {
+      return pending;
+    }
+    const { signer, key, unverifiedSignedInfoCanon, accept } = pending;
+
+    if (!callback) {
+      if (signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue) !== true) {
+        throw this.invalidSignature();
+      }
+      accept();
+      return true;
+    }
+
+    let answered = false;
+    const answer = (error: Error | null, isValid?: boolean) => {
+      if (answered) {
+        return;
+      }
+      answered = true;
+      if (error) {
+        callback(error);
+      } else if (isValid !== true) {
+        callback(this.invalidSignature());
+      } else {
+        accept();
+        callback(null, true);
+      }
+    };
+    /* eslint-disable-next-line deprecation/deprecation */
+    const returned: unknown = signer.verifySignature(
+      unverifiedSignedInfoCanon,
+      key,
+      this.signatureValue,
+      answer,
+    );
+    // An algorithm that verifies synchronously can ignore the callback and return its verdict.
+    if (typeof returned === "boolean") {
+      answer(null, returned);
+    }
+  }
+
+  /**
+   * Validates the signature of the provided XML document using the configured key info provider,
+   * waiting for a signature algorithm that implements `verifySignatureAsync()`. An algorithm
+   * without it is called as `checkSignature(xml)` calls it.
+   *
+   * @param xml The XML document containing the signature to be validated.
+   * @returns a promise for `true` if the signature is valid, and for `false` if a reference does
+   *   not validate
+   * @throws Error rejects with it if the signature value is incorrect, or if no key info resolver
+   *   is provided.
+   */
+  async checkSignatureAsync(xml: string): Promise<boolean> {
+    const pending = this.validateReferences(xml);
+    if (!pending) {
+      return false;
+    }
+    const { signer, key, unverifiedSignedInfoCanon, accept } = pending;
+
+    const isValid =
+      typeof signer.verifySignatureAsync === "function"
+        ? await signer.verifySignatureAsync(unverifiedSignedInfoCanon, key, this.signatureValue)
+        : signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
+    if (isValid !== true) {
+      throw this.invalidSignature();
+    }
+    accept();
+    return true;
+  }
+
+  private invalidSignature(): Error {
+    // TODO: add this breaking change here later on for even more security: `this.references = [];`
+    return new Error(`invalid signature: the signature value ${this.signatureValue} is incorrect`);
+  }
+
+  // Core validation up to the signature over `SignedInfo`, which is left to the caller because the
+  // signature algorithm may answer later. Returns `false`, or nothing once the callback has the
+  // reason, when a reference does not validate.
+  private validateReferences(
+    xml: string,
+    callback?: (error: Error | null, isValid?: boolean) => void,
+  ) {
     // Nothing this check has not authenticated may be visible, even if it throws partway. Success
     // adds to what earlier successful checks on this instance published.
     const earlierSignedReferences = this.signedReferences;
@@ -450,33 +546,16 @@ export class SignedXml {
       throw new Error("KeyInfo or publicCert or privateKey is required to validate signature");
     }
 
-    // Check the signature verification to know whether to reset signature value or not.
-    const sigRes = signer.verifySignature(unverifiedSignedInfoCanon, key, this.signatureValue);
-    if (sigRes === true) {
+    // An asynchronous algorithm may answer after another check has replaced `this.references`.
+    const loadedReferences = this.references;
+    const accept = () => {
       this.signedReferences = [...earlierSignedReferences, ...canonReferences];
-      this.references.forEach((ref, index) => {
+      loadedReferences.forEach((ref, index) => {
         ref.signedReference = canonReferences[index];
       });
+    };
 
-      if (callback) {
-        callback(null, true);
-      } else {
-        return true;
-      }
-    } else {
-      // TODO: add this breaking change here later on for even more security: `this.references = [];`
-
-      if (callback) {
-        callback(
-          new Error(`invalid signature: the signature value ${this.signatureValue} is incorrect`),
-        );
-        return; // return early
-      } else {
-        throw new Error(
-          `invalid signature: the signature value ${this.signatureValue} is incorrect`,
-        );
-      }
-    }
+    return { signer, key, unverifiedSignedInfoCanon, accept };
   }
 
   private getCanonSignedInfoXml(doc: Document) {
@@ -564,17 +643,38 @@ export class SignedXml {
     );
   }
 
-  private calculateSignatureValue(doc: Document, callback?: ErrorFirstCallback<string>) {
+  private signingInput(doc: Document) {
     const signedInfoCanon = this.getCanonSignedInfoXml(doc);
     const signer = this.findSignatureAlgorithm(this.signatureAlgorithm);
     if (this.privateKey == null) {
       throw new Error("Private key is required to compute signature");
     }
+    return { signedInfoCanon, signer, privateKey: this.privateKey };
+  }
+
+  private calculateSignatureValue(doc: Document, callback?: ErrorFirstCallback<string>) {
+    const { signedInfoCanon, signer, privateKey } = this.signingInput(doc);
     if (typeof callback === "function") {
-      signer.getSignature(signedInfoCanon, this.privateKey, callback);
+      /* eslint-disable-next-line deprecation/deprecation */
+      signer.getSignature(signedInfoCanon, privateKey, callback);
     } else {
-      this.signatureValue = signer.getSignature(signedInfoCanon, this.privateKey);
+      this.signatureValue = signer.getSignature(signedInfoCanon, privateKey);
     }
+  }
+
+  private async calculateSignatureValueAsync(doc: Document) {
+    const { signedInfoCanon, signer, privateKey } = this.signingInput(doc);
+    const signatureValue: unknown =
+      typeof signer.getSignatureAsync === "function"
+        ? await signer.getSignatureAsync(signedInfoCanon, privateKey)
+        : signer.getSignature(signedInfoCanon, privateKey);
+    // An algorithm written for the callback form returns nothing when it is called without one.
+    if (typeof signatureValue !== "string") {
+      throw new Error(
+        "the signature algorithm returned no signature; an algorithm that signs asynchronously implements getSignatureAsync()",
+      );
+    }
+    this.signatureValue = signatureValue;
   }
 
   private findSignatureAlgorithm(name?: SignatureAlgorithmType) {
@@ -1000,6 +1100,8 @@ export class SignedXml {
    * @param callback A callback function to handle the signature computation asynchronously.
    * @returns void
    * @throws TypeError If the xml can not be parsed.
+   * @deprecated Will be removed in 7.0. Call `computeSignature(xml)`, or `computeSignatureAsync(xml)`
+   *   for a signature algorithm that signs asynchronously.
    */
   computeSignature(xml: string, callback: ErrorFirstCallback<SignedXml>): void;
 
@@ -1021,6 +1123,8 @@ export class SignedXml {
    * @param callback A callback function to handle the signature computation asynchronously.
    * @returns void
    * @throws TypeError If the xml can not be parsed, or Error if there were invalid options passed.
+   * @deprecated Will be removed in 7.0. Call `computeSignature(xml, options)`, or
+   *   `computeSignatureAsync(xml, options)` for a signature algorithm that signs asynchronously.
    */
   computeSignature(
     xml: string,
@@ -1041,7 +1145,66 @@ export class SignedXml {
       callback = callbackParam as ErrorFirstCallback<SignedXml>;
       options = (options ?? {}) as ComputeSignatureOptions;
     }
+    if (typeof callback === "function") {
+      warnCallbackForm();
+    }
 
+    const unsigned = this.prepareSignature(xml, options, callback);
+    if (!unsigned) {
+      return;
+    }
+
+    if (typeof callback === "function") {
+      // Asynchronous flow
+      this.calculateSignatureValue(unsigned.doc, (err, signature) => {
+        if (err) {
+          callback(err);
+        } else {
+          this.signatureValue = signature || "";
+          unsigned.insertSignatureValue();
+          callback(null, this);
+        }
+      });
+    } else {
+      // Synchronous flow
+      this.calculateSignatureValue(unsigned.doc);
+      unsigned.insertSignatureValue();
+    }
+  }
+
+  /**
+   * Compute the signature of the given XML (using the already defined settings), waiting for a
+   * signature algorithm that implements `getSignatureAsync()`. An algorithm without it is called
+   * as `computeSignature(xml)` calls it.
+   *
+   * @param xml The XML to compute the signature for.
+   * @param options An object containing options for the signature computation.
+   * @returns a promise for this instance
+   * @throws TypeError rejects with it if the xml can not be parsed, or with an Error if there were
+   *   invalid options passed.
+   */
+  async computeSignatureAsync(
+    xml: string,
+    options: ComputeSignatureOptions = {},
+  ): Promise<SignedXml> {
+    const unsigned = this.prepareSignature(xml, options);
+    await this.calculateSignatureValueAsync(unsigned.doc);
+    unsigned.insertSignatureValue();
+    return this;
+  }
+
+  // Everything but the signature value. Returns nothing once the callback has the reason it stopped.
+  private prepareSignature(xml: string, options: ComputeSignatureOptions): UnsignedSignature;
+  private prepareSignature(
+    xml: string,
+    options: ComputeSignatureOptions,
+    callback: ErrorFirstCallback<SignedXml>,
+  ): UnsignedSignature | undefined;
+  private prepareSignature(
+    xml: string,
+    options: ComputeSignatureOptions,
+    callback?: ErrorFirstCallback<SignedXml>,
+  ) {
     const doc = new xmldom.DOMParser().parseFromString(xml);
     if (doc.doctype != null) {
       warnDocumentTypeDeclaration();
@@ -1198,26 +1361,13 @@ export class SignedXml {
     }
     const signedInfoNode = signedInfoNodes[0];
 
-    if (typeof callback === "function") {
-      // Asynchronous flow
-      this.calculateSignatureValue(doc, (err, signature) => {
-        if (err) {
-          callback(err);
-        } else {
-          this.signatureValue = signature || "";
-          signatureElem.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
-          this.signatureXml = this.serialize(signatureElem);
-          this.signedXml = this.serialize(doc);
-          callback(null, this);
-        }
-      });
-    } else {
-      // Synchronous flow
-      this.calculateSignatureValue(doc);
+    const insertSignatureValue = () => {
       signatureElem.insertBefore(this.createSignature(prefix), signedInfoNode.nextSibling);
       this.signatureXml = this.serialize(signatureElem);
       this.signedXml = this.serialize(doc);
-    }
+    };
+
+    return { doc, insertSignatureValue };
   }
 
   // The signer parses its input, so a carriage return reaches the DOM only through a character
