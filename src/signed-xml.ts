@@ -65,6 +65,30 @@ function decodeSignatureValue(signature: Node): Buffer {
   return Buffer.from(findSignatureValue(signature) ?? "", "base64");
 }
 
+const warnReferenceUriWithoutFragment = deprecate(
+  () => {},
+  'Resolving a `Reference` whose `URI` is neither empty nor starts with "#" as a same-document ID is deprecated, and such a signature will not verify in version 7.0. A same-document `URI` is empty, or "#" followed by an ID.',
+  "XML_CRYPTO_REFERENCE_URI_WITHOUT_FRAGMENT",
+);
+
+const warnTransformWithoutAlgorithm = deprecate(
+  () => {},
+  "Skipping a `Transform` that has no `Algorithm` attribute is deprecated, and a signature that has one will not verify in version 7.0.",
+  "XML_CRYPTO_TRANSFORM_WITHOUT_ALGORITHM",
+);
+
+const warnLocationReferenceNotElement = deprecate(
+  () => {},
+  "A `location.reference` that selects a node other than an element is deprecated and will throw in version 7.0. Select the element to place the signature in or next to.",
+  "XML_CRYPTO_LOCATION_REFERENCE_NOT_ELEMENT",
+);
+
+const warnEmptyUriNotDocumentElement = deprecate(
+  () => {},
+  '`isEmptyUri: true` on a reference whose `xpath` selects anything but the document element is deprecated and will throw in version 7.0. `URI=""` identifies the whole document, so the signature this produces does not verify.',
+  "XML_CRYPTO_EMPTY_URI_NOT_DOCUMENT_ELEMENT",
+);
+
 function certificatesToPublish(publicCert: string): string[] {
   const certificates = utils.pemCertificates(publicCert);
   if (certificates.length > 0) {
@@ -89,6 +113,12 @@ const warnOriginalXmlWithIds = deprecate(
   () => {},
   "`getOriginalXmlWithIds()` is deprecated and will be removed in a future version. Use the `location` option of `computeSignature()` to place the signature, then `getSignedXml()`. For a detached signature, put an ID attribute the signer recognizes on each referenced element (`wsu:Id` for WS-Security), sign that document, and send it alongside `getSignatureXml()`.",
   "XML_CRYPTO_GET_ORIGINAL_XML_WITH_IDS",
+);
+
+const warnDocumentTypeDeclaration = deprecate(
+  () => {},
+  "Signing or verifying a document that has a document type declaration (`<!DOCTYPE>`) is deprecated and will throw in version 7.0. The declaration is not processed, so an entity it declares is not expanded and a default attribute it declares is not added to what is signed or verified.",
+  "XML_CRYPTO_DOCUMENT_TYPE_DECLARATION",
 );
 
 const warnValidateElementAgainstReferences = deprecate(
@@ -437,6 +467,9 @@ export class SignedXml {
     this.signedXml = xml;
 
     const doc = new xmldom.DOMParser().parseFromString(xml);
+    if (doc.doctype != null) {
+      warnDocumentTypeDeclaration();
+    }
 
     // Reset the references as only references from our re-parsed signedInfo node can be trusted
     this.references = [];
@@ -719,6 +752,12 @@ export class SignedXml {
     const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
     let elem: xpath.SelectSingleReturnType = null;
 
+    // Only an empty URI and a fragment are same-document references:
+    // https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
+    if (uri !== "" && uri === ref.uri) {
+      warnReferenceUriWithoutFragment();
+    }
+
     if (uri === "") {
       elem = utils.hasDocumentLevelProcessingInstruction(doc) ? doc : xpath.select1("//*", doc);
     } else if (uri?.indexOf("'") !== -1) {
@@ -917,16 +956,19 @@ export class SignedXml {
 
         if (transformAttr) {
           transforms.push(transformAttr.value);
+          const inclusiveNamespaces = utils.findChildren(transform, "InclusiveNamespaces");
+          inclusiveNamespaces.forEach(execC14n.warnUnlessExclusiveC14nNamespace);
           // PrefixList is NMTOKENS, delimited by XML white space:
           // https://www.w3.org/TR/xml-exc-c14n/#sec-Use
           prefixLists.push(
-            utils
-              .findChildren(transform, "InclusiveNamespaces")
+            inclusiveNamespaces
               .flatMap((namespace) =>
                 (namespace.getAttribute("PrefixList") ?? "").split(/[ \t\r\n]+/),
               )
               .filter((value) => value.length > 0),
           );
+        } else {
+          warnTransformWithoutAlgorithm();
         }
       }
     }
@@ -1164,6 +1206,9 @@ export class SignedXml {
     callback?: ErrorFirstCallback<SignedXml>,
   ) {
     const doc = new xmldom.DOMParser().parseFromString(xml);
+    if (doc.doctype != null) {
+      warnDocumentTypeDeclaration();
+    }
     let xmlNsAttr = "xmlns";
     const signatureAttrs: string[] = [];
     let currentPrefix: string;
@@ -1266,6 +1311,10 @@ export class SignedXml {
         callback(err2);
         return;
       }
+    }
+
+    if (!isDomNode.isElementNode(referenceNode)) {
+      warnLocationReferenceNotElement();
     }
 
     const previousSignatureNode = this.signatureNode;
@@ -1427,6 +1476,9 @@ export class SignedXml {
         let targetUri: string;
         if (ref.isEmptyUri) {
           targetUri = "";
+          if (node !== node.ownerDocument.documentElement) {
+            warnEmptyUriNotDocumentElement();
+          }
         } else {
           const id = this.ensureHasId(node);
           ref.uri = id;
