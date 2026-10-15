@@ -1,6 +1,12 @@
 import * as xpath from "xpath";
 import * as xmldom from "@xmldom/xmldom";
-import { SignedXml, createOptionalCallbackFunction, pemCertificates, toPem } from "../src/index";
+import {
+  SignedXml,
+  createOptionalCallbackFunction,
+  pemCertificates,
+  toPem,
+  type CanonicalizationOrTransformationAlgorithm,
+} from "../src/index";
 import * as fs from "fs";
 import * as crypto from "crypto";
 import { expect } from "chai";
@@ -216,7 +222,10 @@ describe("Signature unit tests", function () {
       sig.addReference({
         xpath: "//*[local-name(.)='x']",
         digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-        transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+        transforms: [
+          "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
+          "http://www.w3.org/2001/10/xml-exc-c14n#",
+        ],
       });
       sig.canonicalizationAlgorithm = "http://www.w3.org/2001/10/xml-exc-c14n#";
       sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
@@ -481,6 +490,8 @@ describe("Signature unit tests", function () {
 
     class DummyTransformation {
       includeComments = false;
+      // Returns a fixed string rather than the node-set it was given.
+      removesNodes = true;
       process = function () {
         return "< x/>";
       };
@@ -492,6 +503,8 @@ describe("Signature unit tests", function () {
 
     class DummyCanonicalization {
       includeComments = false;
+      // Returns a fixed string rather than the node-set it was given.
+      removesNodes = true;
       process = function () {
         return "< x/>";
       };
@@ -649,6 +662,8 @@ describe("Signature unit tests", function () {
 
     class DummyTransformation {
       includeComments = false;
+      // Returns a fixed string rather than the node-set it was given.
+      removesNodes = true;
       process = function () {
         return "< x/>";
       };
@@ -660,6 +675,8 @@ describe("Signature unit tests", function () {
 
     class DummyCanonicalization {
       includeComments = false;
+      // Returns a fixed string rather than the node-set it was given.
+      removesNodes = true;
       process = function () {
         return "< x/>";
       };
@@ -1001,8 +1018,7 @@ describe("Signature unit tests", function () {
             ref.uri,
             `wrong uri for index ${i}. expected: ${expectedUri} actual: ${ref.uri}`,
           ).to.equal(expectedUri);
-          expect(ref.transforms.length).to.equal(1);
-          expect(ref.transforms[0]).to.equal("http://www.w3.org/2001/10/xml-exc-c14n#");
+          expect(ref.transforms).to.deep.equal(["http://www.w3.org/2001/10/xml-exc-c14n#"]);
           expect(ref.digestValue).to.equal(digests[i]);
           expect(ref.digestAlgorithm).to.equal("http://www.w3.org/2000/09/xmldsig#sha1");
         }
@@ -1229,6 +1245,319 @@ describe("Signature unit tests", function () {
     const URI = xpath.select1("//*[local-name(.)='Reference']/@URI", doc);
     isDomNode.assertIsAttributeNode(URI);
     expect(URI.value, `uri should be empty but instead was ${URI.value}`).to.equal("");
+  });
+
+  for (const { label, transforms } of [
+    { label: "omitted transforms property", transforms: undefined },
+    { label: "empty transforms array", transforms: [] as string[] },
+  ]) {
+    it(`omits Transforms element when no transforms are specified (${label})`, function () {
+      const xml = "<root><x Id='ref1'/></root>";
+      const sig = new SignedXml();
+      sig.privateKey = fs.readFileSync("./test/static/client.pem");
+      sig.addReference({
+        xpath: "//*[local-name(.)='x']",
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        uri: "#ref1",
+        digestValue: "",
+        inclusiveNamespacesPrefixList: [],
+        isEmptyUri: false,
+        ...(transforms !== undefined ? { transforms } : {}),
+      });
+      sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+      sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+      sig.computeSignature(xml);
+      const signedXml = sig.getSignedXml();
+      const doc = new xmldom.DOMParser().parseFromString(signedXml);
+      const transformNodes = xpath.select("//*[local-name(.)='Transforms']", doc);
+      expect(
+        transformNodes,
+        "Transforms element should be absent when no transforms specified",
+      ).to.have.length(0);
+    });
+  }
+
+  it("signs and verifies correctly with no transforms (round-trip)", function () {
+    const xml = "<root><x Id='ref1'/></root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      uri: "#ref1",
+      digestValue: "",
+      inclusiveNamespacesPrefixList: [],
+      isEmptyUri: false,
+    });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const sigNode = xpath.select1(
+      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc,
+    );
+    isDomNode.assertIsNodeLike(sigNode);
+
+    const verifySig = new SignedXml();
+    verifySig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    verifySig.loadSignature(sigNode);
+    const result = verifySig.checkSignature(signedXml);
+    expect(result, "expected signature to verify successfully").to.be.true;
+  });
+
+  it("derives ancestor namespaces per referenced node when one xpath matches several", function () {
+    // Transforms are specified explicitly so this exercises only the ancestor
+    // namespace derivation: findAncestorNs(doc, ref.xpath) used the first XPath
+    // match (item1's scope) for every reference, so item2 was digested with the
+    // wrong ancestor namespaces and verification failed.
+    const xml =
+      "<root>" +
+      "<section xmlns:ns1='http://ns1.example.com'><item Id='item1'>one</item></section>" +
+      "<section xmlns:ns2='http://ns2.example.com'><item Id='item2'>two</item></section>" +
+      "</root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    // One addReference() call, so addAllReferences() matches both <item>
+    // elements from the same ref.xpath. Two separate calls, each with its own
+    // single-match xpath, would pass even without the fix.
+    sig.addReference({
+      xpath: "//*[local-name(.)='item']",
+      transforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const sigNode = xpath.select1(
+      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
+      doc,
+    );
+    isDomNode.assertIsNodeLike(sigNode);
+
+    const verifySig = new SignedXml();
+    verifySig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    verifySig.loadSignature(sigNode);
+    const result = verifySig.checkSignature(signedXml);
+    expect(result, "expected signature to verify successfully").to.be.true;
+  });
+
+  it("refuses to digest a non-element node passed to validateElementAgainstReferences", function () {
+    // `idAttributes` is public and mutable, so a JavaScript caller can empty it
+    // and reach the digest path with a node that never sees `getAttribute()`.
+    // Only elements carry namespace declarations, so this has to be refused
+    // outright rather than canonicalized into a digest nobody can interpret.
+    const xml = "<root><x Id='ref1'>hello</x></root>";
+    const sig = new SignedXml();
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      transforms: ["http://www.w3.org/TR/2001/REC-xml-c14n-20010315"],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      uri: "#ref1",
+    });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    sig.computeSignature(xml);
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const sigNode = xpath.select1("//*[local-name(.)='Signature']", doc);
+    isDomNode.assertIsNodeLike(sigNode);
+
+    const verifySig = new SignedXml();
+    verifySig.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    verifySig.loadSignature(sigNode);
+    verifySig.idAttributes = [];
+
+    const textNode = xpath.select1("//*[local-name(.)='x']/text()", doc);
+    expect(
+      /* eslint-disable-next-line deprecation/deprecation */
+      () => verifySig.validateElementAgainstReferences(textNode as unknown as Element, doc),
+      "a non-element must never be reported as covered by a validated reference",
+    ).to.throw();
+  });
+
+  for (const { label, transforms } of [
+    { label: "no transforms", transforms: undefined },
+    { label: "canonicalization alone", transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"] },
+  ]) {
+    it(`refuses to sign a reference that encloses the signature, given ${label}`, function () {
+      // The signature is appended into <root>, so this reference covers it, and
+      // nothing in the chain can take it back out. Signing would emit a digest
+      // over an unfinished Signature that can never be reproduced on verification.
+      const xml = "<root><x>hello</x></root>";
+      const sig = new SignedXml();
+      sig.privateKey = fs.readFileSync("./test/static/client.pem");
+      sig.addReference({
+        xpath: "/*",
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+        ...(transforms !== undefined ? { transforms } : {}),
+      });
+      sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+      sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+
+      expect(() => sig.computeSignature(xml)).to.throw(/enveloped-signature transform/);
+    });
+  }
+
+  for (const { label, declared } of [
+    { label: "omits removesNodes", declared: undefined },
+    { label: "declares a non-boolean removesNodes", declared: "false" },
+  ]) {
+    it(`refuses to sign with a registered algorithm that ${label}`, function () {
+      // Registering an algorithm is reachable from JavaScript, where the required
+      // type is no help. An undeclared value must not quietly skip the check on a
+      // reference that encloses the signature.
+      class UndeclaredAlgorithm {
+        process() {
+          return "<root></root>";
+        }
+        getAlgorithmName() {
+          return "http://Undeclared";
+        }
+      }
+      if (declared !== undefined) {
+        Object.assign(UndeclaredAlgorithm.prototype, { removesNodes: declared });
+      }
+
+      const sig = new SignedXml();
+      sig.CanonicalizationAlgorithms["http://Undeclared"] =
+        UndeclaredAlgorithm as unknown as new () => CanonicalizationOrTransformationAlgorithm;
+      sig.privateKey = fs.readFileSync("./test/static/client.pem");
+      sig.addReference({
+        xpath: "/*",
+        transforms: ["http://Undeclared"],
+        digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+      });
+      sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+      sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+
+      expect(() => sig.computeSignature("<root><x>hi</x></root>")).to.throw(
+        /must declare a boolean 'removesNodes'/,
+      );
+    });
+  }
+
+  it("validates a transform declaration wherever it sits in the chain", function () {
+    // The enclosing-reference check stops at the first transform that removes
+    // nodes, so an undeclared algorithm sitting after enveloped-signature must
+    // still be rejected rather than skipped.
+    class UndeclaredAlgorithm {
+      process(node: Node) {
+        return node;
+      }
+      getAlgorithmName() {
+        return "http://Undeclared";
+      }
+    }
+
+    const sig = new SignedXml();
+    sig.CanonicalizationAlgorithms["http://Undeclared"] =
+      UndeclaredAlgorithm as unknown as new () => CanonicalizationOrTransformationAlgorithm;
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference({
+      xpath: "/*",
+      transforms: ["http://www.w3.org/2000/09/xmldsig#enveloped-signature", "http://Undeclared"],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+
+    expect(() => sig.computeSignature("<root><x>hi</x></root>")).to.throw(
+      /must declare a boolean 'removesNodes'/,
+    );
+  });
+
+  it("refuses to verify with a registered algorithm that omits removesNodes", function () {
+    // The declaration is part of the contract on both sides, so a verifier whose
+    // own registry is misconfigured must refuse rather than canonicalize with an
+    // algorithm that never said what it does.
+    const custom = "http://Custom";
+    class DeclaredTransform {
+      removesNodes = false;
+      process(node: Node) {
+        return node.toString();
+      }
+      getAlgorithmName() {
+        return custom;
+      }
+    }
+    class UndeclaredTransform {
+      process(node: Node) {
+        return node.toString();
+      }
+      getAlgorithmName() {
+        return custom;
+      }
+    }
+    const register = (target: SignedXml, algorithm: unknown) => {
+      target.CanonicalizationAlgorithms[custom] =
+        algorithm as new () => CanonicalizationOrTransformationAlgorithm;
+    };
+
+    const sig = new SignedXml();
+    register(sig, DeclaredTransform);
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference({
+      xpath: "//*[local-name(.)='x']",
+      transforms: [custom],
+      digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
+    });
+    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
+    sig.signatureAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+    sig.computeSignature("<root><x Id='ref1'>hi</x></root>");
+    const signedXml = sig.getSignedXml();
+
+    const doc = new xmldom.DOMParser().parseFromString(signedXml);
+    const sigNode = xpath.select1("//*[local-name(.)='Signature']", doc);
+    isDomNode.assertIsNodeLike(sigNode);
+
+    // The document itself is sound: a correctly declared verifier accepts it.
+    const declaredVerifier = new SignedXml();
+    register(declaredVerifier, DeclaredTransform);
+    declaredVerifier.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    declaredVerifier.loadSignature(sigNode);
+    expect(declaredVerifier.checkSignature(signedXml), "document should be valid").to.be.true;
+
+    const undeclaredVerifier = new SignedXml();
+    register(undeclaredVerifier, UndeclaredTransform);
+    undeclaredVerifier.publicCert = fs.readFileSync("./test/static/client_public.pem");
+    undeclaredVerifier.loadSignature(sigNode);
+    expect(() => undeclaredVerifier.checkSignature(signedXml)).to.throw(
+      /must declare a boolean 'removesNodes'/,
+    );
+  });
+
+  it("signer appends signature to a non-existing reference node", function () {
+    const xml = "<root><name>xml-crypto</name><repository>github</repository></root>";
+    const sig = new SignedXml();
+
+    sig.privateKey = fs.readFileSync("./test/static/client.pem");
+    sig.addReference({
+      xpath: "//*[local-name(.)='repository']",
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
+      transforms: ["http://www.w3.org/2001/10/xml-exc-c14n#"],
+    });
+
+    try {
+      sig.computeSignature(xml, {
+        location: {
+          reference: "/root/foobar",
+          action: "append",
+        },
+      });
+      expect.fail("Expected an error to be thrown");
+    } catch (err) {
+      expect(err).not.to.be.an.instanceof(TypeError);
+    }
   });
 
   it("signer adds existing prefixes", function () {

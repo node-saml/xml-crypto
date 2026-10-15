@@ -324,6 +324,8 @@ describe("Signature integration tests", function () {
 
   describe("transforms that follow a canonicalization", function () {
     class DropNotes {
+      removesNodes = true;
+
       process(node: Node) {
         const notes = xpath.select(".//note", node);
         isDomNode.assertIsArrayOfNodes(notes);
@@ -337,6 +339,10 @@ describe("Signature integration tests", function () {
     }
 
     class ReverseSignaturesToString {
+      // Reorders existing signatures without dropping any node; enveloped-signature,
+      // applied after this in these tests, is what actually removes one.
+      removesNodes = false;
+
       process(node: Node) {
         const signatures = xpath.select("./*[local-name(.)='Signature']", node);
         isDomNode.assertIsArrayOfNodes(signatures);
@@ -510,6 +516,8 @@ describe("Signature integration tests", function () {
       // again, and the last one's PrefixList keeps it:
       // https://www.w3.org/TR/xmldsig-core1/#sec-Transforms
       class DeclareB {
+        removesNodes = false;
+
         process(node: Node) {
           (node as Element).setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:b", "urn:b");
           return node;
@@ -920,6 +928,9 @@ describe("Signature integration tests", function () {
     it("should remove comments before the first transform", function () {
       const transformInputs: string[] = [];
       class RecordInput {
+        // Returns the node-set it was given, unchanged.
+        removesNodes = false;
+
         process(node: Node) {
           transformInputs.push(node.toString());
           return node;
@@ -997,7 +1008,11 @@ describe("Signature integration tests", function () {
             });
             signer.addReference({
               xpath: reference,
-              transforms: detached ? [canonicalization] : [enveloped, canonicalization],
+              // A detached reference's digest is still computed before the signature is
+              // inserted, and the verified document never has one embedded either, so this
+              // transform is a no-op either way — included so a whole-document reference
+              // never has to special-case whether its signature ends up detached.
+              transforms: [enveloped, canonicalization],
               digestAlgorithm: "http://www.w3.org/2001/04/xmlenc#sha256",
             });
 

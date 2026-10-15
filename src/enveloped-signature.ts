@@ -9,6 +9,8 @@ import type {
 } from "./types";
 
 export class EnvelopedSignature implements CanonicalizationOrTransformationAlgorithm {
+  readonly removesNodes: boolean = true;
+
   protected includeComments = false;
 
   constructor() {

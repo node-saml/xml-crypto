@@ -611,12 +611,17 @@ export class SignedXml {
     };
   }
 
-  private getCanonReferenceXml(doc: Document, ref: Reference, node: Node) {
-    /**
-     * Search for ancestor namespaces before canonicalization.
-     */
-    if (Array.isArray(ref.transforms)) {
-      ref.ancestorNamespaces = utils.findAncestorNs(doc, ref.xpath, this.namespaceResolver);
+  private getCanonReferenceXml(ref: Reference, node: Node) {
+    // Derive the scope from the node being digested: findAncestorNs re-runs ref.xpath and
+    // keeps only the first match, which digests every reference addAllReferences() created
+    // from that xpath in the first match's scope. findAncestorNsForElement (above) already
+    // takes a known element instead, so reuse it here. Every call site establishes
+    // element-ness except validateReference's document-level-processing-instruction case,
+    // which passes the whole Document — one with no ancestor namespace scope of its own.
+    if (isDomNode.isElementNode(node)) {
+      ref.ancestorNamespaces = utils.findAncestorNsForElement(node);
+    } else {
+      isDomNode.assertIsDocumentNode(node);
     }
 
     const c14nOptions = {
@@ -693,7 +698,17 @@ export class SignedXml {
     if (name != null) {
       const algo = this.CanonicalizationAlgorithms[name];
       if (algo) {
-        return new algo();
+        const instance = new algo();
+        // Registering is reachable from JavaScript, where the required type buys
+        // nothing. Checking here covers every algorithm we instantiate, rather than
+        // only the ones a particular caller happens to look at.
+        if (typeof instance.removesNodes !== "boolean") {
+          throw new Error(
+            `canonicalization algorithm '${name}' must declare a boolean 'removesNodes'`,
+          );
+        }
+
+        return instance;
       }
     }
 
@@ -736,7 +751,7 @@ export class SignedXml {
         }
       }
 
-      const canonXml = this.getCanonReferenceXml(doc, ref, elem);
+      const canonXml = this.getCanonReferenceXml(ref, elem);
       const hash = this.findHashAlgorithm(ref.digestAlgorithm);
       const digest = hash.getHash(canonXml);
 
@@ -802,7 +817,7 @@ export class SignedXml {
       return undefined;
     }
 
-    const canonXml = this.getCanonReferenceXml(doc, ref, elem);
+    const canonXml = this.getCanonReferenceXml(ref, elem);
     const hash = this.findHashAlgorithm(ref.digestAlgorithm);
     const digest = hash.getHash(canonXml);
 
@@ -1043,13 +1058,9 @@ export class SignedXml {
       throw new Error("digestAlgorithm is required");
     }
 
-    if (!utils.isArrayHasLength(transforms)) {
-      throw new Error("transforms must contain at least one transform algorithm");
-    }
-
     this.references.push({
       xpath,
-      transforms,
+      transforms: transforms ?? [],
       digestAlgorithm,
       uri,
       digestValue,
@@ -1472,6 +1483,22 @@ export class SignedXml {
           );
         }
 
+        // The Signature is already in the document, and its SignatureValue is still
+        // empty, so digesting content that encloses it can never match on verification.
+        // https://www.w3.org/TR/xmldsig-core1/#sec-EnvelopedSignature
+        if (
+          utils.isDescendantOf(signatureElem, node) &&
+          ref.transforms
+            .map((transform) => this.findCanonicalizationAlgorithm(transform))
+            .every((algorithm) => !algorithm.removesNodes)
+        ) {
+          throw new Error(
+            `The reference ${ref.xpath} encloses the signature, so it requires the ` +
+              "http://www.w3.org/2000/09/xmldsig#enveloped-signature transform. " +
+              "Without it the signature cannot be verified.",
+          );
+        }
+
         // Compute the target URI (ID already ensured earlier, extract it)
         let targetUri: string;
         if (ref.isEmptyUri) {
@@ -1500,35 +1527,39 @@ export class SignedXml {
           referenceElem.setAttribute("Type", ref.type);
         }
 
-        const transformsElem = signatureDoc.createElementNS(
-          signatureNamespace,
-          `${currentPrefix}Transforms`,
-        );
-
-        for (const trans of ref.transforms || []) {
-          const transform = this.findCanonicalizationAlgorithm(trans);
-          const transformElem = signatureDoc.createElementNS(
+        if (utils.isArrayHasLength(ref.transforms)) {
+          const transformsElem = signatureDoc.createElementNS(
             signatureNamespace,
-            `${currentPrefix}Transform`,
+            `${currentPrefix}Transforms`,
           );
-          transformElem.setAttribute("Algorithm", transform.getAlgorithmName());
 
-          if (
-            utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList) &&
-            isExclusiveC14n(transform.getAlgorithmName())
-          ) {
-            const inclusiveNamespacesElem = signatureDoc.createElementNS(
-              exclusiveC14nNamespace,
-              "InclusiveNamespaces",
+          for (const trans of ref.transforms) {
+            const transform = this.findCanonicalizationAlgorithm(trans);
+            const transformElem = signatureDoc.createElementNS(
+              signatureNamespace,
+              `${currentPrefix}Transform`,
             );
-            inclusiveNamespacesElem.setAttribute(
-              "PrefixList",
-              ref.inclusiveNamespacesPrefixList.join(" "),
-            );
-            transformElem.appendChild(inclusiveNamespacesElem);
+            transformElem.setAttribute("Algorithm", transform.getAlgorithmName());
+
+            if (
+              utils.isArrayHasLength(ref.inclusiveNamespacesPrefixList) &&
+              isExclusiveC14n(transform.getAlgorithmName())
+            ) {
+              const inclusiveNamespacesElem = signatureDoc.createElementNS(
+                exclusiveC14nNamespace,
+                "InclusiveNamespaces",
+              );
+              inclusiveNamespacesElem.setAttribute(
+                "PrefixList",
+                ref.inclusiveNamespacesPrefixList.join(" "),
+              );
+              transformElem.appendChild(inclusiveNamespacesElem);
+            }
+
+            transformsElem.appendChild(transformElem);
           }
 
-          transformsElem.appendChild(transformElem);
+          referenceElem.appendChild(transformsElem);
         }
 
         const digestAlgorithm = this.findHashAlgorithm(ref.digestAlgorithm);
@@ -1545,7 +1576,6 @@ export class SignedXml {
         );
         digestValueElem.textContent = digestValue ?? this.calculateReferenceDigest(ref, node);
 
-        referenceElem.appendChild(transformsElem);
         referenceElem.appendChild(digestMethodElem);
         referenceElem.appendChild(digestValueElem);
 
@@ -1656,6 +1686,9 @@ export class SignedXml {
 
     // Octets are parsed into a node-set for the next transform, and a node-set left at the end is
     // converted to octets with C14N: https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
+    // (When transforms is empty this loop simply doesn't run, and the isNodeLike check
+    // below applies plain C14N to the untransformed node-set — exactly the SMPTE-required
+    // no-transforms case, so no separate empty-transforms branch is needed here.)
     for (const [index, transformName] of transforms.entries()) {
       if (!isDomNode.isNodeLike(transformedXml)) {
         transformedXml = this.parseTransformInput(transformedXml, transformName, preserveDocument);
@@ -1687,12 +1720,21 @@ export class SignedXml {
       );
     }
 
+    if (typeof transformedXml === "string") {
+      return transformedXml;
+    }
+
     if (isDomNode.isNodeLike(transformedXml)) {
       transformedXml = this.findCanonicalizationAlgorithm(
         "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
       ).process(transformedXml, transformOptions);
     }
 
+    // No separate empty-transforms case needed here: the isNodeLike check above already
+    // applies C14N to any remaining node-set, which is exactly what happens when
+    // effectiveTransforms is empty (the for loop above never ran) — the SMPTE-required
+    // no-transforms case is just the simplest instance of the same general rule upstream
+    // already enforces for "a node-set left at the end of the transforms" (see #581).
     return transformedXml.toString();
   }
 
