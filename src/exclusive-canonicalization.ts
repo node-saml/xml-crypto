@@ -27,33 +27,17 @@ export class ExclusiveCanonicalization implements CanonicalizationOrTransformati
     this.includeComments = false;
   }
 
+  // Attributes sort by namespace URI, then local name; namespace nodes by prefix. Both compare
+  // by code point. https://www.w3.org/TR/xml-c14n#DocumentOrder
   attrCompare(a, b) {
-    if (!a.namespaceURI && b.namespaceURI) {
-      return -1;
-    }
-    if (!b.namespaceURI && a.namespaceURI) {
-      return 1;
-    }
-
-    const left = a.namespaceURI + a.localName;
-    const right = b.namespaceURI + b.localName;
-
-    if (left === right) {
-      return 0;
-    } else if (left < right) {
-      return -1;
-    } else {
-      return 1;
-    }
+    return (
+      utils.compareByCodePoint(a.namespaceURI || "", b.namespaceURI || "") ||
+      utils.compareByCodePoint(a.localName, b.localName)
+    );
   }
 
   nsCompare(a, b) {
-    const attr1 = a.prefix;
-    const attr2 = b.prefix;
-    if (attr1 === attr2) {
-      return 0;
-    }
-    return attr1.localeCompare(attr2);
+    return utils.compareByCodePoint(a.prefix || "", b.prefix || "");
   }
 
   renderAttrs(node) {

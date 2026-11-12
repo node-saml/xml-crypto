@@ -95,6 +95,19 @@ export function encodeSpecialCharactersInText(text: string): string {
   });
 }
 
+export function compareByCodePoint(left: string, right: string): number {
+  let i = 0;
+  while (i < left.length && i < right.length) {
+    const leftCodePoint = left.codePointAt(i) as number;
+    const rightCodePoint = right.codePointAt(i) as number;
+    if (leftCodePoint !== rightCodePoint) {
+      return leftCodePoint - rightCodePoint;
+    }
+    i += leftCodePoint > 0xffff ? 2 : 1;
+  }
+  return left.length - right.length;
+}
+
 export function renderProcessingInstruction(node: ProcessingInstruction): string {
   const data = node.data ? ` ${node.data}` : "";
   return `<?${node.target}${data}?>`;
