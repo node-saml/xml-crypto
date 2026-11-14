@@ -56,12 +56,14 @@ export class RsaSha256 implements SignatureAlgorithm {
 export class EcdsaSha256 implements SignatureAlgorithm {
   getSignature = createOptionalCallbackFunction(
     (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
-      // Maybe the fix for ts-ignore below?
-      // const parsedPrivateKey = crypto.createPrivateKey(privateKey);
+      // @ts-ignore
+      const parsedPrivateKey = crypto.createPrivateKey(privateKey);
+      if (parsedPrivateKey.asymmetricKeyType != 'ec') {
+        throw new Error(`Private key type ${parsedPrivateKey.asymmetricKeyType} does not match provided algorithm`)
+      }
       const signer = crypto.createSign("SHA256");
       signer.update(signedInfo);
-      // @ts-ignore
-      const res = signer.sign({ key: privateKey, dsaEncoding: 'ieee-p1363' }, "base64");
+      const res = signer.sign({ key: parsedPrivateKey, dsaEncoding: "ieee-p1363" }, "base64");
 
       return res;
     },
@@ -70,6 +72,9 @@ export class EcdsaSha256 implements SignatureAlgorithm {
   verifySignature = createOptionalCallbackFunction(
     (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
       const publicKey = crypto.createPublicKey(key);
+      if (publicKey.asymmetricKeyType != 'ec') {
+        throw new Error(`Private key type ${publicKey.asymmetricKeyType} does not match provided algorithm`)
+      }
       const verifier = crypto.createVerify("SHA256");
       verifier.update(material);
       const res = verifier.verify({ key: publicKey, dsaEncoding: 'ieee-p1363' }, signatureValue, "base64");
@@ -159,12 +164,14 @@ export class RsaSha512 implements SignatureAlgorithm {
 export class EcdsaSha512 implements SignatureAlgorithm {
   getSignature = createOptionalCallbackFunction(
     (signedInfo: crypto.BinaryLike, privateKey: crypto.KeyLike): string => {
-      // Maybe the fix for ts-ignore below?
-      // const parsedPrivateKey = crypto.createPrivateKey(privateKey);
+      // @ts-ignore
+      const parsedPrivateKey = crypto.createPrivateKey(privateKey);
+      if (parsedPrivateKey.asymmetricKeyType != 'ec') {
+        throw new Error(`Private key type ${parsedPrivateKey.asymmetricKeyType} does not match provided algorithm`)
+      }
       const signer = crypto.createSign("SHA512");
       signer.update(signedInfo);
-      // @ts-ignore
-      const res = signer.sign({ key: privateKey, dsaEncoding: 'ieee-p1363' }, "base64");
+      const res = signer.sign({ key: parsedPrivateKey, dsaEncoding: "ieee-p1363" }, "base64");
 
       return res;
     },
@@ -173,6 +180,9 @@ export class EcdsaSha512 implements SignatureAlgorithm {
   verifySignature = createOptionalCallbackFunction(
     (material: string, key: crypto.KeyLike, signatureValue: string): boolean => {
       const publicKey = crypto.createPublicKey(key);
+      if (publicKey.asymmetricKeyType != 'ec') {
+        throw new Error(`Private key type ${publicKey.asymmetricKeyType} does not match provided algorithm`)
+      }
       const verifier = crypto.createVerify("SHA512");
       verifier.update(material);
       const res = verifier.verify({ key: publicKey, dsaEncoding: 'ieee-p1363' }, signatureValue, "base64");
