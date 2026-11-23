@@ -114,7 +114,11 @@ export interface CanonicalizationOrTransformationAlgorithmProcessOptions {
 }
 
 export interface ComputeSignatureOptionsLocation {
-  reference?: string;
+  /**
+   * An XPath expression, or a function given the parsed document being signed, that selects the
+   * node to place the signature relative to. Defaults to `/*`.
+   */
+  reference?: string | ((doc: Document) => Node | null);
   action?: "append" | "prepend" | "before" | "after";
 }
 
@@ -123,10 +127,10 @@ export interface ComputeSignatureOptionsLocation {
  *
  * - `prefix` {String} Adds a prefix for the generated signature tags
  * - `attrs` {Object} A hash of attributes and values `attrName: value` to add to the signature root node
- * - `location` {{ reference: String, action: String }}
+ * - `location` {{ reference: String | Function, action: String }}
  * - `existingPrefixes` {Object} A hash of prefixes and namespaces `prefix: namespace` already in the xml
  *   An object with a `reference` key which should
- *   contain a XPath expression, an `action` key which
+ *   contain a XPath expression or a function that returns a node, an `action` key which
  *   should contain one of the following values:
  *   `append`, `prepend`, `before`, `after`
  */
@@ -143,6 +147,13 @@ export interface ComputeSignatureOptions {
 export interface Reference {
   // The XPath expression that selects the data to be signed.
   xpath?: string;
+
+  /**
+   * Selects the elements to be signed, instead of `xpath`. It is given the parsed document being
+   * signed, and is called again after the signature is inserted to find content in its `Object`
+   * elements when nothing in the input matched.
+   */
+  select?: (doc: Document) => Element[];
 
   // An array of transforms to be applied to the data before signing.
   transforms: ReadonlyArray<CanonicalizationOrTransformAlgorithmType>;

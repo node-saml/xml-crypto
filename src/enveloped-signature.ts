@@ -1,6 +1,4 @@
-import * as xpath from "xpath";
-import * as isDomNode from "@xmldom/is-dom-node";
-import { isDescendantOf } from "./utils";
+import { isDescendantOf, isSignatureElement } from "./utils";
 
 import type {
   CanonicalizationOrTransformationAlgorithm,
@@ -17,11 +15,8 @@ export class EnvelopedSignature implements CanonicalizationOrTransformationAlgor
 
   process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions): Node {
     if (null == options.signatureNode) {
-      const signature = xpath.select1(
-        "./*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-        node,
-      );
-      if (isDomNode.isNodeLike(signature) && signature.parentNode) {
+      const signature = Array.from(node.childNodes).find(isSignatureElement);
+      if (signature?.parentNode) {
         signature.parentNode.removeChild(signature);
       }
       return node;
