@@ -87,6 +87,11 @@ describe("DOM selection matches the XPath it replaces", function () {
     expect(doc.documentElement.childNodes).to.have.length(0);
   });
 
+  it("enveloped-signature leaves a node without children unchanged", function () {
+    const text = new xmldom.DOMParser().parseFromString("<a/>").createTextNode("x");
+    expect(new EnvelopedSignature().process(text, {})).to.equal(text);
+  });
+
   it("getCertFromKeyInfo takes the first X509Certificate in any namespace", function () {
     const pem = fs.readFileSync("./test/static/client_public.pem", "latin1");
     const base64 = pem.replace(/-----[^-]+-----|\s/g, "");

@@ -15,7 +15,7 @@ export class EnvelopedSignature implements CanonicalizationOrTransformationAlgor
 
   process(node: Node, options: CanonicalizationOrTransformationAlgorithmProcessOptions): Node {
     if (null == options.signatureNode) {
-      const signature = Array.from(node.childNodes).find(isSignatureElement);
+      const signature = Array.from(node.childNodes ?? []).find(isSignatureElement);
       if (signature?.parentNode) {
         signature.parentNode.removeChild(signature);
       }
