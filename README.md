@@ -415,8 +415,9 @@ A `SignedXml` object provides the following methods:
 
 To sign xml documents:
 
-- `addReference({ xpath, transforms, digestAlgorithm, id, type, isEmptyUri, inclusiveNamespacesPrefixList })` - adds a reference to a xml element where:
+- `addReference({ xpath, select, transforms, digestAlgorithm, id, type, isEmptyUri, inclusiveNamespacesPrefixList })` - adds a reference to a xml element where:
   - `xpath` - a string containing a XPath expression referencing a xml element
+  - `select` - instead of `xpath`, a function that is given the parsed document being signed and returns an array of the elements to reference. When none of them is in the input, it is called again after the signature is inserted, to find content in the signature's `Object` elements. Pass either `xpath` or `select`, not both
   - `transforms` - an array of [transform algorithms](#canonicalization-and-transformation-algorithms), the referenced element will be transformed for each value in the array
   - `digestAlgorithm` - one of the supported [hashing algorithms](#hashing-algorithms)
   - `id` - an optional `Id` attribute to add to the reference element
@@ -428,7 +429,7 @@ To sign xml documents:
   - `options` - an object with the following properties:
     - `prefix` - adds this value as a prefix for the generated signature tags
     - `attrs` - a hash of attributes and values `attrName: value` to add to the signature root node
-    - `location` - customize the location of the signature, pass an object with a `reference` key which should contain a XPath expression to a reference node, an `action` key which should contain one of the following values: `append`, `prepend`, `before`, `after`
+    - `location` - customize the location of the signature, pass an object with a `reference` key which should contain a XPath expression to a reference node (or a function that is given the parsed document being signed and returns that node), an `action` key which should contain one of the following values: `append`, `prepend`, `before`, `after`
     - `existingPrefixes` - A hash of prefixes and namespaces `prefix: namespace` that shouldn't be in the signature because they already exist in the xml
 - `computeSignatureAsync(xml, [options])` - `computeSignature` for a signature algorithm that signs asynchronously; returns a promise for the `SignedXml` instance. See [Asynchronous signing and verification](#asynchronous-signing-and-verification)
 - `getSignedXml()` - returns the original xml document with the signature in it, **must be called only after `computeSignature`**
@@ -855,8 +856,9 @@ sig.computeSignature(xml, {
 ### how to specify the location of the signature
 
 Use the `location` option when calling `computeSignature` to move the signature around. Set
-`reference` to an XPath expression that selects a node (default `/*`, the document element), and
-`action` to one of the following:
+`reference` to an XPath expression that selects a node (default `/*`, the document element), or to
+a function that is given the parsed document and returns that node, and `action` to one of the
+following:
 
 - `append` (default) - insert the signature as the last child of the `reference` node
 - `prepend` - insert the signature as the first child of the `reference` node

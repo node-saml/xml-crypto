@@ -33,6 +33,43 @@ export function findAttr(element: Element, localName: string, namespace?: string
   return null;
 }
 
+/**
+ * Returns the name XPath's `local-name()` gives a node.
+ */
+export function localNameOf(node: Node): string {
+  return (node as Element | Attr).localName || node.nodeName;
+}
+
+/**
+ * Returns the descendants of `node` in document order, like XPath's `descendant` axis. It walks
+ * an explicit stack, so a deeply nested document cannot overflow the call stack.
+ */
+export function findDescendants(node: Node): Node[] {
+  const descendants: Node[] = [];
+  const stack: Node[] = [];
+  for (let child = node.lastChild; child != null; child = child.previousSibling) {
+    stack.push(child);
+  }
+  for (let current = stack.pop(); current != null; current = stack.pop()) {
+    descendants.push(current);
+    for (let child = current.lastChild; child != null; child = child.previousSibling) {
+      stack.push(child);
+    }
+  }
+  return descendants;
+}
+
+/**
+ * Whether `node` is an XML-DSig `Signature` element.
+ */
+export function isSignatureElement(node: Node): node is Element {
+  return (
+    isDomNode.isElementNode(node) &&
+    localNameOf(node) === "Signature" &&
+    node.namespaceURI === "http://www.w3.org/2000/09/xmldsig#"
+  );
+}
+
 export function findChildren(node: Node | Document, localName: string, namespace?: string) {
   const element = (node as Document).documentElement ?? node;
   const res: Element[] = [];
@@ -608,17 +645,23 @@ export function findAncestorNsForElement(node: Element): NamespacePrefix[] {
  * which is being canonicalized for non-exclusive c14n.
  *
  * @param doc - Usually a product from `new xmldom.DOMParser().parseFromString()`
- * @param docSubsetXpath - xpath query to get document subset being canonicalized
+ * @param docSubsetXpath - xpath query to get document subset being canonicalized, or the element
+ *   at the root of that subset
  * @param namespaceResolver - xpath namespace resolver
  * @returns i.e. [{prefix: "saml", namespaceURI: "urn:oasis:names:tc:SAML:2.0:assertion"}]
  */
 export function findAncestorNs(
   doc: Document,
-  docSubsetXpath?: string,
+  docSubsetXpath?: string | Element,
   namespaceResolver?: XPathNSResolver,
 ): NamespacePrefix[] {
   if (docSubsetXpath == null) {
     return [];
+  }
+
+  if (typeof docSubsetXpath !== "string") {
+    isDomNode.assertIsElementNode(docSubsetXpath);
+    return findAncestorNsForElement(docSubsetXpath);
   }
 
   const docSubset = xpath.selectWithResolver(docSubsetXpath, doc, namespaceResolver);

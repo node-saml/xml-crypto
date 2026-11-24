@@ -34,12 +34,39 @@ type C14nOptionsWithXmlAttributes = CanonicalizationOrTransformationAlgorithmPro
 };
 
 function findSignatureElements(node: Node): Element[] {
-  const signatures = xpath.select(
-    ".//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-    node,
-  );
-  isDomNode.assertIsArrayOfNodes(signatures);
-  return signatures.filter(isDomNode.isElementNode);
+  return utils.findDescendants(node).filter(utils.isSignatureElement);
+}
+
+// An absolute XPath location path starts from the document, even for a detached node.
+function findRoot(node: Node): Node {
+  if (isDomNode.isDocumentNode(node)) {
+    return node;
+  }
+  if (node.ownerDocument != null) {
+    return node.ownerDocument;
+  }
+  let root = node;
+  while (root.parentNode != null) {
+    root = root.parentNode;
+  }
+  return root;
+}
+
+// The first `Algorithm` attribute without a namespace, on any descendant named `localName`. The
+// name is matched case-insensitively, as xpath did: xmldom reports the HTML feature, so xpath treats
+// every xmldom document as HTML.
+function findAlgorithmAttribute(node: Node, localName: string): Attr | undefined {
+  for (const descendant of utils.findDescendants(node)) {
+    if (isDomNode.isElementNode(descendant) && utils.localNameOf(descendant) === localName) {
+      const algorithm = Array.from(descendant.attributes).find(
+        (attr) => !attr.namespaceURI && utils.localNameOf(attr).toLowerCase() === "algorithm",
+      );
+      if (algorithm != null) {
+        return algorithm;
+      }
+    }
+  }
+  return undefined;
 }
 
 // SignatureValue is base64Binary, so whitespace in it carries no value:
@@ -337,8 +364,13 @@ export class SignedXml {
    */
   static getCertFromKeyInfo(keyInfo?: Node | null): string | null {
     if (keyInfo != null) {
-      const cert = xpath.select1(".//*[local-name(.)='X509Certificate']", keyInfo);
-      if (isDomNode.isElementNode(cert)) {
+      const cert = utils
+        .findDescendants(keyInfo)
+        .find(
+          (node): node is Element =>
+            isDomNode.isElementNode(node) && utils.localNameOf(node) === "X509Certificate",
+        );
+      if (cert != null) {
         return utils.toPem(cert.textContent, "CERTIFICATE");
       }
     }
@@ -611,12 +643,17 @@ export class SignedXml {
     };
   }
 
-  private getCanonReferenceXml(doc: Document, ref: Reference, node: Node) {
+  private getCanonReferenceXml(
+    doc: Document,
+    ref: Reference,
+    node: Node,
+    docSubset: string | Element | undefined,
+  ) {
     /**
      * Search for ancestor namespaces before canonicalization.
      */
     if (Array.isArray(ref.transforms)) {
-      ref.ancestorNamespaces = utils.findAncestorNs(doc, ref.xpath, this.namespaceResolver);
+      ref.ancestorNamespaces = utils.findAncestorNs(doc, docSubset, this.namespaceResolver);
     }
 
     const c14nOptions = {
@@ -736,7 +773,7 @@ export class SignedXml {
         }
       }
 
-      const canonXml = this.getCanonReferenceXml(doc, ref, elem);
+      const canonXml = this.getCanonReferenceXml(doc, ref, elem, ref.xpath);
       const hash = this.findHashAlgorithm(ref.digestAlgorithm);
       const digest = hash.getHash(canonXml);
 
@@ -750,7 +787,7 @@ export class SignedXml {
 
   private validateReference(ref: Reference, doc: Document): string | undefined {
     const uri = ref.uri?.[0] === "#" ? ref.uri.substring(1) : ref.uri;
-    let elem: xpath.SelectSingleReturnType = null;
+    let elem: Node | null = null;
 
     // Only an empty URI and a fragment are same-document references:
     // https://www.w3.org/TR/xmldsig-core1/#sec-ReferenceProcessingModel
@@ -759,15 +796,21 @@ export class SignedXml {
     }
 
     if (uri === "") {
-      elem = utils.hasDocumentLevelProcessingInstruction(doc) ? doc : xpath.select1("//*", doc);
+      elem = utils.hasDocumentLevelProcessingInstruction(doc) ? doc : doc.documentElement;
     } else if (uri?.indexOf("'") !== -1) {
       // xpath injection
       throw new Error("Cannot validate a uri with quotes inside it");
     } else {
       let num_elements_for_id = 0;
+      const elements = utils.findDescendants(doc).filter(isDomNode.isElementNode);
       for (const attr of this.idAttributes) {
         const tmp_elemXpath = `//*[@*[local-name(.)='${attr}']='${uri}']`;
-        const tmp_elem = xpath.select(tmp_elemXpath, doc);
+        // Same match as tmp_elemXpath: an attribute of that local name, in any namespace.
+        const tmp_elem = elements.filter((element) =>
+          Array.from(element.attributes).some(
+            (attribute) => utils.localNameOf(attribute) === attr && attribute.value === uri,
+          ),
+        );
         if (utils.isArrayHasLength(tmp_elem)) {
           num_elements_for_id += tmp_elem.length;
 
@@ -802,7 +845,9 @@ export class SignedXml {
       return undefined;
     }
 
-    const canonXml = this.getCanonReferenceXml(doc, ref, elem);
+    // An ID match is the only element its generated ref.xpath selects, so no need to evaluate it.
+    const docSubset = uri === "" || !isDomNode.isElementNode(elem) ? ref.xpath : elem;
+    const canonXml = this.getCanonReferenceXml(doc, ref, elem, docSubset);
     const hash = this.findHashAlgorithm(ref.digestAlgorithm);
     const digest = hash.getHash(canonXml);
 
@@ -819,12 +864,7 @@ export class SignedXml {
   }
 
   findSignatures(doc: Node): Node[] {
-    const nodes = xpath.select(
-      "//*[local-name(.)='Signature' and namespace-uri(.)='http://www.w3.org/2000/09/xmldsig#']",
-      doc,
-    );
-
-    return isDomNode.isArrayOfNodes(nodes) ? nodes : [];
+    return findSignatureElements(findRoot(doc));
   }
 
   /**
@@ -841,24 +881,14 @@ export class SignedXml {
 
     this.signatureXml = signatureNode.toString();
 
-    const node = xpath.select1(
-      ".//*[local-name(.)='CanonicalizationMethod']/@Algorithm",
-      signatureNode,
-    );
-    if (!isDomNode.isNodeLike(node)) {
+    const node = findAlgorithmAttribute(signatureNode, "CanonicalizationMethod");
+    if (node == null) {
       throw new Error("could not find CanonicalizationMethod/@Algorithm element");
     }
+    this.canonicalizationAlgorithm = node.value as CanonicalizationAlgorithmType;
 
-    if (isDomNode.isAttributeNode(node)) {
-      this.canonicalizationAlgorithm = node.value as CanonicalizationAlgorithmType;
-    }
-
-    const signatureAlgorithm = xpath.select1(
-      ".//*[local-name(.)='SignatureMethod']/@Algorithm",
-      signatureNode,
-    );
-
-    if (isDomNode.isAttributeNode(signatureAlgorithm)) {
+    const signatureAlgorithm = findAlgorithmAttribute(signatureNode, "SignatureMethod");
+    if (signatureAlgorithm != null) {
       this.signatureAlgorithm = signatureAlgorithm.value as SignatureAlgorithmType;
     }
 
@@ -1019,6 +1049,7 @@ export class SignedXml {
    * Adds a reference to the signature.
    *
    * @param xpath The XPath expression to select the XML nodes to be referenced.
+   * @param select A function that selects the XML elements to be referenced, instead of `xpath`.
    * @param transforms An array of transform algorithms to be applied to the selected nodes.
    * @param digestAlgorithm The digest algorithm to use for computing the digest value.
    * @param uri The URI identifier for the reference. If empty, an empty URI will be used.
@@ -1030,6 +1061,7 @@ export class SignedXml {
    */
   addReference({
     xpath,
+    select,
     transforms,
     digestAlgorithm,
     uri = "",
@@ -1047,8 +1079,13 @@ export class SignedXml {
       throw new Error("transforms must contain at least one transform algorithm");
     }
 
+    if (xpath != null && select != null) {
+      throw new Error("a reference takes either xpath or select, not both");
+    }
+
     this.references.push({
       xpath,
+      select,
       transforms,
       digestAlgorithm,
       uri,
@@ -1247,8 +1284,7 @@ export class SignedXml {
 
     const referenceTargets = new Map<Reference, SigningReferenceTarget[]>();
     for (const ref of this.getReferences()) {
-      const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
-      isDomNode.assertIsArrayOfNodes(nodes);
+      const nodes = this.selectReferenceNodes(ref, doc);
       const targets = nodes.map((node) => {
         isDomNode.assertIsElementNode(node);
         return { node };
@@ -1299,11 +1335,16 @@ export class SignedXml {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const signatureElem = nodeXml.documentElement.firstChild! as Element;
 
-    const referenceNode = xpath.select1(location.reference, doc);
+    const referenceNode =
+      typeof location.reference === "function"
+        ? location.reference(doc)
+        : xpath.select1(location.reference, doc);
 
     if (!isDomNode.isNodeLike(referenceNode)) {
       const err2 = new Error(
-        `the following xpath cannot be used because it was not found: ${location.reference}`,
+        typeof location.reference === "function"
+          ? "the location.reference function did not return a node"
+          : `the following xpath cannot be used because it was not found: ${location.reference}`,
       );
       if (!callback) {
         throw err2;
@@ -1407,14 +1448,21 @@ export class SignedXml {
     return this.findHashAlgorithm(ref.digestAlgorithm).getHash(canonXml);
   }
 
+  private selectReferenceNodes(ref: Reference, doc: Document): Node[] {
+    const nodes =
+      ref.select != null
+        ? ref.select(doc)
+        : xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
+    isDomNode.assertIsArrayOfNodes(nodes);
+    return nodes;
+  }
+
   private findSignatureContentTargets(
     ref: Reference,
     doc: Document,
     signatureElem: Element,
   ): SigningReferenceTarget[] {
-    const nodes = xpath.selectWithResolver(ref.xpath ?? "", doc, this.namespaceResolver);
-    isDomNode.assertIsArrayOfNodes(nodes);
-    return nodes
+    return this.selectReferenceNodes(ref, doc)
       .filter((node) => node === signatureElem || utils.isDescendantOf(node, signatureElem))
       .map((node) => {
         isDomNode.assertIsElementNode(node);
@@ -1436,7 +1484,9 @@ export class SignedXml {
     const signatureNamespace = "http://www.w3.org/2000/09/xmldsig#";
 
     // Find the SignedInfo element to append to
-    const signedInfoNode = xpath.select1(`./*[local-name(.)='SignedInfo']`, signatureElem);
+    const signedInfoNode = Array.from(signatureElem.childNodes).find(
+      (node) => isDomNode.isElementNode(node) && utils.localNameOf(node) === "SignedInfo",
+    );
     isDomNode.assertIsElementNode(signedInfoNode); // Type-safe assertion
 
     // Signature document is technically the same document as the one we are signing,
@@ -1456,7 +1506,9 @@ export class SignedXml {
 
       if (!utils.isArrayHasLength(targets)) {
         throw new Error(
-          `the following xpath cannot be signed because it was not found: ${ref.xpath}`,
+          ref.select != null
+            ? "the reference's select function found nothing to sign"
+            : `the following xpath cannot be signed because it was not found: ${ref.xpath}`,
         );
       }
 
@@ -1468,7 +1520,7 @@ export class SignedXml {
           utils.isDescendantOf(node, signedInfoNode)
         ) {
           throw new Error(
-            `Cannot sign a reference to the Signature or SignedInfo element itself: ${ref.xpath}`,
+            `Cannot sign a reference to the Signature or SignedInfo element itself: ${ref.xpath ?? "select"}`,
           );
         }
 
@@ -1646,8 +1698,7 @@ export class SignedXml {
       }
     }
     if (discardComments) {
-      const comments = xpath.select(".//comment()", canonXml);
-      isDomNode.assertIsArrayOfNodes(comments);
+      const comments = utils.findDescendants(canonXml).filter(isDomNode.isCommentNode);
       comments.forEach((comment) => comment.parentNode?.removeChild(comment));
     }
     let transformedXml: Node | string = canonXml;
